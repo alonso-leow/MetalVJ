@@ -2094,20 +2094,29 @@ pub const SIGNAL_FLOATS_BLOCK: Block = Block::Floats(SIGNAL_FLOATS);
 /// [`EFFECTS_WIDTH`] there is no colour slot in it — see `sig_hue`.
 pub const SIGNAL_WIDTH: usize = SIGNAL_FLOATS.len();
 
+/// Every width the signal block has ever had, oldest first. Appending floats
+/// to the signal block adds exactly one entry to the end of this list and
+/// touches nothing else: both migrations derive their gap arithmetic from it,
+/// so they cannot disagree about how many historical shapes exist.
+///
+/// The last entry is the current [`SIGNAL_WIDTH`]; every earlier one is the
+/// width a row saved before one of the appends still has.
+pub const SIGNAL_WIDTHS: &[usize] = &[8, 13, SIGNAL_WIDTH];
+
 /// The signal block's width **before** the BLE Phase B floats (`sig_cct`,
 /// `sig_zoom`, `sig_focus`, `sig_iris`, `sig_frost`) were appended. A saved
 /// row written before that append has this many signal floats, and reading it
 /// with the current [`read_signal`] would start five floats too early — into
 /// the model's own block, which is exactly the "stays in range and shows the
 /// wrong thing" failure this crate's signal doc warns about.
-pub const SIGNAL_WIDTH_BEFORE_BLE: usize = 8;
+pub const SIGNAL_WIDTH_BEFORE_BLE: usize = SIGNAL_WIDTHS[0];
 
 /// How many floats the BLE Phase B append and every append after it added to
 /// every row.
 pub const SIGNAL_FLOATS_ADDED: usize = SIGNAL_WIDTH - SIGNAL_WIDTH_BEFORE_BLE;
 
 /// The signal block's width before the palette-motion floats (`col_*`).
-pub const SIGNAL_WIDTH_BEFORE_COLOUR: usize = 13;
+pub const SIGNAL_WIDTH_BEFORE_COLOUR: usize = SIGNAL_WIDTHS[1];
 
 /// Rewrites a row saved before the BLE Phase B signal append into the current
 /// row shape, **in place**. Returns `true` when it migrated something.
@@ -2129,8 +2138,10 @@ pub const SIGNAL_WIDTH_BEFORE_COLOUR: usize = 13;
 pub fn migrate_signal_row(row: &mut Vec<f32>, schema_width: usize) -> bool {
     // A row from before any append is short by the floats added since: the
     // BLE ones and the palette motion (pre-BLE), or the palette motion alone.
-    let from = [SIGNAL_WIDTH_BEFORE_BLE, SIGNAL_WIDTH_BEFORE_COLOUR]
-        .into_iter()
+    // Every historical width but the last (the current one) is a candidate.
+    let from = SIGNAL_WIDTHS[..SIGNAL_WIDTHS.len() - 1]
+        .iter()
+        .copied()
         .find(|w| row.len() == schema_width.saturating_sub(SIGNAL_WIDTH - w));
     let Some(from) = from else {
         return false;
@@ -2159,7 +2170,14 @@ pub fn migrate_signal_row(row: &mut Vec<f32>, schema_width: usize) -> bool {
 /// [`migrate_row`] can then fix the signal block. Like [`migrate_signal_row`]
 /// it only acts on a length it can account for exactly.
 pub fn migrate_effects_row(row: &mut Vec<f32>, schema_width: usize) -> bool {
-    let signal_gaps = [0, SIGNAL_WIDTH - SIGNAL_WIDTH_BEFORE_BLE, SIGNAL_WIDTH - SIGNAL_WIDTH_BEFORE_COLOUR];
+    // One gap per historical signal shape (`w` floats short of today's), plus
+    // `0` for a row already at the current width — both derived from the one
+    // list so this cannot drift from `migrate_signal_row`.
+    let signal_gaps: Vec<usize> = SIGNAL_WIDTHS
+        .iter()
+        .map(|w| SIGNAL_WIDTH - w)
+        .chain(std::iter::once(0))
+        .collect();
     // `j` = how many of the newest late groups the row lacks.
     for j in 1..=LATE_ROW_GROUPS.len() {
         let missing: Vec<f32> = LATE_ROW_GROUPS[LATE_ROW_GROUPS.len() - j..]
@@ -2167,7 +2185,7 @@ pub fn migrate_effects_row(row: &mut Vec<f32>, schema_width: usize) -> bool {
             .filter_map(|id| row_tail_floats(id))
             .flat_map(|f| f.iter().map(|s| s.default))
             .collect();
-        for gap in signal_gaps {
+        for gap in &signal_gaps {
             if row.len() + missing.len() + gap == schema_width && row.len() >= 12 {
                 let at = row.len() - 12;
                 row.splice(at..at, missing);
@@ -3031,6 +3049,45 @@ mod tests {
         assert_eq!(read_signal(&old).b, 100.0 + (SIGNAL_WIDTH_BEFORE_BLE - 1) as f32);
         assert_eq!(read_post(&old).shake, 200.0);
         assert_eq!(read_post(&old).leak_color, vec![0.5; 12]);
+    }
+
+    /// The guard that makes the next signal append safe: the one width list is
+    /// ordered, ends at today's width, and a row of **every** historical shape
+    /// it names is migrated back to exactly `schema_width` by [`migrate_row`].
+    /// Appending a float without adding its entry to `SIGNAL_WIDTHS` fails
+    /// here, in the schema, instead of silently sending an old saved row to
+    /// the wire five columns early.
+    #[test]
+    fn every_historical_signal_width_migrates_to_the_current_one() {
+        // One list, oldest first ...
+        assert!(SIGNAL_WIDTHS.windows(2).all(|w| w[0] < w[1]), "{SIGNAL_WIDTHS:?} is strictly increasing");
+        assert_eq!(SIGNAL_WIDTHS.last().copied(), Some(SIGNAL_WIDTH), "the last entry is today's width");
+
+        let schema_width = 6 + SIGNAL_WIDTH + EFFECTS_FLOATS.len() + 12;
+        for &w in &SIGNAL_WIDTHS[..SIGNAL_WIDTHS.len() - 1] {
+            // The same shape the migration tests above build: own floats, the
+            // signal block at its old width with recognisable values, the
+            // current effects, the trailing colour slot.
+            let mut old = vec![7.0f32; 6];
+            old.extend((0..w).map(|i| 100.0 + i as f32));
+            old.extend((0..EFFECTS_FLOATS.len()).map(|i| 200.0 + i as f32));
+            old.extend([0.5f32; 12]);
+            assert_eq!(
+                old.len(),
+                schema_width - (SIGNAL_WIDTH - w),
+                "a width-{w} row is short by the floats appended since"
+            );
+
+            assert!(migrate_row(&mut old, schema_width), "a width-{w} signal row must migrate");
+            assert_eq!(old.len(), schema_width, "a width-{w} signal row migrates to today's width");
+            assert_eq!(&old[..6], &[7.0; 6], "a width-{w} row keeps the model's own floats");
+            let sig = read_signal(&old);
+            assert_eq!(sig.level, 100.0, "a width-{w} row keeps its signal block in place");
+            assert_eq!(sig.b, 100.0 + (w.min(SIGNAL_WIDTH_BEFORE_BLE) - 1) as f32);
+            let post = read_post(&old);
+            assert_eq!(post.shake, 200.0, "a width-{w} row keeps its effects");
+            assert_eq!(post.leak_color, vec![0.5; 12]);
+        }
     }
 
     /// The material group sits at the very end of the effects tail, behind the

@@ -972,7 +972,7 @@ fn heads_of(
 ) -> Vec<(u16, SampledHead)> {
     use crate::venue::FixtureKind;
 
-    let profiles = fixture::load(root);
+    let profiles = fixture::load_with(root, &fixture::extra_dirs(root));
     // (universe, model, sample, id, start, span), in fixture order.
     let mut placed: Vec<(u16, String, Option<[f32; 2]>, String, u16, u16)> = Vec::new();
     for &f in fixtures {
@@ -1072,7 +1072,7 @@ fn packets_of(
     use crate::venue::FixtureKind;
     use std::collections::{BTreeMap, BTreeSet};
 
-    let profiles = fixture::load(root);
+    let profiles = fixture::load_with(root, &fixture::extra_dirs(root));
     let mut sacn: BTreeMap<u16, Vec<SampledHead>> = BTreeMap::new();
     for (universe, head) in heads_of(v, fixtures, root) {
         sacn.entry(universe).or_default().push(head);
@@ -1852,12 +1852,12 @@ pub fn drive_sampled_bus_with(
         let (opened, universe, slots) = if node.kind == "out.sacn" {
             let cfg = SacnConfig::from_node(node);
             let heads = SampledSacn::from_node(node).heads;
-            let profiles = profiles.get_or_insert_with(|| fixture::load(root));
+            let profiles = profiles.get_or_insert_with(|| fixture::load_with(root, &fixture::extra_dirs(root)));
             (format!("sacn {cfg:?}"), cfg.universe, head_slots(&heads, profiles, forced, frame, w, h))
         } else if node.kind == crate::artnet::ARTNET_KIND {
             let cfg = crate::artnet::ArtNetConfig::from_node(node);
             let heads = SampledSacn::from_node(node).heads;
-            let profiles = profiles.get_or_insert_with(|| fixture::load(root));
+            let profiles = profiles.get_or_insert_with(|| fixture::load_with(root, &fixture::extra_dirs(root)));
             (format!("artnet {cfg:?}"), cfg.port_address(), head_slots(&heads, profiles, forced, frame, w, h))
         } else {
             let cfg = SerialConfig::from_node(node);
@@ -2714,6 +2714,11 @@ mod ble_tests {
 
     /// The four Phase B profiles, copied out of the repo's `data/fixtures/`
     /// into a tempdir — tests never read or write the real `data/` (rule 4).
+    ///
+    /// The rig's own profiles (`patch/fixtures`, resolved by
+    /// [`fixture::extra_dirs`]) are copied in as well, the same shape the real
+    /// repository has: `data/` beside `patch/`. A normal clone has no
+    /// `patch/`, so the set is just the four shipped files.
     fn fixtures_root(tag: &str) -> std::path::PathBuf {
         let root = std::env::temp_dir().join(format!(
             "metal-ble-wire-{tag}-{}-{:?}",
@@ -2722,16 +2727,32 @@ mod ble_tests {
         ));
         let _ = metal_vfs::remove_dir_all(&root);
         metal_vfs::create_dir_all(fixture::dir(&root)).unwrap();
-        let real = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/fixtures");
+        let real = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         for name in [
             "moving-head-beam",
             "godox-sl60iid",
             "godox-sl60iibi",
             "godox-rgb",
         ] {
-            let text = metal_vfs::read_to_string(real.join(format!("{name}.toml")))
+            let text = metal_vfs::read_to_string(fixture::dir(&real).join(format!("{name}.toml")))
                 .unwrap_or_else(|e| panic!("{name}.toml must exist in data/fixtures: {e}"));
             metal_vfs::write(fixture::dir(&root).join(format!("{name}.toml")), text).unwrap();
+        }
+        for extra in fixture::extra_dirs(&real) {
+            let relative = extra.strip_prefix(real.parent().unwrap_or(&real)).unwrap_or(&extra);
+            let patch_root = root.parent().unwrap().join(relative);
+            let _ = metal_vfs::create_dir_all(&patch_root);
+            let Ok(entries) = metal_vfs::read_dir(&extra) else { continue };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) != Some("toml") {
+                    continue;
+                }
+                let Some(name) = path.file_name().and_then(|n| n.to_str()) else { continue };
+                if let Ok(text) = metal_vfs::read_to_string(&path) {
+                    let _ = metal_vfs::write(patch_root.join(name), text);
+                }
+            }
         }
         root
     }

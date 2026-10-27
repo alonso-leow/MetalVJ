@@ -147,9 +147,11 @@ pub struct Channel {
     #[serde(default)]
     pub fine: Option<u16>,
     /// The slice of the signal float's own units that maps to full travel.
-    /// Omitted means the float's declared range ([`Selector::default_range`]).
-    /// A head that only tilts ±30° declares `[-0.5, 0.5]` and the rest of the
-    /// signal is clamped, rather than silently compressed.
+    /// Omitted means the float's declared range ([`Selector::default_range`]),
+    /// which is what a pan/tilt channel wants: the row's `-1..1` then reaches
+    /// the head's whole `[limits]` travel. A narrower window clamps the rest of
+    /// the signal, so a Patch-driven head cannot reach its end stops; that is
+    /// reported by [`Fixture::warnings`].
     #[serde(default)]
     pub range: Option<[f32; 2]>,
     /// The raw slot range. Omitted means `0..255`, or `0..65535` when a fine
@@ -606,6 +608,37 @@ impl Fixture {
             .filter(|s| self.channels.iter().any(|c| c.signal == *s))
             .collect()
     }
+
+    /// Non-fatal problems a profile has that do not make its bytes ambiguous —
+    /// the ones `parse` deliberately accepts but which bite on the rig.
+    ///
+    /// Today that is one shape each: a pan/tilt channel whose `range` is
+    /// narrower than the signal float's own range (`-1..1`). Such a channel
+    /// maps the row's whole travel onto the middle of the DMX range and clamps
+    /// both ends, so a Patch-driven head can never reach the end stops its own
+    /// `[limits]` promise. Stored and patch profiles must keep loading, so this
+    /// is a warning the caller can surface, not a parse error.
+    pub fn warnings(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        for channel in &self.channels {
+            if !matches!(channel.signal, Selector::Pan | Selector::Tilt) {
+                continue;
+            }
+            let Some(range) = channel.range else {
+                continue;
+            };
+            let full = channel.signal.default_range();
+            let narrower = range[0] > full[0] || range[1] < full[1];
+            if narrower {
+                out.push(format!(
+                    "{}: {} channel covers only part of the signal travel; a Patch-driven head cannot reach its end stops",
+                    self.model,
+                    channel.signal.name()
+                ));
+            }
+        }
+        out
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -725,34 +758,88 @@ pub fn parse(model: &str, text: &str) -> Result<Fixture, String> {
 /// Every profile under `data/fixtures/`, sorted by model. A missing directory
 /// is an empty list; a file that fails to parse is skipped with a line on
 /// stderr, never a crash.
+///
+/// A thin wrapper over [`load_with`] with no extra directories, so every
+/// caller that predates the patch overlay keeps meaning the same thing.
 pub fn load(root: &Path) -> Vec<Fixture> {
+    load_with(root, &[])
+}
+
+/// [`load`], plus `extra` directories searched **after** `dir(root)`, in the
+/// order given.
+///
+/// **The last directory that defines a model wins** (a model is the file
+/// stem), so an operator's own profile shadows a shipped example of the same
+/// name: a cloned checkout's `data/fixtures/` supplies the catalogue, and a
+/// rig's `patch/fixtures/` ([`extra_dirs`]) refines it. Entries from the
+/// earlier directories still load when the later ones say nothing about that
+/// model, and the result keeps one entry per model, sorted by model.
+///
+/// An extra file that fails to parse is skipped with a line on stderr exactly
+/// as a shipped one is — the module's rule at the top of this file: a bad file
+/// is a skip, never a crash.
+pub fn load_with(root: &Path, extra: &[std::path::PathBuf]) -> Vec<Fixture> {
     let mut out: Vec<Fixture> = Vec::new();
-    let Ok(entries) = metal_vfs::read_dir(dir(root)) else {
-        return out;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("toml") {
-            continue;
-        }
-        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+    for directory in std::iter::once(dir(root)).chain(extra.iter().cloned()) {
+        let Ok(entries) = metal_vfs::read_dir(&directory) else {
             continue;
         };
-        match metal_vfs::read_to_string(&path) {
-            Ok(text) => match parse(stem, &text) {
-                Ok(fixture) => out.push(fixture),
-                Err(e) => eprintln!("  fixture {stem} skipped: {e}"),
-            },
-            Err(e) => eprintln!("  fixture {stem} unreadable: {e}"),
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("toml") {
+                continue;
+            }
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            let fixture = match metal_vfs::read_to_string(&path) {
+                Ok(text) => match parse(stem, &text) {
+                    Ok(fixture) => fixture,
+                    Err(e) => {
+                        eprintln!("  fixture {stem} skipped: {e}");
+                        continue;
+                    }
+                },
+                Err(e) => {
+                    eprintln!("  fixture {stem} unreadable: {e}");
+                    continue;
+                }
+            };
+            // Later directories override earlier ones by model: drop whatever
+            // an earlier directory said about this stem, in this directory.
+            out.retain(|f| f.model != fixture.model);
+            out.push(fixture);
         }
     }
     out.sort_by(|a, b| a.model.cmp(&b.model));
     out
 }
 
-/// One profile by model id.
+/// The directories of extra profiles to load, in precedence order, for a data
+/// root: `patch/fixtures` under the data root's parent when it exists (the
+/// repo's layout is `data/` beside `patch/`), then anything the caller appends.
+///
+/// A normal clone has no `patch/`, so this is empty and every caller behaves
+/// exactly as before; a rig that carries one gets its profiles on the live
+/// path without every call site hardcoding the path.
+pub fn extra_dirs(root: &Path) -> Vec<PathBuf> {
+    root.parent()
+        .map(|parent| parent.join("patch").join(DIR))
+        .filter(|dir| dir.is_dir())
+        .into_iter()
+        .collect()
+}
+
+/// The directories [`load_with`] searches for `root`: `dir(root)` first, then
+/// this data root's extra directories ([`extra_dirs`]).
+pub fn search_dirs(root: &Path) -> Vec<PathBuf> {
+    std::iter::once(dir(root)).chain(extra_dirs(root)).collect()
+}
+
+/// One profile by model id, over the same set of directories [`load`] reads —
+/// so a profile in `patch/fixtures` is found by a `get` too.
 pub fn get(root: &Path, model: &str) -> Option<Fixture> {
-    load(root).into_iter().find(|f| f.model == model)
+    load_with(root, &extra_dirs(root)).into_iter().find(|f| f.model == model)
 }
 
 // ---------------------------------------------------------------------------
@@ -1359,6 +1446,146 @@ coarse = 0
         assert!(load(&root).is_empty());
     }
 
+    /// A scratch data root with `fixtures/` under it, for the multi-directory
+    /// loader tests. Unique per test name and thread, wiped first (rule 4:
+    /// tests never touch the real `data/`).
+    fn scratch_root(tag: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "fw-fixture-load-{tag}-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = metal_vfs::remove_dir_all(&root);
+        metal_vfs::create_dir_all(dir(&root)).unwrap();
+        root
+    }
+
+    fn write_profile(dir: &Path, model: &str, label: &str) {
+        metal_vfs::create_dir_all(dir).unwrap();
+        let text = format!(
+            "label = \"{label}\"\n\n[[channel]]\nsignal = \"level\"\ncoarse = 0\n"
+        );
+        metal_vfs::write(dir.join(format!("{model}.toml")), text).unwrap();
+    }
+
+    /// TASK 1: `load_with` reads `dir(root)` first and then each extra
+    /// directory, and the last directory that defines a model wins — an
+    /// operator's own profile shadows a shipped example of the same name,
+    /// while a model only the shipped directory defines still loads.
+    #[test]
+    fn a_later_directory_overrides_a_model_and_the_first_still_loads_the_rest() {
+        let root = scratch_root("override");
+        let extra = scratch_root("override-extra");
+        write_profile(&dir(&root), "same", "Shipped");
+        write_profile(&dir(&root), "only-shipped", "Shipped Only");
+        write_profile(&dir(&extra), "same", "Operator");
+        write_profile(&dir(&extra), "only-operator", "Operator Only");
+
+        let profiles = load_with(&root, &[dir(&extra)]);
+        let label = |model: &str| {
+            profiles
+                .iter()
+                .find(|f| f.model == model)
+                .unwrap_or_else(|| panic!("{model} must load"))
+                .label
+                .as_str()
+        };
+        assert_eq!(label("same"), "Operator", "the later directory wins");
+        assert_eq!(label("only-shipped"), "Shipped Only", "a model the extra dir lacks still loads");
+        assert_eq!(label("only-operator"), "Operator Only");
+        assert_eq!(profiles.len(), 3, "one entry per model, no duplicates: {profiles:?}");
+        let models: Vec<&str> = profiles.iter().map(|f| f.model.as_str()).collect();
+        assert_eq!(models, ["only-operator", "only-shipped", "same"], "sorted by model");
+
+        // `load` is `load_with(root, &[])` — the shipped view, unchanged.
+        assert_eq!(load(&root), load_with(&root, &[]));
+        assert_eq!(
+            load(&root).iter().map(|f| f.model.as_str()).collect::<Vec<_>>(),
+            ["only-shipped", "same"]
+        );
+
+        let _ = metal_vfs::remove_dir_all(&root);
+        let _ = metal_vfs::remove_dir_all(&extra);
+    }
+
+    /// An extra directory's malformed file is skipped with a line on stderr,
+    /// exactly like a shipped one — it never takes the good profile beside it
+    /// down with it (the module rule at the top of this file).
+    #[test]
+    fn a_malformed_extra_profile_is_skipped_not_fatal() {
+        let root = scratch_root("malformed");
+        let extra = scratch_root("malformed-extra");
+        write_profile(&dir(&root), "good", "Good");
+        metal_vfs::write(dir(&extra).join("bad.toml"), "label = \"no channels\"\n").unwrap();
+        write_profile(&dir(&extra), "also-good", "Also Good");
+
+        let profiles = load_with(&root, &[dir(&extra)]);
+        let models: Vec<&str> = profiles.iter().map(|f| f.model.as_str()).collect();
+        assert_eq!(models, ["also-good", "good"]);
+
+        let _ = metal_vfs::remove_dir_all(&root);
+        let _ = metal_vfs::remove_dir_all(&extra);
+    }
+
+    /// `extra_dirs` resolves the repo's standard overlay (`patch/fixtures`
+    /// beside `data/`) when it exists, and is empty when it does not — a
+    /// normal clone has no `patch/`.
+    #[test]
+    fn extra_dirs_finds_patch_beside_data_and_ignores_a_missing_one() {
+        let root = scratch_root("extra-dirs");
+        // The temp dir is shared across runs, so a `patch/` left by an earlier
+        // run is not evidence the root has one — wipe it first.
+        let patch_parent = root.parent().unwrap().join("patch");
+        let _ = metal_vfs::remove_dir_all(&patch_parent);
+        assert!(extra_dirs(&root).is_empty(), "a root with no patch/ has no extra dirs");
+
+        let patch = patch_parent.join(DIR);
+        metal_vfs::create_dir_all(&patch).unwrap();
+        assert_eq!(extra_dirs(&root), vec![patch.clone()]);
+        assert_eq!(search_dirs(&root), vec![dir(&root), patch.clone()]);
+
+        let _ = metal_vfs::remove_dir_all(&root);
+        let _ = metal_vfs::remove_dir_all(&patch_parent);
+    }
+
+    /// TASK 3b: a pan/tilt channel narrowed to `[-0.5, 0.5]` remaps the row's
+    /// `-1..1` onto only the middle half of the DMX range, so a Patch-driven
+    /// head can never reach its end stops. It is a warning, not a parse error:
+    /// stored and patch profiles must keep loading.
+    #[test]
+    fn a_narrow_pan_range_warns_but_a_full_one_does_not() {
+        let narrow = r#"
+label = "Narrow"
+[[channel]]
+signal = "pan"
+coarse = 0
+range = [-0.5, 0.5]
+[[channel]]
+signal = "tilt"
+coarse = 1
+"#;
+        let f = parse("narrow", narrow).unwrap();
+        assert_eq!(
+            f.warnings(),
+            vec![
+                "narrow: pan channel covers only part of the signal travel; a Patch-driven head cannot reach its end stops"
+                    .to_string()
+            ]
+        );
+
+        let full = r#"
+label = "Full"
+[[channel]]
+signal = "pan"
+coarse = 0
+[[channel]]
+signal = "tilt"
+coarse = 1
+"#;
+        let f = parse("full", full).unwrap();
+        assert!(f.warnings().is_empty(), "a full-range head warns about nothing: {:?}", f.warnings());
+    }
+
     #[test]
     fn the_fallback_is_deterministic_and_bounded() {
         let signature = [0.25, 0.5, 0.75, 0.1, -2.0, 2.0, 0.0, 0.9];
@@ -1393,7 +1620,9 @@ coarse = 0
     #[test]
     fn a_colour_reaches_every_profile_through_its_own_channels() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let profiles = load(&root);
+        // The same set `get` sees on the live path: the shipped catalogue and,
+        // when the checkout carries one, the rig's `patch/fixtures`.
+        let profiles = load_with(&root, &extra_dirs(&root));
         assert!(!profiles.is_empty(), "data/fixtures carries profiles");
         let red = colour_signal([1.0, 0.0, 0.0], None, "free");
         let blue = colour_signal([0.0, 0.0, 1.0], None, "free");

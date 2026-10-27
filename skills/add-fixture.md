@@ -91,7 +91,8 @@ no_strobe = false               # refuse strobe before the wire
 signal = "pan"                  # level|hue|sat|strobe|pan|tilt|a|b|cct|zoom|focus|iris|frost
 coarse = 0                      # relative slot of the high byte
 fine = 1                        # optional: 16-bit channel
-range = [-0.5, 0.5]             # the slice of the float's units that is full travel
+# range = [-1.0, 1.0]          # the slice of the float's units that is full travel.
+                                # OMIT for pan/tilt: the full -1..1 must reach `[limits]`
 physical = [0.0, 65535.0]       # raw slot range; default 0..255 / 0..65535 with `fine`
 ```
 
@@ -189,8 +190,10 @@ cargo test -p metal-graph -p metal-agent
 cargo test -p metal-dash              # i18n literal gates; may carry unrelated WIP in red
 ```
 
-Two `metal-perform` tests walk `data/fixtures/` from disk and will fail in the
-way a new profile usually fails first:
+Two `metal-perform` tests walk `data/fixtures/` from disk — and, when the
+checkout carries one, the rig's own `patch/fixtures/` beside `data/`
+(`Fixture::extra_dirs`), exactly as `get`/`load` do on the live path — and will
+fail in the way a new profile usually fails first:
 
 - `all_four_phase_b_profiles_parse` (`wire.rs`) — every file parses;
 - `a_colour_reaches_every_profile_through_its_own_channels`
@@ -232,12 +235,24 @@ the node must be `drive = "patch"` (`PatchMode::Patch`, `wire.rs:1258`); with
 the four beam-shaping channels are packed at their zero travel, so the head
 lights without moving.
 
-For a DMX profile that targets a real desk, pan/tilt `range` is the head's
-declared travel from `[limits]`, *not* `[-0.5, 0.5]`. The example profiles carry
-the narrower `range` because they were authored against a simulation that was
-never slewed; a production head must map the full `-1..1` to full `[limits]`
-travel or it will never leave the centre. (The `fixture.rs` unit-test fixture
-`MOVING_HEAD` keeps `[-0.5, 0.5]` deliberately — do not "fix" it.)
+For a DMX profile that targets a real desk, **omit `range` on pan and tilt**. The
+float is signed `-1..1` and must map onto the head's full `[limits]` travel; that
+is what `Channel::raw` does when the channel says nothing. A narrower window —
+`[-0.5, 0.5]` was the old template — maps `-1..1` onto only the *middle half* of
+the DMX range and clamps both ends, so a Patch-driven head can never reach its
+end stops however far the row pushes it. `data/fixtures/moving-head-beam.toml`
+and `data/fixtures/example-moving-head.toml` omit it for that reason. A profile
+that still declares a narrow pan/tilt window **loads**, but `Fixture::warnings()`
+(`fixture.rs`) reports it: `"<model>: pan channel covers only part of the signal
+travel; a Patch-driven head cannot reach its end stops"`. It is a warning and not
+a parse error on purpose — stored and patch data must keep loading — so nothing
+will stop the show for you; read the warnings after authoring.
+
+The one exception is the `fixture.rs` unit-test fixture `MOVING_HEAD`, which
+keeps `[-0.5, 0.5]` on its pan channel deliberately: it is a test constant built
+to exercise the narrow-window path (`Channel::raw`'s clamp) rather than a real
+head, and its expected bytes depend on that half window. Do not "fix" it, and do
+not copy it into `data/fixtures/`.
 
 ## 6. When the schema really has to grow (the part that is not neutral)
 
@@ -267,18 +282,32 @@ comment warns about (`lib.rs:2019`).
 
 ### 6.3 Make old rows migrate
 
-A saved row written before the append is short by the new floats. That is what
-the two "width before" anchors are for:
+A saved row written before the append is short by the new floats. There is one
+list of every width the signal block has ever had — `SIGNAL_WIDTHS`
+(`lib.rs`), oldest first, ending at today's `SIGNAL_WIDTH`:
 
-- `SIGNAL_WIDTH_BEFORE_BLE = 8` (`lib.rs:2103`) — rows from before `sig_cct`…`sig_frost`;
-- `SIGNAL_WIDTH_BEFORE_COLOUR = 13` (`lib.rs:2110`) — rows from before `col_*`.
+```rust
+pub const SIGNAL_WIDTHS: &[usize] = &[8, 13, SIGNAL_WIDTH];
+```
 
-Add a third anchor (`SIGNAL_WIDTH_BEFORE_<THING> = <the width before this
-append>`) and register it in **both** gap lists:
+**An append adds exactly ONE entry to `SIGNAL_WIDTHS` and touches nothing
+else.** Both migrations derive their arithmetic from it, so they cannot
+disagree about how many historical shapes exist:
 
-- `migrate_signal_row` (`lib.rs:2129`) — the `[SIGNAL_WIDTH_BEFORE_BLE,
-  SIGNAL_WIDTH_BEFORE_COLOUR]` array;
-- `migrate_effects_row` (`lib.rs:2162`) — its `signal_gaps` array.
+- `migrate_signal_row` (`lib.rs`) iterates every entry but the last, and pads a
+  row of that old width with the defaults of the floats added since;
+- `migrate_effects_row` (`lib.rs`) takes `SIGNAL_WIDTH - w` for each historical
+  `w`, plus `0` for a current-width row, as the signal gap to recognise.
+
+The two old public anchors stay (other code and tests read them) but are now
+*derived*: `SIGNAL_WIDTH_BEFORE_BLE = SIGNAL_WIDTHS[0]` and
+`SIGNAL_WIDTH_BEFORE_COLOUR = SIGNAL_WIDTHS[1]`. Do not hand-add a third
+`SIGNAL_WIDTH_BEFORE_<THING>` constant beside them — append the width before
+this append to `SIGNAL_WIDTHS` and both migrations follow. The guard test
+`every_historical_signal_width_migrates_to_the_current_one` proves every entry
+in the list migrates to exactly `schema_width`; a forgotten entry fails there,
+in the schema, instead of silently sending an old row to the wire five columns
+early.
 
 Both are "only act on a length I can account for exactly" functions: get this
 wrong and a row is either left short (driven at defaults, silently) or padded in
@@ -318,9 +347,8 @@ day you touch it.
 
 - `data/fixtures/*.toml` gains the `[[channel]]`s — **no** regeneration, because
   fixtures are data.
-- The commit message must say the widening is deliberate and name the
-  `SIGNAL_WIDTH_BEFORE_*` anchor it added. The BLE Phase B commit is the
-  template.
+- The commit message must say the widening is deliberate and name the width it
+  appended to `SIGNAL_WIDTHS`. The BLE Phase B commit is the template.
 - Only if a *model* was added or reordered do you run
   `cargo run -p metal-render --bin emit-schema` (that is `wire-new-model.md`'s
   job, not this file's).
@@ -335,7 +363,9 @@ day you touch it.
    `range` compresses or clamps travel silently; a wrong `coarse` writes the
    right byte to the wrong slot; a missing `coarse` on a DMX profile is refused,
    but a *present wrong* one is not. Addresses are 0-based offsets from a
-   1-based `address` — off by one is the default mistake.
+   1-based `address` — off by one is the default mistake. A pan/tilt `range`
+   narrower than `-1..1` is the one such mistake that gets a warning
+   (`Fixture::warnings`); everything else is silent, so check the bytes.
 3. **`range` on `cct` is kelvin, on everything else it is the float's own units.**
    `light_state` clamps into a `cct` window; `Channel::raw` remaps a byte out of
    the others.
@@ -354,11 +384,11 @@ day you touch it.
 
 ## 8. One-paragraph checklist
 
-Copy the closest existing profile; change `label`, `[[channel]]`s and `range`s;
-keep `wire`/`coarse` consistent with each other; run the `metal-perform` and
-`metal-schema` tests; add the `[[fixture]]` row to the room with its own
-`address`/`universe`/`group`; leave `data/schema.json`, `allowseed` and
-`SIGNAL_FLOATS` alone. Only if a light needs a float the room's vocabulary
-lacks: append to `SIGNAL_FLOATS`, add a `SIGNAL_WIDTH_BEFORE_*` anchor, register
-it in both migration gap lists, walk §6.4, re-freeze the golden frames, and say
-so in the commit.
+Copy the closest existing profile; change `label`, `[[channel]]`s and `range`s
+(omitting `range` on pan/tilt); keep `wire`/`coarse` consistent with each other;
+run the `metal-perform` and `metal-schema` tests; add the `[[fixture]]` row to
+the room with its own `address`/`universe`/`group`; leave `data/schema.json`,
+`allowseed` and `SIGNAL_FLOATS` alone. Only if a light needs a float the room's
+vocabulary lacks: append to `SIGNAL_FLOATS`, append the old width to
+`SIGNAL_WIDTHS` (one entry — both migrations follow it), walk §6.4, re-freeze
+the golden frames, and say so in the commit.

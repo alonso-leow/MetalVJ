@@ -7,7 +7,10 @@
 #
 # Same conventions as its neighbours: slots are 0-based offsets from
 # `address` (1-based, as a desk numbers them). `range` is omitted everywhere
-# because every channel uses its `sig_*` float's own declared range.
+# because every channel uses its `sig_*` float's own declared range — and for
+# pan/tilt that is deliberate: the row's `-1..1` must reach the head's whole
+# `[limits]` travel. A narrower window (`[-0.5, 0.5]`) clamps the rest and a
+# Patch-driven head can never reach its end stops (`Fixture::warnings`).
 
 label = "Moving Head Beam (pan/tilt, zoom/focus/iris/frost)"
 universe = 0
@@ -29,7 +32,6 @@ cct = [1800.0, 10000.0]
 signal = "pan"
 coarse = 0
 fine = 1
-range = [-0.5, 0.5]
 
 [[channel]]
 signal = "tilt"

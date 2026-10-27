@@ -111,6 +111,11 @@ mod json_memo;
 mod paint;
 mod perf;
 mod timecode;
+// The in-app updater's settings and wire replies (`call/update.rs` is the two
+// routes). No git: GitHub Releases in, a verified binary out. Gated on
+// `desktop` — Android installs an APK, not a file this process can rename — so
+// a build without it answers `GET /update` with `state: "off"`.
+mod update;
 // The shell-mode wire vocabulary, shared by `call::settings` (which must
 // validate it on every build) and the shell (which consumes it). Top-level
 // so neither has to reach into the other; see the module note.
@@ -251,13 +256,59 @@ struct Cli {
     /// This machine's name for `Output.node`/`composed_on` (S.R): default the hostname.
     #[arg(long)]
     node: Option<String>,
+    /// Which release channel the in-app updater watches: `main` (`v1.2.3`
+    /// tags), a branch name such as `dev` (`dev-v1.2.4`), or `off` (never
+    /// check, never apply). Overrides `[update].channel` in
+    /// `~/.config/metalvj/config.toml` for this run only; see
+    /// `crates/metal-update`'s crate docs for the tag convention. No flag
+    /// leaves the config file in charge, whose default is `main`.
+    ///
+    /// The update itself is never automatic: `GET /update` only reports, and
+    /// `POST /update {"op":"apply","tag":"..."}` is the one call that downloads.
+    #[arg(long)]
+    updates: Option<String>,
 }
+/// Finish a staged update before anything else starts — see `metal_update`'s
+/// `swap` module. Never fatal: an install whose directory is not writable must
+/// still start the app it already has, so an error is a line on stderr.
+///
+/// Skipped where there is no installable file to swap: the browser (no binary
+/// on disk) and Android (the package manager owns the APK).
+fn finish_pending_update_at_startup() {
+    if cfg!(any(target_arch = "wasm32", target_os = "android")) {
+        return;
+    }
+    let exe = match std::env::current_exe() {
+        Ok(exe) => exe,
+        Err(e) => {
+            eprintln!("  update: cannot find the running binary: {e}");
+            return;
+        }
+    };
+    match metal_update::finish_pending_update(&exe) {
+        Ok(true) => eprintln!("  update: staged binary swapped in ({})", exe.display()),
+        Ok(false) => {}
+        Err(e) => eprintln!("  update: cannot finish the pending update: {e}"),
+    }
+}
+
 /// The desktop entry: `src/main.rs` calls this, and so does nothing else. The
 /// app root is a library so the `cdylib` for Android (`android_main`, below)
 /// links the same module tree the desktop binary does.
 pub fn desktop_main() -> std::io::Result<()> {
-    let cli = Cli::parse();
+    // The very first thing: finish an update the last run staged. On Windows
+    // the running exe cannot be replaced, so an `apply` leaves `<exe>.new`
+    // beside it and *this* call (the old process has already exited, so the
+    // file is no longer locked) moves it into place. Everywhere else it is the
+    // same recovery for a crash between the download and the first frame. It
+    // must run before the window, the renderers or any file read: the binary
+    // that starts the app is the one a person expects to be running.
+    finish_pending_update_at_startup();
 
+    let cli = Cli::parse();
+    // `--updates <off|main|dev>` overrides the config file for this run. Set
+    // once here, read live by `crate::update::channel` on every request.
+    crate::update::set_channel_flag(cli.updates.clone().map(|v| v.trim().to_string()));
     // Before anything reads a file: `Outputs::load` runs inside `State::new`.
     if let Some(dir) = &cli.data {
         if let Err(e) = metal_vfs::create_dir_all(dir) {

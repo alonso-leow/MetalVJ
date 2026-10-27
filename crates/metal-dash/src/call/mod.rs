@@ -83,6 +83,10 @@ pub(crate) mod settings;
 mod switch;
 mod sync;
 mod transmit;
+// The in-app updater's two routes (`GET`/`POST /update`). The state and the
+// JSON replies live in `crate::update`; this file is only the route pair, the
+// same split `call::settings` makes.
+mod update;
 mod venue;
 pub(crate) mod videoio;
 
@@ -856,6 +860,23 @@ pub static ROUTES: &[Route] = &[
         path: "/settings",
         prefix: false,
         handler: Handler::Json(settings::post),
+    },
+    // The in-app updater. `GET` is read-only (it reports, never downloads);
+    // `POST {"op":"apply","tag":"…"}` is the one explicit apply — the "never
+    // auto-update mid-show" rule is the shape of the API, not a caller's
+    // politeness. `[update].channel = "off"` (or `--updates off`) answers
+    // `state: "off"` from both. See `call::update`'s module docs for the JSON.
+    Route {
+        method: "GET",
+        path: "/update",
+        prefix: false,
+        handler: Handler::Json(update::get),
+    },
+    Route {
+        method: "POST",
+        path: "/update",
+        prefix: false,
+        handler: Handler::Json(update::post),
     },
     // The shell's pairing and sync status (`metal-sync` on :7901, forwarded).
     Route {

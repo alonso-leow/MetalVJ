@@ -169,6 +169,11 @@ metal-notation = { path = "../metal-notation" }
 # relative:true}`) is a pure `metal_config::palettes::shift` — the route calls it
 # rather than re-implementing OkLCh in `metal-dash`.
 metal-config = { path = "../metal-config" }
+# The in-app updater (GitHub Releases -> a verified binary -> a `.new` the next
+# start swaps in). No git, no runtime of its own: `ureq` + `sha2` are already in
+# the lockfile. Gated on `desktop`: Android has no writable-install story and
+# the browser build reloads instead, so `update::get`/`post` answer `off` there.
+metal-update = { path = "../metal-update" }
 # The engine half, as a library (LAY.6/LAY.9): the `fx.*` chain resolver
 # today, `resolve → compile → execute → output` as it lands. No wgpu, no
 # winit, no HTTP — on both builds.

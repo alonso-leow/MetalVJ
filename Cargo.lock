@@ -4047,6 +4047,7 @@ dependencies = [
  "metal-router",
  "metal-schema",
  "metal-sync",
+ "metal-update",
  "metal-vfs",
  "metal-videoio",
  "metal-web",
@@ -4336,6 +4337,21 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "metal-update"
+version = "0.1.0"
+dependencies = [
+ "metal-config",
+ "metal-vfs",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.20",
+ "toml 0.8.23",
+ "ureq",
 ]
 
 [[package]]
@@ -7877,11 +7893,13 @@ dependencies = [
  "log",
  "native-tls",
  "percent-encoding",
+ "rustls",
  "rustls-pki-types",
  "socks",
  "ureq-proto",
  "utf8-zero",
  "webpki-root-certs",
+ "webpki-roots",
 ]
 
 [[package]]

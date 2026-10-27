@@ -1,0 +1,680 @@
+{
+ "id": "hf-mov-mov-led-y-laterales-tierra",
+ "name": "Mov led y laterales tierra",
+ "family": "mov",
+ "source": "ShowXpress 00-Alonso/Mov led y laterales tierra.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984548": {
+     "fixture": "cabeza-riel-2",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 105,
+      "strobe_dimmer": 255,
+      "tilt": 57,
+      "upan": 76,
+      "utilt": 106
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4118,
+      "tilt": 0.2235,
+      "strobe": 1.0
+     }
+    },
+    "1582984549": {
+     "fixture": "cabeza-riel-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 104,
+      "strobe_dimmer": 255,
+      "tilt": 57,
+      "upan": 136,
+      "utilt": 106
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4078,
+      "tilt": 0.2235,
+      "strobe": 1.0
+     }
+    },
+    "1747771396": {
+     "fixture": "hurricane-1",
+     "dmx": {
+      "smoke_machine": 0
+     },
+     "floats": {}
+    },
+    "1748452736": {
+     "fixture": "neblina-1",
+     "dmx": {
+      "???": 0
+     },
+     "floats": {}
+    },
+    "1582984550": {
+     "fixture": "cabeza-riel-4",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 104,
+      "strobe_dimmer": 255,
+      "tilt": 57,
+      "upan": 136,
+      "utilt": 106
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4078,
+      "tilt": 0.2235,
+      "strobe": 1.0
+     }
+    },
+    "1582984552": {
+     "fixture": "cabeza-riel-1",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 105,
+      "strobe_dimmer": 255,
+      "tilt": 57,
+      "upan": 76,
+      "utilt": 106
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4118,
+      "tilt": 0.2235,
+      "strobe": 1.0
+     }
+    },
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 6,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 6,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1748453032": {
+     "fixture": "hurricane-2",
+     "dmx": {
+      "smoke_machine": 0
+     },
+     "floats": {}
+    },
+    "1713279700": {
+     "fixture": "slim-par-5",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1713279701": {
+     "fixture": "slim-par-6",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1748452755": {
+     "fixture": "neblina-2",
+     "dmx": {
+      "???": 0
+     },
+     "floats": {}
+    },
+    "1693911820": {
+     "fixture": "slim-par-1",
+     "dmx": {
+      "dimmer": 184,
+      "green": 170,
+      "red": 210,
+      "strobe_effect": 0,
+      "white": 0,
+      "zoom": 0
+     },
+     "floats": {
+      "level": 0.7216,
+      "zoom": 0.0
+     }
+    },
+    "1617887658": {
+     "fixture": "par-riel-public",
+     "dmx": {
+      "amber": 118
+     },
+     "floats": {}
+    },
+    "1693912246": {
+     "fixture": "slim-par-2",
+     "dmx": {
+      "dimmer": 184,
+      "green": 170,
+      "red": 210,
+      "strobe_effect": 0,
+      "white": 0,
+      "zoom": 0
+     },
+     "floats": {
+      "level": 0.7216,
+      "zoom": 0.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984548": {
+     "fixture": "cabeza-riel-2",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 86,
+      "strobe_dimmer": 255,
+      "tilt": 58,
+      "upan": 252,
+      "utilt": 196
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3373,
+      "tilt": 0.2275,
+      "strobe": 1.0
+     }
+    },
+    "1582984549": {
+     "fixture": "cabeza-riel-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 86,
+      "strobe_dimmer": 255,
+      "tilt": 61,
+      "upan": 252,
+      "utilt": 120
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3373,
+      "tilt": 0.2392,
+      "strobe": 1.0
+     }
+    },
+    "1747771396": {
+     "fixture": "hurricane-1",
+     "dmx": {
+      "smoke_machine": 0
+     },
+     "floats": {}
+    },
+    "1748452736": {
+     "fixture": "neblina-1",
+     "dmx": {
+      "???": 0
+     },
+     "floats": {}
+    },
+    "1582984550": {
+     "fixture": "cabeza-riel-4",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 86,
+      "strobe_dimmer": 255,
+      "tilt": 61,
+      "upan": 252,
+      "utilt": 120
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3373,
+      "tilt": 0.2392,
+      "strobe": 1.0
+     }
+    },
+    "1582984552": {
+     "fixture": "cabeza-riel-1",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 86,
+      "strobe_dimmer": 255,
+      "tilt": 58,
+      "upan": 252,
+      "utilt": 196
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3373,
+      "tilt": 0.2275,
+      "strobe": 1.0
+     }
+    },
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 6,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 6,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1748453032": {
+     "fixture": "hurricane-2",
+     "dmx": {
+      "smoke_machine": 0
+     },
+     "floats": {}
+    },
+    "1713279700": {
+     "fixture": "slim-par-5",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1713279701": {
+     "fixture": "slim-par-6",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1748452755": {
+     "fixture": "neblina-2",
+     "dmx": {
+      "???": 0
+     },
+     "floats": {}
+    },
+    "1693911820": {
+     "fixture": "slim-par-1",
+     "dmx": {
+      "dimmer": 0,
+      "green": 0,
+      "red": 0,
+      "strobe_effect": 0,
+      "white": 0,
+      "zoom": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "zoom": 0.0
+     }
+    },
+    "1617887658": {
+     "fixture": "par-riel-public",
+     "dmx": {
+      "amber": 0
+     },
+     "floats": {}
+    },
+    "1693912246": {
+     "fixture": "slim-par-2",
+     "dmx": {
+      "dimmer": 0,
+      "green": 0,
+      "red": 0,
+      "strobe_effect": 0,
+      "white": 0,
+      "zoom": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "zoom": 0.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984548": {
+     "fixture": "cabeza-riel-2",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 96,
+      "strobe_dimmer": 255,
+      "tilt": 64,
+      "upan": 133,
+      "utilt": 43
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3765,
+      "tilt": 0.251,
+      "strobe": 1.0
+     }
+    },
+    "1582984549": {
+     "fixture": "cabeza-riel-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 91,
+      "strobe_dimmer": 255,
+      "tilt": 62,
+      "upan": 46,
+      "utilt": 210
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3569,
+      "tilt": 0.2431,
+      "strobe": 1.0
+     }
+    },
+    "1747771396": {
+     "fixture": "hurricane-1",
+     "dmx": {
+      "smoke_machine": 0
+     },
+     "floats": {}
+    },
+    "1748452736": {
+     "fixture": "neblina-1",
+     "dmx": {
+      "???": 0
+     },
+     "floats": {}
+    },
+    "1582984550": {
+     "fixture": "cabeza-riel-4",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 91,
+      "strobe_dimmer": 255,
+      "tilt": 62,
+      "upan": 46,
+      "utilt": 210
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3569,
+      "tilt": 0.2431,
+      "strobe": 1.0
+     }
+    },
+    "1582984552": {
+     "fixture": "cabeza-riel-1",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 96,
+      "strobe_dimmer": 255,
+      "tilt": 64,
+      "upan": 133,
+      "utilt": 43
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3765,
+      "tilt": 0.251,
+      "strobe": 1.0
+     }
+    },
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 6,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 6,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1748453032": {
+     "fixture": "hurricane-2",
+     "dmx": {
+      "smoke_machine": 0
+     },
+     "floats": {}
+    },
+    "1713279700": {
+     "fixture": "slim-par-5",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1713279701": {
+     "fixture": "slim-par-6",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1748452755": {
+     "fixture": "neblina-2",
+     "dmx": {
+      "???": 0
+     },
+     "floats": {}
+    },
+    "1693911820": {
+     "fixture": "slim-par-1",
+     "dmx": {
+      "dimmer": 0,
+      "green": 0,
+      "red": 0,
+      "strobe_effect": 0,
+      "white": 0,
+      "zoom": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "zoom": 0.0
+     }
+    },
+    "1617887658": {
+     "fixture": "par-riel-public",
+     "dmx": {
+      "amber": 0
+     },
+     "floats": {}
+    },
+    "1693912246": {
+     "fixture": "slim-par-2",
+     "dmx": {
+      "dimmer": 0,
+      "green": 0,
+      "red": 0,
+      "strobe_effect": 0,
+      "white": 0,
+      "zoom": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "zoom": 0.0
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984548": {
+   "desk_id": "1582984548",
+   "desk_name": "CABEZA R7 RIEL 2",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-2",
+   "address": 65
+  },
+  "1582984549": {
+   "desk_id": "1582984549",
+   "desk_name": "CABEZA R7 RIEL 3",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-3",
+   "address": 81
+  },
+  "1747771396": {
+   "desk_id": "1747771396",
+   "desk_name": "Hurricane 1600",
+   "desk_model": "Hurricane 1600",
+   "fixture": "hurricane-1",
+   "address": 129
+  },
+  "1748452736": {
+   "desk_id": "1748452736",
+   "desk_name": "neblina fria",
+   "desk_model": "neblina fria",
+   "fixture": "neblina-1",
+   "address": 130
+  },
+  "1582984550": {
+   "desk_id": "1582984550",
+   "desk_name": "CABEZA R7 RIEL 4",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-4",
+   "address": 97
+  },
+  "1582984552": {
+   "desk_id": "1582984552",
+   "desk_name": "CABEZA R7 RIEL 1",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-1",
+   "address": 113
+  },
+  "1582984555": {
+   "desk_id": "1582984555",
+   "desk_name": "CABEZA 7 R 1#12",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-12",
+   "address": 177
+  },
+  "1582984556": {
+   "desk_id": "1582984556",
+   "desk_name": "CABEZA 7 R 1#13",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-13",
+   "address": 49
+  },
+  "1748453032": {
+   "desk_id": "1748453032",
+   "desk_name": "Hurricane 1600 #2",
+   "desk_model": "Hurricane 1600",
+   "fixture": "hurricane-2",
+   "address": 131
+  },
+  "1713279700": {
+   "desk_id": "1713279700",
+   "desk_name": "12x4in1 LED Slim Par #2 #5",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-5",
+   "address": 399
+  },
+  "1713279701": {
+   "desk_id": "1713279701",
+   "desk_name": "12x4in1 LED Slim Par #2 #6",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-6",
+   "address": 407
+  },
+  "1748452755": {
+   "desk_id": "1748452755",
+   "desk_name": "neblina fria 2",
+   "desk_model": "neblina fria 2",
+   "fixture": "neblina-2",
+   "address": 132
+  },
+  "1693911820": {
+   "desk_id": "1693911820",
+   "desk_name": "12x4in1 LED Slim Par",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-1",
+   "address": 241
+  },
+  "1617887658": {
+   "desk_id": "1617887658",
+   "desk_name": "PAR LED RIEL PUBLIC",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-public",
+   "address": 285
+  },
+  "1693912246": {
+   "desk_id": "1693912246",
+   "desk_name": "12x4in1 LED Slim Par #2",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-2",
+   "address": 249
+  }
+ }
+}

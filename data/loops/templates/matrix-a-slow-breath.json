@@ -1,0 +1,88 @@
+{
+ "id": "matrix-a-slow-breath",
+ "name": "Slow Breath",
+ "target": {
+  "model": "matrix"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "depth"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    0.9,
+    0.8,
+    0.7,
+    0.6,
+    0.5,
+    0.4,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lamp"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "skies"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

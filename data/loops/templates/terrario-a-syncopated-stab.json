@@ -1,0 +1,94 @@
+{
+ "id": "terrario-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "terrarium"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "vein"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    0.15,
+    null,
+    0.9,
+    0.15,
+    null,
+    null,
+    0.9,
+    0.15,
+    null,
+    0.9,
+    0.15,
+    null,
+    null,
+    0.95,
+    0.15
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "frame"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "crystal",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null
+   ]
+  }
+ ]
+}

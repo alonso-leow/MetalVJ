@@ -1,0 +1,3586 @@
+{
+ "part": "31-p1",
+ "model": "chamber",
+ "song": "31 - Daft Punk - One More Time (Official Audio)",
+ "span": [
+  1755,
+  2566
+ ],
+ "kind": "drop",
+ "keywords": [
+  "edm",
+  "happy",
+  "bright"
+ ],
+ "title": "one ring a bar, the filter opens and the room lights up on the claps",
+ "story": "One More Time at 123 BPM (beat 15.62 ticks): four on the floor, hard on every beat, the clap on 2 and 4 bright (centroid >0.21), open hats on the off-beats. Every kick is the same hit everywhere: the camera's fov punches in 16 degrees (24 on the prominent hits) and the room shakes, and the claps add a neon-abyss brightness strobe. The pre-roll is a sampled loop, so the camera is too: each bar it snaps back to the loop start and makes the same dolly-in and slide across the room, two bars in the full groove and, when the filter closes at 1879 (rms 0.18->0.07), the same loop from a lower station while the shake escalates on every kick. The drop at 2004 cuts to a low corner looking up; after it the camera cuts every two bars on the downbeat through low corner, high-over-the-floor and side-wall stations and back mirrored, creeping in between cuts, while the ring is reborn from a new origin each bar and the hue steps every half bar.",
+ "base": {
+  "slot:mesh": [
+   0.231,
+   0.122,
+   0.82,
+   0.161,
+   0.941,
+   1.0,
+   0.02,
+   0.016,
+   0.078,
+   1.0,
+   0.0,
+   0.784
+  ],
+  "propagation": 0.725,
+  "height": 0.32,
+  "gravity": 0.8,
+  "delay": 0.3,
+  "col_bri": 1.2,
+  "col_contrast": 0.3,
+  "col_sat": 1.1
+ },
+ "keys": [
+  {
+   "tick": 1755,
+   "set": {
+    "origin_x": 0.5,
+    "origin_y": 0.5,
+    "col_sat": 1.1,
+    "col_hue": 0.0,
+    "camera": [
+     -0.248,
+     0.0,
+     0.449,
+     0.099,
+     -0.1,
+     -1.0,
+     97.949
+    ],
+    "shake": 0.0
+   },
+   "why": "span start: full groove before the filter, rms 0.197, onset 4.90@1770"
+  },
+  {
+   "tick": 1769,
+   "set": {
+    "camera": [
+     -0.136,
+     0.034,
+     0.348,
+     0.055,
+     -0.127,
+     -1.0,
+     94.364
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1770,
+   "set": {
+    "height": 0.46,
+    "camera": [
+     -0.128,
+     0.036,
+     0.341,
+     0.051,
+     -0.129,
+     -1.0,
+     78.108
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 4.90@1770 (centroid 0.250): fov punch -16 + shake + CLAP on beat 2 (bright centroid)"
+  },
+  {
+   "tick": 1775,
+   "set": {
+    "camera": [
+     -0.088,
+     0.048,
+     0.305,
+     0.035,
+     -0.139,
+     -1.0,
+     92.827
+    ],
+    "height": 0.32,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1777,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 1778,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.91@1778 (centroid >0.3)"
+  },
+  {
+   "tick": 1782,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.32,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 1785,
+   "set": {
+    "camera": [
+     -0.008,
+     0.073,
+     0.232,
+     0.003,
+     -0.158,
+     -1.0,
+     90.266
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1786,
+   "set": {
+    "height": 0.46,
+    "camera": [
+     -0.0,
+     0.075,
+     0.225,
+     0.0,
+     -0.16,
+     -1.0,
+     74.01
+    ],
+    "shake": 0.3
+   },
+   "why": "KICK 4.61@1786 (centroid 0.124): fov punch -16 + shake"
+  },
+  {
+   "tick": 1791,
+   "set": {
+    "camera": [
+     0.04,
+     0.087,
+     0.189,
+     -0.016,
+     -0.17,
+     -1.0,
+     88.73
+    ],
+    "height": 0.32,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1793,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 1794,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.41@1794 (centroid >0.3)"
+  },
+  {
+   "tick": 1798,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.32,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 1800,
+   "set": {
+    "camera": [
+     0.112,
+     0.109,
+     0.124,
+     -0.045,
+     -0.187,
+     -1.0,
+     86.425
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1801,
+   "set": {
+    "height": 0.46,
+    "camera": [
+     0.12,
+     0.111,
+     0.117,
+     -0.048,
+     -0.189,
+     -1.0,
+     70.169
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 4.81@1801 (centroid 0.266): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 1806,
+   "set": {
+    "camera": [
+     0.16,
+     0.123,
+     0.081,
+     -0.064,
+     -0.198,
+     -1.0,
+     84.889
+    ],
+    "height": 0.32,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1809,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 1810,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 4.01@1810 (centroid >0.3)"
+  },
+  {
+   "tick": 1813,
+   "set": {
+    "height": 0.32,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 1814,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 1816,
+   "set": {
+    "camera": [
+     0.24,
+     0.147,
+     0.009,
+     -0.096,
+     -0.218,
+     -1.0,
+     82.328
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1817,
+   "set": {
+    "height": 0.46,
+    "camera": [
+     0.248,
+     0.149,
+     0.002,
+     -0.099,
+     -0.219,
+     -1.0,
+     66.072
+    ],
+    "shake": 0.3
+   },
+   "why": "KICK 5.04@1817 (centroid 0.125): fov punch -16 + shake"
+  },
+  {
+   "tick": 1822,
+   "set": {
+    "camera": [
+     -0.212,
+     0.011,
+     0.416,
+     0.085,
+     -0.109,
+     -1.0,
+     96.791
+    ],
+    "height": 0.32,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1824,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 1825,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.32@1825 (centroid >0.3)"
+  },
+  {
+   "tick": 1829,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.32,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 1832,
+   "set": {
+    "camera": [
+     -0.132,
+     0.035,
+     0.344,
+     0.053,
+     -0.128,
+     -1.0,
+     94.23
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1833,
+   "set": {
+    "height": 0.46,
+    "camera": [
+     -0.124,
+     0.038,
+     0.337,
+     0.05,
+     -0.13,
+     -1.0,
+     77.974
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 5.50@1833 (centroid 0.266): fov punch -16 + shake + CLAP on beat 2 (bright centroid)"
+  },
+  {
+   "tick": 1838,
+   "set": {
+    "camera": [
+     -0.084,
+     0.05,
+     0.301,
+     0.034,
+     -0.14,
+     -1.0,
+     92.694
+    ],
+    "height": 0.32,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1840,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 1841,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.98@1841 (centroid >0.3)"
+  },
+  {
+   "tick": 1845,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.32,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 1847,
+   "set": {
+    "camera": [
+     -0.012,
+     0.071,
+     0.236,
+     0.005,
+     -0.157,
+     -1.0,
+     90.389
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1848,
+   "set": {
+    "height": 0.46,
+    "camera": [
+     -0.004,
+     0.074,
+     0.229,
+     0.002,
+     -0.159,
+     -1.0,
+     74.133
+    ],
+    "shake": 0.3
+   },
+   "why": "KICK 4.80@1848 (centroid 0.133): fov punch -16 + shake"
+  },
+  {
+   "tick": 1853,
+   "set": {
+    "camera": [
+     0.036,
+     0.086,
+     0.193,
+     -0.014,
+     -0.169,
+     -1.0,
+     88.853
+    ],
+    "height": 0.32,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1855,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 1856,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 5.34@1856 (centroid >0.3)"
+  },
+  {
+   "tick": 1860,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.32,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 1863,
+   "set": {
+    "camera": [
+     0.116,
+     0.11,
+     0.121,
+     -0.046,
+     -0.188,
+     -1.0,
+     86.292
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1864,
+   "set": {
+    "height": 0.46,
+    "camera": [
+     0.124,
+     0.112,
+     0.114,
+     -0.05,
+     -0.19,
+     -1.0,
+     70.036
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 5.31@1864 (centroid 0.216): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 1869,
+   "set": {
+    "camera": [
+     0.164,
+     0.124,
+     0.077,
+     -0.066,
+     -0.199,
+     -1.0,
+     84.755
+    ],
+    "height": 0.32,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1871,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 1872,
+   "set": {
+    "col_contrast": 0.75,
+    "col_sat": 1.1,
+    "col_hue": 0.0
+   },
+   "why": "OPEN HAT off-beat 3.20@1872 (centroid >0.3); hold groove colour until the filter"
+  },
+  {
+   "tick": 1876,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.32,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 1878,
+   "set": {
+    "camera": [
+     0.236,
+     0.146,
+     0.013,
+     -0.094,
+     -0.217,
+     -1.0,
+     82.451
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1879,
+   "set": {
+    "height": 0.34,
+    "camera": [
+     0.293,
+     -0.221,
+     0.055,
+     -0.195,
+     0.001,
+     -1.0,
+     68.195
+    ],
+    "shake": 0.24,
+    "col_sat": 0.55,
+    "col_hue": -0.05
+   },
+   "why": "KICK 3.00@1879 (centroid 0.241): fov punch -16 + shake \u2014 escalating shake #1 (filtered build, rms 0.068); STEP- rms 0.176->0.068: the filter closes, room muffles (sat down, smaller wave)"
+  },
+  {
+   "tick": 1884,
+   "set": {
+    "camera": [
+     -0.259,
+     -0.295,
+     0.469,
+     0.173,
+     0.093,
+     -1.0,
+     98.914
+    ],
+    "height": 0.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1891,
+   "set": {
+    "height": 0.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 1894,
+   "set": {
+    "camera": [
+     -0.163,
+     -0.282,
+     0.397,
+     0.109,
+     0.077,
+     -1.0,
+     96.353
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1895,
+   "set": {
+    "height": 0.34,
+    "camera": [
+     -0.154,
+     -0.28,
+     0.39,
+     0.102,
+     0.076,
+     -1.0,
+     80.097
+    ],
+    "shake": 0.29
+   },
+   "why": "KICK 5.93@1895 (centroid 0.319): fov punch -16 + shake \u2014 escalating shake #2 (filtered build, rms 0.068)"
+  },
+  {
+   "tick": 1900,
+   "set": {
+    "camera": [
+     -0.106,
+     -0.274,
+     0.354,
+     0.07,
+     0.068,
+     -1.0,
+     94.817
+    ],
+    "height": 0.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1907,
+   "set": {
+    "height": 0.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 1910,
+   "set": {
+    "camera": [
+     -0.01,
+     -0.261,
+     0.282,
+     0.006,
+     0.052,
+     -1.0,
+     92.256
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1911,
+   "set": {
+    "height": 0.34,
+    "camera": [
+     0.0,
+     -0.26,
+     0.275,
+     -0.0,
+     0.05,
+     -1.0,
+     76.0
+    ],
+    "shake": 0.34
+   },
+   "why": "KICK 5.73@1911 (centroid 0.329): fov punch -16 + shake \u2014 escalating shake #3 (filtered build, rms 0.068)"
+  },
+  {
+   "tick": 1916,
+   "set": {
+    "camera": [
+     0.048,
+     -0.254,
+     0.239,
+     -0.032,
+     0.042,
+     -1.0,
+     90.72
+    ],
+    "height": 0.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1923,
+   "set": {
+    "height": 0.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 1925,
+   "set": {
+    "camera": [
+     0.134,
+     -0.242,
+     0.174,
+     -0.09,
+     0.028,
+     -1.0,
+     88.415
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1926,
+   "set": {
+    "height": 0.34,
+    "camera": [
+     0.144,
+     -0.241,
+     0.167,
+     -0.096,
+     0.026,
+     -1.0,
+     72.159
+    ],
+    "shake": 0.38
+   },
+   "why": "KICK 5.94@1926 (centroid 0.320): fov punch -16 + shake \u2014 escalating shake #4 (filtered build, rms 0.068)"
+  },
+  {
+   "tick": 1931,
+   "set": {
+    "camera": [
+     0.192,
+     -0.234,
+     0.131,
+     -0.128,
+     0.018,
+     -1.0,
+     86.878
+    ],
+    "height": 0.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1938,
+   "set": {
+    "height": 0.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 1941,
+   "set": {
+    "camera": [
+     0.288,
+     -0.222,
+     0.059,
+     -0.192,
+     0.002,
+     -1.0,
+     84.318
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1942,
+   "set": {
+    "height": 0.34,
+    "camera": [
+     0.298,
+     -0.22,
+     0.052,
+     -0.198,
+     0.0,
+     -1.0,
+     68.061
+    ],
+    "shake": 0.42
+   },
+   "why": "KICK 6.04@1942 (centroid 0.321): fov punch -16 + shake \u2014 escalating shake #5 (filtered build, rms 0.068)"
+  },
+  {
+   "tick": 1947,
+   "set": {
+    "camera": [
+     -0.254,
+     -0.294,
+     0.466,
+     0.17,
+     0.092,
+     -1.0,
+     98.781
+    ],
+    "height": 0.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1954,
+   "set": {
+    "height": 0.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 1956,
+   "set": {
+    "camera": [
+     -0.168,
+     -0.282,
+     0.401,
+     0.112,
+     0.078,
+     -1.0,
+     96.476
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1957,
+   "set": {
+    "height": 0.34,
+    "camera": [
+     -0.158,
+     -0.281,
+     0.394,
+     0.106,
+     0.076,
+     -1.0,
+     80.22
+    ],
+    "shake": 0.47
+   },
+   "why": "KICK 5.95@1957 (centroid 0.323): fov punch -16 + shake \u2014 escalating shake #6 (filtered build, rms 0.068)"
+  },
+  {
+   "tick": 1962,
+   "set": {
+    "camera": [
+     -0.11,
+     -0.275,
+     0.358,
+     0.073,
+     0.068,
+     -1.0,
+     94.94
+    ],
+    "height": 0.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1969,
+   "set": {
+    "height": 0.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 1972,
+   "set": {
+    "camera": [
+     -0.014,
+     -0.262,
+     0.286,
+     0.009,
+     0.052,
+     -1.0,
+     92.379
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1973,
+   "set": {
+    "height": 0.34,
+    "camera": [
+     -0.005,
+     -0.261,
+     0.278,
+     0.003,
+     0.051,
+     -1.0,
+     76.123
+    ],
+    "shake": 0.52
+   },
+   "why": "KICK 5.77@1973 (centroid 0.322): fov punch -16 + shake \u2014 escalating shake #7 (filtered build, rms 0.068)"
+  },
+  {
+   "tick": 1978,
+   "set": {
+    "camera": [
+     0.043,
+     -0.254,
+     0.242,
+     -0.029,
+     0.043,
+     -1.0,
+     90.843
+    ],
+    "height": 0.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 1985,
+   "set": {
+    "height": 0.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 1988,
+   "set": {
+    "camera": [
+     0.139,
+     -0.241,
+     0.17,
+     -0.093,
+     0.027,
+     -1.0,
+     88.282
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 1989,
+   "set": {
+    "height": 0.34,
+    "camera": [
+     0.149,
+     -0.24,
+     0.163,
+     -0.099,
+     0.025,
+     -1.0,
+     72.026
+    ],
+    "shake": 0.55
+   },
+   "why": "KICK 3.54@1989 (centroid 0.318): fov punch -16 + shake \u2014 escalating shake #8 (filtered build, rms 0.068)"
+  },
+  {
+   "tick": 1990,
+   "set": {
+    "col_sat": 0.8
+   },
+   "why": "build end, rms 0.114 rising: hold build"
+  },
+  {
+   "tick": 1994,
+   "set": {
+    "camera": [
+     0.197,
+     -0.234,
+     0.127,
+     -0.131,
+     0.017,
+     -1.0,
+     86.745
+    ],
+    "height": 0.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2001,
+   "set": {
+    "height": 0.2,
+    "col_sat": 0.8,
+    "col_hue": -0.05
+   },
+   "why": "hold before next kick; hold before the drop"
+  },
+  {
+   "tick": 2003,
+   "set": {
+    "camera": [
+     0.283,
+     -0.222,
+     0.062,
+     -0.189,
+     0.003,
+     -1.0,
+     84.44
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2004,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.5,
+     -0.35,
+     0.5,
+     0.5,
+     0.4,
+     -0.8,
+     82.0
+    ],
+    "shake": 0.6,
+    "col_bri": 1.85,
+    "col_sat": 1.2,
+    "col_hue": 0.0
+   },
+   "why": "KICK 5.48@2004 (centroid 0.146): fov punch -24 + shake PROMINENT hit: shake + flash; CAMERA SWITCH (two-bar motif): low corner looking up; DROP STEP+ KEY rms 0.068->0.190 onset 5.48@2004: filter opens, camera cuts to the low corner, full saturation, contrast opens; ring reborn at centre"
+  },
+  {
+   "tick": 2009,
+   "set": {
+    "camera": [
+     -0.494,
+     -0.348,
+     0.492,
+     0.5,
+     0.398,
+     -0.8,
+     105.6
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2016,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2019,
+   "set": {
+    "camera": [
+     -0.483,
+     -0.344,
+     0.476,
+     0.5,
+     0.394,
+     -0.8,
+     104.8
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2020,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.482,
+     -0.344,
+     0.474,
+     0.5,
+     0.394,
+     -0.8,
+     88.72
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 5.59@2020 (centroid 0.221): fov punch -16 + shake + CLAP on beat 2 (bright centroid)"
+  },
+  {
+   "tick": 2025,
+   "set": {
+    "camera": [
+     -0.476,
+     -0.342,
+     0.466,
+     0.5,
+     0.392,
+     -0.8,
+     104.32
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2032,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2034,
+   "set": {
+    "camera": [
+     -0.466,
+     -0.338,
+     0.452,
+     0.5,
+     0.388,
+     -0.8,
+     103.6
+    ],
+    "shake": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2035,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.465,
+     -0.338,
+     0.45,
+     0.5,
+     0.388,
+     -0.8,
+     79.52
+    ],
+    "shake": 0.4,
+    "col_bri": 1.85,
+    "col_hue": 0.06
+   },
+   "why": "KICK 6.13@2035 (centroid 0.152): fov punch -24 + shake PROMINENT hit: shake + flash; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2040,
+   "set": {
+    "camera": [
+     -0.46,
+     -0.336,
+     0.442,
+     0.5,
+     0.386,
+     -0.8,
+     103.12
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2047,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2050,
+   "set": {
+    "camera": [
+     -0.448,
+     -0.332,
+     0.426,
+     0.5,
+     0.382,
+     -0.8,
+     102.32
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2051,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.447,
+     -0.331,
+     0.425,
+     0.5,
+     0.381,
+     -0.8,
+     86.24
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 3.86@2051 (centroid 0.213): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2056,
+   "set": {
+    "camera": [
+     -0.442,
+     -0.329,
+     0.417,
+     0.5,
+     0.379,
+     -0.8,
+     101.84
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2059,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2060,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.04@2060 (centroid >0.3)"
+  },
+  {
+   "tick": 2063,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2064,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 2066,
+   "set": {
+    "camera": [
+     -0.431,
+     -0.325,
+     0.401,
+     0.5,
+     0.375,
+     -0.8,
+     101.04
+    ],
+    "shake": 0.0,
+    "origin_x": 0.5,
+    "origin_y": 0.5,
+    "col_hue": 0.06
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold origin before the bar's new ring; hold hue"
+  },
+  {
+   "tick": 2067,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.429,
+     -0.325,
+     0.399,
+     0.5,
+     0.375,
+     -0.8,
+     84.96
+    ],
+    "shake": 0.3,
+    "origin_x": 0.5,
+    "origin_y": 0.5,
+    "col_hue": -0.04
+   },
+   "why": "KICK 3.36@2067 (centroid 0.145): fov punch -16 + shake; bar downbeat 2067: the ring is reborn from a new origin (half-bar change); half-bar palette step (beat 1)"
+  },
+  {
+   "tick": 2072,
+   "set": {
+    "camera": [
+     -0.424,
+     -0.323,
+     0.391,
+     0.5,
+     0.373,
+     -0.8,
+     100.56
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2075,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2076,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.54@2076 (centroid >0.3)"
+  },
+  {
+   "tick": 2079,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2080,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 2081,
+   "set": {
+    "camera": [
+     -0.414,
+     -0.319,
+     0.377,
+     0.5,
+     0.369,
+     -0.8,
+     99.84
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2082,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.413,
+     -0.319,
+     0.375,
+     0.5,
+     0.369,
+     -0.8,
+     83.76
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 3.97@2082 (centroid 0.221): fov punch -16 + shake + CLAP on beat 2 (bright centroid)"
+  },
+  {
+   "tick": 2087,
+   "set": {
+    "camera": [
+     -0.407,
+     -0.317,
+     0.367,
+     0.5,
+     0.367,
+     -0.8,
+     99.36
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2094,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2097,
+   "set": {
+    "camera": [
+     -0.396,
+     -0.313,
+     0.351,
+     0.5,
+     0.363,
+     -0.8,
+     98.56
+    ],
+    "shake": 0.0,
+    "col_hue": -0.04
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2098,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.395,
+     -0.312,
+     0.35,
+     0.5,
+     0.362,
+     -0.8,
+     82.48
+    ],
+    "shake": 0.3,
+    "col_hue": 0.08
+   },
+   "why": "KICK 4.13@2098 (centroid 0.178): fov punch -16 + shake; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2103,
+   "set": {
+    "camera": [
+     -0.389,
+     -0.31,
+     0.342,
+     0.5,
+     0.36,
+     -0.8,
+     98.08
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2110,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2112,
+   "set": {
+    "camera": [
+     -0.379,
+     -0.307,
+     0.327,
+     0.5,
+     0.357,
+     -0.8,
+     97.36
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2113,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.378,
+     -0.306,
+     0.326,
+     0.5,
+     0.356,
+     -0.8,
+     81.28
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 4.59@2113 (centroid 0.211): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2118,
+   "set": {
+    "camera": [
+     -0.372,
+     -0.304,
+     0.318,
+     0.5,
+     0.354,
+     -0.8,
+     96.88
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2125,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2128,
+   "set": {
+    "camera": [
+     -0.361,
+     -0.3,
+     0.302,
+     0.5,
+     0.35,
+     -0.8,
+     96.08
+    ],
+    "shake": 0.0,
+    "origin_x": 0.5,
+    "origin_y": 0.5,
+    "col_hue": 0.08
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold origin before the bar's new ring; hold hue"
+  },
+  {
+   "tick": 2129,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.5,
+     0.4,
+     0.45,
+     -0.3,
+     -1.0,
+     -0.6,
+     82.0
+    ],
+    "shake": 0.3,
+    "origin_x": 0.25,
+    "origin_y": 0.7,
+    "col_hue": 0.02
+   },
+   "why": "KICK 4.97@2129 (centroid 0.145): fov punch -16 + shake; CAMERA SWITCH (two-bar motif): high, looking down at the floor; bar downbeat 2129: the ring is reborn from a new origin (half-bar change); half-bar palette step (beat 1)"
+  },
+  {
+   "tick": 2134,
+   "set": {
+    "camera": [
+     0.493,
+     0.398,
+     0.442,
+     -0.3,
+     -1.0,
+     -0.6,
+     97.68
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2141,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2144,
+   "set": {
+    "camera": [
+     0.478,
+     0.395,
+     0.426,
+     -0.3,
+     -1.0,
+     -0.6,
+     97.04
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2145,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.477,
+     0.395,
+     0.424,
+     -0.3,
+     -1.0,
+     -0.6,
+     80.976
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 5.16@2145 (centroid 0.214): fov punch -16 + shake + CLAP on beat 2 (bright centroid)"
+  },
+  {
+   "tick": 2150,
+   "set": {
+    "camera": [
+     0.47,
+     0.393,
+     0.416,
+     -0.3,
+     -1.0,
+     -0.6,
+     96.656
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2157,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2159,
+   "set": {
+    "camera": [
+     0.457,
+     0.39,
+     0.402,
+     -0.3,
+     -1.0,
+     -0.6,
+     96.08
+    ],
+    "shake": 0.0,
+    "col_hue": 0.02
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2160,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.455,
+     0.39,
+     0.4,
+     -0.3,
+     -1.0,
+     -0.6,
+     80.016
+    ],
+    "shake": 0.3,
+    "col_hue": -0.06
+   },
+   "why": "KICK 3.22@2160 (centroid 0.181): fov punch -16 + shake; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2165,
+   "set": {
+    "camera": [
+     0.448,
+     0.388,
+     0.392,
+     -0.3,
+     -1.0,
+     -0.6,
+     95.696
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2172,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2175,
+   "set": {
+    "camera": [
+     0.434,
+     0.385,
+     0.376,
+     -0.3,
+     -1.0,
+     -0.6,
+     95.056
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2176,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.432,
+     0.385,
+     0.375,
+     -0.3,
+     -1.0,
+     -0.6,
+     78.992
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 5.43@2176 (centroid 0.225): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2181,
+   "set": {
+    "camera": [
+     0.425,
+     0.383,
+     0.367,
+     -0.3,
+     -1.0,
+     -0.6,
+     94.672
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2188,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2191,
+   "set": {
+    "camera": [
+     0.411,
+     0.38,
+     0.351,
+     -0.3,
+     -1.0,
+     -0.6,
+     94.032
+    ],
+    "shake": 0.0,
+    "origin_x": 0.25,
+    "origin_y": 0.7,
+    "col_hue": -0.06
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold origin before the bar's new ring; hold hue"
+  },
+  {
+   "tick": 2192,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.409,
+     0.38,
+     0.349,
+     -0.3,
+     -1.0,
+     -0.6,
+     77.968
+    ],
+    "shake": 0.3,
+    "origin_x": 0.75,
+    "origin_y": 0.3,
+    "col_hue": 0.0
+   },
+   "why": "KICK 3.84@2192 (centroid 0.140): fov punch -16 + shake; bar downbeat 2192: the ring is reborn from a new origin (half-bar change); half-bar palette step (beat 1)"
+  },
+  {
+   "tick": 2197,
+   "set": {
+    "camera": [
+     0.402,
+     0.378,
+     0.341,
+     -0.3,
+     -1.0,
+     -0.6,
+     93.648
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2204,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2206,
+   "set": {
+    "camera": [
+     0.389,
+     0.375,
+     0.327,
+     -0.3,
+     -1.0,
+     -0.6,
+     93.072
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2207,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.388,
+     0.375,
+     0.325,
+     -0.3,
+     -1.0,
+     -0.6,
+     69.008
+    ],
+    "shake": 0.4,
+    "col_bri": 1.85
+   },
+   "why": "KICK 6.31@2207 (centroid 0.214): fov punch -24 + shake + CLAP on beat 2 (bright centroid) PROMINENT hit: shake + flash"
+  },
+  {
+   "tick": 2212,
+   "set": {
+    "camera": [
+     0.38,
+     0.373,
+     0.317,
+     -0.3,
+     -1.0,
+     -0.6,
+     92.688
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2215,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2216,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 5.49@2216 (centroid >0.3)"
+  },
+  {
+   "tick": 2219,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2220,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 2222,
+   "set": {
+    "camera": [
+     0.366,
+     0.37,
+     0.301,
+     -0.3,
+     -1.0,
+     -0.6,
+     92.048
+    ],
+    "shake": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2223,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.365,
+     0.37,
+     0.3,
+     -0.3,
+     -1.0,
+     -0.6,
+     75.984
+    ],
+    "shake": 0.3,
+    "col_hue": 0.06
+   },
+   "why": "KICK 4.32@2223 (centroid 0.163): fov punch -16 + shake; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2228,
+   "set": {
+    "camera": [
+     0.357,
+     0.368,
+     0.292,
+     -0.3,
+     -1.0,
+     -0.6,
+     91.664
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2230,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2231,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.52@2231 (centroid >0.3)"
+  },
+  {
+   "tick": 2235,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2237,
+   "set": {
+    "camera": [
+     0.344,
+     0.365,
+     0.277,
+     -0.3,
+     -1.0,
+     -0.6,
+     91.088
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2238,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.343,
+     0.365,
+     0.276,
+     -0.3,
+     -1.0,
+     -0.6,
+     75.024
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 2.94@2238 (centroid 0.266): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2243,
+   "set": {
+    "camera": [
+     0.336,
+     0.364,
+     0.268,
+     -0.3,
+     -1.0,
+     -0.6,
+     90.704
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2250,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2253,
+   "set": {
+    "camera": [
+     0.321,
+     0.36,
+     0.252,
+     -0.3,
+     -1.0,
+     -0.6,
+     90.064
+    ],
+    "shake": 0.0,
+    "origin_x": 0.75,
+    "origin_y": 0.3,
+    "col_hue": 0.06
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold origin before the bar's new ring; hold hue"
+  },
+  {
+   "tick": 2254,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.45,
+     -0.1,
+     -0.4,
+     -1.0,
+     0.0,
+     0.3,
+     90.0
+    ],
+    "shake": 0.3,
+    "origin_x": 0.3,
+    "origin_y": 0.25,
+    "col_hue": -0.04
+   },
+   "why": "KICK 3.13@2254 (centroid 0.146): fov punch -16 + shake; CAMERA SWITCH (two-bar motif): side wall, looking across; bar downbeat 2254: the ring is reborn from a new origin (half-bar change); half-bar palette step (beat 1)"
+  },
+  {
+   "tick": 2259,
+   "set": {
+    "camera": [
+     0.447,
+     -0.098,
+     -0.393,
+     -1.0,
+     0.002,
+     0.3,
+     105.6
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2266,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2268,
+   "set": {
+    "camera": [
+     0.442,
+     -0.094,
+     -0.38,
+     -1.0,
+     0.006,
+     0.3,
+     104.88
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2269,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.442,
+     -0.094,
+     -0.378,
+     -1.0,
+     0.006,
+     0.3,
+     88.8
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 4.82@2269 (centroid 0.247): fov punch -16 + shake + CLAP on beat 2 (bright centroid)"
+  },
+  {
+   "tick": 2274,
+   "set": {
+    "camera": [
+     0.439,
+     -0.092,
+     -0.371,
+     -1.0,
+     0.008,
+     0.3,
+     104.4
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2277,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2278,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 4.28@2278 (centroid >0.3)"
+  },
+  {
+   "tick": 2281,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2282,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 2285,
+   "set": {
+    "camera": [
+     0.433,
+     -0.088,
+     -0.355,
+     -1.0,
+     0.012,
+     0.3,
+     103.52
+    ],
+    "shake": 0.0,
+    "col_hue": -0.04
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2286,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.432,
+     -0.087,
+     -0.354,
+     -1.0,
+     0.013,
+     0.3,
+     87.44
+    ],
+    "shake": 0.3,
+    "col_hue": 0.08
+   },
+   "why": "KICK 4.46@2286 (centroid 0.137): fov punch -16 + shake; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2291,
+   "set": {
+    "camera": [
+     0.429,
+     -0.085,
+     -0.347,
+     -1.0,
+     0.015,
+     0.3,
+     103.04
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2293,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2294,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 4.02@2294 (centroid >0.3)"
+  },
+  {
+   "tick": 2298,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2300,
+   "set": {
+    "camera": [
+     0.424,
+     -0.082,
+     -0.334,
+     -1.0,
+     0.018,
+     0.3,
+     102.32
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2301,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.424,
+     -0.081,
+     -0.332,
+     -1.0,
+     0.019,
+     0.3,
+     86.24
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 3.60@2301 (centroid 0.236): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2306,
+   "set": {
+    "camera": [
+     0.421,
+     -0.079,
+     -0.325,
+     -1.0,
+     0.021,
+     0.3,
+     101.84
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2309,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2310,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.81@2310 (centroid >0.3)"
+  },
+  {
+   "tick": 2313,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2314,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 2316,
+   "set": {
+    "camera": [
+     0.415,
+     -0.075,
+     -0.311,
+     -1.0,
+     0.025,
+     0.3,
+     101.04
+    ],
+    "shake": 0.0,
+    "origin_x": 0.3,
+    "origin_y": 0.25,
+    "col_hue": 0.08
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold origin before the bar's new ring; hold hue"
+  },
+  {
+   "tick": 2317,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.415,
+     -0.075,
+     -0.309,
+     -1.0,
+     0.025,
+     0.3,
+     84.96
+    ],
+    "shake": 0.3,
+    "origin_x": 0.7,
+    "origin_y": 0.72,
+    "col_hue": 0.02
+   },
+   "why": "KICK 3.50@2317 (centroid 0.137): fov punch -16 + shake; bar downbeat 2317: the ring is reborn from a new origin (half-bar change); half-bar palette step (beat 1)"
+  },
+  {
+   "tick": 2322,
+   "set": {
+    "camera": [
+     0.412,
+     -0.073,
+     -0.302,
+     -1.0,
+     0.027,
+     0.3,
+     100.56
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2324,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2325,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 4.06@2325 (centroid >0.3)"
+  },
+  {
+   "tick": 2329,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2332,
+   "set": {
+    "camera": [
+     0.406,
+     -0.069,
+     -0.288,
+     -1.0,
+     0.031,
+     0.3,
+     99.76
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2333,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.406,
+     -0.068,
+     -0.286,
+     -1.0,
+     0.032,
+     0.3,
+     83.68
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 3.16@2333 (centroid 0.258): fov punch -16 + shake + CLAP on beat 2 (bright centroid)"
+  },
+  {
+   "tick": 2338,
+   "set": {
+    "camera": [
+     0.403,
+     -0.066,
+     -0.279,
+     -1.0,
+     0.034,
+     0.3,
+     99.28
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2340,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2341,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.61@2341 (centroid >0.3)"
+  },
+  {
+   "tick": 2345,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2347,
+   "set": {
+    "camera": [
+     0.398,
+     -0.063,
+     -0.266,
+     -1.0,
+     0.037,
+     0.3,
+     98.56
+    ],
+    "shake": 0.0,
+    "col_hue": 0.02
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2348,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.397,
+     -0.062,
+     -0.265,
+     -1.0,
+     0.038,
+     0.3,
+     82.48
+    ],
+    "shake": 0.3,
+    "col_hue": -0.06
+   },
+   "why": "KICK 3.53@2348 (centroid 0.192): fov punch -16 + shake; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2353,
+   "set": {
+    "camera": [
+     0.395,
+     -0.06,
+     -0.257,
+     -1.0,
+     0.04,
+     0.3,
+     98.08
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2355,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2356,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.34@2356 (centroid >0.3)"
+  },
+  {
+   "tick": 2360,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2363,
+   "set": {
+    "camera": [
+     0.389,
+     -0.056,
+     -0.243,
+     -1.0,
+     0.044,
+     0.3,
+     97.28
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2364,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.388,
+     -0.056,
+     -0.242,
+     -1.0,
+     0.044,
+     0.3,
+     81.2
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 4.63@2364 (centroid 0.245): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2369,
+   "set": {
+    "camera": [
+     0.386,
+     -0.054,
+     -0.234,
+     -1.0,
+     0.046,
+     0.3,
+     96.8
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2376,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2378,
+   "set": {
+    "camera": [
+     0.381,
+     -0.05,
+     -0.221,
+     -1.0,
+     0.05,
+     0.3,
+     96.08
+    ],
+    "shake": 0.0,
+    "origin_x": 0.7,
+    "origin_y": 0.72,
+    "col_hue": -0.06
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold origin before the bar's new ring; hold hue"
+  },
+  {
+   "tick": 2379,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.5,
+     -0.35,
+     0.5,
+     -0.5,
+     0.4,
+     -0.8,
+     90.0
+    ],
+    "shake": 0.3,
+    "origin_x": 0.5,
+    "origin_y": 0.5,
+    "col_hue": 0.0
+   },
+   "why": "KICK 4.11@2379 (centroid 0.144): fov punch -16 + shake; CAMERA SWITCH (two-bar motif): low corner mirrored (motif 1 again); bar downbeat 2379: the ring is reborn from a new origin (half-bar change); half-bar palette step (beat 1)"
+  },
+  {
+   "tick": 2384,
+   "set": {
+    "camera": [
+     0.494,
+     -0.348,
+     0.492,
+     -0.5,
+     0.398,
+     -0.8,
+     105.6
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2387,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2388,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.16@2388 (centroid >0.3)"
+  },
+  {
+   "tick": 2391,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2392,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 2394,
+   "set": {
+    "camera": [
+     0.483,
+     -0.344,
+     0.476,
+     -0.5,
+     0.394,
+     -0.8,
+     104.8
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2395,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.482,
+     -0.344,
+     0.474,
+     -0.5,
+     0.394,
+     -0.8,
+     88.72
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 5.06@2395 (centroid 0.272): fov punch -16 + shake + CLAP on beat 2 (bright centroid)"
+  },
+  {
+   "tick": 2400,
+   "set": {
+    "camera": [
+     0.476,
+     -0.342,
+     0.466,
+     -0.5,
+     0.392,
+     -0.8,
+     104.32
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2402,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2403,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.01@2403 (centroid >0.3)"
+  },
+  {
+   "tick": 2407,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2410,
+   "set": {
+    "camera": [
+     0.465,
+     -0.338,
+     0.45,
+     -0.5,
+     0.388,
+     -0.8,
+     103.52
+    ],
+    "shake": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2411,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.464,
+     -0.337,
+     0.449,
+     -0.5,
+     0.387,
+     -0.8,
+     87.44
+    ],
+    "shake": 0.3,
+    "col_hue": 0.06
+   },
+   "why": "KICK 3.90@2411 (centroid 0.155): fov punch -16 + shake; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2416,
+   "set": {
+    "camera": [
+     0.459,
+     -0.335,
+     0.441,
+     -0.5,
+     0.385,
+     -0.8,
+     103.04
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2423,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2425,
+   "set": {
+    "camera": [
+     0.448,
+     -0.332,
+     0.426,
+     -0.5,
+     0.382,
+     -0.8,
+     102.32
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2426,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.447,
+     -0.331,
+     0.425,
+     -0.5,
+     0.381,
+     -0.8,
+     86.24
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 5.69@2426 (centroid 0.265): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2431,
+   "set": {
+    "camera": [
+     0.442,
+     -0.329,
+     0.417,
+     -0.5,
+     0.379,
+     -0.8,
+     101.84
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2438,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2441,
+   "set": {
+    "camera": [
+     0.431,
+     -0.325,
+     0.401,
+     -0.5,
+     0.375,
+     -0.8,
+     101.04
+    ],
+    "shake": 0.0,
+    "origin_x": 0.5,
+    "origin_y": 0.5,
+    "col_hue": 0.06
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold origin before the bar's new ring; hold hue"
+  },
+  {
+   "tick": 2442,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.429,
+     -0.325,
+     0.399,
+     -0.5,
+     0.375,
+     -0.8,
+     84.96
+    ],
+    "shake": 0.3,
+    "origin_x": 0.2,
+    "origin_y": 0.45,
+    "col_hue": -0.04
+   },
+   "why": "KICK 4.72@2442 (centroid 0.129): fov punch -16 + shake; bar downbeat 2442: the ring is reborn from a new origin (half-bar change); half-bar palette step (beat 1)"
+  },
+  {
+   "tick": 2447,
+   "set": {
+    "camera": [
+     0.424,
+     -0.323,
+     0.391,
+     -0.5,
+     0.373,
+     -0.8,
+     100.56
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2449,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2450,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 3.25@2450 (centroid >0.3)"
+  },
+  {
+   "tick": 2454,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2456,
+   "set": {
+    "camera": [
+     0.414,
+     -0.319,
+     0.377,
+     -0.5,
+     0.369,
+     -0.8,
+     99.84
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2457,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.413,
+     -0.319,
+     0.375,
+     -0.5,
+     0.369,
+     -0.8,
+     75.76
+    ],
+    "shake": 0.4,
+    "col_bri": 1.85
+   },
+   "why": "KICK 5.52@2457 (centroid 0.284): fov punch -24 + shake + CLAP on beat 2 (bright centroid) PROMINENT hit: shake + flash"
+  },
+  {
+   "tick": 2462,
+   "set": {
+    "camera": [
+     0.407,
+     -0.317,
+     0.367,
+     -0.5,
+     0.367,
+     -0.8,
+     99.36
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2465,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2466,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 5.44@2466 (centroid >0.3)"
+  },
+  {
+   "tick": 2469,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2470,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 2472,
+   "set": {
+    "camera": [
+     0.396,
+     -0.313,
+     0.351,
+     -0.5,
+     0.363,
+     -0.8,
+     98.56
+    ],
+    "shake": 0.0,
+    "col_hue": -0.04
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2473,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.395,
+     -0.312,
+     0.35,
+     -0.5,
+     0.362,
+     -0.8,
+     82.48
+    ],
+    "shake": 0.3,
+    "col_hue": 0.08
+   },
+   "why": "KICK 5.31@2473 (centroid 0.146): fov punch -16 + shake; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2478,
+   "set": {
+    "camera": [
+     0.389,
+     -0.31,
+     0.342,
+     -0.5,
+     0.36,
+     -0.8,
+     98.08
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2480,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2481,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 4.16@2481 (centroid >0.3)"
+  },
+  {
+   "tick": 2485,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2488,
+   "set": {
+    "camera": [
+     0.378,
+     -0.306,
+     0.326,
+     -0.5,
+     0.356,
+     -0.8,
+     97.28
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2489,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     0.377,
+     -0.306,
+     0.324,
+     -0.5,
+     0.356,
+     -0.8,
+     81.2
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 4.07@2489 (centroid 0.241): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2494,
+   "set": {
+    "camera": [
+     0.371,
+     -0.304,
+     0.316,
+     -0.5,
+     0.354,
+     -0.8,
+     96.8
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2501,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2503,
+   "set": {
+    "camera": [
+     0.361,
+     -0.3,
+     0.302,
+     -0.5,
+     0.35,
+     -0.8,
+     96.08
+    ],
+    "shake": 0.0,
+    "origin_x": 0.2,
+    "origin_y": 0.45,
+    "col_hue": 0.08
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold origin before the bar's new ring; hold hue"
+  },
+  {
+   "tick": 2504,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.5,
+     0.4,
+     0.45,
+     0.3,
+     -1.0,
+     -0.6,
+     82.0
+    ],
+    "shake": 0.3,
+    "origin_x": 0.8,
+    "origin_y": 0.55,
+    "col_hue": 0.02
+   },
+   "why": "KICK 3.63@2504 (centroid 0.145): fov punch -16 + shake; CAMERA SWITCH (two-bar motif): high mirrored (motif 2 again); bar downbeat 2504: the ring is reborn from a new origin (half-bar change); half-bar palette step (beat 1)"
+  },
+  {
+   "tick": 2509,
+   "set": {
+    "camera": [
+     -0.486,
+     0.397,
+     0.434,
+     0.3,
+     -1.0,
+     -0.6,
+     97.365
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2516,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2519,
+   "set": {
+    "camera": [
+     -0.457,
+     0.39,
+     0.402,
+     0.3,
+     -1.0,
+     -0.6,
+     96.095
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2520,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.454,
+     0.39,
+     0.399,
+     0.3,
+     -1.0,
+     -0.6,
+     71.968
+    ],
+    "shake": 0.4,
+    "col_bri": 1.85
+   },
+   "why": "KICK 5.76@2520 (centroid 0.280): fov punch -24 + shake + CLAP on beat 2 (bright centroid) PROMINENT hit: shake + flash"
+  },
+  {
+   "tick": 2525,
+   "set": {
+    "camera": [
+     -0.44,
+     0.387,
+     0.383,
+     0.3,
+     -1.0,
+     -0.6,
+     95.333
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2527,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2528,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 4.49@2528 (centroid >0.3)"
+  },
+  {
+   "tick": 2532,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2534,
+   "set": {
+    "camera": [
+     -0.414,
+     0.381,
+     0.355,
+     0.3,
+     -1.0,
+     -0.6,
+     94.19
+    ],
+    "shake": 0.0,
+    "col_hue": 0.02
+   },
+   "why": "hold camera path before the punch; shake rests before the kick; hold hue"
+  },
+  {
+   "tick": 2535,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.411,
+     0.38,
+     0.352,
+     0.3,
+     -1.0,
+     -0.6,
+     78.063
+    ],
+    "shake": 0.3,
+    "col_hue": -0.06
+   },
+   "why": "KICK 4.67@2535 (centroid 0.153): fov punch -16 + shake; half-bar palette step (beat 3)"
+  },
+  {
+   "tick": 2540,
+   "set": {
+    "camera": [
+     -0.397,
+     0.377,
+     0.336,
+     0.3,
+     -1.0,
+     -0.6,
+     93.429
+    ],
+    "height": 0.42,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2543,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2544,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 4.23@2544 (centroid >0.3)"
+  },
+  {
+   "tick": 2547,
+   "set": {
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hold before next kick"
+  },
+  {
+   "tick": 2548,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hat decays"
+  },
+  {
+   "tick": 2550,
+   "set": {
+    "camera": [
+     -0.369,
+     0.371,
+     0.304,
+     0.3,
+     -1.0,
+     -0.6,
+     92.159
+    ],
+    "shake": 0.0
+   },
+   "why": "hold camera path before the punch; shake rests before the kick"
+  },
+  {
+   "tick": 2551,
+   "set": {
+    "height": 0.56,
+    "camera": [
+     -0.366,
+     0.37,
+     0.301,
+     0.3,
+     -1.0,
+     -0.6,
+     76.032
+    ],
+    "shake": 0.3,
+    "col_bri": 1.7
+   },
+   "why": "KICK 4.73@2551 (centroid 0.234): fov punch -16 + shake + CLAP on beat 4 (bright centroid)"
+  },
+  {
+   "tick": 2556,
+   "set": {
+    "camera": [
+     -0.351,
+     0.367,
+     0.285,
+     0.3,
+     -1.0,
+     -0.6,
+     91.397
+    ],
+    "height": 0.42,
+    "col_bri": 1.2,
+    "shake": 0.0
+   },
+   "why": "camera back on its path; fall back after the hit"
+  },
+  {
+   "tick": 2558,
+   "set": {
+    "col_contrast": 0.3
+   },
+   "why": "hold contrast before hat"
+  },
+  {
+   "tick": 2559,
+   "set": {
+    "col_contrast": 0.75
+   },
+   "why": "OPEN HAT off-beat 4.05@2559 (centroid >0.3)"
+  },
+  {
+   "tick": 2563,
+   "set": {
+    "col_contrast": 0.3,
+    "height": 0.42,
+    "col_bri": 1.2
+   },
+   "why": "hat decays; hold before next kick"
+  },
+  {
+   "tick": 2566,
+   "set": {
+    "col_sat": 1.2,
+    "camera": [
+     -0.323,
+     0.361,
+     0.253,
+     0.3,
+     -1.0,
+     -0.6,
+     90.127
+    ]
+   },
+   "why": "span end: steady groove"
+  }
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "id": "rio-a-slow-breath",
+ "name": "Slow Breath",
+ "target": {
+  "model": "river"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "moon"
+   },
+   "curve": "ramp",
+   "steps": [0.2, 0.28, 0.36, 0.44, 0.52, 0.6, 0.68, 0.76, 0.84, 0.76, 0.68, 0.6, 0.52, 0.44, 0.36, 0.28]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "depth"
+   },
+   "curve": "step",
+   "steps": [0.3, null, null, null, null, null, null, null, 0.9, null, null, null, 0.3, null, null, null]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "psychedelia"
+   },
+   "steps": [{"colour": 0}, null, null, null, null, null, null, null, {"colour": 2}, null, null, null, {"colour": 0}, null, null, null]
+  }
+ ]
+}

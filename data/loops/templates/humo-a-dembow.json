@@ -1,0 +1,96 @@
+{
+ "id": "humo-a-dembow",
+ "name": "Dembow",
+ "target": {
+  "model": "smoke"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "density"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.2,
+    0.9,
+    null,
+    null,
+    null,
+    0.2,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "swirl"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.8,
+    0.2,
+    null,
+    null,
+    null,
+    0.8,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "smoke",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null
+   ]
+  }
+ ]
+}

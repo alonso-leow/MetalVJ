@@ -1,0 +1,11 @@
+{
+ "id": "forge-a-call-beat4",
+ "name": "Call Beat 4",
+ "target": {"model": "forge"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "chroma_c"}, "curve": "step",
+   "steps": [0.8, null, null, null, 0.5, null, null, null, 0.8, null, null, null, null, null, null, null]},
+  {"target": {"kind": "float", "param": "chroma_g"}, "curve": "step",
+   "steps": [null, null, null, null, null, null, null, null, null, null, null, null, 0.95, null, 0.6, null]}
+ ]
+}

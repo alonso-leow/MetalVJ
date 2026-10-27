@@ -1,0 +1,14 @@
+# neblina fria — the cold-fog (low fog) machine on the Fiesta Resort rig.
+#
+# Its ShowXpress profile (`fixtures/neblina fria.txt`) is a single `???` slot:
+# the desk knows only that the machine takes one channel. Declared here as one
+# `level` slot so the venue can still carry it, its address and its pose - the
+# low-fog machine sits at the front edge of the stage and pours onto the deck.
+
+label = "neblina fria (low fog, 1ch)"
+universe = 0
+address = 1
+
+[[channel]]
+signal = "level"
+coarse = 0

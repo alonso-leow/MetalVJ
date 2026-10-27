@@ -1,0 +1,70 @@
+{
+ "id": "hf-agua-agua-fx-mov",
+ "name": "Agua FX mov",
+ "family": "agua",
+ "source": "ShowXpress 00-Alonso/Agua FX mov.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984551": {
+     "fixture": "cabeza-7r-8",
+     "dmx": {
+      "beam": 255,
+      "dimmer": 255,
+      "gobo": 50,
+      "pan": 87,
+      "strobe_dimmer": 255,
+      "tilt": 238,
+      "upan": 93,
+      "utilt": 82,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3412,
+      "tilt": 0.9333,
+      "strobe": 1.0
+     }
+    },
+    "1641053008": {
+     "fixture": "cabeza-7r-16b",
+     "dmx": {
+      "beam": 255,
+      "dimmer": 232,
+      "gobo": 50,
+      "pan": 88,
+      "strobe_dimmer": 255,
+      "tilt": 233,
+      "upan": 228,
+      "utilt": 94,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.9098,
+      "pan": 0.3451,
+      "tilt": 0.9137,
+      "strobe": 1.0
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984551": {
+   "desk_id": "1582984551",
+   "desk_name": "CABEZA 7 R 1#8",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-8",
+   "address": 431
+  },
+  "1641053008": {
+   "desk_id": "1641053008",
+   "desk_name": "CABEZA 7 R 1#16 #2",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-16b",
+   "address": 488
+  }
+ }
+}

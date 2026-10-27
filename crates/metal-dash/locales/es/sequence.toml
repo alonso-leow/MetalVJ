@@ -1,0 +1,14 @@
+# Spanish for the shell module `sequence`: "English source text" = "Spanish text".
+# See ../README.md.
+
+# --- the simplified sequence (2026-10-15) -------------------------------------
+"play clips" = "reproducir"
+"pause clips" = "pausar"
+"enable effects" = "activar efectos"
+"clear" = "vaciar"
+"no clips — pick media in the library" = "sin clips — elegí medios en la biblioteca"
+"{name} · {kind}" = "{name} · {kind}"
+
+"digesting the song…" = "digiriendo la canción…"
+"drop a video from the library: onto a layer, or here for a new one" = "suelta un video de la biblioteca: sobre una capa, o aquí para una nueva"
+"not digested — pick a song" = "sin digerir — elige una canción"

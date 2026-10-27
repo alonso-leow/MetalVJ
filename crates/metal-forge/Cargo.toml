@@ -1,0 +1,25 @@
+[package]
+name = "metal-forge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Same wgpu/naga pair `metal-render` already pulls in — kept in lockstep with it
+# rather than picked fresh, see `Cargo.toml`'s dependency comment.
+wgpu = "30"
+naga = { version = "30", features = ["wgsl-in"] }
+pollster = "1"
+bytemuck = { version = "1", features = ["derive"] }
+thiserror.workspace = true
+# Pure Rust PNG encoder. Already in the tree transitively (wgpu -> naga's own
+# deps pull `png` in for texture loading in examples elsewhere), pinned here
+# directly because `raster` produces a real PNG, not a JPEG like the live
+# preview path.
+png = "0.18"
+# I.3: the closed vocabulary is tested as equal to `metal-schema`'s `KNOWN_OPS`
+# (`tests/vocab.rs`), and each operation's name travels in that same crate's
+# IR — pure, with no wgpu behind it, so pulling it in here drags nothing along.
+metal-schema = { path = "../metal-schema" }
+
+[dev-dependencies]

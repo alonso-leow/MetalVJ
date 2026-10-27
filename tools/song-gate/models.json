@@ -1,0 +1,197 @@
+[
+  {
+    "id": "geoterrain",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Geoterrain"
+  },
+  {
+    "id": "domain",
+    "look": "generative: draws its own picture",
+    "name": "Domain"
+  },
+  {
+    "id": "escape",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Escape"
+  },
+  {
+    "id": "entrance",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Entrance"
+  },
+  {
+    "id": "cyberspace",
+    "look": "generative: draws its own picture",
+    "name": "Cyberspace"
+  },
+  {
+    "id": "solvent",
+    "look": "generative: draws its own picture",
+    "name": "Solvent"
+  },
+  {
+    "id": "chamber",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Chamber"
+  },
+  {
+    "id": "membrane",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Membrane"
+  },
+  {
+    "id": "oracle",
+    "look": "generative: draws its own picture",
+    "name": "Oracle"
+  },
+  {
+    "id": "turing",
+    "look": "generative: draws its own picture; camera-trackable",
+    "name": "Turing"
+  },
+  {
+    "id": "fractals",
+    "look": "generative: draws its own picture",
+    "name": "Fractals"
+  },
+  {
+    "id": "kaleido",
+    "look": "generative: draws its own picture",
+    "name": "Kaleidoscope"
+  },
+  {
+    "id": "vaporgrid",
+    "look": "generative: draws its own picture",
+    "name": "Vaporgrid"
+  },
+  {
+    "id": "matrix",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Matrix"
+  },
+  {
+    "id": "ascii",
+    "look": "generative: draws its own picture",
+    "name": "ASCII Waveform"
+  },
+  {
+    "id": "puzzle",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Puzzle"
+  },
+  {
+    "id": "mengano",
+    "look": "generative: draws its own picture",
+    "name": "Mengano"
+  },
+  {
+    "id": "rings",
+    "look": "generative: draws its own picture",
+    "name": "Rings"
+  },
+  {
+    "id": "scratch",
+    "look": "generative: draws its own picture",
+    "name": "Scratch-off"
+  },
+  {
+    "id": "lazer",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Lazer Bounce"
+  },
+  {
+    "id": "sandstorm",
+    "look": "generative: draws its own picture",
+    "name": "Sandstorm"
+  },
+  {
+    "id": "estrobo",
+    "look": "generative: draws its own picture",
+    "name": "Strobe"
+  },
+  {
+    "id": "relampago",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "Lightning"
+  },
+  {
+    "id": "moire",
+    "look": "generative: draws its own picture",
+    "name": "Moiré"
+  },
+  {
+    "id": "vitral",
+    "look": "generative: draws its own picture",
+    "name": "Stained Glass"
+  },
+  {
+    "id": "humo",
+    "look": "generative: draws its own picture",
+    "name": "Smoke"
+  },
+  {
+    "id": "terrario",
+    "look": "generative: draws its own picture",
+    "name": "Terrarium"
+  },
+  {
+    "id": "rio",
+    "look": "generative: draws its own picture; draws its own backdrop",
+    "name": "River"
+  },
+  {
+    "id": "estela",
+    "look": "transmission: draws over source material",
+    "name": "Wake"
+  },
+  {
+    "id": "aurora",
+    "look": "generative: draws its own picture",
+    "name": "Aurora"
+  },
+  {
+    "id": "beam",
+    "look": "generative: draws its own picture",
+    "name": "Beam"
+  },
+  {
+    "id": "escena3d",
+    "look": "generative: draws its own picture; draws its own backdrop; camera-trackable",
+    "name": "Scene 3D"
+  },
+  {
+    "id": "dla",
+    "look": "generative: draws its own picture",
+    "name": "Dla"
+  },
+  {
+    "id": "forge",
+    "look": "generative: draws its own picture",
+    "name": "Forge (custom shader)"
+  },
+  {
+    "id": "monstruo",
+    "look": "generative: draws its own picture",
+    "name": "Monstruo"
+  },
+  {
+    "id": "parallax-cueva",
+    "look": "generative: draws its own picture; draws its own backdrop; camera-trackable",
+    "name": "Parallax Cave"
+  },
+  {
+    "id": "parallax-cielo",
+    "look": "generative: draws its own picture; draws its own backdrop; camera-trackable",
+    "name": "Parallax Sky"
+  },
+  {
+    "id": "parallax-campos",
+    "look": "generative: draws its own picture; draws its own backdrop; camera-trackable",
+    "name": "Parallax Fields"
+  },
+  {
+    "id": "parallax-ciudad",
+    "look": "generative: draws its own picture; draws its own backdrop; camera-trackable",
+    "name": "Parallax City"
+  }
+]

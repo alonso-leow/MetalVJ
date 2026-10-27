@@ -1,0 +1,146 @@
+{
+ "id": "hf-tierra-tierra-colores-proscenio",
+ "name": "Tierra colores proscenio",
+ "family": "tierra",
+ "source": "ShowXpress 00-Alonso/Tierra colores proscenio.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1764327535": {
+     "fixture": "wash-escenario-5",
+     "dmx": {
+      "color": 237,
+      "dimmer": 185,
+      "pan": 0,
+      "red": 0,
+      "shutter": 245,
+      "tilt": 75,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 0.7255,
+      "pan": 0.0,
+      "tilt": 0.2941,
+      "strobe": 0.9608
+     }
+    },
+    "1764327536": {
+     "fixture": "wash-escenario-5b",
+     "dmx": {
+      "color": 237,
+      "dimmer": 185,
+      "pan": 0,
+      "red": 0,
+      "shutter": 245,
+      "tilt": 75,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 0.7255,
+      "pan": 0.0,
+      "tilt": 0.2941,
+      "strobe": 0.9608
+     }
+    },
+    "1764602686": {
+     "fixture": "wash-escenario-7",
+     "dmx": {
+      "color": 237,
+      "dimmer": 185,
+      "pan": 0,
+      "red": 0,
+      "shutter": 245,
+      "tilt": 75,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 0.7255,
+      "pan": 0.0,
+      "tilt": 0.2941,
+      "strobe": 0.9608
+     }
+    },
+    "1764602241": {
+     "fixture": "wash-escenario-6",
+     "dmx": {
+      "color": 237,
+      "dimmer": 185,
+      "pan": 0,
+      "red": 0,
+      "shutter": 245,
+      "tilt": 75,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 0.7255,
+      "pan": 0.0,
+      "tilt": 0.2941,
+      "strobe": 0.9608
+     }
+    },
+    "1764424683": {
+     "fixture": "wash-escenario-1",
+     "dmx": {
+      "color": 237,
+      "dimmer": 185,
+      "pan": 0,
+      "red": 0,
+      "shutter": 245,
+      "tilt": 75,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 0.7255,
+      "pan": 0.0,
+      "tilt": 0.2941,
+      "strobe": 0.9608
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1764327535": {
+   "desk_id": "1764327535",
+   "desk_name": "WASH 5 ESCENARIO",
+   "desk_model": "WASH 5 ESCENARIO",
+   "fixture": "wash-escenario-5",
+   "address": 133
+  },
+  "1764327536": {
+   "desk_id": "1764327536",
+   "desk_name": "WASH 5 ESCENARIO #2",
+   "desk_model": "WASH 5 ESCENARIO",
+   "fixture": "wash-escenario-5b",
+   "address": 147
+  },
+  "1764602686": {
+   "desk_id": "1764602686",
+   "desk_name": "WASH ESCENARIO 7",
+   "desk_model": "WASH ESCENARIO 7",
+   "fixture": "wash-escenario-7",
+   "address": 327
+  },
+  "1764602241": {
+   "desk_id": "1764602241",
+   "desk_name": "WASH ESCENARIO 6",
+   "desk_model": "WASH ESCENARIO 6",
+   "fixture": "wash-escenario-6",
+   "address": 161
+  },
+  "1764424683": {
+   "desk_id": "1764424683",
+   "desk_name": "WASH ESCENARIO 1",
+   "desk_model": "WASH ESCENARIO 1",
+   "fixture": "wash-escenario-1",
+   "address": 1
+  }
+ }
+}

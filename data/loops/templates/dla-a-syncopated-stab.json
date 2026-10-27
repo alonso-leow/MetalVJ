@@ -1,0 +1,92 @@
+{
+ "id": "dla-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "dla"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "turn"
+   },
+   "curve": "step",
+   "steps": [
+    0.5,
+    0.5,
+    0.95,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.05,
+    0.5,
+    0.5,
+    0.5,
+    0.95,
+    0.5,
+    0.5,
+    0.5,
+    0.05
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "step",
+   "steps": [
+    0.25,
+    0.25,
+    0.9,
+    0.25,
+    0.25,
+    0.25,
+    0.25,
+    0.9,
+    0.25,
+    0.25,
+    0.25,
+    0.9,
+    0.25,
+    0.25,
+    0.25,
+    0.9
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "background",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    }
+   ]
+  }
+ ]
+}

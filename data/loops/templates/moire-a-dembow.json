@@ -1,0 +1,94 @@
+{
+ "id": "moire-a-dembow",
+ "name": "Dembow",
+ "target": {
+  "model": "moire"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "mix"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    0.15,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.15,
+    null,
+    0.9,
+    null,
+    0.15,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "turn"
+   },
+   "curve": "step",
+   "steps": [
+    0.3,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null,
+    0.3,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "lines",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

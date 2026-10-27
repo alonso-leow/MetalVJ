@@ -1,0 +1,184 @@
+{
+ "id": "hf-x-x-solo-esquinas-mov",
+ "name": "X solo esquinas mov",
+ "family": "x",
+ "source": "ShowXpress 00-Alonso/X solo esquinas mov.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984550": {
+     "fixture": "cabeza-riel-4",
+     "dmx": {
+      "FROST": 0,
+      "beam": 0,
+      "dimmer": 255,
+      "focus": 0,
+      "gobo": 56,
+      "pan": 103,
+      "strobe_dimmer": 255,
+      "tilt": 57,
+      "upan": 197,
+      "utilt": 106,
+      "white": 17
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4039,
+      "tilt": 0.2235,
+      "focus": 0.0,
+      "frost": 0.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984552": {
+     "fixture": "cabeza-riel-1",
+     "dmx": {
+      "FROST": 0,
+      "beam": 0,
+      "dimmer": 255,
+      "focus": 0,
+      "gobo": 56,
+      "pan": 106,
+      "strobe_dimmer": 255,
+      "tilt": 58,
+      "upan": 210,
+      "utilt": 196,
+      "white": 17
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4157,
+      "tilt": 0.2275,
+      "focus": 0.0,
+      "frost": 0.0,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984550": {
+     "fixture": "cabeza-riel-4",
+     "dmx": {
+      "FROST": 0,
+      "beam": 0,
+      "dimmer": 255,
+      "focus": 0,
+      "gobo": 56,
+      "pan": 88,
+      "strobe_dimmer": 255,
+      "tilt": 56,
+      "upan": 130,
+      "utilt": 189,
+      "white": 17
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3451,
+      "tilt": 0.2196,
+      "focus": 0.0,
+      "frost": 0.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984552": {
+     "fixture": "cabeza-riel-1",
+     "dmx": {
+      "FROST": 0,
+      "beam": 0,
+      "dimmer": 255,
+      "focus": 0,
+      "gobo": 56,
+      "pan": 90,
+      "strobe_dimmer": 255,
+      "tilt": 56,
+      "upan": 107,
+      "utilt": 189,
+      "white": 17
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3529,
+      "tilt": 0.2196,
+      "focus": 0.0,
+      "frost": 0.0,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984550": {
+     "fixture": "cabeza-riel-4",
+     "dmx": {
+      "FROST": 0,
+      "beam": 0,
+      "dimmer": 255,
+      "focus": 0,
+      "gobo": 56,
+      "pan": 94,
+      "strobe_dimmer": 255,
+      "tilt": 59,
+      "upan": 157,
+      "utilt": 113,
+      "white": 17
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3686,
+      "tilt": 0.2314,
+      "focus": 0.0,
+      "frost": 0.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984552": {
+     "fixture": "cabeza-riel-1",
+     "dmx": {
+      "FROST": 0,
+      "beam": 0,
+      "dimmer": 255,
+      "focus": 0,
+      "gobo": 56,
+      "pan": 98,
+      "strobe_dimmer": 255,
+      "tilt": 59,
+      "upan": 12,
+      "utilt": 113,
+      "white": 17
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.3843,
+      "tilt": 0.2314,
+      "focus": 0.0,
+      "frost": 0.0,
+      "strobe": 1.0
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984550": {
+   "desk_id": "1582984550",
+   "desk_name": "CABEZA R7 RIEL 4",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-4",
+   "address": 97
+  },
+  "1582984552": {
+   "desk_id": "1582984552",
+   "desk_name": "CABEZA R7 RIEL 1",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-1",
+   "address": 113
+  }
+ }
+}

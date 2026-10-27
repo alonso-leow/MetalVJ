@@ -1,0 +1,88 @@
+{
+ "id": "parallax-campos-a-slow-breath",
+ "name": "Slow Breath",
+ "target": {
+  "model": "parallax-fields"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "swing"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.15,
+    0.25,
+    0.4,
+    0.6,
+    0.8,
+    0.85,
+    0.7,
+    0.5,
+    0.3,
+    0.2,
+    0.15,
+    0.2,
+    0.35,
+    0.5,
+    0.6,
+    0.5
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "fog"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.2,
+    0.3,
+    0.45,
+    0.6,
+    0.75,
+    0.85,
+    0.8,
+    0.7,
+    0.6,
+    0.5,
+    0.4,
+    0.35,
+    0.3,
+    0.3,
+    0.25,
+    0.2
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "background",
+    "palette": "skies"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,105 @@
+{
+ "id": "monstruo-gorgona-hiss",
+ "name": "Gorgona hiss rap",
+ "target": {
+  "model": "monster"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "species"
+   },
+   "curve": "step",
+   "steps": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "jaw_open"
+   },
+   "curve": "step",
+   "steps": [0.45, 0.1, 0.35, 0.05, 0.4, 0.15, 0.3, 0, 0.5, 0.1, 0.35, 0.1, 0.4, 0.2, 0.45, 0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lip_close"
+   },
+   "curve": "step",
+   "steps": [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lip_stretch"
+   },
+   "curve": "step",
+   "steps": [0.6, 0.8, 0, 0, 0.7, 0.9, 0.2, 0, 0.5, 0.9, 0, 0, 0.8, 0, 0.6, 0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lip_funnel"
+   },
+   "curve": "step",
+   "steps": [0, 0, 0.7, 0, 0, 0, 0.6, 0, 0, 0, 0.8, 0, 0, 0, 0, 0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "tongue_up"
+   },
+   "curve": "step",
+   "steps": [0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lip_upper_up"
+   },
+   "curve": "step",
+   "steps": [0.4, 0.6, 0.2, 0, 0.4, 0.6, 0.2, 0, 0.5, 0.7, 0.3, 0, 0.4, 0.2, 0.6, 0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "head_pitch"
+   },
+   "curve": "ramp",
+   "steps": [0.38, 0.48, 0.5, 0.5, 0.38, 0.48, 0.5, 0.5, 0.36, 0.48, 0.5, 0.5, 0.38, 0.46, 0.42, 0.5]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "brow_furrow"
+   },
+   "curve": "ramp",
+   "steps": [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "pulse"
+   },
+   "curve": "step",
+   "steps": [1, 0.3, 0, 0, 0.8, 0.2, 0, 0, 1, 0.3, 0, 0, 0.8, 0.2, 0.6, 0.1]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "ramp",
+   "steps": [0.9, 0.7, 0.6, 0.55, 0.85, 0.65, 0.6, 0.55, 0.9, 0.7, 0.6, 0.55, 0.85, 0.7, 0.9, 0.6]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "neon",
+    "palette": "neon"
+   },
+   "steps": [{"colour": 0}, null, null, null, {"colour": 1}, null, null, null, {"colour": 2}, null, null, null, {"colour": 3}, null, null, null]
+  }
+ ]
+}

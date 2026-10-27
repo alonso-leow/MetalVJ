@@ -1,0 +1,322 @@
+[package]
+name = "metal-dash"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+# The app root (`src/lib.rs`) is a library so the Android build can be a
+# `cdylib` exporting `android_main`; the desktop binary is `src/main.rs`, a
+# one-line wrapper. `rlib` stays for the bin, tests and `catalogue`. The browser
+# build (`wasm32-unknown-unknown`, `scripts/build-wasm.sh`) is this same library:
+# `src/web.rs` is `cfg(wasm32)` all the way down.
+name = "metal_dash"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "metal-dash"
+path = "src/main.rs"
+
+[[bin]]
+# The authoring manifest generator (`metal-dash --bin catalogue`): writes
+# `data/songs/catalogue.json` and `tools/song-gate/models.json`. Gated on `gpu`
+# because `models.json` reads `metal_render::registry::all_models()` and
+# `metal-render` is an optional dependency — without it this bin is not built.
+name = "catalogue"
+path = "src/bin/catalogue.rs"
+required-features = ["gpu"]
+
+[features]
+# The venue build: both paint backends on, so `metal_render::gpu::probe`
+# actually has a choice to make (`S.U15`). Everything on, the real
+# renderers, and what `cargo build` gives you without being asked.
+default = ["desktop", "gpu", "glow"]
+
+# Everything that only exists on a desktop: the ALSA/cpal capture stack
+# (`listen`), the ONNX tone block (`metal-listen/tone`, prebuilt `ort` binaries
+# do not exist for Android), and the `softbuffer` monitor window. Off on
+# Android: `--no-default-features --features android`. The runtime process
+# spawns (`ffmpeg`, `ffplay`, `pactl`, `niri`, `python3`, `node`) are not gated
+# here: they compile on Android and fail at run time with an OS error, which
+# the callers already handle. See `the build reference` (Android).
+desktop = ["listen", "metal-listen/tone", "dep:softbuffer", "agent", "metal-perform/videoio", "dep:metal-videoio"]
+# P-C: Spout (Windows) and Syphon (macOS) senders, each off unless its feature
+# is on and the target matches (see crates/metal-videoio).
+spout = ["desktop", "metal-videoio/spout"]
+syphon = ["desktop", "metal-videoio/syphon"]
+
+# The agent harness (`metal-agent`, its TLS stack): on for desktop and Android,
+# off for the browser build, which has no AI routes (`call/ai_off.rs`).
+agent = ["dep:metal-agent"]
+
+# The Android package (`cargo ndk -t arm64-v8a build -p metal-dash
+# --no-default-features --features android`): the same wgpu renderers and the
+# same shell as desktop (Vulkan, or GLES where Vulkan is missing), with the
+# `android-activity` entry point in `lib.rs`. No `glow` painter here. `listen`
+# is on: cpal reaches the device through AAudio (cpal 0.15 uses oboe on
+# Android), so audio reactivity works on the phone. No `metal-listen/tone` — the
+# ONNX Runtime has no prebuilt Android binary.
+android = ["gpu", "listen", "agent"]
+
+# Screenshots of the shell's real states (2026-09-30): turns on kittest's own
+# wgpu renderer so `shell::shots` can write PNGs. Test-only; never in a build.
+#   FW_SHOTS_DIR=/tmp/shots cargo test -p metal-dash -F shots shots -- --test-threads=1
+shots = ["egui_kittest/wgpu", "egui_kittest/snapshot"]
+
+# The seventeen wgpu models. Turning it off swaps in `stand::Stand` — the CPU
+# figures — and drops wgpu, winit and egui from the tree entirely, which is what
+# lets the app build and run on a host with no adapter (and in about ninety
+# seconds on one core instead of forty minutes). See `src/paint.rs` for exactly
+# what is a stand-in and what is not.
+#
+#   cargo build -p metal-dash --no-default-features --features desktop
+gpu = [
+    "dep:metal-render",
+    "dep:metal-forge",
+    "metal-perform/gpu",
+    "dep:metal-rig",
+    "dep:egui",
+    "dep:winit",
+    "dep:egui-winit",
+    "dep:egui-wgpu",
+    "dep:wgpu",
+    "dep:pollster",
+    "dep:jpeg-decoder",
+]
+
+# `S.U15`: the `egui_glow` backup painter. Independent of `gpu` on purpose —
+# it names `egui`/`winit`/`egui-winit` (shared with `gpu`, Cargo unifies the
+# one copy) plus `egui_glow`/`glutin`/`glutin-winit`/`raw-window-handle`, and
+# nothing from `metal-render` or `metal-rig`: those two carry `wgpu` unconditionally
+# in their own `Cargo.toml` (`metal-render` has no feature to shed it), so
+# depending on either would put `wgpu` back in the tree under
+# `--no-default-features --features glow`, exactly the build this feature
+# exists to keep GPU-free. The cost: this build cannot call
+# `metal_render::gpu::probe` (no `metal-render` in the tree to call it on) — it does
+# not need to, because with no `wgpu` compiled in at all there is only one
+# backend to choose, and `window::run` chooses `Glow` unconditionally when
+# `gpu` is absent. `Author`/`metal-rig`'s authoring surface stays gated on `gpu`
+# alone, same as before — a glow-only build still serves `/author/*` as a
+# 404, same as a no-window build does today.
+#
+#   cargo build -p metal-dash --no-default-features --features glow
+glow = [
+    "dep:egui",
+    "dep:winit",
+    "dep:egui-winit",
+    "dep:egui_glow",
+    "dep:glutin",
+    "dep:glutin-winit",
+    "dep:raw-window-handle",
+    # `shell/frames.rs` (the monitor's frame decoder) compiles under `glow`
+    # too and names `jpeg_decoder` directly. It was gated on `gpu` alone,
+    # which made the glow-only build fail to compile; the decoder is pure
+    # Rust with no GPU in it, so naming it here is the fix, not a widening.
+    "dep:jpeg-decoder",
+]
+
+# Song audio out of the process (`call/author/audio_out.rs`): cpal's default
+# output plus symphonia decode, instead of `ffplay`. Always on for Android (the
+# target table below); a desktop build opts in with `-F native-audio`.
+native-audio = ["dep:cpal", "metal-listen/decode"]
+
+# Real capture. On by default because a dashboard driven by a stand-in is the
+# thing this feature exists to stop being normal — but separable, because it
+# pulls in ALSA and a box without a sound card should still build and run.
+#
+#   cargo build -p metal-dash --no-default-features            # neither
+#   cargo build -p metal-dash --no-default-features -F listen  # capture, no GPU
+listen = ["metal-perform/listen"]
+
+# O.10b: the MIDI input reader (`src/input/midi.rs`). **Deliberately not in
+# `default`.** `midir` links the system ALSA sequencer through `alsa-sys`,
+# which needs ALSA headers and `pkg-config` — present on the dev host and on
+# the Pi (native build with `libasound2-dev`), but not cross-compilable from a
+# machine without them, and absent from `--no-default-features`. So the Pi
+# build is explicit:
+#
+#   cargo build -p metal-dash --features midi        # ALSA headers required
+#   cargo build -p metal-dash --no-default-features  # no midir in this tree
+#
+# `listen` already pulls ALSA on the dev host for capture; naming this
+# feature makes the sequencer a separate, explicit opt-in rather than a side
+# effect of the default build.
+midi = ["dep:midir"]
+
+[dependencies]
+# `std::time::Instant` panics on wasm32-unknown-unknown; `web-time` is std on native.
+web-time = "1"
+# P-G: the export filename's local-time stamp.
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+metal-schema = { path = "../metal-schema" }
+# The song digester (decode + the sixteen columns), in Rust — no librosa.
+# `default-features = false`: the tone block (ONNX via `metal-ml`) is a desktop
+# feature, enabled by `desktop` above, so the browser build does not link ONNX.
+metal-listen = { path = "../metal-listen", default-features = false, features = ["decode"] }
+# The compiled node-graph plan — Set B: the compositor is fed from
+# `metal_graph::Plan` rather than walking `layers::Device` by hand. No `wgpu` in
+# it either, so it is on both builds.
+metal-graph = { path = "../metal-graph" }
+# The trained router. No GPU in it, so it is on both builds — the table in
+# `src/paint.rs` says the router is real on a host with no adapter, and this is
+# what keeps that true.
+metal-router = { path = "../metal-router" }
+metal-notation = { path = "../metal-notation" }
+# K: the palette module's relational shift (`POST /author/palettes {op:"set",
+# relative:true}`) is a pure `metal_config::palettes::shift` — the route calls it
+# rather than re-implementing OkLCh in `metal-dash`.
+metal-config = { path = "../metal-config" }
+# The engine half, as a library (LAY.6/LAY.9): the `fx.*` chain resolver
+# today, `resolve → compile → execute → output` as it lands. No wgpu, no
+# winit, no HTTP — on both builds.
+metal-perform = { path = "../metal-perform" }
+metal-geom = { path = "../metal-geom" }
+metal-videoio = { path = "../metal-videoio", optional = true }
+# Transmissions. No GPU in it either, so like `metal-router` it is on both builds:
+# the Curator, the Colourist and the library index all run on a host with no
+# adapter, and `src/paint.rs`'s table says so.
+metal-reel = { path = "../metal-reel" }
+# The sequence editor's video clips: `encode_hap` makes their HAP proxy.
+metal-ingest = { path = "../metal-ingest" }
+metal-web = { path = "../metal-web" }
+# O.10b: the OSC input reader (`src/input/osc.rs`). Decodes one UDP
+# datagram's address; the reader loop and its loopback `POST` are std-only
+# (`UdpSocket` + `TcpStream`), so this pulls nothing else in.
+rosc = "0.10"
+# O.10b: the MIDI input reader (`src/input/midi.rs`), behind `--features midi`
+# only. Links the system ALSA sequencer via `alsa-sys`; optional for the same
+# reason the feature is (see the `midi` feature note above).
+midir = { version = "0.11", optional = true }
+# H.8: the provider-config overlay's backend half. `/ai-config` is the one
+# route that reads/writes `data/ai.json`, through `ProviderConfig::load`/
+# `save` — the same route the future agent loop reads through (PART IV: no
+# second config-writing path).
+# Optional: the AI harness is desktop-only (see the `desktop` feature).
+metal-agent = { path = "../metal-agent", optional = true }
+metal-render = { path = "../metal-render", optional = true }
+# The naga gate (`metal_forge::check`) for a runtime shader saved from the shell
+# (`POST /graph/node {op:"shader"}`). Gated like `metal-render`: it pulls wgpu.
+metal-forge = { path = "../metal-forge", optional = true }
+# Desktop song playback without ffplay (`native-audio`). Android has cpal in
+# its target table below, always.
+cpal = { version = "0.15", optional = true }
+# Set C: the rig/authoring half absorbed from `fw-studio`, under
+# `src/author/`. Optional and gated by `gpu` for the same reason `metal-render`
+# is — the models mode inside it previews with the real wgpu renderers, and a
+# no-adapter host serves `/author/*` as a 404 rather than link a renderer it
+# cannot build. See `src/author/mod.rs`.
+metal-rig = { path = "../metal-rig", optional = true }
+# O.12 / S.U5: the native shell (`src/shell/`) — the three layers and their
+# gates. A direct dependency from here on, not reached through `metal-render`,
+# because `shell/` is this crate's UI and its restyle gate builds a bare
+# `egui::Context` with no window behind it. Pinned to what `metal-render` and
+# `Cargo.lock` already carry. AccessKit is not a feature of egui 0.36 — it is
+# always compiled in — which is what the restyle gate reads the widget tree
+# through.
+egui = { version = "0.36", optional = true }
+# O.12 / S.U6: the window (`src/shell/window.rs`). `O.12.b` decided raw
+# `winit` — no `eframe` — so the shell has one platform layer, the same one
+# `metal-render/src/app.rs` already uses, and keeps control of the frame (the
+# model is drawn *under* egui with `LoadOp::Load` in a render pass of its
+# own, which `eframe` would make a `paint_callback`). The four below are
+# exactly that pattern: winit owns the event loop and the window,
+# `egui-winit` turns its events into egui input, `egui-wgpu` paints egui's
+# meshes on the surface, and `wgpu` is named directly because the surface
+# and the clear pass are ours. All gated on `gpu` for the same reason
+# `metal-render` is: a host with no adapter builds and serves headless, it does
+# not open a window. Pinned to what `metal-render` and `Cargo.lock` already
+# carry — nothing new enters the tree.
+winit = { version = "0.30", optional = true }
+egui-winit = { version = "0.36", optional = true }
+egui-wgpu = { version = "0.36", optional = true }
+wgpu = { version = "30", optional = true }
+# Blocks on `Gpu::new_windowed`'s future, which is how `app.rs` does it too.
+pollster = { version = "1", optional = true }
+# `S.U15`: the `Glow` half of `window.rs`'s `Painter` — an `egui::Context`
+# painted through desktop OpenGL instead of `wgpu`, chosen when
+# `metal_render::gpu::probe` finds no adapter (or `--backend glow`/`FW_BACKEND`
+# forces it) so `--no-default-features --features glow` still opens a
+# window. `egui-winit`'s default features already pull `wayland`/`x11`
+# through `winit`; `egui_glow` needs the matching pair spelled out itself
+# because it does not inherit them from `winit`.
+egui_glow = { version = "0.36", optional = true, default-features = false, features = ["egui-winit", "wayland", "x11"] }
+# The GL context: `glutin-winit` bridges it to the `winit::Window` `window.rs`
+# already builds, so `open()` gains one context-creation branch, not a
+# second window.
+glutin = { version = "0.32", optional = true, default-features = false, features = ["egl", "glx", "wayland", "x11"] }
+glutin-winit = { version = "0.5", optional = true, default-features = false, features = ["egl", "glx", "wayland", "x11"] }
+raw-window-handle = { version = "0.6", optional = true }
+clap = { version = "4", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# The shell's language tables (`locales/<lang>/*.toml`, `shell::i18n`).
+toml = { workspace = true }
+glam = { workspace = true }
+# Pure Rust, no transitive dependencies. Both painters end in a JPEG over a
+# socket, so this is needed with or without a GPU.
+jpeg-encoder = { version = "0.7.1", default-features = false, features = ["std", "simd"] }
+# P-G: "Export frame" writes the frame as a PNG (already in the tree).
+png = "0.18"
+# Remote layers' decode (`shell::frames::decode_jpeg_rgb`): the fast JPEG path.
+zune-jpeg = "0.5"
+gif = "0.14"
+# `S.U16`'s monitor: a `winit` window whose only job is painting the frame
+# the app sends — `softbuffer` prints plain RGBA into the surface, so the
+# slave (O.8: *slave for the pixels*) never needs a renderer of its own.
+# Gated on `gpu` the way `winit` is: without a window there is nothing to
+# paint.
+softbuffer = { version = "0.4", optional = true }
+# The monitor paints JPEGs it did not encode; jpeg-encoder only encodes, so
+# this fills the decode side. Zero deps, blocking, pure Rust.
+jpeg-decoder = { version = "0.3", default-features = false, features = ["platform_independent"], optional = true }
+
+# The browser build. eframe's glow backend is egui_glow over WebGL2; the rest
+# is what the canvas lookup and the async start need. Nothing here is linked on
+# a native target, which is why `egui` above stays optional for the desktop.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# The wgpu models on WebGL2 (`src/web.rs`). Not optional here: the browser build
+# always has a painter, and the `gpu` feature is the desktop shell's, which
+# also pulls the native window stack.
+metal-render = { path = "../metal-render" }
+metal-perform = { path = "../metal-perform", features = ["gpu"] }
+eframe = { version = "0.36", default-features = false, features = ["glow", "default_fonts"] }
+# The shell is egui all the way down; its `window.rs` (winit) is native only.
+egui = { version = "0.36" }
+jpeg-decoder = { version = "0.3", default-features = false, features = ["platform_independent"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Document", "Element", "Window", "HtmlCanvasElement", "Storage"] }
+
+# Android: winit's native-activity backend (`android_main` is in `lib.rs`).
+# Listed here as well as in the optional table above; Cargo merges the
+# features, and on the desktop target this table does not exist at all.
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { version = "0.30", features = ["android-native-activity"] }
+# Reads the system-bar insets over JNI (shell/insets.rs).
+jni = "0.21"
+ndk-context = "0.1"
+# cpal on Android is oboe (AAudio first). Shared libc++: the static one leaves
+# `std::terminate` unresolved at link time with NDK r27. The APK then carries
+# `libc++_shared.so`, which scripts/build-apk.sh copies from the NDK.
+cpal = { version = "0.15", features = ["oboe-shared-stdcxx"] }
+# The sync node runs in-process on the phone (`lib.rs`, `start_sync_node`):
+# pairing, `GET /frame` and the song pull answer on 127.0.0.1:7901 as on the
+# desktop, where metal-sync is its own process.
+metal-sync = { path = "../metal-sync" }
+
+[dev-dependencies]
+metal-perform = { path = "../metal-perform", features = ["test-isolated-graphs"] }
+# S.U7 (`c1`): the harness `plan-opus.md` § O.12.c chose to replace
+# `check-ui.mjs` section A — a test harness that runs egui headless and
+# queries the AccessKit tree, the exact mechanism gate 3 (`shell/gates.rs`)
+# already hand-rolls, with a query API on top. `default-features = false`,
+# neither `wgpu` nor `snapshot`: no pixels are ever rasterised, so it builds
+# and runs on a host with no GPU — rule 10, a harness that skips is not a
+# harness. It is a dev-dependency, so it never reaches `--no-default-features`
+# builds or the shipped binary; the tests that use it live under
+# `shell/kittest.rs`, which is itself behind `#[cfg(feature = "gpu")]` because
+# all of `shell/` is (`main.rs`'s `mod shell;`).
+egui_kittest = { version = "0.36", default-features = false }

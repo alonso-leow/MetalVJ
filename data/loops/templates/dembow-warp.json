@@ -1,0 +1,25 @@
+{
+ "id": "dembow-warp",
+ "name": "Dembow punch",
+ "target": {
+  "effect": "warp"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "amount"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.0, 0.0, 0.45, 0.315, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.45, 0.315, 0.0, 0.0, 0.0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "mode"
+   },
+   "curve": "step",
+   "steps": [0.083, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+  }
+ ]
+}

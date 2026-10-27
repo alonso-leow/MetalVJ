@@ -1,0 +1,67 @@
+{
+ "id": "vaporgrid-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "vaporgrid"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "sun"
+   },
+   "curve": "step",
+   "steps": [
+    0.85,
+    null,
+    null,
+    null,
+    0.6,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null,
+    0.6,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "grid",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

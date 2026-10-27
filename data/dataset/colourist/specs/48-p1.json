@@ -1,0 +1,2848 @@
+{
+ "part": "48-p1",
+ "model": "laser",
+ "song": "48 - La Makina - Nadie Se Muere",
+ "span": [
+  2793,
+  3743
+ ],
+ "kind": "drop",
+ "keywords": [
+  "merengue"
+ ],
+ "title": "tambora slaps strobe the lasers, beams recut every half bar",
+ "story": "La Makina's merengue at 129 BPM (onset autocorrelation 14.8-15 ticks a beat, 59 a bar): every beat a low tambora/bass hit, bright tambora slaps on the off-beats, the guira scraping 8ths. Each hit type has its own carrier on the mango-carnival lasers: the beat thickens the beams and shakes the frame (prominent hits >12.5 add a zoom punch and a brightness flash), the slap strobes laser brightness, the guira ticks contrast, and every two beats the beams relaunch at a new angle in mirrored stations. The pre-roll stretches the trails and saturation as the onsets climb; 3031 releases them for the jaleo of slaps; at 3224 the drums thin and the trails stretch long and glow, following the voice and accordion chord by chord, until the drums slam back at 3338 into the steady loop. The dark background steps tint every bar, and the scene length (escena 14.4 s) puts the obstacle reshuffle exactly on the break at 3226, so the beams relaunch with the voice.",
+ "base": {
+  "slot:lazer": [
+   0.941,
+   0.627,
+   0.125,
+   1.0,
+   0.91,
+   0.627,
+   0.0,
+   0.227,
+   0.188,
+   1.0,
+   0.227,
+   0.063
+  ],
+  "lasers": 7,
+  "figures": 2,
+  "size": 0.22,
+  "dispersion": 0.7,
+  "variety": 0.9,
+  "speed": 1.9,
+  "slot:fondo": [
+   0.025,
+   0.005,
+   0.015,
+   0.025,
+   0.005,
+   0.015,
+   0.025,
+   0.005,
+   0.015,
+   0.025,
+   0.005,
+   0.015
+  ],
+  "scene": 14.4
+ },
+ "keys": [
+  {
+   "tick": 2793,
+   "set": {
+    "thickness": 0.006,
+    "shine": 0.6,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "col_contrast": 0.1,
+    "col_hue": 0.045,
+    "angle": -0.62,
+    "wake": 2.6,
+    "col_sat": 1.05
+   },
+   "why": "span start: merengue groove at 129 BPM (onset autocorr lag 14.8-15 ticks, bar 59), rms 0.330; rest values"
+  },
+  {
+   "tick": 2794,
+   "set": {
+    "angle": 0.34,
+    "slot:fondo": [
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015
+    ],
+    "col_hue": 0.0
+   },
+   "why": "half-bar cut (beat 1 line 2794): beams relaunch at angulo 0.34; bar 48 downbeat 2794: background tint step (wine/ember/plum/rust) + hue sway 0.0"
+  },
+  {
+   "tick": 2808,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2809,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 4.32@2809 (centroid 0.223): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 2814,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2822,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "angle": 0.34
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2823,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3,
+    "angle": -0.34
+   },
+   "why": "BEAT low hit 8.45@2823 (centroid 0.253): beam punch grosor 0.02 + shake 0.3; half-bar cut (beat 3 line 2823): beams relaunch at angulo -0.34"
+  },
+  {
+   "tick": 2828,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2829,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2830,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.17@2830 (centroid 0.335): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2833,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2837,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2838,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 6.08@2838 (centroid 0.252): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 2843,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2844,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2845,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.49@2845 (centroid 0.292): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2848,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2852,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "angle": -0.34,
+    "col_hue": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2853,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "angle": 0.62,
+    "slot:fondo": [
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004
+    ],
+    "col_hue": 0.035
+   },
+   "why": "BEAT low hit 4.60@2853 (centroid 0.241): beam punch grosor 0.014 + shake 0.18; half-bar cut (beat 1 line 2853): beams relaunch at angulo 0.62; bar 49 downbeat 2853: background tint step (wine/ember/plum/rust) + hue sway 0.035"
+  },
+  {
+   "tick": 2858,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2863,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2864,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 7.77@2864 (centroid 0.266): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2867,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2868,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 5.44@2868 (centroid 0.210): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 2873,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2881,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2882,
+   "set": {
+    "thickness": 0.03,
+    "shake": 0.55,
+    "zoom": 0.5,
+    "col_bri": 1.6,
+    "angle": 0.62
+   },
+   "why": "PROMINENT BEAT low hit 12.98@2882 (centroid 0.292): beam punch grosor 0.03 + shake 0.55"
+  },
+  {
+   "tick": 2883,
+   "set": {
+    "angle": -0.62
+   },
+   "why": "half-bar cut (beat 3 line 2883): beams relaunch at angulo -0.62"
+  },
+  {
+   "tick": 2887,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2888,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2889,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2890,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 9.49@2890 (centroid 0.302): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2893,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2894,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 7.34@2894 (centroid 0.282): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2896,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2897,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3,
+    "col_contrast": 0.1
+   },
+   "why": "BEAT low hit 10.81@2897 (centroid 0.297): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 2902,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2904,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2905,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 9.08@2905 (centroid 0.276): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2908,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2911,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2912,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "angle": -0.62,
+    "col_hue": 0.035
+   },
+   "why": "BEAT low hit 6.39@2912 (centroid 0.276): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 2913,
+   "set": {
+    "angle": 0.34,
+    "slot:fondo": [
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028
+    ],
+    "col_hue": -0.02
+   },
+   "why": "half-bar cut (beat 1 line 2913): beams relaunch at angulo 0.34; bar 50 downbeat 2913: background tint step (wine/ember/plum/rust) + hue sway -0.02"
+  },
+  {
+   "tick": 2917,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2922,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2923,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 10.58@2923 (centroid 0.358) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 2926,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2927,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "BEAT low hit 6.14@2927 (centroid 0.268): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 2932,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2934,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2935,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 8.37@2935 (centroid 0.215): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2938,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2941,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "angle": 0.34
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2942,
+   "set": {
+    "thickness": 0.03,
+    "shake": 0.55,
+    "zoom": 0.5,
+    "col_bri": 1.6,
+    "angle": -0.34
+   },
+   "why": "PROMINENT BEAT low hit 13.84@2942 (centroid 0.299): beam punch grosor 0.03 + shake 0.55; half-bar cut (beat 3 line 2942): beams relaunch at angulo -0.34"
+  },
+  {
+   "tick": 2947,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2948,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.6
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2949,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 13.17@2949 (centroid 0.435) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 2952,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2953,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 9.51@2953 (centroid 0.411) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 2956,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2957,
+   "set": {
+    "thickness": 0.03,
+    "shake": 0.55,
+    "zoom": 0.5,
+    "col_bri": 1.0,
+    "shine": 0.6
+   },
+   "why": "PROMINENT BEAT low hit 12.96@2957 (centroid 0.247): beam punch grosor 0.03 + shake 0.55"
+  },
+  {
+   "tick": 2962,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2963,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2964,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.78@2964 (centroid 0.258): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2967,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2971,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "angle": -0.34,
+    "col_hue": -0.02
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2972,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "angle": 0.62,
+    "slot:fondo": [
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008
+    ],
+    "col_hue": 0.045
+   },
+   "why": "BEAT low hit 7.14@2972 (centroid 0.207): beam punch grosor 0.014 + shake 0.18; half-bar cut (beat 1 line 2972): beams relaunch at angulo 0.62; bar 51 downbeat 2972: background tint step (wine/ember/plum/rust) + hue sway 0.045"
+  },
+  {
+   "tick": 2977,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2982,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2983,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 9.64@2983 (centroid 0.285): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2986,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2987,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 7.38@2987 (centroid 0.185): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 2992,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2993,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 2994,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.77@2994 (centroid 0.231): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 2997,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3000,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3001,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3,
+    "angle": 0.62
+   },
+   "why": "BEAT low hit 9.24@3001 (centroid 0.296): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3002,
+   "set": {
+    "angle": -0.62
+   },
+   "why": "half-bar cut (beat 3 line 3002): beams relaunch at angulo -0.62"
+  },
+  {
+   "tick": 3006,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3007,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3008,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 15.24@3008 (centroid 0.398) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3012,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0,
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3013,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.15@3013 (centroid 0.328): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3015,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3016,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3,
+    "col_contrast": 0.1
+   },
+   "why": "BEAT low hit 11.07@3016 (centroid 0.216): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3021,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3022,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3023,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.29@3023 (centroid 0.228): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3026,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3029,
+   "set": {
+    "wake": 4.6,
+    "col_sat": 1.35
+   },
+   "why": "build: trails grow 2.6->4.6 over the pre-roll (onsets climb to 13-15)"
+  },
+  {
+   "tick": 3030,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "angle": -0.62,
+    "col_hue": 0.045
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3031,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3,
+    "angle": 0.34,
+    "slot:fondo": [
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015
+    ],
+    "col_hue": 0.0,
+    "wake": 2.2,
+    "col_sat": 1.2
+   },
+   "why": "BEAT low hit 8.37@3031 (centroid 0.236): beam punch grosor 0.02 + shake 0.3; half-bar cut (beat 1 line 3031): beams relaunch at angulo 0.34; bar 52 downbeat 3031: background tint step (wine/ember/plum/rust) + hue sway 0.0; ANOM start 3031 8.37@3031 (centroid 0.236): release trails short, jaleo of tambora slaps"
+  },
+  {
+   "tick": 3036,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3040,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3041,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 7.95@3041 (centroid 0.370) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3045,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3046,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 7.33@3046 (centroid 0.214): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3051,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3059,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3060,
+   "set": {
+    "thickness": 0.03,
+    "shake": 0.55,
+    "zoom": 0.5,
+    "col_bri": 1.6,
+    "angle": 0.34
+   },
+   "why": "PROMINENT BEAT low hit 12.70@3060 (centroid 0.289): beam punch grosor 0.03 + shake 0.55"
+  },
+  {
+   "tick": 3061,
+   "set": {
+    "angle": -0.34
+   },
+   "why": "half-bar cut (beat 3 line 3061): beams relaunch at angulo -0.34"
+  },
+  {
+   "tick": 3065,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3066,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3067,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3068,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 13.06@3068 (centroid 0.374) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3070,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3071,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 7.50@3071 (centroid 0.366) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3072,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3074,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3075,
+   "set": {
+    "thickness": 0.03,
+    "shake": 0.55,
+    "zoom": 0.5,
+    "col_bri": 1.0,
+    "shine": 0.6
+   },
+   "why": "PROMINENT BEAT low hit 12.71@3075 (centroid 0.281): beam punch grosor 0.03 + shake 0.55"
+  },
+  {
+   "tick": 3080,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3081,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3082,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.92@3082 (centroid 0.256): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3085,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3089,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3090,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3,
+    "angle": -0.34,
+    "col_hue": 0.0
+   },
+   "why": "BEAT low hit 9.99@3090 (centroid 0.295): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3091,
+   "set": {
+    "angle": 0.62,
+    "slot:fondo": [
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004
+    ],
+    "col_hue": 0.035
+   },
+   "why": "half-bar cut (beat 1 line 3091): beams relaunch at angulo 0.62; bar 53 downbeat 3091: background tint step (wine/ember/plum/rust) + hue sway 0.035"
+  },
+  {
+   "tick": 3095,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3100,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3101,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 9.58@3101 (centroid 0.329): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3104,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3105,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 7.79@3105 (centroid 0.221): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3110,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3119,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "angle": 0.62
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3120,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3,
+    "angle": -0.62
+   },
+   "why": "BEAT low hit 11.46@3120 (centroid 0.239): beam punch grosor 0.02 + shake 0.3; half-bar cut (beat 3 line 3120): beams relaunch at angulo -0.62"
+  },
+  {
+   "tick": 3125,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3126,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3127,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 12.00@3127 (centroid 0.401) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3130,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3131,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 9.03@3131 (centroid 0.380) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3133,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3134,
+   "set": {
+    "thickness": 0.03,
+    "shake": 0.55,
+    "zoom": 0.5,
+    "col_bri": 1.6
+   },
+   "why": "PROMINENT BEAT low hit 12.65@3134 (centroid 0.261): beam punch grosor 0.03 + shake 0.55"
+  },
+  {
+   "tick": 3135,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3139,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3140,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3141,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3142,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 7.25@3142 (centroid 0.251): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3145,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3148,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3149,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3,
+    "angle": -0.62,
+    "col_hue": 0.035
+   },
+   "why": "BEAT low hit 8.15@3149 (centroid 0.282): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3150,
+   "set": {
+    "angle": 0.34,
+    "slot:fondo": [
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028
+    ],
+    "col_hue": -0.02
+   },
+   "why": "half-bar cut (beat 1 line 3150): beams relaunch at angulo 0.34; bar 54 downbeat 3150: background tint step (wine/ember/plum/rust) + hue sway -0.02"
+  },
+  {
+   "tick": 3153,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3154,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 7.13@3154 (centroid 0.279): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3157,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3159,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3160,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 7.75@3160 (centroid 0.330): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3163,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3164,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 7.20@3164 (centroid 0.220): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3169,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3171,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3172,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.68@3172 (centroid 0.267): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3175,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3177,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3178,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3
+   },
+   "why": "BEAT low hit 9.13@3178 (centroid 0.330): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3179,
+   "set": {
+    "angle": 0.34
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3180,
+   "set": {
+    "angle": -0.34
+   },
+   "why": "half-bar cut (beat 3 line 3180): beams relaunch at angulo -0.34"
+  },
+  {
+   "tick": 3183,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3185,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3186,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 11.80@3186 (centroid 0.401) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3188,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3189,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 7.91@3189 (centroid 0.411) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3190,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3192,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3193,
+   "set": {
+    "thickness": 0.03,
+    "shake": 0.55,
+    "zoom": 0.5,
+    "col_bri": 1.0,
+    "shine": 0.6
+   },
+   "why": "PROMINENT BEAT low hit 13.95@3193 (centroid 0.263): beam punch grosor 0.03 + shake 0.55"
+  },
+  {
+   "tick": 3198,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3199,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3200,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3201,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 8.47@3201 (centroid 0.272): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3204,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3208,
+   "set": {
+    "col_contrast": 0.1,
+    "angle": -0.34,
+    "col_hue": -0.02
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3209,
+   "set": {
+    "col_contrast": 0.55,
+    "angle": 0.62,
+    "slot:fondo": [
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008
+    ],
+    "col_hue": 0.045
+   },
+   "why": "GUIRA/rim 8th 6.83@3209 (centroid 0.195): contrast tick 0.1->0.55; half-bar cut (beat 1 line 3209): beams relaunch at angulo 0.62; bar 55 downbeat 3209: background tint step (wine/ember/plum/rust) + hue sway 0.045"
+  },
+  {
+   "tick": 3211,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3212,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "col_contrast": 0.1
+   },
+   "why": "BEAT low hit 7.32@3212 (centroid 0.238): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3217,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3218,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3219,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 10.77@3219 (centroid 0.343) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3222,
+   "set": {
+    "wake": 2.2,
+    "shine": 0.6,
+    "col_hue": 0.045
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3223,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3224,
+   "set": {
+    "wake": 5.5,
+    "shine": 0.8,
+    "col_contrast": 0.35
+   },
+   "why": "BREAK STEP+ rms 0.196->0.277, onset 6.26 (drums thin): trails stretch to follow the accordion/voice"
+  },
+  {
+   "tick": 3239,
+   "set": {
+    "col_hue": 0.01,
+    "shine": 0.75
+   },
+   "why": "break: follow the chord/voice - STEP+ rms 0.290, pitch A: voice swell: hue + laser brightness swell"
+  },
+  {
+   "tick": 3254,
+   "set": {
+    "col_hue": -0.03,
+    "shine": 0.85
+   },
+   "why": "break: follow the chord/voice - rms 0.292 pitch F: hue + laser brightness swell"
+  },
+  {
+   "tick": 3269,
+   "set": {
+    "slot:fondo": [
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015
+    ],
+    "col_hue": 0.06,
+    "shine": 0.95
+   },
+   "why": "bar 56 downbeat 3269: background tint step (wine/ember/plum/rust) + hue sway 0.0; break: follow the chord/voice - KEY A# rms 0.329 (peak swell): hue + laser brightness swell"
+  },
+  {
+   "tick": 3284,
+   "set": {
+    "col_hue": 0.02,
+    "shine": 0.8
+   },
+   "why": "break: follow the chord/voice - KEY F# rms 0.316: hue + laser brightness swell"
+  },
+  {
+   "tick": 3299,
+   "set": {
+    "col_hue": 0.07,
+    "shine": 0.95
+   },
+   "why": "break: follow the chord/voice - KEY A# 7.90@3305: hue + laser brightness swell"
+  },
+  {
+   "tick": 3313,
+   "set": {
+    "col_hue": 0.03,
+    "shine": 0.8
+   },
+   "why": "break: follow the chord/voice - rms 0.285 G#, approach the return: hue + laser brightness swell"
+  },
+  {
+   "tick": 3328,
+   "set": {
+    "slot:fondo": [
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004
+    ]
+   },
+   "why": "bar 57 downbeat 3328: background tint step (wine/ember/plum/rust) + hue sway 0.035"
+  },
+  {
+   "tick": 3336,
+   "set": {
+    "wake": 5.5,
+    "shine": 0.8,
+    "col_contrast": 0.35,
+    "col_hue": 0.03
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3337,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0,
+    "shake": 0,
+    "zoom": 0,
+    "thickness": 0.006
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3338,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.6,
+    "wake": 3.0,
+    "col_contrast": 0.1,
+    "shake": 0.55,
+    "zoom": 0.5,
+    "thickness": 0.03
+   },
+   "why": "TAMBORA SLAP off-beat 9.12@3338 (centroid 0.381) (bright): laser strobe brillo 1.0 + col_bri 1.5; drums back STEP- 9.12@3338 (centroid 0.345): prominent return"
+  },
+  {
+   "tick": 3341,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3342,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "BEAT low hit 5.90@3342 (centroid 0.271): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3344,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "thickness": 0.006,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3347,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3348,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3349,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 9.00@3349 (centroid 0.283): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3352,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3356,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3357,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "angle": 0.62
+   },
+   "why": "BEAT low hit 4.69@3357 (centroid 0.218): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3358,
+   "set": {
+    "angle": -0.62
+   },
+   "why": "half-bar cut (beat 3 line 3358): beams relaunch at angulo -0.62"
+  },
+  {
+   "tick": 3362,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3370,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3371,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 6.81@3371 (centroid 0.322): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3376,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3387,
+   "set": {
+    "angle": -0.62,
+    "col_hue": 0.035
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3388,
+   "set": {
+    "angle": 0.34,
+    "slot:fondo": [
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028
+    ],
+    "col_hue": -0.02
+   },
+   "why": "half-bar cut (beat 1 line 3388): beams relaunch at angulo 0.34; bar 58 downbeat 3388: background tint step (wine/ember/plum/rust) + hue sway -0.02"
+  },
+  {
+   "tick": 3396,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3397,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 7.16@3397 (centroid 0.395) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3400,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3401,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "BEAT low hit 5.43@3401 (centroid 0.303): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3406,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3408,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3409,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 7.59@3409 (centroid 0.297): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3412,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3415,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3416,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "angle": 0.34
+   },
+   "why": "BEAT low hit 4.61@3416 (centroid 0.340): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3417,
+   "set": {
+    "angle": -0.34
+   },
+   "why": "half-bar cut (beat 3 line 3417): beams relaunch at angulo -0.34"
+  },
+  {
+   "tick": 3421,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3430,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3431,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3
+   },
+   "why": "BEAT low hit 8.53@3431 (centroid 0.192): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3436,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3437,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3438,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 11.12@3438 (centroid 0.309): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3441,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3444,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3445,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 4.04@3445 (centroid 0.328): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3446,
+   "set": {
+    "angle": -0.34,
+    "col_hue": -0.02
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3447,
+   "set": {
+    "angle": 0.62,
+    "slot:fondo": [
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008
+    ],
+    "col_hue": 0.045
+   },
+   "why": "half-bar cut (beat 1 line 3447): beams relaunch at angulo 0.62; bar 59 downbeat 3447: background tint step (wine/ember/plum/rust) + hue sway 0.045"
+  },
+  {
+   "tick": 3450,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3455,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3456,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 8.95@3456 (centroid 0.393) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3459,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3460,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "BEAT low hit 4.18@3460 (centroid 0.309): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3465,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3466,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3467,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 9.83@3467 (centroid 0.276): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3470,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3476,
+   "set": {
+    "angle": 0.62
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3477,
+   "set": {
+    "angle": -0.62
+   },
+   "why": "half-bar cut (beat 3 line 3477): beams relaunch at angulo -0.62"
+  },
+  {
+   "tick": 3489,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3490,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3
+   },
+   "why": "BEAT low hit 11.91@3490 (centroid 0.234): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3495,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3496,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3497,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 11.54@3497 (centroid 0.302): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3500,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3504,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3505,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18,
+    "angle": -0.62,
+    "col_hue": 0.045
+   },
+   "why": "BEAT low hit 5.88@3505 (centroid 0.275): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3506,
+   "set": {
+    "angle": 0.34,
+    "slot:fondo": [
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015,
+     0.025,
+     0.005,
+     0.015
+    ],
+    "col_hue": 0.0
+   },
+   "why": "half-bar cut (beat 1 line 3506): beams relaunch at angulo 0.34; bar 60 downbeat 3506: background tint step (wine/ember/plum/rust) + hue sway 0.0"
+  },
+  {
+   "tick": 3510,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3515,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3516,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 8.72@3516 (centroid 0.377) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3520,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3526,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3527,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 9.00@3527 (centroid 0.334) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3531,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3535,
+   "set": {
+    "angle": 0.34
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3536,
+   "set": {
+    "angle": -0.34
+   },
+   "why": "half-bar cut (beat 3 line 3536): beams relaunch at angulo -0.34"
+  },
+  {
+   "tick": 3548,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3549,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3
+   },
+   "why": "BEAT low hit 8.86@3549 (centroid 0.228): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3554,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3555,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3556,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 13.52@3556 (centroid 0.286): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3559,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3563,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3564,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 4.52@3564 (centroid 0.276): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3565,
+   "set": {
+    "angle": -0.34,
+    "col_hue": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3566,
+   "set": {
+    "angle": 0.62,
+    "slot:fondo": [
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004,
+     0.03,
+     0.012,
+     0.004
+    ],
+    "col_hue": 0.035
+   },
+   "why": "half-bar cut (beat 1 line 3566): beams relaunch at angulo 0.62; bar 61 downbeat 3566: background tint step (wine/ember/plum/rust) + hue sway 0.035"
+  },
+  {
+   "tick": 3569,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3573,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3574,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 6.76@3574 (centroid 0.376): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3577,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3584,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3585,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 8.46@3585 (centroid 0.325): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3588,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3593,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3594,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 5.53@3594 (centroid 0.200): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3595,
+   "set": {
+    "angle": 0.62
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3596,
+   "set": {
+    "angle": -0.62
+   },
+   "why": "half-bar cut (beat 3 line 3596): beams relaunch at angulo -0.62"
+  },
+  {
+   "tick": 3599,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3607,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3608,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 7.40@3608 (centroid 0.348): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3613,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3624,
+   "set": {
+    "angle": -0.62,
+    "col_hue": 0.035
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3625,
+   "set": {
+    "angle": 0.34,
+    "slot:fondo": [
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028,
+     0.02,
+     0.005,
+     0.028
+    ],
+    "col_hue": -0.02
+   },
+   "why": "half-bar cut (beat 1 line 3625): beams relaunch at angulo 0.34; bar 62 downbeat 3625: background tint step (wine/ember/plum/rust) + hue sway -0.02"
+  },
+  {
+   "tick": 3633,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3634,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 7.84@3634 (centroid 0.404) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3638,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3644,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3645,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 10.03@3645 (centroid 0.323): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3648,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3654,
+   "set": {
+    "angle": 0.34
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3655,
+   "set": {
+    "angle": -0.34
+   },
+   "why": "half-bar cut (beat 3 line 3655): beams relaunch at angulo -0.34"
+  },
+  {
+   "tick": 3666,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3667,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3
+   },
+   "why": "BEAT low hit 11.72@3667 (centroid 0.310): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3672,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3674,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3675,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 11.22@3675 (centroid 0.318): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3678,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3681,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3682,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 4.88@3682 (centroid 0.322): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3684,
+   "set": {
+    "angle": -0.34,
+    "col_hue": -0.02
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3685,
+   "set": {
+    "angle": 0.62,
+    "slot:fondo": [
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008,
+     0.028,
+     0.01,
+     0.008
+    ],
+    "col_hue": 0.045
+   },
+   "why": "half-bar cut (beat 1 line 3685): beams relaunch at angulo 0.62; bar 63 downbeat 3685: background tint step (wine/ember/plum/rust) + hue sway 0.045"
+  },
+  {
+   "tick": 3687,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3692,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3693,
+   "set": {
+    "shine": 1.0,
+    "col_bri": 1.5
+   },
+   "why": "TAMBORA SLAP off-beat 9.14@3693 (centroid 0.415) (bright): laser strobe brillo 1.0 + col_bri 1.5"
+  },
+  {
+   "tick": 3697,
+   "set": {
+    "shine": 0.6,
+    "col_bri": 1.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3703,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3704,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 11.09@3704 (centroid 0.311): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3707,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3711,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3712,
+   "set": {
+    "thickness": 0.014,
+    "shake": 0.18
+   },
+   "why": "BEAT low hit 4.27@3712 (centroid 0.317): beam punch grosor 0.014 + shake 0.18"
+  },
+  {
+   "tick": 3713,
+   "set": {
+    "angle": 0.62
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3714,
+   "set": {
+    "angle": -0.62
+   },
+   "why": "half-bar cut (beat 3 line 3714): beams relaunch at angulo -0.62"
+  },
+  {
+   "tick": 3717,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3726,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3727,
+   "set": {
+    "thickness": 0.02,
+    "shake": 0.3
+   },
+   "why": "BEAT low hit 11.39@3727 (centroid 0.163): beam punch grosor 0.02 + shake 0.3"
+  },
+  {
+   "tick": 3732,
+   "set": {
+    "thickness": 0.006,
+    "shake": 0.0,
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3733,
+   "set": {
+    "col_contrast": 0.55
+   },
+   "why": "GUIRA/rim 8th 12.70@3733 (centroid 0.258): contrast tick 0.1->0.55"
+  },
+  {
+   "tick": 3736,
+   "set": {
+    "col_contrast": 0.1
+   },
+   "why": "rest/hold: fall back after the hit or hold before the cut"
+  },
+  {
+   "tick": 3743,
+   "set": {
+    "wake": 3.0
+   },
+   "why": "span end: steady merengue loop"
+  }
+ ]
+}

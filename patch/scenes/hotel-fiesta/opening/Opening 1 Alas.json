@@ -1,0 +1,134 @@
+{
+ "id": "hf-opening-opening-1-alas",
+ "name": "Opening 1 Alas",
+ "family": "opening",
+ "source": "ShowXpress 00-Alonso/Opening 1 Alas.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1617812929": {
+     "fixture": "nueva-led-3",
+     "dmx": {
+      "blue": 65,
+      "red": 62,
+      "uv": 0
+     },
+     "floats": {}
+    },
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "blue": 50
+     },
+     "floats": {}
+    },
+    "1617813128": {
+     "fixture": "nueva-led-8",
+     "dmx": {
+      "blue": 65,
+      "red": 62,
+      "uv": 0
+     },
+     "floats": {}
+    },
+    "1617813130": {
+     "fixture": "nueva-led-4-4",
+     "dmx": {
+      "green": 85,
+      "uv": 0
+     },
+     "floats": {}
+    },
+    "1617811767": {
+     "fixture": "nueva-led-1",
+     "dmx": {
+      "green": 85,
+      "uv": 0
+     },
+     "floats": {}
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "blue": 50
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "blue": 50
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "blue": 50
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1617812929": {
+   "desk_id": "1617812929",
+   "desk_name": "NUEVA LED #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-3",
+   "address": 357
+  },
+  "1617813006": {
+   "desk_id": "1617813006",
+   "desk_name": "NUEVA LED #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-4",
+   "address": 364
+  },
+  "1617813128": {
+   "desk_id": "1617813128",
+   "desk_name": "NUEVA LED #2 #2 #2 #4 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-8",
+   "address": 392
+  },
+  "1617813130": {
+   "desk_id": "1617813130",
+   "desk_name": "NUEVA LED #2 #2 #2 #4 #4",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-4-4",
+   "address": 313
+  },
+  "1617811767": {
+   "desk_id": "1617811767",
+   "desk_name": "NUEVA LED",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-1",
+   "address": 343
+  },
+  "1617813051": {
+   "desk_id": "1617813051",
+   "desk_name": "NUEVA LED #2 #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-5",
+   "address": 371
+  },
+  "1617813052": {
+   "desk_id": "1617813052",
+   "desk_name": "NUEVA LED #2 #2 #2 #3",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-6",
+   "address": 378
+  },
+  "1617813053": {
+   "desk_id": "1617813053",
+   "desk_name": "NUEVA LED #2 #2 #2 #4",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-7",
+   "address": 385
+  }
+ }
+}

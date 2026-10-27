@@ -1,0 +1,13 @@
+{
+ "id": "parallax-ciudad-a-stab",
+ "name": "Stab",
+ "target": {"model": "parallax-city"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "light"}, "curve": "step",
+   "steps": [0.3, null, 0.85, 0.3, null, null, null, 0.85, 0.3, null, null, 0.85, 0.3, null, null, null]},
+  {"target": {"kind": "float", "param": "size"}, "curve": "step",
+   "steps": [null, null, 0.8, 0.2, null, null, null, 0.8, 0.2, null, null, 0.9, 0.2, null, 0.6, 0.2]},
+  {"target": {"kind": "palette", "slot": "objects", "palette": "metalvj-red"},
+   "steps": [null, null, {"colour": 3}, null, null, null, null, {"colour": 1}, null, null, null, {"colour": 3}, null, null, {"colour": 0}, null]}
+ ]
+}

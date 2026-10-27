@@ -1,0 +1,19 @@
+[package]
+name = "metal-geom"
+description = "The venue geometry kernel: indexed meshes, primitives, curves, sweeps, CSG, ray queries and glTF import. Pure Rust, no egui, no wgpu."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+glam.workspace = true
+serde.workspace = true
+# 2D Bezier/spline evaluation and flattening. Already in the lockfile via
+# `peniko` (egui), so this adds no new licence to the tree.
+kurbo = "0.13"
+# Robust CSG. The Manifold library is the same solver Blender's
+# `geometry::boolean::Solver::Manifold` links; this crate is a permissive
+# binding (Apache-2.0 OR MIT), not Blender's GPL code.
+manifold3d = "0.4"
+# glTF 2.0 import. Apache-2.0 OR MIT.
+gltf = "1"

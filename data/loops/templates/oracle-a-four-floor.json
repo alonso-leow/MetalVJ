@@ -1,0 +1,92 @@
+{
+ "id": "oracle-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "oracle"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "pupil"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "eyelid"
+   },
+   "curve": "step",
+   "steps": [
+    0.15,
+    null,
+    null,
+    null,
+    0.15,
+    null,
+    null,
+    null,
+    0.15,
+    null,
+    null,
+    null,
+    0.15,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "iris",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

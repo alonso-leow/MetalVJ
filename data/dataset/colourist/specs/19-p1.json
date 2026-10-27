@@ -1,0 +1,815 @@
+{
+  "part": "19-p1",
+  "model": "puzzle",
+  "song": "19 - El Diablo",
+  "span": [
+    4862,
+    5750
+  ],
+  "kind": "break",
+  "keywords": [
+    "cha cha",
+    "old",
+    "latin"
+  ],
+  "title": "the cha-cha break: three hits out of silence, then the solo burns",
+  "story": "At ~112 BPM the full band plays through 4862-5135 and the jigsaw board deals one step per beat on a terracotta palette, the colour swaying on each bar and a first small cha-cha-cha of pushes on 4886-4898-4915. At 5136 the band drops out and the room dims; then three hits come out of silence and each one changes the picture: 5176 (18.7) a deep push, a flash and a deal burst; 5294 (21.9, out of total silence) the board folds into a kaleido mandala with a shake and the brightest flash; 5358 (12.6) the board breaks apart under the deepest push. At 5410 the piano solo starts and the board burns: eighth-note deals, colliding pieces, nonstop sliding, and the palette turning on every beat through col_hue and col_bri. From 5479 the solo varies phrase by phrase, never the same state twice: bar 81 jumps the deals to paso 4.6 with vertical tiles and a warm flash; bar 82 shatters into an 8-fold mandala swung cold with horizontal tiles; bar 83 swings the hue hard warm then cold on each key turn and deals at their fastest; bar 84 peaks on a 9-fold mandala and the brightest flash at 5689, then settles into a burning loop. Every piano peak gets a hard shake, and posterize stabs mark the strongest.",
+  "base": {
+    "step": 1.8692,
+    "overlay": 0.7,
+    "bevel": 0.5,
+    "slot:fondo": [
+      0.01,
+      0.005,
+      0.003,
+      0.012,
+      0.006,
+      0.003,
+      0.004,
+      0.012,
+      0.01,
+      0.01,
+      0.005,
+      0.003
+    ],
+    "slide": 0.35,
+    "separation": 0.07,
+    "roundness": 0.16,
+    "simultaneous": 2.0,
+    "vignette": 0.0,
+    "slot:piezas": [
+      0.71,
+      0.337,
+      0.173,
+      0.961,
+      0.851,
+      0.627,
+      0.227,
+      0.055,
+      0.031,
+      0.886,
+      0.349,
+      0.11
+    ],
+    "col_hue": 0.0,
+    "col_sat": 1.0,
+    "col_bri": 1.0,
+    "col_contrast": 0.0,
+    "zoom": 0.0,
+    "kaleido": 0.0,
+    "shake": 0.0
+  },
+  "keys": [
+    {
+      "tick": 4862,
+      "set": {},
+      "why": "span start, full band: rms 0.22-0.27 and an onset of 5-6 on every beat 4880-5085, pitch steady on A. Board in the pre-roll look (base): one step per beat (paso 1.8692 puts a step on the beat grid, 17.12 ticks), two insertions per step with 70 % arranged collisions, crisp hops (deslizamiento 0.35), tight grid Palette: terracotta (earthy family, cha cha) set once in base; every colour move after is col_*."
+    },
+    {
+      "tick": 4883,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "cha-cha-cha motif 1/5 (pre-roll, onsets 8.32@4886 PEAK KEY D, 10.59@4898 PEAK, 5.60@4915): first statement, small: zoom anchored at 0 three ticks before 4886, so the push is a hit"
+    },
+    {
+      "tick": 4886,
+      "set": {
+        "zoom": 0.03
+      },
+      "why": "cha-cha-cha motif 1/5 (pre-roll, onsets 8.32@4886 PEAK KEY D, 10.59@4898 PEAK, 5.60@4915): first statement, small hit 1/3 at 4886 (cha)"
+    },
+    {
+      "tick": 4894,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "half a beat after 4886: released"
+    },
+    {
+      "tick": 4898,
+      "set": {
+        "zoom": 0.045
+      },
+      "why": "cha-cha-cha motif 1/5 (pre-roll, onsets 8.32@4886 PEAK KEY D, 10.59@4898 PEAK, 5.60@4915): first statement, small hit 2/3 at 4898 (cha)"
+    },
+    {
+      "tick": 4906,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "half a beat after 4898: released"
+    },
+    {
+      "tick": 4915,
+      "set": {
+        "zoom": 0.06
+      },
+      "why": "cha-cha-cha motif 1/5 (pre-roll, onsets 8.32@4886 PEAK KEY D, 10.59@4898 PEAK, 5.60@4915): first statement, small hit 3/3 at 4915 (CHA)"
+    },
+    {
+      "tick": 4923,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "half a beat after 4915: released"
+    },
+    {
+      "tick": 4931,
+      "set": {
+        "col_bri": 1.08,
+        "col_hue": 0.02
+      },
+      "why": "bar 73.1 (onset 5.01@4933): colour on the bar, a touch warmer and brighter (col_hue +0.02, col_bri 1.08)"
+    },
+    {
+      "tick": 5000,
+      "set": {
+        "col_bri": 1.15,
+        "col_hue": -0.03
+      },
+      "why": "bar 74.1 (pitch E, onset 5.86@5015): the stops lean toward brass and lift (col_hue -0.03, col_bri 1.15)"
+    },
+    {
+      "tick": 5068,
+      "set": {
+        "col_bri": 1.0,
+        "col_hue": 0.0
+      },
+      "why": "bar 75.1 (onset 7.04@5082): back to the terracotta origin before the break"
+    },
+    {
+      "tick": 5108,
+      "set": {
+        "zoom": 0.06
+      },
+      "why": "onset 13.18@5108 PEAK, pitch to C#: the fill that ends the full-band stretch, light push-in"
+    },
+    {
+      "tick": 5116,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "8 ticks (half a beat) after 5108: push released"
+    },
+    {
+      "tick": 5134,
+      "set": {
+        "slide": 0.35,
+        "separation": 0.07,
+        "roundness": 0.16,
+        "simultaneous": 2.0,
+        "vignette": 0.0,
+        "zoom": 0.0,
+        "col_bri": 1.0,
+        "col_hue": 0.0,
+        "col_contrast": 0.0,
+        "kaleido": 0.0
+      },
+      "why": "hold: 2 ticks before the boundary (onset 7.20@5125 PEAK, KEY A#), every pre-roll value repeated so the exhale starts at 5136 and not 3 s early"
+    },
+    {
+      "tick": 5153,
+      "set": {
+        "col_bri": 0.45
+      },
+      "why": "STEP- rms 0.077 (-2.6 sd), onset 0.77: the band is gone, the room goes nearly dark before hit 1"
+    },
+    {
+      "tick": 5172,
+      "set": {
+        "zoom": 0.0,
+        "col_contrast": 0.0,
+        "col_hue": 0.0,
+        "simultaneous": 1.3,
+        "col_bri": 0.45
+      },
+      "why": "anchor 4 ticks before hit 1 (onsets below 1 since 5151)"
+    },
+    {
+      "tick": 5176,
+      "set": {
+        "zoom": 0.4,
+        "col_bri": 1.7,
+        "col_contrast": 0.55,
+        "simultaneous": 2.7,
+        "col_hue": 0.04
+      },
+      "why": "HIT 1/3: onset 18.70@5176 PEAK KEY, the 2nd strongest of the part, out of the drop at 5153 (rms 0.077); it opens the cha-cha-cha. Deep push-in (zoom 0.4), the room flashes (col_bri 1.7, col_contrast 0.55), the deal bursts to 2.7 pieces at once, the palette warms (col_hue +0.04)"
+    },
+    {
+      "tick": 5193,
+      "set": {
+        "zoom": 0.4,
+        "col_bri": 1.6
+      },
+      "why": "hit 1 held for its length: rms stays 0.29-0.32 to 5187, onsets 10.2@5177, 3.8@5187"
+    },
+    {
+      "tick": 5196,
+      "set": {
+        "zoom": 0.22,
+        "col_bri": 1.3,
+        "col_contrast": 0.3
+      },
+      "why": "cha: onset 8.11@5196 PEAK, the softer middle step of the cha-cha-cha: the push eases (zoom 0.22), bri 1.3"
+    },
+    {
+      "tick": 5208,
+      "set": {
+        "zoom": 0.05,
+        "col_bri": 0.7,
+        "col_contrast": 0.0
+      },
+      "why": "gap: rms 0.036 at 5208-5210, onsets 0.3: dims before the third cha"
+    },
+    {
+      "tick": 5213,
+      "set": {
+        "zoom": 0.28,
+        "col_bri": 1.35,
+        "col_contrast": 0.3
+      },
+      "why": "CHA: onset 13.55@5213 PEAK lands the cha-cha-cha (the motif, not one of the three): zoom 0.28, bri 1.35"
+    },
+    {
+      "tick": 5232,
+      "set": {
+        "zoom": 0.28,
+        "col_bri": 1.25
+      },
+      "why": "onsets 5.8@5223, 5.2@5232 keep the chord ringing (rms 0.31): the CHA holds"
+    },
+    {
+      "tick": 5240,
+      "set": {
+        "zoom": 0.0,
+        "col_bri": 0.8,
+        "col_contrast": 0.0,
+        "simultaneous": 1.6,
+        "col_hue": 0.0
+      },
+      "why": "STEP- rms 0.094 at 5239 (centroid 0.136): released, deal back to 1.6, colour back to origin"
+    },
+    {
+      "tick": 5250,
+      "set": {
+        "col_bri": 1.0
+      },
+      "why": "onset 9.65@5250 PEAK (centroid 0.10, a dark bass note): a small lift only"
+    },
+    {
+      "tick": 5258,
+      "set": {
+        "col_bri": 0.8
+      },
+      "why": "falls back"
+    },
+    {
+      "tick": 5277,
+      "set": {
+        "col_bri": 0.3,
+        "kaleido": 0.0,
+        "shake": 0.0,
+        "col_contrast": 0.0,
+        "zoom": 0.0
+      },
+      "why": "stop: rms 0.029->0.002 at 5277-5291 (total silence): the room goes black"
+    },
+    {
+      "tick": 5291,
+      "set": {
+        "col_bri": 0.3,
+        "kaleido": 0.0,
+        "shake": 0.0,
+        "zoom": 0.0,
+        "col_contrast": 0.0
+      },
+      "why": "anchor 3 ticks before hit 2 (rms 0.002)"
+    },
+    {
+      "tick": 5294,
+      "set": {
+        "kaleido": 6.0,
+        "zoom": -0.25,
+        "shake": 0.4,
+        "col_bri": 1.75,
+        "col_contrast": 0.6
+      },
+      "why": "HIT 2/3: onset 21.88@5294, the strongest of the part, out of total silence (rms 0.002 at 5287-5290). The structure changes: kaleido 6 folds the board into a mandala, zoom pulls OUT (-0.25), shake 0.4, the brightest flash (col_bri 1.75, col_contrast 0.6)"
+    },
+    {
+      "tick": 5302,
+      "set": {
+        "shake": 0.0
+      },
+      "why": "shake falls back 8 ticks after the hit (rule 3); the mandala holds"
+    },
+    {
+      "tick": 5313,
+      "set": {
+        "kaleido": 6.0,
+        "zoom": -0.25,
+        "col_bri": 1.4
+      },
+      "why": "onset 6.84@5313, rms 0.186: the chord still rings, mandala held, flash eases"
+    },
+    {
+      "tick": 5332,
+      "set": {
+        "kaleido": 0.0,
+        "zoom": 0.0,
+        "col_bri": 0.8,
+        "col_contrast": 0.0
+      },
+      "why": "onset 4.47@5332, rms 0.112 decaying: hit 2 released, mandala unfolds"
+    },
+    {
+      "tick": 5340,
+      "set": {
+        "col_bri": 0.3
+      },
+      "why": "stop: rms 0.011->0.005 at 5338-5354: black again"
+    },
+    {
+      "tick": 5355,
+      "set": {
+        "col_bri": 0.3,
+        "zoom": 0.0,
+        "separation": 0.17,
+        "kaleido": 0.0,
+        "col_contrast": 0.0,
+        "col_hue": 0.0
+      },
+      "why": "anchor 3 ticks before hit 3 (rms 0.014)"
+    },
+    {
+      "tick": 5358,
+      "set": {
+        "separation": 0.34,
+        "zoom": 0.5,
+        "kaleido": 3.0,
+        "col_bri": 1.6,
+        "col_hue": -0.05,
+        "col_contrast": 0.5
+      },
+      "why": "HIT 3/3: onset 12.61@5358 PEAK after the last silence (rms 0.006, 17 ticks). The board breaks open (separacion 0.17->0.34), the deepest push (zoom 0.5), a 3-fold kaleido, flash cooled (col_hue -0.05, col_bri 1.6, col_contrast 0.5)"
+    },
+    {
+      "tick": 5366,
+      "set": {
+        "zoom": 0.5,
+        "col_bri": 1.55
+      },
+      "why": "onset 9.97@5366 PEAK re-strikes it after the dip at 5362 (rms 0.032): hit 3 held"
+    },
+    {
+      "tick": 5387,
+      "set": {
+        "zoom": 0.1,
+        "kaleido": 0.0,
+        "separation": 0.2,
+        "col_bri": 1.0,
+        "col_contrast": 0.1,
+        "col_hue": 0.0
+      },
+      "why": "onset 9.58@5387 PEAK STEP+: the band rebuilds toward the solo; hit 3 releases"
+    },
+    {
+      "tick": 5404,
+      "set": {
+        "step": 1.8692,
+        "simultaneous": 1.3,
+        "overlay": 0.7,
+        "slide": 0.95,
+        "separation": 0.17,
+        "roundness": 0.32,
+        "vignette": 0.3,
+        "kaleido": 0.0,
+        "col_bri": 0.85,
+        "col_hue": 0.0,
+        "col_contrast": 0.0,
+        "zoom": 0.0,
+        "shake": 0.0,
+        "col_sat": 1.0
+      },
+      "why": "hold 6 ticks before the solo (onset 4.43@5404, rms 0.117): the break values repeated (deal, slide, separacion 0.17, colour at origin, dim 0.85) so the solo starts as a cut"
+    },
+    {
+      "tick": 5410,
+      "set": {
+        "step": 3.7384,
+        "simultaneous": 2.7,
+        "overlay": 0.95,
+        "slide": 1.0,
+        "separation": 0.05,
+        "roundness": 0.08,
+        "vignette": 0.08,
+        "kaleido": 4.0,
+        "col_sat": 1.25,
+        "col_contrast": 0.3,
+        "col_bri": 1.1
+      },
+      "why": "piano solo starts: STEP+ rms 0.117->0.196, onset 10.17@5413 PEAK, KEY G, centroid falls to 0.134 (the band's 0.21-0.25 brightness is gone, it is the piano alone) and from here the pitch turns on almost every beat (G D C A# G# C# D F E A# D G C# B G). The board burns: deals on the eighth notes (paso 2x the beat), three pieces at once nearly always colliding, every step a continuous slide, sharp tight tiles, the vignette opens, colour jumps to the bright earthy rotation Colour: the solo saturates (col_sat 1.25) and opens contrast (0.3)."
+    },
+    {
+      "tick": 5427,
+      "set": {
+        "col_hue": 0.04,
+        "col_bri": 1.3
+      },
+      "why": "colour motif on the beat 2/20 (beat row 5427): the earthy palette turns on the piano beat, col_hue +0.04 and a brightness lift 1.3 (cycle hue 0/+0.04/-0.04, bri 1.1/1.3/0.95)"
+    },
+    {
+      "tick": 5436,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "cha-cha-cha motif 3/5 (solo, onsets 7.20@5439 PEAK, 8.54@5449 PEAK KEY D, beat 5461): zoom anchored at 0 three ticks before 5439, so the push is a hit"
+    },
+    {
+      "tick": 5439,
+      "set": {
+        "zoom": 0.06
+      },
+      "why": "cha-cha-cha motif 3/5 (solo, onsets 7.20@5439 PEAK, 8.54@5449 PEAK KEY D, beat 5461) hit 1/3 at 5439 (cha)"
+    },
+    {
+      "tick": 5444,
+      "set": {
+        "col_hue": -0.04,
+        "col_bri": 0.95
+      },
+      "why": "colour motif on the beat 3/20 (beat row 5444): the earthy palette turns on the piano beat, col_hue -0.04, brightness 0.95"
+    },
+    {
+      "tick": 5447,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "half a beat after 5439: released"
+    },
+    {
+      "tick": 5449,
+      "set": {
+        "zoom": 0.08
+      },
+      "why": "cha-cha-cha motif 3/5 (solo, onsets 7.20@5439 PEAK, 8.54@5449 PEAK KEY D, beat 5461) hit 2/3 at 5449 (cha)"
+    },
+    {
+      "tick": 5457,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "half a beat after 5449: released"
+    },
+    {
+      "tick": 5461,
+      "set": {
+        "col_hue": 0.0,
+        "col_bri": 1.1
+      },
+      "why": "colour motif on the beat 4/20 (beat row 5461): the earthy palette turns back on the piano beat, col_hue 0, brightness 1.1"
+    },
+    {
+      "tick": 5465,
+      "set": {
+        "zoom": 0.11
+      },
+      "why": "cha-cha-cha motif 3/5 (solo, onsets 7.20@5439 PEAK, 8.54@5449 PEAK KEY D, beat 5461) hit 3/3 at 5465 (CHA)"
+    },
+    {
+      "tick": 5473,
+      "set": {
+        "zoom": 0.0
+      },
+      "why": "half a beat after 5465: released"
+    },
+    {
+      "tick": 5478,
+      "set": {
+        "col_hue": 0.04,
+        "col_bri": 1.3
+      },
+      "why": "colour motif on the beat 5/20 (beat row 5478): the earthy palette turns on the piano beat, col_hue +0.04 and a brightness lift 1.3 (cycle hue 0/+0.04/-0.04, bri 1.1/1.3/0.95)"
+    },
+    {
+      "tick": 5479,
+      "set": {
+        "col_bri": 1.2965,
+        "col_contrast": 0.346,
+        "col_hue": 0.0392,
+        "col_sat": 1.25,
+        "kaleido": 4.0,
+        "step": 3.7384,
+        "posterize": 0,
+        "separation": 0.05,
+        "shake": 0.0,
+        "vertical": 0.5,
+        "zoom": 0.0
+      },
+      "why": "solo re-author anchor: every float the piano phrases move holds its value at 5479 so nothing before changes"
+    },
+    {
+      "tick": 5482,
+      "set": {
+        "step": 4.6,
+        "vertical": 0.8,
+        "shake": 0.45,
+        "col_bri": 1.4,
+        "col_hue": 0.05
+      },
+      "why": "phrase A (bar 81.1, KEY C) opens on onset 9.52@5482 PEAK: deals jump to paso 4.6, tiles turn mostly vertical (0.8), hard shake, warm flash"
+    },
+    {
+      "tick": 5488,
+      "set": {
+        "shake": 0.0
+      },
+      "why": "shake falls back 6 ticks after 5482 (rule 3)"
+    },
+    {
+      "tick": 5499,
+      "set": {
+        "col_hue": -0.03,
+        "col_bri": 1.0,
+        "separation": 0.12
+      },
+      "why": "onset 5.81@5499 KEY A#: the pitch drops, colour cools a little and the board opens gaps (separacion 0.05->0.12)"
+    },
+    {
+      "tick": 5512,
+      "set": {
+        "zoom": 0.0,
+        "col_contrast": 0.3,
+        "kaleido": 4.0
+      },
+      "why": "anchor 3 ticks before the 9.95 hit"
+    },
+    {
+      "tick": 5515,
+      "set": {
+        "zoom": -0.15,
+        "shake": 0.5,
+        "col_contrast": 0.55,
+        "kaleido": 6.0
+      },
+      "why": "onset 9.95@5515 PEAK (loudest of the solo): the board pulls away, shake, contrast opens, kaleido 4->6 folds"
+    },
+    {
+      "tick": 5522,
+      "set": {
+        "shake": 0.0,
+        "zoom": 0.0
+      },
+      "why": "hit released"
+    },
+    {
+      "tick": 5532,
+      "set": {
+        "col_sat": 1.5,
+        "col_hue": 0.08
+      },
+      "why": "onset 5.45@5532 KEY C#: the palette saturates hot"
+    },
+    {
+      "tick": 5546,
+      "set": {
+        "zoom": 0.0,
+        "kaleido": 6.0,
+        "col_contrast": 0.55,
+        "bevel": 0.5,
+        "posterize": 0.0
+      },
+      "why": "phrase B anchor (bar 82.1)"
+    },
+    {
+      "tick": 5549,
+      "set": {
+        "kaleido": 8.0,
+        "zoom": 0.2,
+        "col_hue": -0.07,
+        "col_contrast": -0.2,
+        "shake": 0.4,
+        "bevel": 0.9,
+        "posterize": 0.5
+      },
+      "why": "phrase B (bar 82.1) on onset 7.74@5549 PEAK: the board shatters into an 8-fold mandala, push in, palette swings cold (-0.07), deep-bevelled pieces (bisel 0.5->0.9), posterize stab"
+    },
+    {
+      "tick": 5555,
+      "set": {
+        "shake": 0.0,
+        "posterize": 0.0,
+        "zoom": 0.0
+      },
+      "why": "stab released 6 ticks later"
+    },
+    {
+      "tick": 5573,
+      "set": {
+        "step": 5.2,
+        "separation": 0.2,
+        "col_bri": 0.9
+      },
+      "why": "onset 6.41@5573: the run speeds up (paso 5.2) and the tiles float apart (0.2), room dips"
+    },
+    {
+      "tick": 5578,
+      "set": {
+        "vertical": 0.8,
+        "col_bri": 0.9
+      },
+      "why": "anchor 3 ticks before 5581"
+    },
+    {
+      "tick": 5581,
+      "set": {
+        "shake": 0.5,
+        "col_bri": 1.6,
+        "vertical": 0.2,
+        "posterize": 0.45
+      },
+      "why": "onset 7.39@5581 PEAK KEY D: tiles flip to horizontal (0.8->0.2), flash and shake, posterize stab"
+    },
+    {
+      "tick": 5588,
+      "set": {
+        "shake": 0.0,
+        "posterize": 0.0
+      },
+      "why": "stab released"
+    },
+    {
+      "tick": 5598,
+      "set": {
+        "col_sat": 1.55,
+        "col_hue": -0.06,
+        "kaleido": 5.0
+      },
+      "why": "onset 6.62@5598 (rms 0.214, solo's loudest beat): saturation peaks 1.55, mandala relaxes to 5"
+    },
+    {
+      "tick": 5615,
+      "set": {
+        "overlay": 1.0,
+        "roundness": 0.03
+      },
+      "why": "original 5615 key kept for the slow glide since 5410 (superposicion 1.0, redondez 0.03)"
+    },
+    {
+      "tick": 5628,
+      "set": {
+        "col_hue": -0.06,
+        "kaleido": 5.0,
+        "separation": 0.2,
+        "col_contrast": -0.2
+      },
+      "why": "phrase C anchor before 5631"
+    },
+    {
+      "tick": 5631,
+      "set": {
+        "col_hue": 0.08,
+        "kaleido": 3.0,
+        "separation": 0.08,
+        "bevel": 0.4,
+        "shake": 0.45,
+        "col_contrast": 0.7
+      },
+      "why": "phrase C (bar 83) on onset 8.22@5631 PEAK KEY F: the hue swings hard warm (+0.08), sharp tight tiles colliding every step, contrast 0.7"
+    },
+    {
+      "tick": 5638,
+      "set": {
+        "shake": 0.0
+      },
+      "why": "shake released"
+    },
+    {
+      "tick": 5647,
+      "set": {
+        "col_hue": 0.0,
+        "col_bri": 1.2,
+        "zoom": -0.2
+      },
+      "why": "onset 6.86@5647 KEY E: hue back through origin, the board pulls back"
+    },
+    {
+      "tick": 5658,
+      "set": {
+        "zoom": -0.2,
+        "kaleido": 3.0
+      },
+      "why": "anchor before 5661"
+    },
+    {
+      "tick": 5661,
+      "set": {
+        "col_hue": -0.08,
+        "kaleido": 7.0,
+        "shake": 0.55,
+        "posterize": 0.5,
+        "zoom": 0.15
+      },
+      "why": "onset 7.56@5661 PEAK KEY A#: hue swings the other way (-0.08), 7-fold, punch in, posterize stab"
+    },
+    {
+      "tick": 5668,
+      "set": {
+        "shake": 0.0,
+        "posterize": 0.0,
+        "zoom": 0.0
+      },
+      "why": "stab released"
+    },
+    {
+      "tick": 5681,
+      "set": {
+        "col_hue": 0.1,
+        "col_sat": 1.3,
+        "step": 6.0,
+        "shake": 0.4
+      },
+      "why": "onset 8.35@5681 PEAK KEY D: deals at their fastest (paso 6), hue warm again"
+    },
+    {
+      "tick": 5686,
+      "set": {
+        "shake": 0.0,
+        "zoom": 0.0,
+        "col_bri": 1.2,
+        "col_contrast": 0.7
+      },
+      "why": "anchor before the climax hit"
+    },
+    {
+      "tick": 5689,
+      "set": {
+        "kaleido": 9.0,
+        "col_bri": 1.55,
+        "col_contrast": 0.85,
+        "zoom": 0.3,
+        "shake": 0.6
+      },
+      "why": "phrase D (bar 84) climax on onset 9.38@5689 PEAK: 9-fold mandala, biggest flash and push, hardest shake"
+    },
+    {
+      "tick": 5697,
+      "set": {
+        "shake": 0.0,
+        "zoom": 0.05
+      },
+      "why": "climax released"
+    },
+    {
+      "tick": 5705,
+      "set": {
+        "col_hue": -0.05,
+        "vertical": 0.6,
+        "separation": 0.15,
+        "kaleido": 4.0,
+        "col_bri": 1.2
+      },
+      "why": "onset 7.20@5705 PEAK KEY C#: settling: mixed tile directions, gaps, mandala relaxes"
+    },
+    {
+      "tick": 5730,
+      "set": {
+        "col_bri": 1.0,
+        "step": 5.0,
+        "col_sat": 1.35,
+        "col_contrast": 0.4
+      },
+      "why": "onset 6.71@5730 KEY B (rms 0.087 dip): the loop state, still burning, deals at paso 5"
+    },
+    {
+      "tick": 5743,
+      "set": {
+        "shake": 0.0,
+        "col_bri": 1.0,
+        "kaleido": 4.0
+      },
+      "why": "anchor before the span-end hit"
+    },
+    {
+      "tick": 5746,
+      "set": {
+        "shake": 0.5,
+        "col_bri": 1.5,
+        "col_hue": 0.04,
+        "kaleido": 6.0,
+        "vignette": 0.05
+      },
+      "why": "span end: onset 9.77@5746 PEAK KEY G: one more hit, as the solo goes on"
+    },
+    {
+      "tick": 5750,
+      "set": {
+        "shake": 0.15,
+        "col_bri": 1.2
+      },
+      "why": "span end, the hit decaying"
+    }
+  ]
+}

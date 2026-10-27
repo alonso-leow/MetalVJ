@@ -1,0 +1,1008 @@
+{
+ "venue": "fiesta-resort",
+ "setting": "indoor",
+ "source": "ShowXpress 00-Alonso",
+ "families": {
+  "acomodar": 1,
+  "agua": 11,
+  "aire": 5,
+  "b3": 1,
+  "boca": 9,
+  "borde": 1,
+  "cold": 1,
+  "final": 1,
+  "fondo": 9,
+  "fuego": 10,
+  "full": 6,
+  "fx": 1,
+  "hard-shadow": 1,
+  "humo": 1,
+  "misc": 3,
+  "mov": 2,
+  "opening": 3,
+  "parpadeo": 2,
+  "pro": 9,
+  "relampagos": 1,
+  "spot-base": 1,
+  "texture": 4,
+  "tierra": 14,
+  "warm": 3,
+  "x": 7,
+  "yerberito": 1
+ },
+ "scenes": [
+  {
+   "id": "hf-acomodar-acomodar-moviles-cabina",
+   "name": "Acomodar moviles cabina",
+   "family": "acomodar",
+   "file": "acomodar/Acomodar moviles cabina.json",
+   "steps": 1,
+   "fixtures": 3,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-agua-agua-1-linea-frente-a-pantalla",
+   "name": "Agua 1 linea frente a pantalla",
+   "family": "agua",
+   "file": "agua/Agua 1 linea frente a pantalla.json",
+   "steps": 2,
+   "fixtures": 18,
+   "length_ms": 1000
+  },
+  {
+   "id": "hf-agua-agua-10-audiencia",
+   "name": "Agua 10  Audiencia",
+   "family": "agua",
+   "file": "agua/Agua 10  Audiencia.json",
+   "steps": 2,
+   "fixtures": 13,
+   "length_ms": 600
+  },
+  {
+   "id": "hf-agua-agua-2-linea-izquierda",
+   "name": "Agua 2 Linea izquierda",
+   "family": "agua",
+   "file": "agua/Agua 2 Linea izquierda.json",
+   "steps": 1,
+   "fixtures": 24,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-agua-agua-3-linea-izquierda",
+   "name": "Agua 3 Linea izquierda",
+   "family": "agua",
+   "file": "agua/Agua 3 Linea izquierda.json",
+   "steps": 1,
+   "fixtures": 24,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-agua-agua-6-full",
+   "name": "Agua 6 Full",
+   "family": "agua",
+   "file": "agua/Agua 6 Full.json",
+   "steps": 14,
+   "fixtures": 35,
+   "length_ms": 6800
+  },
+  {
+   "id": "hf-agua-agua-7-acentos",
+   "name": "Agua 7 acentos",
+   "family": "agua",
+   "file": "agua/Agua 7 acentos.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-agua-agua-8-linea",
+   "name": "Agua 8 línea",
+   "family": "agua",
+   "file": "agua/Agua 8 línea.json",
+   "steps": 1,
+   "fixtures": 36,
+   "length_ms": 300
+  },
+  {
+   "id": "hf-agua-agua-9-spot-gradas",
+   "name": "Agua 9 spot gradas",
+   "family": "agua",
+   "file": "agua/Agua 9 spot gradas.json",
+   "steps": 2,
+   "fixtures": 11,
+   "length_ms": 400
+  },
+  {
+   "id": "hf-agua-agua-fx-mov",
+   "name": "Agua FX mov",
+   "family": "agua",
+   "file": "agua/Agua FX mov.json",
+   "steps": 1,
+   "fixtures": 2,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-agua-agua-azules",
+   "name": "Agua azules",
+   "family": "agua",
+   "file": "agua/Agua azules.json",
+   "steps": 1,
+   "fixtures": 4,
+   "length_ms": 1500
+  },
+  {
+   "id": "hf-agua-agua-singin",
+   "name": "Agua singin",
+   "family": "agua",
+   "file": "agua/Agua singin.json",
+   "steps": 12,
+   "fixtures": 35,
+   "length_ms": 5800
+  },
+  {
+   "id": "hf-aire-aire-1-inicio",
+   "name": "Aire 1 inicio",
+   "family": "aire",
+   "file": "aire/Aire 1 inicio.json",
+   "steps": 1,
+   "fixtures": 32,
+   "length_ms": 1000
+  },
+  {
+   "id": "hf-aire-aire-2-inicio-con-frente",
+   "name": "Aire 2 Inicio con frente",
+   "family": "aire",
+   "file": "aire/Aire 2 Inicio con frente.json",
+   "steps": 1,
+   "fixtures": 32,
+   "length_ms": 300
+  },
+  {
+   "id": "hf-aire-aire-6-linea-al-centro",
+   "name": "Aire 6 linea al centro",
+   "family": "aire",
+   "file": "aire/Aire 6 linea al centro.json",
+   "steps": 1,
+   "fixtures": 36,
+   "length_ms": 300
+  },
+  {
+   "id": "hf-aire-aire-t",
+   "name": "Aire T",
+   "family": "aire",
+   "file": "aire/Aire T.json",
+   "steps": 2,
+   "fixtures": 15,
+   "length_ms": 300
+  },
+  {
+   "id": "hf-aire-aire-tt",
+   "name": "Aire TT",
+   "family": "aire",
+   "file": "aire/Aire TT.json",
+   "steps": 2,
+   "fixtures": 14,
+   "length_ms": 200
+  },
+  {
+   "id": "hf-b3-b3-1",
+   "name": "B3 - 1",
+   "family": "b3",
+   "file": "b3/B3 - 1.json",
+   "steps": 1,
+   "fixtures": 2,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-boca-boca-centro-cool-ab",
+   "name": "Boca_Centro_Cool_AB",
+   "family": "boca",
+   "file": "boca/Boca_Centro_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-boca-boca-centro-solo-ab",
+   "name": "Boca_Centro_Solo_AB",
+   "family": "boca",
+   "file": "boca/Boca_Centro_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 26,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-boca-boca-centro-warm-ab",
+   "name": "Boca_Centro_Warm_AB",
+   "family": "boca",
+   "file": "boca/Boca_Centro_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-boca-boca-der-cool-ab",
+   "name": "Boca_Der_Cool_AB",
+   "family": "boca",
+   "file": "boca/Boca_Der_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-boca-boca-der-solo-ab",
+   "name": "Boca_Der_Solo_AB",
+   "family": "boca",
+   "file": "boca/Boca_Der_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 23,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-boca-boca-der-warm-ab",
+   "name": "Boca_Der_Warm_AB",
+   "family": "boca",
+   "file": "boca/Boca_Der_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-boca-boca-izq-cool-ab",
+   "name": "Boca_Izq_Cool_AB",
+   "family": "boca",
+   "file": "boca/Boca_Izq_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-boca-boca-izq-solo-ab",
+   "name": "Boca_Izq_Solo_AB",
+   "family": "boca",
+   "file": "boca/Boca_Izq_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 23,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-boca-boca-izq-warm-ab",
+   "name": "Boca_Izq_Warm_AB",
+   "family": "boca",
+   "file": "boca/Boca_Izq_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-borde-borde-escenario",
+   "name": "borde escenario",
+   "family": "borde",
+   "file": "borde/borde escenario.json",
+   "steps": 1,
+   "fixtures": 4,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-cold-cold-01",
+   "name": "Cold-01",
+   "family": "cold",
+   "file": "cold/Cold-01.json",
+   "steps": 6,
+   "fixtures": 31,
+   "length_ms": 93800
+  },
+  {
+   "id": "hf-final-final-escaleras",
+   "name": "final escaleras",
+   "family": "final",
+   "file": "final/final escaleras.json",
+   "steps": 1,
+   "fixtures": 10,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-centro-cool-ab",
+   "name": "Fondo_Centro_Cool_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Centro_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-centro-solo-ab",
+   "name": "Fondo_Centro_Solo_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Centro_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 26,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-centro-warm-ab",
+   "name": "Fondo_Centro_Warm_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Centro_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-der-cool-ab",
+   "name": "Fondo_Der_Cool_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Der_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-der-solo-ab",
+   "name": "Fondo_Der_Solo_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Der_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 23,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-der-warm-ab",
+   "name": "Fondo_Der_Warm_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Der_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-izq-cool-ab",
+   "name": "Fondo_Izq_Cool_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Izq_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-izq-solo-ab",
+   "name": "Fondo_Izq_Solo_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Izq_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 23,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fondo-fondo-izq-warm-ab",
+   "name": "Fondo_Izq_Warm_AB",
+   "family": "fondo",
+   "file": "fondo/Fondo_Izq_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-fuego-fuego-audiencia",
+   "name": "Fuego + audiencia",
+   "family": "fuego",
+   "file": "fuego/Fuego + audiencia.json",
+   "steps": 1,
+   "fixtures": 42,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-fuego-fuego-1-linea-frente-a-pantalla",
+   "name": "Fuego 1 linea frente a pantalla",
+   "family": "fuego",
+   "file": "fuego/Fuego 1 linea frente a pantalla.json",
+   "steps": 2,
+   "fixtures": 15,
+   "length_ms": 1100
+  },
+  {
+   "id": "hf-fuego-fuego-10-cierre-frente-a-pantalla",
+   "name": "Fuego 10 Cierre frente a pantalla",
+   "family": "fuego",
+   "file": "fuego/Fuego 10 Cierre frente a pantalla.json",
+   "steps": 1,
+   "fixtures": 10,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-fuego-fuego-2-linea-centro",
+   "name": "Fuego 2 linea centro",
+   "family": "fuego",
+   "file": "fuego/Fuego 2 linea centro.json",
+   "steps": 1,
+   "fixtures": 16,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-fuego-fuego-3-centro",
+   "name": "Fuego 3 centro",
+   "family": "fuego",
+   "file": "fuego/Fuego 3 centro.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-fuego-fuego-4-full-1",
+   "name": "Fuego 4 Full 1",
+   "family": "fuego",
+   "file": "fuego/Fuego 4 Full 1.json",
+   "steps": 1,
+   "fixtures": 35,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-fuego-fuego-6-centro-linea-frontal",
+   "name": "Fuego 6 centro linea frontal",
+   "family": "fuego",
+   "file": "fuego/Fuego 6 centro linea frontal.json",
+   "steps": 1,
+   "fixtures": 35,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-fuego-fuego-7-full",
+   "name": "Fuego 7 full",
+   "family": "fuego",
+   "file": "fuego/Fuego 7 full.json",
+   "steps": 11,
+   "fixtures": 35,
+   "length_ms": 3200
+  },
+  {
+   "id": "hf-fuego-fuego-escaleras-2",
+   "name": "Fuego escaleras 2",
+   "family": "fuego",
+   "file": "fuego/Fuego escaleras 2.json",
+   "steps": 1,
+   "fixtures": 39,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-fuego-fuego-wash-gradas",
+   "name": "Fuego wash gradas",
+   "family": "fuego",
+   "file": "fuego/Fuego wash gradas.json",
+   "steps": 2,
+   "fixtures": 2,
+   "length_ms": 600
+  },
+  {
+   "id": "hf-full-full-01",
+   "name": "Full-01",
+   "family": "full",
+   "file": "full/Full-01.json",
+   "steps": 14,
+   "fixtures": 35,
+   "length_ms": 6800
+  },
+  {
+   "id": "hf-full-full-02",
+   "name": "Full-02",
+   "family": "full",
+   "file": "full/Full-02.json",
+   "steps": 11,
+   "fixtures": 39,
+   "length_ms": 5500
+  },
+  {
+   "id": "hf-full-full-03-yellow-blue",
+   "name": "Full-03-Yellow-Blue",
+   "family": "full",
+   "file": "full/Full-03-Yellow-Blue.json",
+   "steps": 8,
+   "fixtures": 34,
+   "length_ms": 1350
+  },
+  {
+   "id": "hf-full-full-04",
+   "name": "Full-04",
+   "family": "full",
+   "file": "full/Full-04.json",
+   "steps": 3,
+   "fixtures": 34,
+   "length_ms": 1500
+  },
+  {
+   "id": "hf-full-full-05-yellow-blue",
+   "name": "Full-05-Yellow-Blue",
+   "family": "full",
+   "file": "full/Full-05-Yellow-Blue.json",
+   "steps": 2,
+   "fixtures": 34,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-full-full-cyber-punk",
+   "name": "Full_Cyber_Punk",
+   "family": "full",
+   "file": "full/Full_Cyber_Punk.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-fx-fx-01",
+   "name": "FX-01",
+   "family": "fx",
+   "file": "fx/FX-01.json",
+   "steps": 10,
+   "fixtures": 39,
+   "length_ms": 5000
+  },
+  {
+   "id": "hf-hard-shadow-hard-shadow-01",
+   "name": "Hard-Shadow-01",
+   "family": "hard-shadow",
+   "file": "hard-shadow/Hard-Shadow-01.json",
+   "steps": 26,
+   "fixtures": 2,
+   "length_ms": 7800
+  },
+  {
+   "id": "hf-humo-humo",
+   "name": "Humo",
+   "family": "humo",
+   "file": "humo/Humo.json",
+   "steps": 1,
+   "fixtures": 6,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-misc-fuego-10-audiencia",
+   "name": "fuego 10 audiencia",
+   "family": "misc",
+   "file": "misc/fuego 10 audiencia.json",
+   "steps": 1,
+   "fixtures": 42,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-misc-fuego-9-escaleras-cerrado",
+   "name": "fuego 9 escaleras cerrado",
+   "family": "misc",
+   "file": "misc/fuego 9 escaleras cerrado.json",
+   "steps": 1,
+   "fixtures": 39,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-misc-fuego-piso-rojo",
+   "name": "fuego piso rojo",
+   "family": "misc",
+   "file": "misc/fuego piso rojo.json",
+   "steps": 2,
+   "fixtures": 2,
+   "length_ms": 800
+  },
+  {
+   "id": "hf-mov-mov-led-y-laterales-tierra",
+   "name": "Mov led y laterales tierra",
+   "family": "mov",
+   "file": "mov/Mov led y laterales tierra.json",
+   "steps": 3,
+   "fixtures": 15,
+   "length_ms": 1500
+  },
+  {
+   "id": "hf-mov-moviles-arriba",
+   "name": "Móviles arriba",
+   "family": "mov",
+   "file": "mov/Móviles arriba.json",
+   "steps": 3,
+   "fixtures": 10,
+   "length_ms": 1500
+  },
+  {
+   "id": "hf-opening-opening-1-alas",
+   "name": "Opening 1 Alas",
+   "family": "opening",
+   "file": "opening/Opening 1 Alas.json",
+   "steps": 1,
+   "fixtures": 8,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-opening-opening-3-centro",
+   "name": "Opening 3 Centro",
+   "family": "opening",
+   "file": "opening/Opening 3 Centro.json",
+   "steps": 1,
+   "fixtures": 18,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-opening-opening-inicio-fuego",
+   "name": "Opening inicio fuego",
+   "family": "opening",
+   "file": "opening/Opening inicio fuego.json",
+   "steps": 1,
+   "fixtures": 42,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-parpadeo-parpadeo-contraluz",
+   "name": "Parpadeo contraluz",
+   "family": "parpadeo",
+   "file": "parpadeo/Parpadeo contraluz.json",
+   "steps": 4,
+   "fixtures": 4,
+   "length_ms": 1200
+  },
+  {
+   "id": "hf-parpadeo-parpadeo-cabezas",
+   "name": "parpadeo cabezas",
+   "family": "parpadeo",
+   "file": "parpadeo/parpadeo cabezas.json",
+   "steps": 17,
+   "fixtures": 2,
+   "length_ms": 5100
+  },
+  {
+   "id": "hf-pro-pro-centro-cool-ab",
+   "name": "Pro_Centro_Cool_AB",
+   "family": "pro",
+   "file": "pro/Pro_Centro_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-pro-pro-centro-solo-ab",
+   "name": "Pro_Centro_Solo_AB",
+   "family": "pro",
+   "file": "pro/Pro_Centro_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 26,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-pro-pro-centro-warm-ab",
+   "name": "Pro_Centro_Warm_AB",
+   "family": "pro",
+   "file": "pro/Pro_Centro_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-pro-pro-der-cool-ab",
+   "name": "Pro_Der_Cool_AB",
+   "family": "pro",
+   "file": "pro/Pro_Der_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-pro-pro-der-solo-ab",
+   "name": "Pro_Der_Solo_AB",
+   "family": "pro",
+   "file": "pro/Pro_Der_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 23,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-pro-pro-der-warm-ab",
+   "name": "Pro_Der_Warm_AB",
+   "family": "pro",
+   "file": "pro/Pro_Der_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-pro-pro-izq-cool-ab",
+   "name": "Pro_Izq_Cool_AB",
+   "family": "pro",
+   "file": "pro/Pro_Izq_Cool_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-pro-pro-izq-solo-ab",
+   "name": "Pro_Izq_Solo_AB",
+   "family": "pro",
+   "file": "pro/Pro_Izq_Solo_AB.json",
+   "steps": 1,
+   "fixtures": 23,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-pro-pro-izq-warm-ab",
+   "name": "Pro_Izq_Warm_AB",
+   "family": "pro",
+   "file": "pro/Pro_Izq_Warm_AB.json",
+   "steps": 1,
+   "fixtures": 30,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-relampagos-relampagos",
+   "name": "Relámpagos",
+   "family": "relampagos",
+   "file": "relampagos/Relámpagos.json",
+   "steps": 1,
+   "fixtures": 9,
+   "length_ms": 300
+  },
+  {
+   "id": "hf-spot-base-spot-base",
+   "name": "Spot-Base",
+   "family": "spot-base",
+   "file": "spot-base/Spot-Base.json",
+   "steps": 1,
+   "fixtures": 33,
+   "length_ms": 100
+  },
+  {
+   "id": "hf-texture-texture-01",
+   "name": "Texture-01",
+   "family": "texture",
+   "file": "texture/Texture-01.json",
+   "steps": 12,
+   "fixtures": 35,
+   "length_ms": 5800
+  },
+  {
+   "id": "hf-texture-texture-02",
+   "name": "Texture-02",
+   "family": "texture",
+   "file": "texture/Texture-02.json",
+   "steps": 9,
+   "fixtures": 40,
+   "length_ms": 4300
+  },
+  {
+   "id": "hf-texture-texture-03-pink-blue",
+   "name": "Texture-03-Pink-Blue",
+   "family": "texture",
+   "file": "texture/Texture-03-Pink-Blue.json",
+   "steps": 10,
+   "fixtures": 29,
+   "length_ms": 4600
+  },
+  {
+   "id": "hf-texture-texture-04",
+   "name": "Texture-04",
+   "family": "texture",
+   "file": "texture/Texture-04.json",
+   "steps": 5,
+   "fixtures": 37,
+   "length_ms": 2500
+  },
+  {
+   "id": "hf-tierra-tierra-1-triangulo",
+   "name": "Tierra 1 triangulo",
+   "family": "tierra",
+   "file": "tierra/Tierra 1 triangulo.json",
+   "steps": 2,
+   "fixtures": 24,
+   "length_ms": 1000
+  },
+  {
+   "id": "hf-tierra-tierra-2-full",
+   "name": "Tierra 2 Full",
+   "family": "tierra",
+   "file": "tierra/Tierra 2 Full.json",
+   "steps": 11,
+   "fixtures": 35,
+   "length_ms": 5500
+  },
+  {
+   "id": "hf-tierra-tierra-222",
+   "name": "Tierra 222",
+   "family": "tierra",
+   "file": "tierra/Tierra 222.json",
+   "steps": 13,
+   "fixtures": 35,
+   "length_ms": 4100
+  },
+  {
+   "id": "hf-tierra-tierra-3-lineas",
+   "name": "Tierra 3 Lineas",
+   "family": "tierra",
+   "file": "tierra/Tierra 3 Lineas.json",
+   "steps": 1,
+   "fixtures": 35,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-tierra-tierra-4-diagonales",
+   "name": "Tierra 4 diagonales",
+   "family": "tierra",
+   "file": "tierra/Tierra 4 diagonales.json",
+   "steps": 11,
+   "fixtures": 39,
+   "length_ms": 5500
+  },
+  {
+   "id": "hf-tierra-tierra-5-triangulos",
+   "name": "Tierra 5 triangulos",
+   "family": "tierra",
+   "file": "tierra/Tierra 5 triangulos.json",
+   "steps": 1,
+   "fixtures": 32,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-tierra-tierra-6-circulo",
+   "name": "Tierra 6 circulo",
+   "family": "tierra",
+   "file": "tierra/Tierra 6 circulo.json",
+   "steps": 5,
+   "fixtures": 36,
+   "length_ms": 4300
+  },
+  {
+   "id": "hf-tierra-tierra-7-centro-cruzado",
+   "name": "Tierra 7 centro cruzado",
+   "family": "tierra",
+   "file": "tierra/Tierra 7 centro cruzado.json",
+   "steps": 1,
+   "fixtures": 32,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-tierra-tierra-8-gradas",
+   "name": "Tierra 8 gradas",
+   "family": "tierra",
+   "file": "tierra/Tierra 8 gradas.json",
+   "steps": 1,
+   "fixtures": 21,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-tierra-tierra-9-gradas-y-audiencia",
+   "name": "Tierra 9 gradas y audiencia",
+   "family": "tierra",
+   "file": "tierra/Tierra 9 gradas y audiencia.json",
+   "steps": 1,
+   "fixtures": 22,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-tierra-tierra-bemba-colora",
+   "name": "Tierra bemba colora",
+   "family": "tierra",
+   "file": "tierra/Tierra bemba colora.json",
+   "steps": 2,
+   "fixtures": 31,
+   "length_ms": 800
+  },
+  {
+   "id": "hf-tierra-tierra-colores-proscenio",
+   "name": "Tierra colores proscenio",
+   "family": "tierra",
+   "file": "tierra/Tierra colores proscenio.json",
+   "steps": 1,
+   "fixtures": 5,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-tierra-tierra-efx-contra",
+   "name": "Tierra efx contra",
+   "family": "tierra",
+   "file": "tierra/Tierra efx contra.json",
+   "steps": 10,
+   "fixtures": 39,
+   "length_ms": 5000
+  },
+  {
+   "id": "hf-tierra-tierra-full-con-parpadeo",
+   "name": "Tierra full con parpadeo",
+   "family": "tierra",
+   "file": "tierra/Tierra full con parpadeo.json",
+   "steps": 14,
+   "fixtures": 35,
+   "length_ms": 3100
+  },
+  {
+   "id": "hf-warm-warm-01",
+   "name": "Warm-01",
+   "family": "warm",
+   "file": "warm/Warm-01.json",
+   "steps": 14,
+   "fixtures": 35,
+   "length_ms": 3100
+  },
+  {
+   "id": "hf-warm-warm-02-spots",
+   "name": "Warm-02-Spots",
+   "family": "warm",
+   "file": "warm/Warm-02-Spots.json",
+   "steps": 11,
+   "fixtures": 35,
+   "length_ms": 3200
+  },
+  {
+   "id": "hf-warm-warm-03-spots",
+   "name": "Warm-03-Spots",
+   "family": "warm",
+   "file": "warm/Warm-03-Spots.json",
+   "steps": 2,
+   "fixtures": 39,
+   "length_ms": 800
+  },
+  {
+   "id": "hf-x-x-aire-moviles-amarillas",
+   "name": "X aire moviles  amarillas",
+   "family": "x",
+   "file": "x/X aire moviles  amarillas.json",
+   "steps": 9,
+   "fixtures": 5,
+   "length_ms": 4100
+  },
+  {
+   "id": "hf-x-x-giros-flores",
+   "name": "X giros flores",
+   "family": "x",
+   "file": "x/X giros flores.json",
+   "steps": 2,
+   "fixtures": 2,
+   "length_ms": 800
+  },
+  {
+   "id": "hf-x-x-moviles-escenario-parpadeo-color-aire",
+   "name": "X moviles escenario parpadeo color aire",
+   "family": "x",
+   "file": "x/X moviles escenario parpadeo color aire.json",
+   "steps": 2,
+   "fixtures": 2,
+   "length_ms": 1000
+  },
+  {
+   "id": "hf-x-x-moviles-escenario-parpadeo-solo-izq",
+   "name": "X moviles escenario parpadeo solo izq",
+   "family": "x",
+   "file": "x/X moviles escenario parpadeo solo izq.json",
+   "steps": 1,
+   "fixtures": 1,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-x-x-parpadeo-blanco-moviles-piso",
+   "name": "X parpadeo blanco moviles piso",
+   "family": "x",
+   "file": "x/X parpadeo blanco moviles piso.json",
+   "steps": 6,
+   "fixtures": 2,
+   "length_ms": 3000
+  },
+  {
+   "id": "hf-x-x-solo-esquinas-mov",
+   "name": "X solo esquinas mov",
+   "family": "x",
+   "file": "x/X solo esquinas mov.json",
+   "steps": 3,
+   "fixtures": 2,
+   "length_ms": 1500
+  },
+  {
+   "id": "hf-x-x-wash-colores-cenital",
+   "name": "X wash colores cenital",
+   "family": "x",
+   "file": "x/X wash colores cenital.json",
+   "steps": 1,
+   "fixtures": 5,
+   "length_ms": 500
+  },
+  {
+   "id": "hf-yerberito-yerberito-laterales",
+   "name": "Yerberito laterales",
+   "family": "yerberito",
+   "file": "yerberito/Yerberito laterales.json",
+   "steps": 1,
+   "fixtures": 4,
+   "length_ms": 500
+  }
+ ],
+ "count": 108
+}

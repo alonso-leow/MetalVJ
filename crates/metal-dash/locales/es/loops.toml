@@ -1,0 +1,19 @@
+# Spanish for the shell module `loops`: "English source text" = "Spanish text".
+# See ../README.md.
+
+# The header's loop readout (Phase 4B): length in beats, an engaged marker and
+# the mode. The placeholders keep their names; the marker is a symbol, not a
+# word, so nothing here moves but the surrounding text's role.
+"L={n} {glyph} {mode}" = "L={n} {glyph} {mode}"
+
+# The 16-slot keyframe grid (§5): the selected slot's state and its buttons.
+"holds the previous slot" = "mantiene la ranura anterior"
+"Copy slot" = "Copiar ranura"
+"Paste slot" = "Pegar ranura"
+"Copy previous" = "Copiar la anterior"
+"Clear slot" = "Vaciar ranura"
+"Loop" = "Bucle"
+"Pattern" = "Patrón"
+"actions" = "acciones"
+"clock" = "reloj"
+"template" = "plantilla"

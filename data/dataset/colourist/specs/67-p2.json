@@ -1,0 +1,1974 @@
+{
+ "part": "67-p2",
+ "model": "rings",
+ "song": "67 - Sergio Mendes - Magalenha (Official Visualizer)",
+ "span": [
+  865,
+  1911
+ ],
+ "kind": "build-drop",
+ "keywords": [
+  "batucada",
+  "happy",
+  "samba",
+  "surdo",
+  "uplift"
+ ],
+ "title": "the ball plays the samba on the rings",
+ "story": "Magalenha at 117.4 BPM: a thin samba groove whose percussion lands on the 8th-note grid, building (slope 1.77) through an anomaly at 1388 into the full-band drop on the 10.8 onset at 1452 (rms 0.05 -> 0.14). The rings turn slowly and the ball, thrown from the centre at a round start on the grid (ronda 29.03), crosses ring 0 in exactly one beat with no gravity and a perfect bounce, so every wall hit lands on a beat or an off-beat 8th; it flashes on its first hits so the viewer learns the mechanism, then works outward ring by ring as the stops rotate on each bar and the picture brightens.. It reaches the last ring just before the drop; on 1452 the spin reverses, the gaps blow open, the ball is thrown twice as hard (impulso 0.57->1.14) so its wall hits land on the 8th-note grid, and from 1436 the samba batucada is carried bar after bar at 16th resolution: the dark surdo hits punch the zoom and shake hard, the surdo answer pulls the zoom out lightly, the caixa and tamborim strokes give small shakes and the agogo a brightness tick, while the palette sways in hue every half bar.",
+ "base": {
+  "slot:anillos": [
+   1.0,
+   0.8,
+   0.3,
+   1.0,
+   0.55,
+   0.1,
+   1.0,
+   0.25,
+   0.2,
+   0.95,
+   0.1,
+   0.45
+  ],
+  "slot:bola": [
+   1.0,
+   0.8,
+   0.3,
+   1.0,
+   0.8,
+   0.3,
+   1.0,
+   0.55,
+   0.1,
+   1.0,
+   0.55,
+   0.1
+  ],
+  "slot:fondo": [
+   0.03,
+   0.007,
+   0.006,
+   0.019,
+   0.002,
+   0.009,
+   0.012,
+   0.007,
+   0.001,
+   0.006,
+   0.001,
+   0.003
+  ],
+  "speed": 0.18,
+  "alternate": 1.0,
+  "aperture": 0.14,
+  "impulse": 0.5715,
+  "gravity": 0.0,
+  "bounce": 1.0,
+  "ball": 0.042,
+  "thickness": 0.024,
+  "shine": 0.4,
+  "round": 29.03
+ },
+ "keys": [
+  {
+   "tick": 865,
+   "set": {},
+   "why": "span start: thin groove rms 0.069; slow stack (velocidad 0.18, gap 0.14), ball launched from the centre at the round start 929 (ronda 29.03 puts it on the 8th-note grid)"
+  },
+  {
+   "tick": 936,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "ball idle just before the hit"
+  },
+  {
+   "tick": 937,
+   "set": {
+    "slot:bola": [
+     1,
+     1,
+     0.85,
+     1,
+     0.95,
+     0.7,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "ball hit on ring 0 (gravedad 0, rebote 1, impulso 0.5715: one wall per beat): onset 5.56@937: first wall hit of the round"
+  },
+  {
+   "tick": 952,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "ball idle just before the hit"
+  },
+  {
+   "tick": 953,
+   "set": {
+    "slot:bola": [
+     1,
+     1,
+     0.85,
+     1,
+     0.95,
+     0.7,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "ball hit on ring 0 (gravedad 0, rebote 1, impulso 0.5715: one wall per beat): onset 4.19@954: second hit, other side"
+  },
+  {
+   "tick": 969,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "ball idle just before the hit"
+  },
+  {
+   "tick": 970,
+   "set": {
+    "slot:bola": [
+     1,
+     1,
+     0.85,
+     1,
+     0.95,
+     0.7,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "ball hit on ring 0 (gravedad 0, rebote 1, impulso 0.5715: one wall per beat): onset 6.18@974 region: third hit"
+  },
+  {
+   "tick": 985,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "ball idle just before the hit"
+  },
+  {
+   "tick": 986,
+   "set": {
+    "slot:bola": [
+     1,
+     1,
+     0.85,
+     1,
+     0.95,
+     0.7,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "ball hit on ring 0 (gravedad 0, rebote 1, impulso 0.5715: one wall per beat): onset 5.88@987(994): fourth hit"
+  },
+  {
+   "tick": 992,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "ball colour falls back"
+  },
+  {
+   "tick": 996,
+   "set": {
+    "slot:anillos": [
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.25,
+     0.2,
+     0.95,
+     0.1,
+     0.45,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "bar 16.1 downbeat: ring stops rotate one place (colour on the bar)"
+  },
+  {
+   "tick": 1003,
+   "set": {
+    "shine": 0.45
+   },
+   "why": "ball passes ring 0 on the 8th grid (onset 4.22@1003): brighter as the stack opens"
+  },
+  {
+   "tick": 1062,
+   "set": {
+    "slot:anillos": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.25,
+     0.2,
+     0.95,
+     0.1,
+     0.45
+    ]
+   },
+   "why": "bar 17.1 downbeat: ring stops rotate one place (colour on the bar)"
+  },
+  {
+   "tick": 1127,
+   "set": {
+    "slot:anillos": [
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.25,
+     0.2,
+     0.95,
+     0.1,
+     0.45,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "bar 18.1 downbeat: ring stops rotate one place (colour on the bar)"
+  },
+  {
+   "tick": 1193,
+   "set": {
+    "slot:anillos": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.25,
+     0.2,
+     0.95,
+     0.1,
+     0.45
+    ]
+   },
+   "why": "bar 19.1 downbeat: ring stops rotate one place (colour on the bar)"
+  },
+  {
+   "tick": 1248,
+   "set": {
+    "shine": 0.6
+   },
+   "why": "build midpoint, onset 7.39@1248 PEAK, build_slope 1.77"
+  },
+  {
+   "tick": 1258,
+   "set": {
+    "slot:anillos": [
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.25,
+     0.2,
+     0.95,
+     0.1,
+     0.45,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "bar 20.1 downbeat: ring stops rotate one place (colour on the bar)"
+  },
+  {
+   "tick": 1275,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "anchor before the 1281 hit"
+  },
+  {
+   "tick": 1281,
+   "set": {
+    "slot:bola": [
+     1,
+     1,
+     0.85,
+     1,
+     0.95,
+     0.7,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "ball hits ring 2 on onset 6.62@1280 PEAK"
+  },
+  {
+   "tick": 1289,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "falls back"
+  },
+  {
+   "tick": 1324,
+   "set": {
+    "slot:anillos": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.25,
+     0.2,
+     0.95,
+     0.1,
+     0.45
+    ]
+   },
+   "why": "bar 21.1 downbeat: ring stops rotate one place (colour on the bar)"
+  },
+  {
+   "tick": 1340,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "anchor; KEY gap 0.016 rms"
+  },
+  {
+   "tick": 1346,
+   "set": {
+    "slot:bola": [
+     1,
+     1,
+     0.85,
+     1,
+     0.95,
+     0.7,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3
+    ]
+   },
+   "why": "ball hits ring 4 (onset 7.92@1362 approach), anomaly near"
+  },
+  {
+   "tick": 1354,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "falls back"
+  },
+  {
+   "tick": 1389,
+   "set": {
+    "slot:anillos": [
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.25,
+     0.2,
+     0.95,
+     0.1,
+     0.45,
+     1.0,
+     0.8,
+     0.3
+    ],
+    "shine": 0.7
+   },
+   "why": "anomaly opens bar 22.1 (onset 6.98@1395 PEAK): stops start warming to the drop colours"
+  },
+  {
+   "tick": 1430,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ],
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "col_hue": 0.0,
+    "col_contrast": 0.0
+   },
+   "why": "anchor; holds shake/zoom/colour at rest before the drum grid starts"
+  },
+  {
+   "tick": 1436,
+   "set": {
+    "slot:bola": [
+     1,
+     1,
+     0.85,
+     1,
+     0.95,
+     0.7,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3
+    ],
+    "shine": 0.8
+   },
+   "why": "ball hits the last ring on the 8th grid (onset 6.3@1437, pickup 9.39@1429)"
+  },
+  {
+   "tick": 1437,
+   "set": {
+    "shake": 0.18
+   },
+   "why": "16th 13: caixa accent (mid cen 0.27, mean 3.3), onset 6.32@1437 cen 0.32"
+  },
+  {
+   "tick": 1439,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1445,
+   "set": {
+    "shake": 0.32,
+    "zoom": -0.3,
+    "col_bri": 1.25
+   },
+   "why": "16th 15: surdo resposta (light, dark cen 0.14, mean 4.1), onset 4.53@1445 cen 0.19"
+  },
+  {
+   "tick": 1448,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1451,
+   "set": {
+    "speed": 0.18,
+    "aperture": 0.14,
+    "shine": 0.8,
+    "slot:anillos": [
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.25,
+     0.2,
+     0.95,
+     0.1,
+     0.45,
+     1.0,
+     0.8,
+     0.3
+    ],
+    "slot:fondo": [
+     0.03,
+     0.007,
+     0.006,
+     0.019,
+     0.002,
+     0.009,
+     0.012,
+     0.007,
+     0.001,
+     0.006,
+     0.001,
+     0.003
+    ],
+    "impulse": 0.5715,
+    "col_contrast": 0.0,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "hold the build so the drop is a cut; impulso held at the slow teaching speed until the cut"
+  },
+  {
+   "tick": 1452,
+   "set": {
+    "speed": -0.35,
+    "aperture": 0.36,
+    "shine": 1.0,
+    "slot:anillos": [
+     0.95,
+     0.1,
+     0.45,
+     1.0,
+     0.25,
+     0.2,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1
+    ],
+    "slot:bola": [
+     1,
+     0.95,
+     0.9,
+     1,
+     0.85,
+     0.6,
+     0.95,
+     0.6,
+     0.7,
+     1,
+     0.8,
+     0.5
+    ],
+    "slot:fondo": [
+     0.057,
+     0.006,
+     0.027,
+     0.04,
+     0.01,
+     0.008,
+     0.02,
+     0.011,
+     0.002,
+     0.009,
+     0.001,
+     0.005
+    ],
+    "impulse": 1.143,
+    "col_contrast": 0.35,
+    "shake": 0.6,
+    "zoom": 0.95,
+    "col_bri": 1.7
+   },
+   "why": "DROP onset 10.80@1452, rms 0.05->0.14: spin reverses, gaps blow open; the ball escapes the last ring and a new stack is dealt, magenta inside; impulso steps 0.5715->1.143 (twice as fast: ring 0 crossed in an 8th, the ball lands on the 8th-note drum grid) and contrast opens; the drop is the biggest surdo-type hit of the part: max shake, zoom punch, brightness lift"
+  },
+  {
+   "tick": 1454,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "half-bar palette sway col_hue +0.00"
+  },
+  {
+   "tick": 1457,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4
+   },
+   "why": "drop hit falls back over a 16th; brillo rests at 0.4 so the surdo can flash the rings to 1.0"
+  },
+  {
+   "tick": 1462,
+   "set": {
+    "shake": 0.54,
+    "zoom": 0.72,
+    "col_bri": 1.54,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 3: surdo (strong, dark cen 0.12, mean onset 6.7), onset 7.17@1462 cen 0.08"
+  },
+  {
+   "tick": 1465,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1466,
+   "set": {
+    "shake": 0.072
+   },
+   "why": "16th 4: tamborim (cen 0.17, mean 5.2), onset 8.29@1466 cen 0.16"
+  },
+  {
+   "tick": 1468,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1470,
+   "set": {
+    "shake": 0.162
+   },
+   "why": "16th 5: caixa accent (mid cen 0.25, mean 3.8), onset 2.89@1470 cen 0.31"
+  },
+  {
+   "tick": 1472,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1478,
+   "set": {
+    "shake": 0.288,
+    "zoom": -0.27,
+    "col_bri": 1.225,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 7: surdo resposta (light, dark cen 0.14, mean 3.6), onset 3.96@1478 cen 0.15"
+  },
+  {
+   "tick": 1481,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1482,
+   "set": {
+    "shake": 0.09,
+    "col_bri": 1.072
+   },
+   "why": "16th 8: agogo (bright cen 0.31, mean 3.0), onset 2.02@1482 cen 0.22"
+  },
+  {
+   "tick": 1484,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1486,
+   "set": {
+    "shake": 0.162
+   },
+   "why": "16th 9: caixa accent (mid cen 0.24, mean 5.9), onset 9.04@1486 cen 0.26"
+  },
+  {
+   "tick": 1487,
+   "set": {
+    "col_hue": 0.05
+   },
+   "why": "half-bar palette sway col_hue +0.05"
+  },
+  {
+   "tick": 1488,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1494,
+   "set": {
+    "shake": 0.54,
+    "zoom": 0.72,
+    "col_bri": 1.54,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 11: surdo (strong, dark cen 0.09, mean onset 6.1), onset 5.99@1494 cen 0.11"
+  },
+  {
+   "tick": 1497,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1498,
+   "set": {
+    "shake": 0.072
+   },
+   "why": "16th 12: tamborim (cen 0.18, mean 4.5), onset 2.69@1498 cen 0.18"
+  },
+  {
+   "tick": 1500,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1502,
+   "set": {
+    "shake": 0.162
+   },
+   "why": "16th 13: caixa accent (mid cen 0.27, mean 3.3), onset 2.75@1502 cen 0.28"
+  },
+  {
+   "tick": 1504,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1511,
+   "set": {
+    "shake": 0.288,
+    "zoom": -0.27,
+    "col_bri": 1.225,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 15: surdo resposta (light, dark cen 0.14, mean 4.1), onset 2.59@1511 cen 0.13"
+  },
+  {
+   "tick": 1514,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1518,
+   "set": {
+    "slot:bola": [
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.8,
+     0.3,
+     1.0,
+     0.55,
+     0.1,
+     1.0,
+     0.55,
+     0.1
+    ]
+   },
+   "why": "anomaly ends 1518 (onset 5.73): flash settles to the carnival loop"
+  },
+  {
+   "tick": 1520,
+   "set": {
+    "col_hue": -0.04
+   },
+   "why": "half-bar palette sway col_hue -0.04"
+  },
+  {
+   "tick": 1527,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.88,
+    "col_bri": 1.66,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 3: surdo (strong, dark cen 0.12, mean onset 6.7), onset 5.62@1527 cen 0.12"
+  },
+  {
+   "tick": 1530,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1531,
+   "set": {
+    "shake": 0.088
+   },
+   "why": "16th 4: tamborim (cen 0.17, mean 5.2), onset 3.24@1531 cen 0.15"
+  },
+  {
+   "tick": 1533,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1535,
+   "set": {
+    "shake": 0.198
+   },
+   "why": "16th 5: caixa accent (mid cen 0.25, mean 3.8), onset 3.71@1535 cen 0.24"
+  },
+  {
+   "tick": 1537,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1543,
+   "set": {
+    "shake": 0.352,
+    "zoom": -0.33,
+    "col_bri": 1.275,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 7: surdo resposta (light, dark cen 0.14, mean 3.6), onset 2.85@1543 cen 0.16"
+  },
+  {
+   "tick": 1546,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1551,
+   "set": {
+    "shake": 0.198
+   },
+   "why": "16th 9: caixa accent (mid cen 0.24, mean 5.9), onset 5.48@1551 cen 0.22"
+  },
+  {
+   "tick": 1552,
+   "set": {
+    "col_hue": 0.06
+   },
+   "why": "half-bar palette sway col_hue +0.06"
+  },
+  {
+   "tick": 1553,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1560,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.88,
+    "col_bri": 1.66,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 11: surdo (strong, dark cen 0.09, mean onset 6.1), onset 3.26@1560 cen 0.07"
+  },
+  {
+   "tick": 1563,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1564,
+   "set": {
+    "shake": 0.088
+   },
+   "why": "16th 12: tamborim (cen 0.18, mean 4.5), onset 6.88@1564 cen 0.19"
+  },
+  {
+   "tick": 1566,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1576,
+   "set": {
+    "shake": 0.352,
+    "zoom": -0.33,
+    "col_bri": 1.275,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 15: surdo resposta (light, dark cen 0.14, mean 4.1), onset 2.18@1576 cen 0.10"
+  },
+  {
+   "tick": 1579,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1584,
+   "set": {
+    "shake": 0.171
+   },
+   "why": "16th 1: caixa accent (mid cen 0.24, mean 7.4), onset 5.55@1584 cen 0.25"
+  },
+  {
+   "tick": 1585,
+   "set": {
+    "col_hue": -0.05
+   },
+   "why": "half-bar palette sway col_hue -0.05"
+  },
+  {
+   "tick": 1586,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1592,
+   "set": {
+    "shake": 0.57,
+    "zoom": 0.76,
+    "col_bri": 1.57,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 3: surdo (strong, dark cen 0.12, mean onset 6.7), onset 6.99@1592 cen 0.13"
+  },
+  {
+   "tick": 1595,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1596,
+   "set": {
+    "shake": 0.076
+   },
+   "why": "16th 4: tamborim (cen 0.17, mean 5.2), onset 7.23@1596 cen 0.19"
+  },
+  {
+   "tick": 1598,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1615,
+   "set": {
+    "shake": 0.095,
+    "col_bri": 1.076
+   },
+   "why": "16th 8: agogo (bright cen 0.31, mean 3.0), onset 7.81@1615 cen 0.28"
+  },
+  {
+   "tick": 1617,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1618,
+   "set": {
+    "col_hue": 0.04
+   },
+   "why": "half-bar palette sway col_hue +0.04"
+  },
+  {
+   "tick": 1625,
+   "set": {
+    "shake": 0.57,
+    "zoom": 0.76,
+    "col_bri": 1.57,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 11: surdo (strong, dark cen 0.09, mean onset 6.1), onset 8.89@1625 cen 0.11"
+  },
+  {
+   "tick": 1628,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1629,
+   "set": {
+    "shake": 0.076
+   },
+   "why": "16th 12: tamborim (cen 0.18, mean 4.5), onset 3.02@1629 cen 0.18"
+  },
+  {
+   "tick": 1631,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1633,
+   "set": {
+    "shake": 0.171
+   },
+   "why": "16th 13: caixa accent (mid cen 0.27, mean 3.3), onset 2.65@1633 cen 0.24"
+  },
+  {
+   "tick": 1635,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1641,
+   "set": {
+    "shake": 0.304,
+    "zoom": -0.285,
+    "col_bri": 1.238,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 15: surdo resposta (light, dark cen 0.14, mean 4.1), onset 4.13@1641 cen 0.15"
+  },
+  {
+   "tick": 1644,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1651,
+   "set": {
+    "col_hue": -0.06
+   },
+   "why": "half-bar palette sway col_hue -0.06"
+  },
+  {
+   "tick": 1658,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.92,
+    "col_bri": 1.69,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 3: surdo (strong, dark cen 0.12, mean onset 6.7), onset 5.18@1658 cen 0.11"
+  },
+  {
+   "tick": 1661,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1662,
+   "set": {
+    "shake": 0.092
+   },
+   "why": "16th 4: tamborim (cen 0.17, mean 5.2), onset 3.46@1662 cen 0.18"
+  },
+  {
+   "tick": 1664,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1674,
+   "set": {
+    "shake": 0.368,
+    "zoom": -0.345,
+    "col_bri": 1.288,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 7: surdo resposta (light, dark cen 0.14, mean 3.6), onset 2.51@1674 cen 0.15"
+  },
+  {
+   "tick": 1677,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1682,
+   "set": {
+    "shake": 0.207
+   },
+   "why": "16th 9: caixa accent (mid cen 0.24, mean 5.9), onset 6.44@1682 cen 0.23"
+  },
+  {
+   "tick": 1683,
+   "set": {
+    "col_hue": 0.05
+   },
+   "why": "half-bar palette sway col_hue +0.05"
+  },
+  {
+   "tick": 1684,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1691,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.92,
+    "col_bri": 1.69,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 11: surdo (strong, dark cen 0.09, mean onset 6.1), onset 5.25@1691 cen 0.08"
+  },
+  {
+   "tick": 1694,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1695,
+   "set": {
+    "shake": 0.092
+   },
+   "why": "16th 12: tamborim (cen 0.18, mean 4.5), onset 4.29@1695 cen 0.17"
+  },
+  {
+   "tick": 1697,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1699,
+   "set": {
+    "shake": 0.207
+   },
+   "why": "16th 13: caixa accent (mid cen 0.27, mean 3.3), onset 3.63@1699 cen 0.25"
+  },
+  {
+   "tick": 1701,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1707,
+   "set": {
+    "shake": 0.368,
+    "zoom": -0.345,
+    "col_bri": 1.288,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 15: surdo resposta (light, dark cen 0.14, mean 4.1), onset 5.64@1707 cen 0.12"
+  },
+  {
+   "tick": 1710,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1715,
+   "set": {
+    "shake": 0.18
+   },
+   "why": "16th 1: caixa accent (mid cen 0.24, mean 7.4), onset 4.88@1715 cen 0.24"
+  },
+  {
+   "tick": 1716,
+   "set": {
+    "col_hue": -0.03
+   },
+   "why": "half-bar palette sway col_hue -0.03"
+  },
+  {
+   "tick": 1717,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1723,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.8,
+    "col_bri": 1.6,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 3: surdo (strong, dark cen 0.12, mean onset 6.7), onset 8.42@1723 cen 0.10"
+  },
+  {
+   "tick": 1726,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1728,
+   "set": {
+    "shake": 0.08
+   },
+   "why": "16th 4: tamborim (cen 0.17, mean 5.2), onset 5.71@1728 cen 0.15"
+  },
+  {
+   "tick": 1730,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1731,
+   "set": {
+    "shake": 0.18
+   },
+   "why": "16th 5: caixa accent (mid cen 0.25, mean 3.8), onset 6.46@1731 cen 0.29"
+  },
+  {
+   "tick": 1733,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1740,
+   "set": {
+    "shake": 0.32,
+    "zoom": -0.3,
+    "col_bri": 1.25,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 7: surdo resposta (light, dark cen 0.14, mean 3.6), onset 5.27@1740 cen 0.09"
+  },
+  {
+   "tick": 1743,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1746,
+   "set": {
+    "shake": 0.1,
+    "col_bri": 1.08
+   },
+   "why": "16th 8: agogo (bright cen 0.31, mean 3.0), onset 6.52@1746 cen 0.29"
+  },
+  {
+   "tick": 1748,
+   "set": {
+    "shake": 0.18,
+    "col_bri": 1.0
+   },
+   "why": "falls back before the next 16th + 16th 9: caixa accent (mid cen 0.24, mean 5.9), onset 3.82@1748 cen 0.23"
+  },
+  {
+   "tick": 1749,
+   "set": {
+    "col_hue": 0.06
+   },
+   "why": "half-bar palette sway col_hue +0.06"
+  },
+  {
+   "tick": 1750,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1756,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.8,
+    "col_bri": 1.6,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 11: surdo (strong, dark cen 0.09, mean onset 6.1), onset 8.15@1756 cen 0.11"
+  },
+  {
+   "tick": 1759,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1760,
+   "set": {
+    "shake": 0.08
+   },
+   "why": "16th 12: tamborim (cen 0.18, mean 4.5), onset 3.32@1760 cen 0.23"
+  },
+  {
+   "tick": 1762,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1764,
+   "set": {
+    "shake": 0.18
+   },
+   "why": "16th 13: caixa accent (mid cen 0.27, mean 3.3), onset 2.83@1764 cen 0.30"
+  },
+  {
+   "tick": 1766,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1772,
+   "set": {
+    "shake": 0.32,
+    "zoom": -0.3,
+    "col_bri": 1.25,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 15: surdo resposta (light, dark cen 0.14, mean 4.1), onset 4.98@1772 cen 0.15"
+  },
+  {
+   "tick": 1775,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1780,
+   "set": {
+    "shake": 0.198
+   },
+   "why": "16th 1: caixa accent (mid cen 0.24, mean 7.4), onset 12.12@1780 cen 0.22"
+  },
+  {
+   "tick": 1781,
+   "set": {
+    "col_hue": -0.05
+   },
+   "why": "half-bar palette sway col_hue -0.05"
+  },
+  {
+   "tick": 1782,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1789,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.88,
+    "col_bri": 1.66,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 3: surdo (strong, dark cen 0.12, mean onset 6.7), onset 5.91@1789 cen 0.11"
+  },
+  {
+   "tick": 1792,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1793,
+   "set": {
+    "shake": 0.088
+   },
+   "why": "16th 4: tamborim (cen 0.17, mean 5.2), onset 5.31@1793 cen 0.14"
+  },
+  {
+   "tick": 1795,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1797,
+   "set": {
+    "shake": 0.198
+   },
+   "why": "16th 5: caixa accent (mid cen 0.25, mean 3.8), onset 4.36@1797 cen 0.26"
+  },
+  {
+   "tick": 1799,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1805,
+   "set": {
+    "shake": 0.352,
+    "zoom": -0.33,
+    "col_bri": 1.275,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 7: surdo resposta (light, dark cen 0.14, mean 3.6), onset 4.06@1805 cen 0.14"
+  },
+  {
+   "tick": 1808,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1809,
+   "set": {
+    "shake": 0.11,
+    "col_bri": 1.088
+   },
+   "why": "16th 8: agogo (bright cen 0.31, mean 3.0), onset 2.55@1809 cen 0.25"
+  },
+  {
+   "tick": 1811,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1813,
+   "set": {
+    "shake": 0.198
+   },
+   "why": "16th 9: caixa accent (mid cen 0.24, mean 5.9), onset 6.95@1813 cen 0.26"
+  },
+  {
+   "tick": 1814,
+   "set": {
+    "col_hue": 0.04
+   },
+   "why": "half-bar palette sway col_hue +0.04"
+  },
+  {
+   "tick": 1815,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1822,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.88,
+    "col_bri": 1.66,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 11: surdo (strong, dark cen 0.09, mean onset 6.1), onset 6.33@1822 cen 0.07"
+  },
+  {
+   "tick": 1825,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1826,
+   "set": {
+    "shake": 0.088
+   },
+   "why": "16th 12: tamborim (cen 0.18, mean 4.5), onset 6.50@1826 cen 0.19"
+  },
+  {
+   "tick": 1828,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1830,
+   "set": {
+    "shake": 0.198
+   },
+   "why": "16th 13: caixa accent (mid cen 0.27, mean 3.3), onset 4.42@1830 cen 0.29"
+  },
+  {
+   "tick": 1832,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1839,
+   "set": {
+    "shake": 0.352,
+    "zoom": -0.33,
+    "col_bri": 1.275,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 15: surdo resposta (light, dark cen 0.14, mean 4.1), onset 5.28@1839 cen 0.16"
+  },
+  {
+   "tick": 1842,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1846,
+   "set": {
+    "shake": 0.216
+   },
+   "why": "16th 1: caixa accent (mid cen 0.24, mean 7.4), onset 9.52@1846 cen 0.22"
+  },
+  {
+   "tick": 1847,
+   "set": {
+    "col_hue": -0.06
+   },
+   "why": "half-bar palette sway col_hue -0.06"
+  },
+  {
+   "tick": 1848,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1855,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.96,
+    "col_bri": 1.72,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 3: surdo (strong, dark cen 0.12, mean onset 6.7), onset 6.06@1855 cen 0.13"
+  },
+  {
+   "tick": 1858,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1859,
+   "set": {
+    "shake": 0.096
+   },
+   "why": "16th 4: tamborim (cen 0.17, mean 5.2), onset 3.50@1859 cen 0.19"
+  },
+  {
+   "tick": 1861,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1862,
+   "set": {
+    "shake": 0.216
+   },
+   "why": "16th 5: caixa accent (mid cen 0.25, mean 3.8), onset 4.15@1862 cen 0.27"
+  },
+  {
+   "tick": 1864,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1871,
+   "set": {
+    "shake": 0.384,
+    "zoom": -0.36,
+    "col_bri": 1.3,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 7: surdo resposta (light, dark cen 0.14, mean 3.6), onset 4.49@1871 cen 0.12"
+  },
+  {
+   "tick": 1874,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1879,
+   "set": {
+    "col_hue": 0.05,
+    "shake": 0.216
+   },
+   "why": "half-bar palette sway col_hue +0.05 + 16th 9: caixa accent (mid cen 0.24, mean 5.9), onset 7.56@1879 cen 0.26"
+  },
+  {
+   "tick": 1881,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1888,
+   "set": {
+    "shake": 0.6,
+    "zoom": 0.96,
+    "col_bri": 1.72,
+    "shine": 1.0,
+    "col_contrast": 0.75
+   },
+   "why": "16th 11: surdo (strong, dark cen 0.09, mean onset 6.1), onset 6.06@1888 cen 0.09"
+  },
+  {
+   "tick": 1891,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1892,
+   "set": {
+    "shake": 0.096
+   },
+   "why": "16th 12: tamborim (cen 0.18, mean 4.5), onset 5.94@1892 cen 0.17"
+  },
+  {
+   "tick": 1894,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1896,
+   "set": {
+    "shake": 0.216
+   },
+   "why": "16th 13: caixa accent (mid cen 0.27, mean 3.3), onset 4.59@1896 cen 0.29"
+  },
+  {
+   "tick": 1898,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "falls back before the next 16th"
+  },
+  {
+   "tick": 1905,
+   "set": {
+    "shake": 0.384,
+    "zoom": -0.36,
+    "col_bri": 1.3,
+    "shine": 0.8,
+    "col_contrast": 0.5
+   },
+   "why": "16th 15: surdo resposta (light, dark cen 0.14, mean 4.1), onset 4.71@1905 cen 0.14"
+  },
+  {
+   "tick": 1908,
+   "set": {
+    "shake": 0.0,
+    "zoom": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.4,
+    "col_contrast": 0.35
+   },
+   "why": "falls back before the next 16th"
+  }
+ ]
+}

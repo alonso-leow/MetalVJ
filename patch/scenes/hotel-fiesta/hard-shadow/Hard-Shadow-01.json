@@ -1,0 +1,1195 @@
+{
+ "id": "hf-hard-shadow-hard-shadow-01",
+ "name": "Hard-Shadow-01",
+ "family": "hard-shadow",
+ "source": "ShowXpress 00-Alonso/Hard-Shadow-01.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "shutter": 255,
+      "tilt": 19,
+      "upan": 30,
+      "utilt": 151,
+      "white": 255,
+      "zoom": 168
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.0745,
+      "zoom": 0.6588,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 113,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 79,
+      "utilt": 117,
+      "white": 255,
+      "zoom": 239
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4431,
+      "tilt": 0.0353,
+      "zoom": 0.9373,
+      "strobe": 1.0
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1733318836": {
+   "desk_id": "1733318836",
+   "desk_name": "wash  3",
+   "desk_model": "wash  3",
+   "fixture": "wash-3",
+   "address": 553
+  },
+  "1735487438": {
+   "desk_id": "1735487438",
+   "desk_name": "wash  3 #2",
+   "desk_model": "wash  3",
+   "fixture": "wash-3b",
+   "address": 717
+  }
+ }
+}

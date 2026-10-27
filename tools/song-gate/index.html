@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MetalVJ — song gate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #14161a;
+    --panel: #1c2026;
+    --ink: #e6e9ee;
+    --ink-weak: #9aa3af;
+    --line: #2c333c;
+    --accent: #7fd1ae;
+    --warn: #e0b15e;
+    --bad: #e07a6e;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel);
+    position: sticky; top: 0; z-index: 2;
+  }
+  header h1 { font-size: 15px; margin: 0 10px 0 0; letter-spacing: .04em; }
+  button, label.filebtn {
+    background: #232a32; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer;
+  }
+  button:hover, label.filebtn:hover { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type=file] { display: none; }
+  .grow { flex: 1; }
+  #banner { padding: 8px 14px; color: var(--warn); min-height: 1.4em; }
+  #banner.bad { color: var(--bad); }
+  main { display: grid; grid-template-columns: 320px 1fr; height: calc(100% - 96px); }
+  #songs { overflow: auto; border-right: 1px solid var(--line); }
+  .song {
+    padding: 7px 12px; border-bottom: 1px solid #20252b; cursor: pointer;
+    display: flex; gap: 8px; align-items: baseline;
+  }
+  .song:hover { background: #1a1f25; }
+  .song.current { background: #20302b; border-left: 3px solid var(--accent); padding-left: 9px; }
+  .song .n { color: var(--ink-weak); min-width: 2.2em; }
+  .song .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .song .d { font-size: 11px; color: var(--ink-weak); }
+  .song.done .t::after { content: " ✓"; color: var(--accent); }
+  #stage { overflow: auto; padding: 16px; }
+  #stage h2 { font-size: 14px; margin: 0 0 10px; }
+  #now { color: var(--ink-weak); margin-bottom: 12px; word-break: break-all; }
+  .player { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .player input[type=range] { flex: 1; min-width: 180px; accent-color: var(--accent); }
+  .time { color: var(--ink-weak); font-variant-numeric: tabular-nums; min-width: 9em; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .row label { color: var(--ink-weak); }
+  input[type=text] {
+    background: #0f1114; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; font: inherit; min-width: 220px;
+  }
+  #progress { height: 6px; background: #0f1114; border-radius: 3px; overflow: hidden; margin: 4px 0 16px; }
+  #progress > div { height: 100%; background: var(--accent); width: 0; }
+  #animations { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 12px; }
+  .anim { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 6px; }
+  .anim .demo { width: 100%; aspect-ratio: 16 / 9; display: block; border-radius: 4px; background: #0f1114; cursor: pointer; }
+  .anim .line { display: flex; gap: 6px; align-items: baseline; }
+  .anim .key { color: var(--ink-weak); width: 1.4em; }
+  .anim label { cursor: pointer; }
+  .anim .look { color: var(--ink-weak); font-size: 12px; display: block; }
+  .anim.pref { border-color: var(--accent); }
+  .anim .star {
+    background: none; border: none; color: var(--ink-weak); cursor: pointer;
+    font: inherit; padding: 0 2px; line-height: 1;
+  }
+  .anim .star.on { color: var(--accent); }
+  .anim .star:disabled { opacity: .35; cursor: default; }
+  kbd { background: #0f1114; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  .hint { color: var(--ink-weak); font-size: 12px; margin-top: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>METALVJ · SONG GATE</h1>
+  <label class="filebtn">Open data/audio folder<input id="folder" type="file" webkitdirectory directory multiple></label>
+  <label class="filebtn">Load gate.json<input id="gate" type="file" accept=".json,application/json"></label>
+  <button id="save" disabled>Save gate.json</button>
+  <span class="grow"></span>
+  <span id="count"></span>
+</header>
+<div id="banner">Open the <code>data/audio</code> folder to begin. Nothing is uploaded; this page runs entirely in your browser.</div>
+
+<main>
+  <div id="songs"></div>
+  <div id="stage">
+    <div id="now">no song selected</div>
+    <div class="player">
+      <button id="prev" title="previous (j)">⏮</button>
+      <button id="back" title="back 10 s">−10 s</button>
+      <button id="play" title="play / pause (space)" disabled>▶</button>
+      <button id="fwd" title="forward 10 s">+10 s</button>
+      <button id="next" title="next (k)">⏭</button>
+      <input id="seek" type="range" min="0" max="0" step="0.05" value="0" disabled>
+      <span class="time" id="time">0:00 / 0:00</span>
+    </div>
+    <div class="row">
+      <label for="genre">genre</label>
+      <input id="genre" type="text" list="genres" placeholder="e.g. salsa, reggaeton, house" disabled>
+      <datalist id="genres"></datalist>
+    </div>
+    <div id="progress"><div></div></div>
+    <div class="row">
+      <h2 style="margin:0">animations this song allows</h2>
+      <span class="grow"></span>
+      <button id="all" disabled>select all</button>
+      <button id="none" disabled>select none</button>
+      <button id="copy" disabled>copy from the previous song</button>
+      <button id="unfinished" disabled>next unfinished</button>
+    </div>
+    <div id="animations"></div>
+    <div class="hint">
+      <kbd>space</kbd> play/pause · <kbd>j</kbd> previous · <kbd>k</kbd> next ·
+      <kbd>n</kbd> next unfinished · <kbd>1</kbd>–<kbd>9</kbd> toggle the first
+      nine animations · <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> mark one
+      preferred · autosaves in this browser.
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+const STORE = "metalvj.song-gate.v1";
+
+const state = {
+  songs: [],     // { stem, name, url, digested }
+  models: [],    // { id, name, look }
+  byStem: {},    // stem -> { genre, allow: { [id]: true }, prefer: id|"" }
+  current: -1,
+};
+
+const $ = (id) => document.getElementById(id);
+const audio = new Audio();
+
+function banner(text, bad) {
+  const el = $("banner");
+  el.textContent = text;
+  el.classList.toggle("bad", !!bad);
+}
+
+// -- persistence -----------------------------------------------------------
+// A file:// origin may refuse localStorage; never let that throw.
+
+function saveLocal() {
+  try { localStorage.setItem(STORE, JSON.stringify(state.byStem)); }
+  catch (e) { /* refused: the session still works, it just will not resume */ }
+}
+
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(STORE);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
+// -- models ----------------------------------------------------------------
+
+async function loadModels() {
+  try {
+    const reply = await fetch("./models.json", { cache: "no-store" });
+    if (!reply.ok) throw new Error("HTTP " + reply.status);
+    state.models = await reply.json();
+  } catch (e) {
+    banner("Could not fetch models.json (" + e.message + "). " +
+           "A file:// page may block it — open this folder with a local static server, " +
+           "or use the button below to pick tools/song-gate/models.json by hand.", true);
+    return false;
+  }
+  return true;
+}
+
+function modelsFallback() {
+  // When fetch is refused (file:// CORS), let the operator pick the file.
+  const label = document.createElement("label");
+  label.className = "filebtn";
+  label.textContent = "Pick models.json";
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.addEventListener("change", async () => {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    try {
+      state.models = JSON.parse(await f.text());
+      label.remove();
+      render();
+      banner("models.json loaded.");
+    } catch (err) { banner("models.json is not valid JSON: " + err.message, true); }
+  });
+  label.appendChild(input);
+  $("banner").appendChild(document.createElement("br"));
+  $("banner").appendChild(label);
+}
+
+// -- songs -----------------------------------------------------------------
+
+function stemOf(name) { const i = name.lastIndexOf("."); return i > 0 ? name.slice(0, i) : name; }
+
+function leadingNumber(name) {
+  const m = name.match(/^\s*(\d+)/);
+  return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+}
+
+function onFolder(files) {
+  const list = Array.from(files);
+  // The digest beside a song is `<stem>.8hz.npy`; strip the whole suffix, not
+  // just `.npy`, so the stem matches the mp3's own stem.
+  const npy = new Set(
+    list.map((f) => f.name)
+        .filter((n) => n.endsWith(".8hz.npy"))
+        .map((n) => n.slice(0, -".8hz.npy".length))
+  );
+  const songs = list
+    .filter((f) => f.name.toLowerCase().endsWith(".mp3"))
+    .map((f) => ({
+      stem: stemOf(f.name),
+      name: f.name,
+      url: URL.createObjectURL(f),
+      digested: npy.has(stemOf(f.name)),
+    }))
+    .sort((a, b) => leadingNumber(a.name) - leadingNumber(b.name) || a.name.localeCompare(b.name));
+
+  if (!songs.length) { banner("No .mp3 files in that folder — pick data/audio.", true); return; }
+
+  state.songs.forEach((s) => { try { URL.revokeObjectURL(s.url); } catch (e) {} });
+  state.songs = songs;
+  state.byStem = loadLocal();
+  state.current = -1;
+  banner("Loaded " + songs.length + " songs. Fill a genre and the animations each one allows, then save.");
+  render();
+  if (state.models.length) select(0);
+}
+
+function song(stem) {
+  if (!state.byStem[stem]) state.byStem[stem] = { genre: "", allow: {}, prefer: "" };
+  const row = state.byStem[stem];
+  if (!row.allow) row.allow = {};
+  if (typeof row.prefer !== "string") row.prefer = "";
+  return row;
+}
+
+function isAllowed(stem, id) { return song(stem).allow[id] === true; }
+function isPreferred(stem, id) { return song(stem).prefer === id; }
+function genreOf(stem) { return song(stem).genre.trim(); }
+function allowedCount(stem) { return Object.keys(song(stem).allow).filter((k) => song(stem).allow[k] === true).length; }
+
+// A song is done when it names a genre and allows at least one animation:
+// both are what the router dataset needs, so a genre with no allowed
+// animation is not "done" and correctly keeps the song in the unfinished set.
+function isDone(stem) { return genreOf(stem) !== "" && allowedCount(stem) > 0; }
+
+function firstUnfinished(from) {
+  for (let i = 0; i < state.songs.length; i++) {
+    const at = (from + i) % state.songs.length;
+    if (!isDone(state.songs[at].stem)) return at;
+  }
+  return -1;
+}
+
+// -- rendering -------------------------------------------------------------
+
+function render() {
+  renderSongs();
+  renderGenres();
+  renderProgress();
+  renderStage();
+}
+
+function renderSongs() {
+  const box = $("songs");
+  box.innerHTML = "";
+  state.songs.forEach((s, i) => {
+    const row = document.createElement("div");
+    row.className = "song" + (i === state.current ? " current" : "") + (isDone(s.stem) ? " done" : "");
+    const n = document.createElement("span");
+    n.className = "n"; n.textContent = String(leadingNumber(s.name)).padStart(2, "0");
+    const t = document.createElement("span");
+    t.className = "t"; t.textContent = s.name; t.title = s.name;
+    const d = document.createElement("span");
+    d.className = "d"; d.textContent = s.digested ? "8hz" : "—";
+    row.append(n, t, d);
+    row.addEventListener("click", () => select(i));
+    box.appendChild(row);
+  });
+}
+
+function renderGenres() {
+  const used = new Set();
+  for (const stem of Object.keys(state.byStem)) {
+    const g = song(stem).genre.trim();
+    if (g) used.add(g);
+  }
+  const dl = $("genres");
+  dl.innerHTML = "";
+  Array.from(used).sort().forEach((g) => {
+    const o = document.createElement("option"); o.value = g; dl.appendChild(o);
+  });
+}
+
+function renderProgress() {
+  const total = state.songs.length || 0;
+  const done = state.songs.filter((s) => isDone(s.stem)).length;
+  const preferred = state.songs.filter((s) => song(s.stem).prefer).length;
+  $("count").textContent = done + "/" + total + " done · " + preferred + " with a pick";
+  const bar = $("progress").firstElementChild;
+  bar.style.width = total ? (100 * done / total) + "%" : "0";
+}
+
+function renderStage() {
+  const s = state.current >= 0 ? state.songs[state.current] : null;
+  const on = !!s && state.models.length > 0;
+  ["genre", "play", "all", "none", "copy", "unfinished", "prev", "next", "back", "fwd", "seek"].forEach((id) => {
+    $(id).disabled = !on;
+  });
+  $("save").disabled = state.models.length === 0 || state.songs.length === 0;
+  $("now").textContent = s ? s.name : "no song selected";
+  renderAnimations();
+}
+
+function renderAnimations() {
+  const box = $("animations");
+  box.innerHTML = "";
+  const s = state.current >= 0 ? state.songs[state.current] : null;
+  if (!s) return;
+  state.models.forEach((m, i) => {
+    const row = document.createElement("div");
+    row.className = "anim" + (isPreferred(s.stem, m.id) ? " pref" : "");
+    // A demo clip per model, generated by `metal-render --bin model-demo`. It
+    // stays a poster until the pointer is on it, so 37 clips never decode at
+    // once; click pins it playing for the ones you want to watch.
+    const video = document.createElement("video");
+    video.className = "demo";
+    video.muted = true; video.loop = true; video.playsInline = true;
+    video.preload = "none";
+    video.poster = "./demos/" + m.id + ".jpg";
+    video.src = "./demos/" + m.id + ".mp4";
+    video.title = m.name + " — hover or click to play (demo)";
+    video.addEventListener("mouseenter", () => { video.play().catch(() => {}); });
+    video.addEventListener("mouseleave", () => { if (!video.dataset.pinned) { video.pause(); video.currentTime = 0; } });
+    video.addEventListener("click", () => {
+      if (video.dataset.pinned) { delete video.dataset.pinned; video.pause(); video.currentTime = 0; }
+      else { video.dataset.pinned = "1"; video.play().catch(() => {}); }
+    });
+    const line = document.createElement("div");
+    line.className = "line";
+    const key = document.createElement("span");
+    key.className = "key"; key.textContent = i < 9 ? String(i + 1) : "";
+    // The star is the router's weight: among the animations a song allows, the
+    // one marked preferred is the pick the router favours in each section. It
+    // auto-allows, and un-checking the box clears it, so a preferred animation
+    // is always a member of the allowed set.
+    const star = document.createElement("button");
+    star.type = "button";
+    star.className = "star" + (isPreferred(s.stem, m.id) ? " on" : "");
+    star.textContent = isPreferred(s.stem, m.id) ? "★" : "☆";
+    star.title = "mark as this song's preferred animation";
+    star.addEventListener("click", () => togglePreferred(s.stem, m.id));
+    const label = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = isAllowed(s.stem, m.id);
+    cb.addEventListener("change", () => {
+      const r = song(s.stem);
+      r.allow[m.id] = cb.checked;
+      if (!cb.checked && r.prefer === m.id) r.prefer = "";
+      saveLocal(); renderSongs(); renderProgress(); renderAnimations();
+    });
+    const text = document.createElement("span");
+    text.textContent = " " + m.name;
+    const look = document.createElement("span");
+    look.className = "look"; look.textContent = m.look;
+    label.append(cb, text, look);
+    line.append(key, star, label);
+    row.append(video, line);
+    box.appendChild(row);
+  });
+}
+
+// -- selection & transport -------------------------------------------------
+
+function select(i) {
+  if (i < 0 || i >= state.songs.length) return;
+  state.current = i;
+  const s = state.songs[i];
+  try { audio.pause(); } catch (e) {}
+  audio.src = s.url;
+  audio.currentTime = 0;
+  $("genre").value = song(s.stem).genre;
+  $("seek").value = 0;
+  $("seek").max = 0;
+  $("time").textContent = "0:00 / 0:00";
+  render();
+  $("songs").querySelectorAll(".song")[i]?.scrollIntoView({ block: "nearest" });
+}
+
+function togglePlay() {
+  if (state.current < 0) return;
+  if (audio.paused) audio.play().catch((e) => banner("Cannot play: " + e.message, true));
+  else audio.pause();
+}
+
+function step(dt) {
+  if (state.current < 0 || !isFinite(audio.duration)) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + dt));
+}
+
+function fmt(t) {
+  if (!isFinite(t)) t = 0;
+  const m = Math.floor(t / 60), s = Math.floor(t % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+
+audio.addEventListener("play", () => { $("play").textContent = "⏸"; });
+audio.addEventListener("pause", () => { $("play").textContent = "▶"; });
+audio.addEventListener("ended", () => { if (state.current + 1 < state.songs.length) select(state.current + 1); });
+audio.addEventListener("loadedmetadata", () => {
+  $("seek").max = isFinite(audio.duration) ? audio.duration : 0;
+  $("time").textContent = "0:00 / " + fmt(audio.duration);
+});
+audio.addEventListener("timeupdate", () => {
+  $("seek").value = audio.currentTime;
+  $("time").textContent = fmt(audio.currentTime) + " / " + fmt(audio.duration);
+});
+
+// -- edits -----------------------------------------------------------------
+
+function toggleIndex(i) {
+  if (state.current < 0 || i >= state.models.length) return;
+  const s = state.songs[state.current];
+  const id = state.models[i].id;
+  song(s.stem).allow[id] = !isAllowed(s.stem, id);
+  if (!isAllowed(s.stem, id) && isPreferred(s.stem, id)) song(s.stem).prefer = "";
+  saveLocal();
+  renderSongs(); renderProgress(); renderAnimations();
+}
+
+function togglePreferred(stem, id) {
+  const r = song(stem);
+  if (r.prefer === id) { r.prefer = ""; }
+  else { r.prefer = id; r.allow[id] = true; }
+  saveLocal();
+  renderSongs(); renderProgress(); renderAnimations();
+}
+
+function nextUnfinished() {
+  const at = firstUnfinished(state.current + 1);
+  if (at < 0) { banner("All songs are done."); return; }
+  select(at);
+}
+
+function setAll(value) {
+  if (state.current < 0) return;
+  const s = state.songs[state.current];
+  state.models.forEach((m) => { song(s.stem).allow[m.id] = value; });
+  saveLocal(); renderProgress(); renderAnimations();
+}
+
+function copyPrevious() {
+  if (state.current <= 0) return;
+  const prev = state.songs[state.current - 1];
+  const s = state.songs[state.current];
+  song(s.stem).allow = Object.assign({}, song(prev.stem).allow);
+  saveLocal(); renderProgress(); renderAnimations();
+}
+
+// -- save / load -----------------------------------------------------------
+
+function gate() {
+  const songs = {};
+  state.songs.forEach((s) => {
+    const row = song(s.stem);
+    const allow = {};
+    state.models.forEach((m) => { allow[m.id] = row.allow[m.id] === true; });
+    // `prefer` is the router's weight: at most one id, and only if it is
+    // allowed. `null` means "no preference", which the router treats as a
+    // uniform pick across the allowed set.
+    const prefer = (row.prefer && allow[row.prefer]) ? row.prefer : null;
+    songs[s.stem] = { genre: row.genre, allow, prefer };
+  });
+  return { version: 2, models: state.models.map((m) => m.id), songs };
+}
+
+function save() {
+  if (state.models.length === 0) { banner("Load models.json before saving.", true); return; }
+  const text = JSON.stringify(gate(), null, 2) + "\n";
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "gate.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  banner("Downloaded gate.json. Move it to data/router/gate.json (see the README).");
+}
+
+const EQUIVALENT = { terrario: ["parallax-cueva", "parallax-cielo", "parallax-campos", "parallax-ciudad"] };
+
+async function loadGate(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data || typeof data !== "object" || !data.songs) throw new Error("no songs object");
+    for (const [stem, row] of Object.entries(data.songs)) {
+      const target = song(stem);
+      target.genre = typeof row.genre === "string" ? row.genre : "";
+      target.allow = {};
+      if (row.allow && typeof row.allow === "object") {
+        for (const [id, v] of Object.entries(row.allow)) if (v === true) target.allow[id] = true;
+        // Models added after the gate was filled in follow the one they stand
+        // in for, unless the row names them. Mirrors metal_router::gate::EQUIVALENT.
+        for (const [orig, eqs] of Object.entries(EQUIVALENT)) {
+          if (row.allow[orig] === true) eqs.forEach((e) => { if (!(e in row.allow)) target.allow[e] = true; });
+        }
+      }
+      // Version 1 wrote no `prefer`; a missing one is simply "no preference".
+      const prefer = (typeof row.prefer === "string") ? row.prefer : (typeof row.pick === "string" ? row.pick : "");
+      target.prefer = (prefer && target.allow[prefer]) ? prefer : "";
+    }
+    saveLocal();
+    render();
+    if (state.current >= 0) $("genre").value = song(state.songs[state.current].stem).genre;
+    banner("Loaded " + Object.keys(data.songs).length + " gate rows from " + file.name + ".");
+  } catch (e) {
+    banner("That gate.json could not be read: " + e.message, true);
+  }
+}
+
+// -- wiring ----------------------------------------------------------------
+
+$("folder").addEventListener("change", (e) => { if (e.target.files) onFolder(e.target.files); });
+$("gate").addEventListener("change", (e) => { if (e.target.files && e.target.files[0]) loadGate(e.target.files[0]); });
+$("save").addEventListener("click", save);
+$("play").addEventListener("click", togglePlay);
+$("prev").addEventListener("click", () => select(state.current - 1));
+$("next").addEventListener("click", () => select(state.current + 1));
+$("back").addEventListener("click", () => step(-10));
+$("fwd").addEventListener("click", () => step(10));
+$("seek").addEventListener("input", (e) => { audio.currentTime = parseFloat(e.target.value) || 0; });
+$("all").addEventListener("click", () => setAll(true));
+$("none").addEventListener("click", () => setAll(false));
+$("copy").addEventListener("click", copyPrevious);
+$("unfinished").addEventListener("click", nextUnfinished);
+$("genre").addEventListener("input", (e) => {
+  if (state.current < 0) return;
+  song(state.songs[state.current].stem).genre = e.target.value;
+  saveLocal(); renderSongs(); renderGenres(); renderProgress();
+});
+
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target && e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return;
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); return; }
+  if (e.key === "j") { select(state.current - 1); return; }
+  if (e.key === "k") { select(state.current + 1); return; }
+  if (e.key === "n") { nextUnfinished(); return; }
+  if (e.key >= "1" && e.key <= "9") {
+    const i = parseInt(e.key, 10) - 1;
+    // Shift+digit marks the preferred animation; plain digit allows it.
+    if (e.shiftKey && state.current >= 0 && i < state.models.length) {
+      togglePreferred(state.songs[state.current].stem, state.models[i].id);
+    } else {
+      toggleIndex(i);
+    }
+  }
+});
+
+// -- start -----------------------------------------------------------------
+
+(async function () {
+  const ok = await loadModels();
+  if (!ok) modelsFallback();
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+# Few-shot example: the auxiliary one. A single building facade, outdoors,
+# read from one camera: two faces (the house front and the side wall), a tree,
+# and the horizon path, which only has a value outside.
+#
+# Same conventions as bar.toml: metres, +y up, yaw 0 toward -z, image points
+# read as cells of the 9 x 9 grid over the image, [column, row, part]. Here
+# the pool deck is z > -9 and the house front stands at z = -9. The horizon
+# path starts and ends one ninth of a cell past the picture's edges
+# (columns 0 and 10), so it spans the whole width.
+
+[venue]
+id = "facade"
+name = "Pool house facade"
+setting = "outdoor"
+based_on = [
+  "tmp-images/party-flyer-1.jpg: the two-storey facade, the pale-blue side wall, the tree behind it, the green tent, the closed parasol",
+]
+notes = """
+The two-storey house seen from the pool deck. The projector stands on the log
+side table by the pool and fills the upper floor: two bays between the
+columns, above the tent that covers the ground-floor bar. The ground floor
+gets no projection because the tent and the parasol would cut it. It is
+daytime in the photo, so the shot reads a bright background: the test works,
+the show waits for dusk.
+"""
+
+# ---------------------------------------------------------------- shots ---
+
+[[shot]]
+id = "facade-a"
+image = "tmp-images/party-flyer-1.jpg"
+camera = { eye = [0.4, 1.0, 1.0], yaw = 12.0, pitch = 10.0, roll = 0.0, fov = 80.0, aspect = 0.5625 }
+projection = { projector = "proj-1", yaw = -6.5, pitch = 20.9, lands_on = "face-front" }
+projector_distance = 8.9
+floor_brightness = 0.62
+background_brightness = 0.71
+horizon_path = [[0, 3, 6], [7, 3, 9], [7, 4, 9], [8, 5, 2], [8, 5, 9], [9, 5, 5], [9, 4, 3], [10, 3, 7]]
+notes = "Phone held upright, low, from behind the chairs, wide lens. The roofline is the sky's edge across most of the frame; on the right the path drops to the parasol, the side wall and the tree's crown. The left end of the facade is out of frame."
+
+[[shot.sees]]
+surface = "face-front"
+corners = [[-3, 3, 5], [7, 3, 9], [8, 6, 7], [-4, 7, 2]]
+
+[[shot.sees]]
+surface = "face-side"
+corners = [[8, 5, 7], [14, 5, 2], [15, 7, 4], [8, 6, 7]]
+
+# ------------------------------------------------------------- surfaces ---
+
+[[surface]]
+id = "face-front"
+name = "house front"
+origin = [-5.5, 6.2, -9.0]
+u = [11.0, 0.0, 0.0]
+v = [0.0, -6.2, 0.0]
+material = "painted render, light grey; glass and white railings on the upper floor"
+
+[[surface]]
+id = "face-side"
+name = "side wall"
+origin = [5.6, 2.4, -9.0]
+u = [0.8, 0.0, 6.0]
+v = [0.0, -2.4, 0.0]
+material = "perimeter wall, pale blue"
+
+# -------------------------------------------------------------- objects ---
+
+[[object]]
+id = "table-log"
+name = "log side table"
+kind = "table"
+at = [1.3, 0.0, -1.0]
+size = [0.45, 0.55, 0.45]
+description = "Round log side table at the pool edge. The projector stands on it."
+
+[[object]]
+id = "tree"
+name = "almond tree"
+kind = "tree"
+at = [7.8, 0.0, -6.0]
+size = [0.35, 2.6, 0.35]
+crown = { center = [7.8, 4.2, -6.0], radius = 1.8 }
+description = """
+Tropical almond tree (Terminalia catappa) just behind the side wall, at the
+right edge of the photo. Straight grey trunk to about 2.6 m, then a broad,
+layered, dark-green crown about 3.6 m across, with gaps that show the sky. It
+rises above the side wall and breaks the skyline on the right. Not a
+projection surface: leaves scatter the image. It gets its own uplight
+(spot-tree) instead.
+"""
+
+[[object]]
+id = "tent"
+name = "green tent"
+kind = "tent"
+at = [0.8, 0.0, -7.8]
+size = [3.4, 2.2, 2.4]
+description = "Dark-green pop-up canopy over the ground-floor bar. It blocks the lower facade, which is why the masks start above it."
+
+[[object]]
+id = "parasol"
+name = "closed parasol"
+kind = "parasol"
+at = [3.4, 0.0, -4.6]
+size = [0.5, 2.6, 0.5]
+description = "Cream cantilever parasol, closed, on a black pole at the pool edge."
+
+[[object]]
+id = "pool"
+name = "pool"
+kind = "pool"
+at = [-1.0, 0.0, -4.5]
+size = [4.5, 0.0, 5.0]
+occludes = false
+description = "Curved pool, deep blue. Drawn as a footprint: it reflects and occludes nothing."
+
+[[object]]
+id = "chair-1"
+name = "teak folding chair"
+kind = "chair"
+at = [-0.2, 0.0, -1.9]
+size = [0.6, 0.9, 0.8]
+yaw = 25.0
+description = "Slatted teak folding chair, first of the row along the pool."
+
+[[object]]
+id = "chair-2"
+name = "teak folding chair"
+kind = "chair"
+at = [-0.4, 0.0, -2.9]
+size = [0.6, 0.9, 0.8]
+yaw = 25.0
+description = "Slatted teak folding chair."
+
+[[object]]
+id = "chair-3"
+name = "teak folding chair"
+kind = "chair"
+at = [-0.6, 0.0, -3.9]
+size = [0.6, 0.9, 0.8]
+yaw = 25.0
+description = "Slatted teak folding chair."
+
+# ------------------------------------------------------------ projectors ---
+
+[[projector]]
+id = "proj-1"
+name = "facade projector"
+output = "proyector-fachada"
+on = "table-log"
+lens = [0.0, 0.12, 0.0]
+yaw = -7.1
+pitch = 21.8
+throw_ratio = 0.7
+aspect = 1.7778
+lumens = 12000
+
+# -------------------------------------------------------------- fixtures ---
+
+# Two spotlights in different places. The one on the wall crosses the facade
+# and takes its colour from the projection where it lands; the one at the
+# tree's base lights leaves, which the projector never reaches, so the
+# operator sets its colour.
+
+[[fixture]]
+id = "spot-wall"
+name = "spot on the side wall"
+kind = "spot"
+profile = "example-moving-head"
+at = [6.0, 2.5, -6.5]
+yaw = -45.0
+pitch = 29.5
+beam = 14.0
+wire = "dmx"
+drive = "frame"
+notes = "Clamped on top of the side wall, aimed across at the right bay."
+
+[[fixture]]
+id = "spot-tree"
+name = "spot under the tree"
+kind = "spot"
+profile = "example-moving-head"
+at = [6.4, 0.15, -4.6]
+yaw = 45.0
+pitch = 63.9
+beam = 20.0
+wire = "dmx"
+drive = "fixed"
+notes = "On the ground at the tree's base, behind the side wall, uplighting the crown."
+
+# ----------------------------------------------------------------- masks ---
+
+[[mask]]
+id = "upper-left"
+name = "upper floor, left bay"
+on = "face-front"
+points = [[0.08, 0.08], [0.40, 0.08], [0.40, 0.40], [0.08, 0.40]]
+rgb = [255, 60, 160]
+content = "The balcony railing traced in light, the bars lit one by one on the beat."
+
+[[mask]]
+id = "upper-right"
+name = "upper floor, right bay"
+on = "face-front"
+points = [[0.45, 0.08], [0.92, 0.08], [0.92, 0.40], [0.45, 0.40]]
+rgb = [60, 220, 255]
+content = "A slow water caustic, as if the pool were reflected onto the glass."

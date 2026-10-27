@@ -1,0 +1,28 @@
+# Humo&Neblina — the combination smoke-and-bubble machine on the Fiesta Resort
+# rig.
+#
+# Ported from ShowXpress (`fixtures/Humo&Neblina.txt`): smoke machine, fan,
+# red, green, blue, strobe/dimmer, colour, rgb. It both makes haze and lights
+# it, so the venue carries it as a `continuous` fixture (intensity and colour
+# only) at the back of the stage.
+#
+# Slots are 0-based offsets from `address`.
+
+label = "Humo & Neblina (smoke + RGB, 8ch)"
+universe = 0
+address = 1
+
+[limits]
+dimmer = [0.0, 1.0]
+
+[[channel]]
+signal = "level"
+coarse = 0
+
+[[channel]]
+signal = "hue"
+coarse = 6
+
+[[channel]]
+signal = "sat"
+coarse = 7

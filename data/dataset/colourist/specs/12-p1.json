@@ -1,0 +1,1554 @@
+{
+ "part": "12-p1",
+ "model": "lightning",
+ "song": "12 - Aguanile",
+ "span": [
+  2086,
+  3154
+ ],
+ "kind": "build-drop",
+ "keywords": [
+  "salsa",
+  "epic",
+  "fast"
+ ],
+ "title": "the salsa storm strikes on the half bar",
+ "story": "Aguanile at 129 BPM: a mambo of loud horn and percussion hits (onsets up to 19.7) builds over eight bars, a tighter salsa groove starts at 2561 (bright hits on the 16ths before beats 3 and 4, a dark tone on the & of 4), the band lands at 2740 and the full tumbao runs from 2799 with the accent on 4 and its pickup. The tropical-sunset storm teaches its clock first, one strike per bar on the downbeat, and every big mambo hit throws a kaleidoscope crown with a shake and a red hue step while reach and the electrode glow climb; at 2561 the clock halves to strikes on 1 and 3 with the electrode jumping sides, slaps burst fire and open tones punch the zoom; the drop strikes on every beat inside a six-fold crown with contrast opened, and the groove after it keeps the half-bar strikes, fire on every 4, a hue sway on each pickup and the crown returning every two bars.",
+ "base": {
+  "slot:rayo": [
+   1.0,
+   0.824,
+   0.247,
+   1.0,
+   0.478,
+   0.102,
+   1.0,
+   0.122,
+   0.431,
+   0.227,
+   0.039,
+   0.118
+  ],
+  "slot:fondo": [
+   0.004,
+   0.001,
+   0.002,
+   0.008,
+   0.002,
+   0.003,
+   0.012,
+   0.003,
+   0.003,
+   0.016,
+   0.005,
+   0.003
+  ],
+  "thickness": 0.011,
+  "glare": 0.7,
+  "dispersion": 0.3,
+  "branch_long": 0.4
+ },
+ "keys": [
+  {
+   "tick": 2086,
+   "set": {
+    "interval": 1.861821,
+    "duration": 0.24,
+    "reach": 1.0,
+    "col_sat": 1.25,
+    "shine_center": 0.25,
+    "col_bri": 0.85,
+    "col_hue": 0.0,
+    "col_contrast": 0.15,
+    "shake": 0.0,
+    "zoom": 0.0,
+    "kaleido": 0.0,
+    "center_x": 0.0,
+    "center_y": -0.15
+   },
+   "why": "span start: rms 0.143, onset 4.96@2095; one strike per bar on the downbeat to teach the hook (intervalo 1.8618 s = 1 bar, rounds land on bar.1)"
+  },
+  {
+   "tick": 2146,
+   "set": {
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.3,
+    "slot:fondo": [
+     0.0064,
+     0.0007,
+     0.0026,
+     0.0128,
+     0.0014,
+     0.0039,
+     0.0192,
+     0.0021,
+     0.0039,
+     0.0256,
+     0.0035,
+     0.0039
+    ]
+   },
+   "why": "hold before the hit | bar 1: background tint step 1 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2147,
+   "set": {
+    "kaleido": 5.0,
+    "shake": 0.45,
+    "shine_center": 0.95,
+    "col_hue": -0.03
+   },
+   "why": "PROMINENT onset 14.85@2147 (top-12 of the span, centroid 0.42): crown of 5 + shake 0.45 + electrode flash + hue step"
+  },
+  {
+   "tick": 2153,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "shake falls back within half a beat"
+  },
+  {
+   "tick": 2157,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.31
+   },
+   "why": "crown holds the hit's length (~10 ticks), then gone; electrode back on its build path"
+  },
+  {
+   "tick": 2182,
+   "set": {
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.331
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2183,
+   "set": {
+    "kaleido": 4.0,
+    "shake": 0.35,
+    "shine_center": 0.95,
+    "col_hue": -0.05
+   },
+   "why": "PROMINENT onset 13.79@2183 (top-12 of the span, centroid 0.23): crown of 4 + shake 0.35 + electrode flash + hue step"
+  },
+  {
+   "tick": 2189,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "shake falls back within half a beat"
+  },
+  {
+   "tick": 2193,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.34
+   },
+   "why": "crown holds the hit's length (~10 ticks), then gone; electrode back on its build path"
+  },
+  {
+   "tick": 2205,
+   "set": {
+    "slot:fondo": [
+     0.006,
+     0.0012,
+     0.0012,
+     0.012,
+     0.0024,
+     0.0018,
+     0.018,
+     0.0036,
+     0.0018,
+     0.024,
+     0.006,
+     0.0018
+    ]
+   },
+   "why": "bar 2: background tint step 2 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2223,
+   "set": {
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.365
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2224,
+   "set": {
+    "kaleido": 5.0,
+    "shake": 0.4,
+    "shine_center": 0.95,
+    "col_hue": -0.03
+   },
+   "why": "PROMINENT onset 13.07@2224 (top-12 of the span, centroid 0.29): crown of 5 + shake 0.4 + electrode flash + hue step"
+  },
+  {
+   "tick": 2230,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "shake falls back within half a beat"
+  },
+  {
+   "tick": 2234,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.374
+   },
+   "why": "crown holds the hit's length (~10 ticks), then gone; electrode back on its build path"
+  },
+  {
+   "tick": 2265,
+   "set": {
+    "slot:fondo": [
+     0.0048,
+     0.0006,
+     0.0038,
+     0.0096,
+     0.0012,
+     0.0057,
+     0.0144,
+     0.0018,
+     0.0057,
+     0.0192,
+     0.003,
+     0.0057
+    ]
+   },
+   "why": "bar 3: background tint step 3 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2324,
+   "set": {
+    "reach": 1.2,
+    "col_bri": 1.0,
+    "slot:fondo": [
+     0.0076,
+     0.0009,
+     0.0014,
+     0.0152,
+     0.0018,
+     0.0021,
+     0.0228,
+     0.0027,
+     0.0021,
+     0.0304,
+     0.0045,
+     0.0021
+    ]
+   },
+   "why": "bar 40.1 (rms 0.117, KEY): the build halfway; reach and palette brightness climb | bar 4: background tint step 4 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2358,
+   "set": {
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.471
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2359,
+   "set": {
+    "kaleido": 6.0,
+    "shake": 0.5,
+    "shine_center": 0.95,
+    "col_hue": -0.06
+   },
+   "why": "PROMINENT onset 17.39@2359 (top-12 of the span, centroid 0.27): crown of 6 + shake 0.5 + electrode flash + hue step"
+  },
+  {
+   "tick": 2365,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "shake falls back within half a beat"
+  },
+  {
+   "tick": 2369,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.478
+   },
+   "why": "crown holds the hit's length (~10 ticks), then gone; electrode back on its build path"
+  },
+  {
+   "tick": 2379,
+   "set": {
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.485
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2380,
+   "set": {
+    "kaleido": 6.0,
+    "shake": 0.6,
+    "shine_center": 0.95,
+    "col_hue": -0.04
+   },
+   "why": "PROMINENT onset 19.71@2380 (top-12 of the span, centroid 0.29): crown of 6 + shake 0.6 + electrode flash + hue step"
+  },
+  {
+   "tick": 2384,
+   "set": {
+    "slot:fondo": [
+     0.0036,
+     0.0008,
+     0.003,
+     0.0072,
+     0.0016,
+     0.0045,
+     0.0108,
+     0.0024,
+     0.0045,
+     0.0144,
+     0.004,
+     0.0045
+    ]
+   },
+   "why": "bar 5: background tint step 5 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2386,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "shake falls back within half a beat"
+  },
+  {
+   "tick": 2390,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.492
+   },
+   "why": "crown holds the hit's length (~10 ticks), then gone; electrode back on its build path"
+  },
+  {
+   "tick": 2442,
+   "set": {
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.524
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2443,
+   "set": {
+    "kaleido": 4.0,
+    "shake": 0.45,
+    "shine_center": 0.95,
+    "col_hue": -0.06,
+    "slot:fondo": [
+     0.0064,
+     0.0007,
+     0.0026,
+     0.0128,
+     0.0014,
+     0.0039,
+     0.0192,
+     0.0021,
+     0.0039,
+     0.0256,
+     0.0035,
+     0.0039
+    ]
+   },
+   "why": "PROMINENT onset 12.37@2443 (top-12 of the span, centroid 0.33): crown of 4 + shake 0.45 + electrode flash + hue step | bar 6: background tint step 1 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2449,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "shake falls back within half a beat"
+  },
+  {
+   "tick": 2453,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.531
+   },
+   "why": "crown holds the hit's length (~10 ticks), then gone; electrode back on its build path"
+  },
+  {
+   "tick": 2503,
+   "set": {
+    "slot:fondo": [
+     0.006,
+     0.0012,
+     0.0012,
+     0.012,
+     0.0024,
+     0.0018,
+     0.018,
+     0.0036,
+     0.0018,
+     0.024,
+     0.006,
+     0.0018
+    ]
+   },
+   "why": "bar 7: background tint step 2 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2552,
+   "set": {
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.594
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2553,
+   "set": {
+    "kaleido": 6.0,
+    "shake": 0.6,
+    "shine_center": 0.95,
+    "col_hue": -0.07
+   },
+   "why": "PROMINENT onset 15.71@2553 (top-12 of the span, centroid 0.16): crown of 6 + shake 0.6 + electrode flash + hue step"
+  },
+  {
+   "tick": 2559,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "shake falls back within half a beat"
+  },
+  {
+   "tick": 2560,
+   "set": {
+    "interval": 1.861821,
+    "duration": 0.24,
+    "center_x": -0.55
+   },
+   "why": "hold the 1-bar clock | hold the electrode before the strike"
+  },
+  {
+   "tick": 2562,
+   "set": {
+    "interval": 0.930911,
+    "duration": 0.13,
+    "reach": 1.35,
+    "center_x": 0.55
+   },
+   "why": "ANOM start 2561, onset 10.4@2562 dark (centroid 0.21): clock halves, strike on 1 and 3 (intervalo 0.9309 s), shorter crisper flashes | strike on bar 44 beat 1 (onset 10.4): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 2563,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0,
+    "shine_center": 0.601,
+    "slot:fondo": [
+     0.0048,
+     0.0006,
+     0.0038,
+     0.0096,
+     0.0012,
+     0.0057,
+     0.0144,
+     0.0018,
+     0.0057,
+     0.0192,
+     0.003,
+     0.0057
+    ]
+   },
+   "why": "crown holds the hit's length (~10 ticks), then gone; electrode back on its build path | bar 8: background tint step 3 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2587,
+   "set": {
+    "shine_center": 0.63,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2588,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "SLAP bar 44 16th 8: onset 3.7, centroid 0.26 (bright): electrode flares into a triple (kaleido 3) + small shake"
+  },
+  {
+   "tick": 2590,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2592,
+   "set": {
+    "center_x": -0.55,
+    "shine_center": 0.63,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "strike on bar 44 beat 3 (onset 3.1): electrode jumps side, the big change every 2 beats (rule 22) | fall back"
+  },
+  {
+   "tick": 2602,
+   "set": {
+    "shine_center": 0.647,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2603,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "SLAP bar 44 16th 12: onset 4.8, centroid 0.23 (bright): electrode flares into a triple (kaleido 3) + small shake"
+  },
+  {
+   "tick": 2607,
+   "set": {
+    "shine_center": 0.647,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2613,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.14,
+    "light_leak": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2614,
+   "set": {
+    "zoom": 0.35,
+    "col_bri": 1.5,
+    "light_leak": 0.3
+   },
+   "why": "OPEN TONE bar 44 16th 15: onset 3.5, centroid 0.24 (dark): zoom punch + palette lift"
+  },
+  {
+   "tick": 2619,
+   "set": {
+    "center_x": -0.55,
+    "zoom": 0.0,
+    "col_bri": 1.14,
+    "light_leak": 0.0
+   },
+   "why": "hold the electrode before the strike | fall back"
+  },
+  {
+   "tick": 2621,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "strike on bar 45 beat 1 (onset 3.2): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 2622,
+   "set": {
+    "slot:fondo": [
+     0.0076,
+     0.0009,
+     0.0014,
+     0.0152,
+     0.0018,
+     0.0021,
+     0.0228,
+     0.0027,
+     0.0021,
+     0.0304,
+     0.0045,
+     0.0021
+    ]
+   },
+   "why": "bar 9: background tint step 4 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2646,
+   "set": {
+    "shine_center": 0.697,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2647,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "SLAP bar 45 16th 8: onset 5.9, centroid 0.32 (bright): electrode flares into a triple (kaleido 3) + small shake"
+  },
+  {
+   "tick": 2649,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2651,
+   "set": {
+    "center_x": -0.55,
+    "shine_center": 0.697,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "strike on bar 45 beat 3 (onset 2.9): electrode jumps side, the big change every 2 beats (rule 22) | fall back"
+  },
+  {
+   "tick": 2661,
+   "set": {
+    "shine_center": 0.714,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2662,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "SLAP bar 45 16th 12: onset 10.0, centroid 0.39 (bright): electrode flares into a triple (kaleido 3) + small shake"
+  },
+  {
+   "tick": 2666,
+   "set": {
+    "shine_center": 0.714,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2672,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.169,
+    "light_leak": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2673,
+   "set": {
+    "zoom": 0.35,
+    "col_bri": 1.5,
+    "light_leak": 0.3
+   },
+   "why": "OPEN TONE bar 45 16th 15: onset 8.5, centroid 0.22 (dark): zoom punch + palette lift"
+  },
+  {
+   "tick": 2678,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.169,
+    "light_leak": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2679,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2681,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "strike on bar 46 beat 1 (onset 4.8): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 2682,
+   "set": {
+    "slot:fondo": [
+     0.0036,
+     0.0008,
+     0.003,
+     0.0072,
+     0.0016,
+     0.0045,
+     0.0108,
+     0.0024,
+     0.0045,
+     0.0144,
+     0.004,
+     0.0045
+    ]
+   },
+   "why": "bar 10: background tint step 5 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2706,
+   "set": {
+    "shine_center": 0.765,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2707,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "SLAP bar 46 16th 8: onset 12.2, centroid 0.30 (bright): electrode flares into a triple (kaleido 3) + small shake"
+  },
+  {
+   "tick": 2708,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2710,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "strike on bar 46 beat 3 (onset 3.5): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 2711,
+   "set": {
+    "shine_center": 0.765,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2720,
+   "set": {
+    "shine_center": 0.781,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2721,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "SLAP bar 46 16th 12: onset 8.8, centroid 0.34 (bright): electrode flares into a triple (kaleido 3) + small shake"
+  },
+  {
+   "tick": 2725,
+   "set": {
+    "shine_center": 0.781,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2732,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.198,
+    "light_leak": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2733,
+   "set": {
+    "zoom": 0.35,
+    "col_bri": 1.5,
+    "light_leak": 0.3
+   },
+   "why": "OPEN TONE bar 46 16th 15: onset 4.2, centroid 0.22 (dark): zoom punch + palette lift"
+  },
+  {
+   "tick": 2736,
+   "set": {
+    "reach": 1.6,
+    "shine_center": 0.8,
+    "col_bri": 1.2,
+    "col_contrast": 0.15,
+    "col_hue": 0.0,
+    "kaleido": 0.0,
+    "interval": 0.930911,
+    "center_x": 0.0,
+    "center_y": -0.15
+   },
+   "why": "hold the build a few ticks before the drop"
+  },
+  {
+   "tick": 2738,
+   "set": {
+    "zoom": 0.0,
+    "col_bri": 1.198,
+    "light_leak": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2740,
+   "set": {
+    "interval": 0.462845,
+    "kaleido": 6.0,
+    "col_contrast": 0.5,
+    "col_hue": -0.06,
+    "shine_center": 0.5,
+    "reach": 1.7,
+    "shake": 0.0,
+    "center_x": 0.6,
+    "center_y": 0.0
+   },
+   "why": "BOUNDARY 2740 (rms 0.15->0.22, +1.06 sd; bar 47.1): release: strike every beat, a crown of 6 around an off-centre electrode, contrast opens, hue turns red"
+  },
+  {
+   "tick": 2741,
+   "set": {
+    "slot:fondo": [
+     0.0064,
+     0.0007,
+     0.0026,
+     0.0128,
+     0.0014,
+     0.0039,
+     0.0192,
+     0.0021,
+     0.0039,
+     0.0256,
+     0.0035,
+     0.0039
+    ]
+   },
+   "why": "bar 11: background tint step 1 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2755,
+   "set": {
+    "shake": 0.45
+   },
+   "why": "beat after the drop: onset 5.9@2755: shake on the beat"
+  },
+  {
+   "tick": 2760,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2770,
+   "set": {
+    "shake": 0.6
+   },
+   "why": "beat after the drop: onset 1.4@2771 STEP+ rms 0.334: shake on the beat"
+  },
+  {
+   "tick": 2775,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2785,
+   "set": {
+    "shake": 0.45
+   },
+   "why": "beat after the drop: onset 1.7@2786: shake on the beat"
+  },
+  {
+   "tick": 2790,
+   "set": {
+    "shake": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2797,
+   "set": {
+    "center_x": -0.55,
+    "interval": 0.462845,
+    "kaleido": 6.0
+   },
+   "why": "hold the electrode before the strike | hold the drop bar"
+  },
+  {
+   "tick": 2799,
+   "set": {
+    "center_x": 0.55,
+    "interval": 0.930607,
+    "kaleido": 0.0,
+    "col_contrast": 0.35,
+    "col_hue": 0.0,
+    "reach": 1.4
+   },
+   "why": "strike on bar 48 beat 1 (onset 0.4): electrode jumps side, the big change every 2 beats (rule 22) | bar 48.1, after STEP+ 2770: back to strikes on 1 and 3 for the steady groove (intervalo 0.9306 s)"
+  },
+  {
+   "tick": 2801,
+   "set": {
+    "slot:fondo": [
+     0.006,
+     0.0012,
+     0.0012,
+     0.012,
+     0.0024,
+     0.0018,
+     0.018,
+     0.0036,
+     0.0018,
+     0.024,
+     0.006,
+     0.0018
+    ]
+   },
+   "why": "bar 12: background tint step 2 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2827,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2829,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "strike on bar 48 beat 3 (onset 2.2): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 2843,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2844,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "ACCENT ON 4, bar 48: onset 1.0, centroid 0.18: electrode flares into a triple + shake, the same effect as the anomaly slaps"
+  },
+  {
+   "tick": 2848,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2854,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2855,
+   "set": {
+    "col_hue": -0.05
+   },
+   "why": "PICKUP bar 48 16th 16 (anticipation of 1): onset 6.3: hue sway"
+  },
+  {
+   "tick": 2857,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2858,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "hold"
+  },
+  {
+   "tick": 2859,
+   "set": {
+    "center_x": 0.55,
+    "col_hue": -0.04,
+    "kaleido": 4.0
+   },
+   "why": "strike on bar 49 beat 1 (onset 0.9): electrode jumps side, the big change every 2 beats (rule 22) | fall back | bar 49.1 (onset 0.9@2858): the drop's crown returns (4-fold, hue -0.04) for a beat, the motif of the drop"
+  },
+  {
+   "tick": 2861,
+   "set": {
+    "slot:fondo": [
+     0.0048,
+     0.0006,
+     0.0038,
+     0.0096,
+     0.0012,
+     0.0057,
+     0.0144,
+     0.0018,
+     0.0057,
+     0.0192,
+     0.003,
+     0.0057
+    ]
+   },
+   "why": "bar 13: background tint step 3 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2871,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "crown off"
+  },
+  {
+   "tick": 2887,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2889,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "strike on bar 49 beat 3 (onset 2.7): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 2902,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2903,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "ACCENT ON 4, bar 49: onset 7.0, centroid 0.28: electrode flares into a triple + shake, the same effect as the anomaly slaps"
+  },
+  {
+   "tick": 2907,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2914,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2915,
+   "set": {
+    "col_hue": 0.03
+   },
+   "why": "PICKUP bar 49 16th 16 (anticipation of 1): onset 6.1: hue sway"
+  },
+  {
+   "tick": 2916,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2918,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "strike on bar 50 beat 1 (onset 5.2): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 2919,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2920,
+   "set": {
+    "slot:fondo": [
+     0.0076,
+     0.0009,
+     0.0014,
+     0.0152,
+     0.0018,
+     0.0021,
+     0.0228,
+     0.0027,
+     0.0021,
+     0.0304,
+     0.0045,
+     0.0021
+    ]
+   },
+   "why": "bar 14: background tint step 4 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2946,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2948,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "strike on bar 50 beat 3 (onset 5.0): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 2962,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2963,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "ACCENT ON 4, bar 50: onset 5.9, centroid 0.31: electrode flares into a triple + shake, the same effect as the anomaly slaps"
+  },
+  {
+   "tick": 2967,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 2973,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 2974,
+   "set": {
+    "col_hue": -0.05
+   },
+   "why": "PICKUP bar 50 16th 16 (anticipation of 1): onset 4.9: hue sway"
+  },
+  {
+   "tick": 2976,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 2977,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "hold"
+  },
+  {
+   "tick": 2978,
+   "set": {
+    "center_x": 0.55,
+    "col_hue": -0.07,
+    "kaleido": 5.0
+   },
+   "why": "strike on bar 51 beat 1 (onset 4.8): electrode jumps side, the big change every 2 beats (rule 22) | fall back | bar 51.1 (onset 4.8@2978): the drop's crown returns (5-fold, hue -0.07) for a beat, the motif of the drop"
+  },
+  {
+   "tick": 2980,
+   "set": {
+    "slot:fondo": [
+     0.0036,
+     0.0008,
+     0.003,
+     0.0072,
+     0.0016,
+     0.0045,
+     0.0108,
+     0.0024,
+     0.0045,
+     0.0144,
+     0.004,
+     0.0045
+    ]
+   },
+   "why": "bar 15: background tint step 5 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 2990,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "crown off"
+  },
+  {
+   "tick": 3005,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 3007,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "strike on bar 51 beat 3 (onset 5.5): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 3021,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 3022,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "ACCENT ON 4, bar 51: onset 6.7, centroid 0.29: electrode flares into a triple + shake, the same effect as the anomaly slaps"
+  },
+  {
+   "tick": 3026,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 3032,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 3033,
+   "set": {
+    "col_hue": 0.03
+   },
+   "why": "PICKUP bar 51 16th 16 (anticipation of 1): onset 6.0: hue sway"
+  },
+  {
+   "tick": 3035,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 3037,
+   "set": {
+    "center_x": 0.55,
+    "col_hue": 0.0
+   },
+   "why": "strike on bar 52 beat 1 (onset 2.5): electrode jumps side, the big change every 2 beats (rule 22) | fall back"
+  },
+  {
+   "tick": 3039,
+   "set": {
+    "slot:fondo": [
+     0.0064,
+     0.0007,
+     0.0026,
+     0.0128,
+     0.0014,
+     0.0039,
+     0.0192,
+     0.0021,
+     0.0039,
+     0.0256,
+     0.0035,
+     0.0039
+    ]
+   },
+   "why": "bar 16: background tint step 1 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 3065,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 3067,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "strike on bar 52 beat 3 (onset 7.1): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 3081,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 3082,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "ACCENT ON 4, bar 52: onset 6.7, centroid 0.32: electrode flares into a triple + shake, the same effect as the anomaly slaps"
+  },
+  {
+   "tick": 3086,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 3092,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 3093,
+   "set": {
+    "col_hue": -0.05
+   },
+   "why": "PICKUP bar 52 16th 16 (anticipation of 1): onset 4.1: hue sway"
+  },
+  {
+   "tick": 3094,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 3095,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "hold"
+  },
+  {
+   "tick": 3096,
+   "set": {
+    "center_x": 0.55,
+    "kaleido": 6.0,
+    "col_hue": -0.05
+   },
+   "why": "strike on bar 53 beat 1 (onset 4.0): electrode jumps side, the big change every 2 beats (rule 22) | bar 53.1 (onset 4.0@3095): the drop's crown returns (6-fold, hue -0.05) for a beat, the motif of the drop"
+  },
+  {
+   "tick": 3097,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 3099,
+   "set": {
+    "slot:fondo": [
+     0.006,
+     0.0012,
+     0.0012,
+     0.012,
+     0.0024,
+     0.0018,
+     0.018,
+     0.0036,
+     0.0018,
+     0.024,
+     0.006,
+     0.0018
+    ]
+   },
+   "why": "bar 17: background tint step 2 (slight per-bar colour drift)"
+  },
+  {
+   "tick": 3108,
+   "set": {
+    "kaleido": 0.0,
+    "col_hue": 0.0
+   },
+   "why": "crown off"
+  },
+  {
+   "tick": 3124,
+   "set": {
+    "center_x": 0.55
+   },
+   "why": "hold the electrode before the strike"
+  },
+  {
+   "tick": 3126,
+   "set": {
+    "center_x": -0.55
+   },
+   "why": "strike on bar 53 beat 3 (onset 3.1): electrode jumps side, the big change every 2 beats (rule 22)"
+  },
+  {
+   "tick": 3140,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "hold before the hit"
+  },
+  {
+   "tick": 3141,
+   "set": {
+    "shine_center": 0.95,
+    "kaleido": 3.0,
+    "shake": 0.3,
+    "fire": 0.35
+   },
+   "why": "ACCENT ON 4, bar 53: onset 2.9, centroid 0.33: electrode flares into a triple + shake, the same effect as the anomaly slaps"
+  },
+  {
+   "tick": 3145,
+   "set": {
+    "shine_center": 0.5,
+    "kaleido": 0.0,
+    "shake": 0.0,
+    "fire": 0.0
+   },
+   "why": "fall back"
+  },
+  {
+   "tick": 3153,
+   "set": {
+    "col_contrast": 0.35,
+    "col_bri": 1.15
+   },
+   "why": "span end: steady groove state"
+  }
+ ]
+}

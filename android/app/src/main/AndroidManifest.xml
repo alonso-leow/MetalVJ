@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Android TV: touch and camera are optional so Play lists the app on TV boxes. -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
+    <!-- MainActivity is a thin NativeActivity subclass (runtime permission
+         requests only). android-activity in metal_dash exports android_main,
+         which NativeActivity runs on a native thread. -->
+    <application
+        android:label="MetalVJ"
+        android:allowBackup="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:exported="true"
+            android:screenOrientation="sensor">
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="metal_dash" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

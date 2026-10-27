@@ -1,0 +1,1705 @@
+{
+ "part": "66-p2",
+ "model": "room",
+ "song": "66 - The Pussycat Dolls - Buttons (Official Music Video) ft. Snoop Dogg",
+ "span": [
+  1720,
+  2647
+ ],
+ "kind": "drop",
+ "keywords": [
+  "pop",
+  "dark",
+  "hip hop"
+ ],
+ "title": "the lamp-lit room hits on the kick and cuts every two bars",
+ "story": "Buttons at 107.5 BPM, a hip-hop backbeat: kick on 1, 3 and the 'a' of 4 (dark onsets, centroid < 0.17), snare/clap on 2 and 4 (bright, centroid > 0.21), sagging into a hats-only dropout at 2077-2110. The grid room is lit by its one lamp in blackout-red (black, ash, red, bone): every kick shakes the room and lifts the palette, every snare throws the sweep across the room and flattens the lamp, and the prominent hits (the double hit 2058/2069, the 10.33 pickup at 2114, the 15.8 slam at 2642) do both with a flash. The camera creeps from the back wall as in the original, then from the switch at 2148 it cuts every two bars on the downbeat (2148, 2287, 2430, 2573) to a new low or high angle with the weave and sweep switching and the palette's hue and contrast turning.",
+ "base": {
+  "slot:malla": [
+   0,
+   0,
+   0,
+   0.227,
+   0.188,
+   0.188,
+   0.878,
+   0.0,
+   0.102,
+   0.902,
+   0.878,
+   0.863
+  ],
+  "slot:fondo": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "camera": [
+   -0.05,
+   0.26,
+   -0.72,
+   0.08,
+   -0.28,
+   0.75,
+   96.0
+  ],
+  "shine": 0.85,
+  "variation": 0.15,
+  "pulse": 0.43,
+  "sweep": 0.25,
+  "drift": 0.12,
+  "lamp": 0.88,
+  "depth": 0.75,
+  "vignette": 0.35,
+  "shake": 0.0,
+  "col_hue": 0.0,
+  "col_sat": 1.0,
+  "col_bri": 1.0,
+  "col_contrast": 0.1
+ },
+ "keys": [
+  {
+   "tick": 1720,
+   "set": {
+    "camera": [
+     -0.05,
+     0.26,
+     -0.72,
+     0.08,
+     -0.28,
+     0.75,
+     96.0
+    ],
+    "shine": 0.85,
+    "sweep": 0.25,
+    "variation": 0.15,
+    "lamp": 0.88
+   },
+   "why": "span start: rms 0.128, onset 4.02@1732; lamp-lit room in blackout-red, camera at the back wall (original)"
+  },
+  {
+   "tick": 1766,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.885
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1768,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 6.18@1768 (centroid 0.302, bw 2839, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1773,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.887
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1776,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.887
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1778,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 7.93@1778 (centroid 0.269, bw 3212, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1783,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.889
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1801,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.894
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1803,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 7.07@1803 (centroid 0.416, bw 3329, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1808,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.897
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1811,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.898
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1813,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 6.19@1813 (centroid 0.384, bw 3067, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1818,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.9
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1821,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1823,
+   "set": {
+    "shake": 0.4,
+    "col_bri": 1.49
+   },
+   "why": "KICK 6.49@1823 (centroid 0.122, bw 2159, dark/narrow): shake 0.40 + col_bri lift"
+  },
+  {
+   "tick": 1828,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1838,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.908
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1840,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 6.08@1840 (centroid 0.253, bw 2588, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1845,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.911
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1848,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1850,
+   "set": {
+    "shake": 0.37,
+    "col_bri": 1.48
+   },
+   "why": "KICK 5.88@1850 (centroid 0.103, bw 1701, dark/narrow): shake 0.37 + col_bri lift"
+  },
+  {
+   "tick": 1855,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1857,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1859,
+   "set": {
+    "shake": 0.32,
+    "col_bri": 1.45
+   },
+   "why": "KICK 4.86@1859 (centroid 0.101, bw 1500, dark/narrow): shake 0.32 + col_bri lift"
+  },
+  {
+   "tick": 1864,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1874,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.924
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1876,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 7.12@1876 (centroid 0.233, bw 2239, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1881,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.927
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1894,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1896,
+   "set": {
+    "shake": 0.37,
+    "col_bri": 1.47
+   },
+   "why": "KICK 5.80@1896 (centroid 0.056, bw 1291, dark/narrow): shake 0.37 + col_bri lift"
+  },
+  {
+   "tick": 1901,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1912,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.942,
+    "shake": 0.0,
+    "shine": 0.832,
+    "col_contrast": 0.1
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1914,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3,
+    "shake": 0.6,
+    "shine": 1.281,
+    "col_contrast": 0.45
+   },
+   "why": "SNARE 11.80@1914 (centroid 0.223, bw 2120, bright/wide): sweep flash + lamp flicker to flat light + shake 0.60 + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 1919,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.946,
+    "shake": 0.0,
+    "shine": 0.831,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1921,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.83,
+    "col_contrast": 0.1
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1923,
+   "set": {
+    "shake": 0.52,
+    "col_bri": 1.57,
+    "shine": 1.28,
+    "col_contrast": 0.45
+   },
+   "why": "KICK 9.00@1923 (centroid 0.097, bw 1621, dark/narrow): shake 0.52 + col_bri lift + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 1928,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.829,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1941,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1943,
+   "set": {
+    "shake": 0.43,
+    "col_bri": 1.52
+   },
+   "why": "KICK 7.17@1943 (centroid 0.164, bw 1974, dark/narrow): shake 0.43 + col_bri lift"
+  },
+  {
+   "tick": 1947,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.959,
+    "shine": 0.827,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1948,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1949,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3,
+    "shake": 0.54,
+    "shine": 1.277,
+    "col_contrast": 0.45
+   },
+   "why": "SNARE 9.39@1949 (centroid 0.232, bw 2186, bright/wide): sweep flash + lamp flicker to flat light + shake 0.54 + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 1950,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.96
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1951,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.05@1951 (centroid 0.202, bw 1878, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1954,
+   "set": {
+    "shake": 0.0,
+    "shine": 0.826,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1956,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.963
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1957,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.963
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1959,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.68@1959 (centroid 0.175, bw 2596, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1964,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.966
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1967,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1969,
+   "set": {
+    "shake": 0.46,
+    "col_bri": 1.53
+   },
+   "why": "KICK 7.76@1969 (centroid 0.145, bw 2697, dark/narrow): shake 0.46 + col_bri lift"
+  },
+  {
+   "tick": 1974,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1976,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.971
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1978,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 7.23@1978 (centroid 0.189, bw 3021, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 1983,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.974,
+    "shake": 0.0,
+    "shine": 0.823,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1985,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3,
+    "shake": 0.6,
+    "shine": 1.273,
+    "col_contrast": 0.45
+   },
+   "why": "SNARE 12.23@1985 (centroid 0.236, bw 2455, bright/wide): sweep flash + lamp flicker to flat light + shake 0.60 + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 1990,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.977,
+    "shake": 0.0,
+    "shine": 0.823,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 1994,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.979
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 1996,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 7.51@1996 (centroid 0.229, bw 3023, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2001,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.981
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2003,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2005,
+   "set": {
+    "shake": 0.39,
+    "col_bri": 1.49
+   },
+   "why": "KICK 6.32@2005 (centroid 0.092, bw 1512, dark/narrow): shake 0.39 + col_bri lift"
+  },
+  {
+   "tick": 2010,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2013,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2015,
+   "set": {
+    "shake": 0.41,
+    "col_bri": 1.5
+   },
+   "why": "KICK 6.74@2015 (centroid 0.142, bw 1988, dark/narrow): shake 0.41 + col_bri lift"
+  },
+  {
+   "tick": 2020,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2022,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.988
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2024,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.25@2024 (centroid 0.218, bw 2172, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2029,
+   "set": {
+    "sweep": 0.25,
+    "lamp": 0.99
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2030,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2032,
+   "set": {
+    "shake": 0.35,
+    "col_bri": 1.47
+   },
+   "why": "KICK 5.53@2032 (centroid 0.146, bw 1892, dark/narrow): shake 0.35 + col_bri lift"
+  },
+  {
+   "tick": 2037,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2039,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2041,
+   "set": {
+    "shake": 0.32,
+    "col_bri": 1.45
+   },
+   "why": "KICK 4.95@2041 (centroid 0.105, bw 1876, dark/narrow): shake 0.32 + col_bri lift"
+  },
+  {
+   "tick": 2046,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2049,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2051,
+   "set": {
+    "shake": 0.45,
+    "col_bri": 1.52
+   },
+   "why": "KICK 7.42@2051 (centroid 0.136, bw 1990, dark/narrow): shake 0.45 + col_bri lift"
+  },
+  {
+   "tick": 2052,
+   "set": {
+    "shine": 0.82,
+    "sweep": 0.25
+   },
+   "why": "anomaly open (2005), rms 0.110@2024 sagging: hold brightness and sweep (original)"
+  },
+  {
+   "tick": 2056,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2057,
+   "set": {
+    "sweep": 0.224,
+    "lamp": 0.997,
+    "shake": 0.0,
+    "shine": 0.804,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2059,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3,
+    "shake": 0.6,
+    "shine": 1.239,
+    "col_contrast": 0.45
+   },
+   "why": "SNARE 12.31@2059 (centroid 0.224, bw 2157, bright/wide): sweep flash + lamp flicker to flat light + shake 0.60 + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 2064,
+   "set": {
+    "sweep": 0.132,
+    "lamp": 0.998,
+    "shake": 0.0,
+    "shine": 0.736,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2067,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.697,
+    "col_contrast": 0.1
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2069,
+   "set": {
+    "shake": 0.6,
+    "col_bri": 1.6,
+    "shine": 1.118,
+    "col_contrast": 0.45
+   },
+   "why": "KICK 12.31@2069 (centroid 0.095, bw 1533, dark/narrow): shake 0.60 + col_bri lift + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 2074,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0,
+    "shine": 0.592,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2077,
+   "set": {
+    "sweep": 0.0,
+    "variation": 0.15,
+    "col_bri": 1.0,
+    "col_sat": 1.0
+   },
+   "why": "rms 0.098@2077: sweep off (original)"
+  },
+  {
+   "tick": 2095,
+   "set": {
+    "shine": 0.38,
+    "variation": 0.4,
+    "lamp": 1.0,
+    "col_bri": 0.75,
+    "col_sat": 0.7
+   },
+   "why": "dropout bottom: rms 0.082, centroid 0.381 (hats only): room sinks to the lamp alone (original)"
+  },
+  {
+   "tick": 2110,
+   "set": {
+    "shine": 0.38,
+    "variation": 0.4,
+    "col_bri": 0.75,
+    "col_sat": 0.7
+   },
+   "why": "hold the dark until the pickup so it lands as a cut (original)"
+  },
+  {
+   "tick": 2112,
+   "set": {
+    "sweep": 0.0,
+    "lamp": 1.0,
+    "shake": 0.0,
+    "shine": 0.64,
+    "col_contrast": 0.1
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2114,
+   "set": {
+    "shine": 0.9,
+    "variation": 0.2,
+    "col_bri": 1.0,
+    "col_sat": 1.0,
+    "sweep": 1.0,
+    "lamp": 0.3,
+    "shake": 0.59,
+    "col_contrast": 0.45
+   },
+   "why": "SNARE 10.33@2114 (centroid 0.181, bw 3071, bright/wide): sweep flash + lamp flicker to flat light + shake 0.59 + PROMINENT: brillo flash, contrast opens; pickup 10.33@2114, rms 0.190: room comes back (original)"
+  },
+  {
+   "tick": 2119,
+   "set": {
+    "sweep": 0.0,
+    "lamp": 1.0,
+    "shake": 0.0,
+    "shine": 0.9,
+    "col_contrast": 0.1
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2129,
+   "set": {
+    "sweep": 0.0,
+    "lamp": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2131,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 6.14@2131 (centroid 0.257, bw 2547, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2136,
+   "set": {
+    "sweep": 0.0,
+    "lamp": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2142,
+   "set": {
+    "camera": [
+     -0.02,
+     0.08,
+     -0.42,
+     0.08,
+     -0.05,
+     0.75,
+     90.0
+    ],
+    "shine": 0.9,
+    "sweep": 0.0,
+    "variation": 0.2,
+    "lamp": 1.0,
+    "drift": 0.12,
+    "pulse": 0.43,
+    "col_hue": 0.0,
+    "col_contrast": 0.1
+   },
+   "why": "end of the 13 s creep from the back wall; everything held so the switch is a cut (original)"
+  },
+  {
+   "tick": 2148,
+   "set": {
+    "camera": [
+     -0.25,
+     -0.55,
+     -0.55,
+     0.2,
+     0.08,
+     0.8,
+     100.0
+    ],
+    "shine": 1.05,
+    "sweep": 0.6,
+    "variation": 0.6,
+    "lamp": 0.7,
+    "drift": 0.4,
+    "pulse": 0.43,
+    "col_hue": -0.03,
+    "col_contrast": 0.35
+   },
+   "why": "SWITCH 1 (original) on boundary 2148, downbeat bar 31: rms 0.141->0.171 (+1.0 sd): camera cuts low under the lamp looking up, weave switches, sweep on; palette turns to crimson (hue -0.03) and contrast opens"
+  },
+  {
+   "tick": 2167,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2169,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 4.60@2169 (centroid 0.240, bw 2272, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2174,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2176,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2178,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 4.66@2178 (centroid 0.187, bw 2529, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2183,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2203,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2205,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.73@2205 (centroid 0.236, bw 2332, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2210,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2238,
+   "set": {
+    "drift": 0.6
+   },
+   "why": "KEY F at 2238 after anomaly end 2218: the sway widens into the swagger loop (original)"
+  },
+  {
+   "tick": 2239,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2241,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.42@2241 (centroid 0.236, bw 2281, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2246,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2249,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2251,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 4.88@2251 (centroid 0.227, bw 2687, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2256,
+   "set": {
+    "sweep": 0.6,
+    "lamp": 0.7
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2259,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2261,
+   "set": {
+    "shake": 0.35,
+    "col_bri": 1.47
+   },
+   "why": "KICK 5.54@2261 (centroid 0.143, bw 2499, dark/narrow): shake 0.35 + col_bri lift"
+  },
+  {
+   "tick": 2266,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2280,
+   "set": {
+    "drift": 0.6
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2281,
+   "set": {
+    "camera": [
+     -0.22,
+     -0.484,
+     -0.484,
+     0.2,
+     0.08,
+     0.8,
+     94.0
+    ],
+    "shine": 1.05,
+    "sweep": 0.6,
+    "variation": 0.6,
+    "lamp": 0.7,
+    "drift": 0.4,
+    "pulse": 0.43,
+    "col_hue": -0.03,
+    "col_contrast": 0.35
+   },
+   "why": "hold every switch float a few ticks before the cut so it lands as a cut"
+  },
+  {
+   "tick": 2287,
+   "set": {
+    "camera": [
+     0.08,
+     -0.62,
+     0.12,
+     0.12,
+     0.75,
+     0.42,
+     112.0
+    ],
+    "shine": 1.1,
+    "sweep": 0.8,
+    "variation": 0.85,
+    "lamp": 0.95,
+    "drift": 0.3,
+    "pulse": 0.9,
+    "col_hue": 0.045,
+    "col_contrast": 0.5
+   },
+   "why": "SWITCH 2, two bars on, downbeat 2286.9 (kick 4.2@2287, cen 0.16): right under the lamp looking straight up, weave doubles its rate (pulso 0.9), sweep 0.8; hue +0.045 to scarlet-orange"
+  },
+  {
+   "tick": 2295,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2297,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 4.79@2297 (centroid 0.256, bw 3016, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2302,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2311,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2313,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.63@2313 (centroid 0.227, bw 2300, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2318,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2331,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2333,
+   "set": {
+    "shake": 0.33,
+    "col_bri": 1.45
+   },
+   "why": "KICK 5.01@2333 (centroid 0.164, bw 2587, dark/narrow): shake 0.33 + col_bri lift"
+  },
+  {
+   "tick": 2338,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2348,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95,
+    "shake": 0.0,
+    "shine": 1.1,
+    "col_contrast": 0.5
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2350,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3,
+    "shake": 0.52,
+    "shine": 1.55,
+    "col_contrast": 0.85
+   },
+   "why": "SNARE 8.90@2350 (centroid 0.242, bw 2432, bright/wide): sweep flash + lamp flicker to flat light + shake 0.52 + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 2355,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95,
+    "shake": 0.0,
+    "shine": 1.1,
+    "col_contrast": 0.5
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2358,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2360,
+   "set": {
+    "shake": 0.41,
+    "col_bri": 1.5
+   },
+   "why": "KICK 6.68@2360 (centroid 0.131, bw 2508, dark/narrow): shake 0.41 + col_bri lift"
+  },
+  {
+   "tick": 2365,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2368,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2370,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 6.02@2370 (centroid 0.282, bw 3281, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2375,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2386,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2388,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.18@2388 (centroid 0.270, bw 2930, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2393,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2422,
+   "set": {
+    "sweep": 0.8,
+    "lamp": 0.95
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2424,
+   "set": {
+    "camera": [
+     0.07,
+     -0.546,
+     0.106,
+     0.12,
+     0.75,
+     0.42,
+     106.0
+    ],
+    "shine": 1.1,
+    "sweep": 0.8,
+    "variation": 0.85,
+    "lamp": 0.95,
+    "drift": 0.3,
+    "pulse": 0.9,
+    "col_hue": 0.045,
+    "col_contrast": 0.5
+   },
+   "why": "SNARE 5.19@2424 (centroid 0.215, bw 2242, bright/wide): sweep flash + lamp flicker to flat light; hold every switch float a few ticks before the cut so it lands as a cut"
+  },
+  {
+   "tick": 2429,
+   "set": {
+    "sweep": 0.893,
+    "lamp": 0.58
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2430,
+   "set": {
+    "camera": [
+     0.62,
+     0.5,
+     0.62,
+     -0.3,
+     -0.45,
+     -0.5,
+     88.0
+    ],
+    "shine": 1.15,
+    "sweep": 0.9,
+    "variation": 0.5,
+    "lamp": 0.55,
+    "drift": 0.5,
+    "pulse": 0.6,
+    "col_hue": -0.04,
+    "col_contrast": 0.3
+   },
+   "why": "SWITCH 3, downbeat 2429.7 (kick 4.7@2434, cen 0.12): cut to the high far corner looking down across the room, lamp flatter (0.55), sweep 0.9; hue -0.04 back to crimson"
+  },
+  {
+   "tick": 2432,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2434,
+   "set": {
+    "shake": 0.31,
+    "col_bri": 1.44
+   },
+   "why": "KICK 4.74@2434 (centroid 0.122, bw 2033, dark/narrow): shake 0.31 + col_bri lift"
+  },
+  {
+   "tick": 2439,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2441,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2443,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 4.75@2443 (centroid 0.194, bw 2525, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2448,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2457,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2459,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 4.72@2459 (centroid 0.235, bw 2457, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2464,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2494,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2496,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 8.10@2496 (centroid 0.318, bw 2805, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2501,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2505,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2507,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 4.64@2507 (centroid 0.171, bw 2600, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2512,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2531,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2533,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.67@2533 (centroid 0.260, bw 2682, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2538,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2550,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2552,
+   "set": {
+    "shake": 0.34,
+    "col_bri": 1.46
+   },
+   "why": "KICK 5.29@2552 (centroid 0.167, bw 2682, dark/narrow): shake 0.34 + col_bri lift"
+  },
+  {
+   "tick": 2557,
+   "set": {
+    "shake": 0.0,
+    "col_bri": 1.0
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2566,
+   "set": {
+    "sweep": 0.9,
+    "lamp": 0.55,
+    "shake": 0.0,
+    "shine": 1.15,
+    "col_contrast": 0.3
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2567,
+   "set": {
+    "camera": [
+     0.546,
+     0.44,
+     0.546,
+     -0.3,
+     -0.45,
+     -0.5,
+     82.0
+    ],
+    "shine": 1.15,
+    "sweep": 0.9,
+    "variation": 0.5,
+    "lamp": 0.55,
+    "drift": 0.5,
+    "pulse": 0.6,
+    "col_hue": -0.04,
+    "col_contrast": 0.3
+   },
+   "why": "hold every switch float a few ticks before the cut so it lands as a cut"
+  },
+  {
+   "tick": 2568,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3,
+    "shake": 0.5,
+    "shine": 1.604,
+    "col_contrast": 0.672
+   },
+   "why": "SNARE 8.56@2568 (centroid 0.392, bw 3092, bright/wide): sweep flash + lamp flicker to flat light + shake 0.50 + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 2573,
+   "set": {
+    "camera": [
+     0.55,
+     -0.5,
+     -0.62,
+     -0.4,
+     0.35,
+     0.6,
+     116.0
+    ],
+    "shine": 1.2,
+    "sweep": 1.0,
+    "variation": 0.9,
+    "lamp": 0.8,
+    "drift": 0.55,
+    "pulse": 1.3,
+    "col_hue": 0.06,
+    "col_contrast": 0.6,
+    "shake": 0.0
+   },
+   "why": "SWITCH 4, downbeat 2572.6 (7.19@2588 behind it): low from the right-hand corner, widest lens, fastest weave (pulso 1.3), full sweep; hue +0.06, contrast fully open into the 15.8 slam"
+  },
+  {
+   "tick": 2586,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.8
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2588,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 7.19@2588 (centroid 0.309, bw 3286, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2593,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.8
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2604,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.8
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2606,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3
+   },
+   "why": "SNARE 5.60@2606 (centroid 0.242, bw 2401, bright/wide): sweep flash + lamp flicker to flat light"
+  },
+  {
+   "tick": 2611,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.8
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  },
+  {
+   "tick": 2640,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.8,
+    "shake": 0.0,
+    "shine": 1.2,
+    "col_contrast": 0.6
+   },
+   "why": "anchor: hold the value just before the hit so the pulse stays a pulse"
+  },
+  {
+   "tick": 2642,
+   "set": {
+    "sweep": 1.0,
+    "lamp": 0.3,
+    "shake": 0.6,
+    "shine": 1.65,
+    "col_contrast": 0.95
+   },
+   "why": "SNARE 15.82@2642 (centroid 0.243, bw 2260, bright/wide): sweep flash + lamp flicker to flat light + shake 0.60 + PROMINENT: brillo flash, contrast opens"
+  },
+  {
+   "tick": 2647,
+   "set": {
+    "shine": 1.2,
+    "sweep": 1.0,
+    "lamp": 0.8,
+    "shake": 0.15,
+    "col_contrast": 0.6
+   },
+   "why": "fall back half a 16th-pair after the hit (rule 3)"
+  }
+ ]
+}

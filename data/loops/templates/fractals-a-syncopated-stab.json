@@ -1,0 +1,63 @@
+{
+ "id": "fractals-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "fractals"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "fold"
+   },
+   "curve": "step",
+   "steps": [
+    0.85,
+    null,
+    null,
+    0.15,
+    null,
+    0.85,
+    null,
+    null,
+    0.15,
+    null,
+    null,
+    0.85,
+    null,
+    0.15,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "escape",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

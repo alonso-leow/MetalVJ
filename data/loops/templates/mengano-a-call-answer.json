@@ -1,0 +1,13 @@
+{
+ "id": "mengano-a-call-answer",
+ "name": "Call Answer",
+ "target": {"model": "someone"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "target_x"}, "curve": "step",
+   "steps": [0.2, null, null, null, 0.35, null, null, null, 0.2, null, null, null, 0.9, null, null, null]},
+  {"target": {"kind": "float", "param": "blink"}, "curve": "step",
+   "steps": [0.9, null, null, null, null, null, null, null, null, null, null, null, 0.95, 0.1, null, null]},
+  {"target": {"kind": "palette", "slot": "eye", "palette": "rays"},
+   "steps": [{"colour": 1}, null, null, null, null, null, null, null, null, null, null, null, {"colour": 3}, {"colour": 1}, null, null]}
+ ]
+}

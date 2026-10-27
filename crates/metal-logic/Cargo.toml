@@ -1,0 +1,17 @@
+[package]
+name = "metal-logic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# **As small as it can be.** This is the single contract for "run CPU logic
+# before drawing" — the rig today, a user script tomorrow
+# (`docs/plan-architecture.md` D1). Everything that implements or invokes it
+# (the rig, the renderer, the frame engine, a test stub) depends on it, so it
+# carries as little as possible. `metal-schema` is a leaf (serde only) and exists
+# so that the Colourist's input width is the same declaration the digester and
+# the graph use, not a restated 16.
+[dependencies]
+# `std::time::Instant` panics on wasm32-unknown-unknown; `web-time` is std on native.
+web-time = "1"
+metal-schema = { path = "../metal-schema" }

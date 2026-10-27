@@ -1,0 +1,39 @@
+# beamZ2 — the 20-channel beamZ head on the Fiesta Resort rig.
+#
+# Ported from ShowXpress (`fixtures/beamZ2.txt`): the profile is mostly `???`
+# slots, with color, shutter, dimmer, gobo, pan and tilt the only named ones.
+# The desk addresses it as a 20-slot block; the venue declares the floats the
+# simulation can answer, at the slots ShowXpress names them.
+#
+# Slots are 0-based offsets from `address`.
+
+label = "beamZ2 (beam head, 20ch)"
+universe = 0
+address = 1
+
+[limits]
+pan = [-270.0, 270.0]
+tilt = [-135.0, 135.0]
+speed = 120.0
+dimmer = [0.0, 1.0]
+
+[[channel]]
+signal = "hue"
+coarse = 0
+
+[[channel]]
+signal = "strobe"
+coarse = 1
+
+[[channel]]
+signal = "level"
+coarse = 2
+
+[[channel]]
+signal = "pan"
+coarse = 9
+range = [-0.5, 0.5]
+
+[[channel]]
+signal = "tilt"
+coarse = 11

@@ -1,0 +1,53 @@
+# R7 — the older 16-channel 7R moving head on the Fiesta Resort rig.
+#
+# Ported from ShowXpress (`fixtures/R7.txt`): color, strobe/dimmer, dimmer,
+# gobo, prism, prism rotate, NADA, FROST, focus, pan, pan fine, tilt, tilt
+# fine, NADA, RESET, LAMP. The two `NADA` slots and the RESET/LAMP utilities
+# carry no float here, so they are not declared; the head's 16 slots are
+# addressed by the desk as a block and the venue only needs the floats it
+# drives.
+#
+# Synchronous gobo/prism are wheel positions ShowXpress keeps as raw slots;
+# the venue's beam-shaping floats are what the simulation can answer.
+#
+# Slots are 0-based offsets from `address`.
+
+label = "R7 (7R moving head, 16ch)"
+universe = 0
+address = 1
+
+[limits]
+pan = [-270.0, 270.0]
+tilt = [-135.0, 135.0]
+speed = 120.0
+rotation = [0.0, 360.0]
+zoom = [4.0, 60.0]
+dimmer = [0.0, 1.0]
+cct = [1800.0, 10000.0]
+
+[[channel]]
+signal = "strobe"
+coarse = 1
+
+[[channel]]
+signal = "level"
+coarse = 2
+
+[[channel]]
+signal = "frost"
+coarse = 7
+
+[[channel]]
+signal = "focus"
+coarse = 8
+
+[[channel]]
+signal = "pan"
+coarse = 9
+fine = 10
+range = [-0.5, 0.5]
+
+[[channel]]
+signal = "tilt"
+coarse = 11
+fine = 12

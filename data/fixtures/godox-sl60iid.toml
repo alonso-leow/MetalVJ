@@ -1,0 +1,17 @@
+# Godox SL60II D — daylight LED, level only (BLE Phase B).
+#
+# A `wire = "bluetooth"` profile: no DMX slots at all, so no `coarse` on any
+# channel. The profile's job is to say which of the row's `sig_*` floats reach
+# this lamp and over what window; `metal-ble` does the protocol. The SL60II D is
+# fixed at 5600 K, so it has a `level` channel and no `cct` — see
+# `Fixture::light_state`, which hands a `cct_kelvin` of `None` to a profile
+# with no `cct` channel rather than a temperature the lamp cannot honour.
+
+label = "Godox SL60II D"
+wire = "bluetooth"
+
+[bluetooth]
+protocol = "godox-mesh"
+
+[[channel]]
+signal = "level"

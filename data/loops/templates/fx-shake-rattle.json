@@ -1,0 +1,16 @@
+{
+ "id": "fx-shake-rattle",
+ "name": "Rattle",
+ "target": {
+  "effect": "shake"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.0, null, null, null, 0.14, null, null, null, 0.0, null, null, null, 0.7, 0.21, 0.7, 0.21]
+  }
+ ]
+}

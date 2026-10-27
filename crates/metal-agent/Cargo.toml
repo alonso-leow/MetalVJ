@@ -1,0 +1,53 @@
+[package]
+name = "metal-agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+# H.4's `raster` tool needs `metal-forge`, which pulls in `wgpu` (see
+# `metal-dash`'s own `gpu` feature doc for why that is worth gating: a headless
+# build with no adapter should still compile). Off by default would leave
+# `raster` unimplemented on such a build, so this mirrors `metal-dash`'s choice
+# of defaulting it on and letting a no-adapter host opt out explicitly.
+default = ["gpu"]
+gpu = ["dep:metal-forge"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+# S.AH/O.26: `[agent.provider]` in `~/.config/metalvj/config.toml` is
+# the runtime source of truth for the provider's preset/url/model;
+# `config.rs` reads it through this crate (toml/serde only, nothing heavy)
+# and keeps only the key and the voice endpoints in `data/ai.json`.
+metal-config = { path = "../metal-config" }
+# H.4: the tools are thin wrappers over the graph the canvas already edits —
+# `metal-graph` is the pure, `wgpu`-free domain crate both `metal-dash`'s HTTP
+# routes and this crate's tools call into, so there is exactly one
+# implementation of "add a node", "connect two ports", "remove a node".
+metal-graph = { path = "../metal-graph" }
+# Needed only to read `data/schema.json` into the same `NodeKind` catalog
+# `metal-dash`'s `/catalog` route serves — see `node_catalog` in `harness.rs`.
+metal-schema = { path = "../metal-schema" }
+# H.5a: `capture_camera_frame` moved out of here — the real capture lives in
+# `metal_ingest::camera`, a shell-out to ffmpeg with no heavy dependencies.
+metal-ingest = { path = "../metal-ingest" }
+metal-forge = { path = "../metal-forge", optional = true }
+# H.5c: `locate` draws the numbered grid and the final box over real PNGs
+# (camera frame or crop), independent of whether a GPU is present — so it lives
+# here directly and not behind the `gpu` feature like `metal-forge`. Pure pixel
+# decoding, no wgpu involved.
+png = "0.18"
+# Provider presets (Claude/OpenAI/DeepInfra) all point at `https://` URLs, so
+# the outbound client needs TLS for a real turn to reach them. `rustls` with
+# the `ring` provider is what the tree already carries (iroh pulls it in
+# through its QUIC transport); `default-features = false` keeps aws-lc-rs's
+# C toolchain out so the one provider the rest of this crate needs is the
+# one already in `Cargo.lock`. `webpki-roots` supplies the trust store —
+# native-cert parsing (system roots) would pull `rustls-native-certs` and a
+# per-OS story this module does not want to own yet.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "1.0.9"
+
+[dev-dependencies]
+metal-web = { path = "../metal-web" }

@@ -1,0 +1,102 @@
+{
+  "id": "g",
+  "name": "t",
+  "domain": "live",
+  "nodes": [
+    {
+      "id": "bare-0",
+      "kind": "gen.turing",
+      "pos": [
+        0.0,
+        100.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    },
+    {
+      "id": "mask-0",
+      "kind": "mask",
+      "pos": [
+        200.0,
+        0.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": {
+        "device": "wall",
+        "mask": "side"
+      }
+    },
+    {
+      "id": "masked-0",
+      "kind": "gen.turing",
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    },
+    {
+      "id": "out-0",
+      "kind": "output.device",
+      "pos": [
+        800.0,
+        0.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-0",
+      "from": {
+        "node": "masked-0",
+        "port": "image"
+      },
+      "to": {
+        "node": "mask-0",
+        "port": "image"
+      }
+    },
+    {
+      "id": "edge-1",
+      "from": {
+        "node": "mask-0",
+        "port": "image"
+      },
+      "to": {
+        "node": "out-0",
+        "port": "image"
+      }
+    },
+    {
+      "id": "edge-2",
+      "from": {
+        "node": "bare-0",
+        "port": "image"
+      },
+      "to": {
+        "node": "out-0",
+        "port": "image"
+      }
+    }
+  ],
+  "ids": {
+    "next": {
+      "bare": 1,
+      "edge": 3,
+      "mask": 1,
+      "masked": 1,
+      "out": 1
+    }
+  }
+}

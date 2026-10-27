@@ -1,0 +1,25 @@
+{
+ "id": "fx-move-bounce",
+ "name": "Bounce",
+ "target": {
+  "effect": "move"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "y"
+   },
+   "curve": "ramp",
+   "steps": [0.62, 0.566, 0.536, 0.518, 0.62, 0.566, 0.536, 0.518, 0.62, 0.566, 0.536, 0.518, 0.62, 0.566, 0.536, 0.518]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "x"
+   },
+   "curve": "step",
+   "steps": [0.45, null, 0.55, null, 0.45, null, 0.55, null, 0.45, null, 0.55, null, 0.45, null, 0.55, null]
+  }
+ ]
+}

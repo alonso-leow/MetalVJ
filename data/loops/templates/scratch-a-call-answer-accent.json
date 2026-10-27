@@ -1,0 +1,115 @@
+{
+ "id": "scratch-a-call-answer-accent",
+ "name": "Call Answer Accent",
+ "target": {
+  "model": "scratch"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "dispersion"
+   },
+   "curve": "step",
+   "steps": [
+    0.25,
+    null,
+    0.5,
+    null,
+    0.6,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    0.7,
+    null,
+    0.85,
+    null,
+    0.95,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "edge"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.95,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "step",
+   "steps": [
+    0.3,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.6,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "scratchable",
+    "palette": "rays"
+   },
+   "steps": [
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

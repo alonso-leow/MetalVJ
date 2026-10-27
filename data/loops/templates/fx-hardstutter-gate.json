@@ -1,0 +1,59 @@
+{
+ "id": "fx-hardstutter-gate",
+ "name": "Gate",
+ "target": {
+  "effect": "hardstutter"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "fx_hardstutter_cant"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.0,
+    0.0,
+    0.18,
+    0.465,
+    0.585,
+    0.465,
+    0.18,
+    0.0,
+    0.0,
+    0.0,
+    0.18,
+    0.465,
+    0.585,
+    0.465,
+    0.18,
+    0.0
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "fx_hardstutter_duty"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.7222,
+    0.4722,
+    0.3333,
+    0.25,
+    0.7222,
+    0.4722,
+    0.3333,
+    0.25,
+    0.7222,
+    0.4722,
+    0.3333,
+    0.25,
+    0.7222,
+    0.4722,
+    0.3333,
+    0.25
+   ]
+  }
+ ]
+}

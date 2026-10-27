@@ -1,0 +1,16 @@
+{
+ "id": "fx-lorenz-drift",
+ "name": "Drift",
+ "target": {
+  "effect": "lorenz"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "ramp",
+   "steps": [0.1, 0.123, 0.188, 0.285, 0.4, 0.515, 0.612, 0.677, 0.7, 0.677, 0.612, 0.515, 0.4, 0.285, 0.188, 0.123]
+  }
+ ]
+}

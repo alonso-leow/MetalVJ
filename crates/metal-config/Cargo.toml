@@ -1,0 +1,30 @@
+[package]
+name = "metal-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Zero deps except toml/serde (`plan-sonnet.md` § S.AH point 1) — the same
+# argument `metal-schema/Cargo.toml` already makes in writing: the day this crate
+# takes on a dependency with weight (tokio, an HTTP client, wgpu) it can no
+# longer be the first thing that starts (`metal-sync --doctor`,
+# `scripts/check-config`) and the last thing that breaks.
+[dependencies]
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+serde = { workspace = true }
+toml = { workspace = true }
+# `data/palettes.json` — the one materialized output this crate writes — is
+# JSON, not TOML (S.AH point 3, "the file is the authority"), so this is the
+# one addition past `toml`/`serde` the crate doc comment allows: it is still
+# nothing but a serialization format, not a runtime.
+serde_json = { workspace = true }
+# `tick_level` is `metal_schema::TickRate` — the same type the digester, the
+# router and the agent speak, so the machine setting and the notation cannot
+# disagree. `metal-schema` is itself nothing but serde (see its Cargo.toml), so
+# this does not break the crate's "no runtime" rule, only its "no other crate"
+# shape.
+metal-schema = { path = "../metal-schema" }
+
+[dev-dependencies]
+tempfile = "3"

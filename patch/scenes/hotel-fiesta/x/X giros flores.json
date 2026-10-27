@@ -1,0 +1,107 @@
+{
+ "id": "hf-x-x-giros-flores",
+ "name": "X giros flores",
+ "family": "x",
+ "source": "ShowXpress 00-Alonso/X giros flores.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1733314331": {
+     "fixture": "beamz2",
+     "dmx": {
+      "???": 0,
+      "???#2": 255,
+      "???#3": 255,
+      "???#4": 0,
+      "dimmer": 0,
+      "gobo": 239,
+      "pan": 26,
+      "shutter": 255,
+      "tilt": 24
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.102,
+      "tilt": 0.0941,
+      "strobe": 1.0
+     }
+    },
+    "1734364560": {
+     "fixture": "beam-z-2",
+     "dmx": {
+      "???": 0,
+      "???#10": 145,
+      "???#12": 26,
+      "???#13": 0,
+      "???#14": 0,
+      "???#2": 255,
+      "???#3": 0,
+      "???#5": 255,
+      "???#6": 240,
+      "???#7": 222
+     },
+     "floats": {}
+    }
+   }
+  },
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1733314331": {
+     "fixture": "beamz2",
+     "dmx": {
+      "???": 0,
+      "???#2": 255,
+      "???#3": 255,
+      "???#4": 0,
+      "dimmer": 255,
+      "gobo": 239,
+      "pan": 26,
+      "shutter": 255,
+      "tilt": 24
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.102,
+      "tilt": 0.0941,
+      "strobe": 1.0
+     }
+    },
+    "1734364560": {
+     "fixture": "beam-z-2",
+     "dmx": {
+      "???": 0,
+      "???#10": 145,
+      "???#12": 26,
+      "???#13": 0,
+      "???#14": 0,
+      "???#2": 255,
+      "???#3": 255,
+      "???#5": 255,
+      "???#6": 240,
+      "???#7": 222
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1733314331": {
+   "desk_id": "1733314331",
+   "desk_name": "beamZ2",
+   "desk_model": "beamZ2",
+   "fixture": "beamz2",
+   "address": 513
+  },
+  "1734364560": {
+   "desk_id": "1734364560",
+   "desk_name": "beam z 2",
+   "desk_model": "beam z 2",
+   "fixture": "beam-z-2",
+   "address": 533
+  }
+ }
+}

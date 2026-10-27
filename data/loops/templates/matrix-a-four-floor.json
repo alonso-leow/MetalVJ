@@ -1,0 +1,92 @@
+{
+ "id": "matrix-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "matrix"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "pulse"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    0.25,
+    0.25,
+    0.25,
+    0.9,
+    0.25,
+    0.25,
+    0.25,
+    0.9,
+    0.25,
+    0.25,
+    0.25,
+    0.9,
+    0.25,
+    0.25,
+    0.25
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lamp"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    0.9
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

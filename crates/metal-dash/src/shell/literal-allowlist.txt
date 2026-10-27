@@ -1,0 +1,30 @@
+# Gate 2 (plan-opus.md § O.12.d): visual literals outside classes.rs.
+# One exception per line, `<file relative to src/shell/>:<exact substring of the line>`.
+# An entry that excuses nothing fails the gate, so this file cannot rot.
+#
+# 5-oct-2026: the mask stroke's colour now goes through
+# `components::hsb_picker` like every other colour control, so its old
+# `Color32` exceptions are gone.
+#
+# 3-oct-2026 (loops-plan T9): a palette track's swatch is the palette set's
+# own colour (user/template data off `GET /loops/palettes`), not a theme colour.
+panels/properties/loops.rs:egui::Rgba::from_rgb(
+# Test geometry for the new-node spot (`new_node_spot`): plain canvas rects,
+# not visual constants. The expected graph points are the arithmetic under test.
+panels/nodes.rs:let canvas = EguiRect::from_min_size(Pos2::new(10.0, 20.0), Vec2::new(200.0, 100.0));
+panels/nodes.rs:assert_eq!(new_node_spot(canvas, Vec2::new(40.0, 30.0), 2.0), [30.0, 10.0]);
+panels/nodes.rs:let canvas = EguiRect::from_min_size(Pos2::new(5.0, 5.0), Vec2::new(640.0, 480.0));
+# Test geometry for the empty room's scene gestures (`an_empty_room_takes_the_scene_gestures`).
+panels/venue_canvas.rs:screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(1200.0, 900.0))),
+panels/venue_canvas.rs:let rect = Rect::from_min_size(Pos2::new(100.0, 100.0), Vec2::new(600.0, 400.0));
+panels/venue_canvas.rs:vec![Event::PointerMoved(at + Vec2::new(40.0, 0.0))]
+panels/venue_canvas.rs:pos: at + Vec2::new(40.0, 0.0),
+panels/venue_popup.rs:.with_size(Vec2::new(1280.0, 800.0))
+components.rs:let size = galley.size() + Vec2::new(18.0, 8.0);
+components.rs:let radius = egui::CornerRadius::same((size.y / 2.0) as u8);
+components.rs:(theme.accent_vivid, egui::Stroke::new(theme.accent_stroke, theme.phosphor_lit))
+components.rs:(theme.library_card_hover, egui::Stroke::new(theme.hairline, theme.rule_bright))
+components.rs:(theme.inset, egui::Stroke::new(theme.hairline, theme.rule))
+components.rs:let ink = if on { Color32::WHITE } else { theme.ink_weak };
+panels/props_colour.rs:ui.spacing_mut().item_spacing.x = 2.0;
+panels/settings.rs:let col = egui::Color32::from_rgb((c[0] * 255.0) as u8, (c[1] * 255.0) as u8, (c[2] * 255.0) as u8);

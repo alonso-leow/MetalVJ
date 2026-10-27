@@ -1,0 +1,16 @@
+{
+ "id": "fx-fire-blaze",
+ "name": "Blaze",
+ "target": {
+  "effect": "fire"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.06, 0.12, 0.18, 0.24, 0.3, 0.36, 0.42, 0.48, 0.54, 0.6, 0.66, 0.72, 0.78, 0.84, 0.9]
+  }
+ ]
+}

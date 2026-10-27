@@ -1,0 +1,122 @@
+{
+ "id": "hf-humo-humo",
+ "name": "Humo",
+ "family": "humo",
+ "source": "ShowXpress 00-Alonso/Humo.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1747771396": {
+     "fixture": "hurricane-1",
+     "dmx": {
+      "smoke_machine": 255
+     },
+     "floats": {}
+    },
+    "1748452736": {
+     "fixture": "neblina-1",
+     "dmx": {
+      "???": 255
+     },
+     "floats": {}
+    },
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 6,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 6,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1748453032": {
+     "fixture": "hurricane-2",
+     "dmx": {
+      "smoke_machine": 255
+     },
+     "floats": {}
+    },
+    "1748452755": {
+     "fixture": "neblina-2",
+     "dmx": {
+      "???": 255
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1747771396": {
+   "desk_id": "1747771396",
+   "desk_name": "Hurricane 1600",
+   "desk_model": "Hurricane 1600",
+   "fixture": "hurricane-1",
+   "address": 129
+  },
+  "1748452736": {
+   "desk_id": "1748452736",
+   "desk_name": "neblina fria",
+   "desk_model": "neblina fria",
+   "fixture": "neblina-1",
+   "address": 130
+  },
+  "1582984555": {
+   "desk_id": "1582984555",
+   "desk_name": "CABEZA 7 R 1#12",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-12",
+   "address": 177
+  },
+  "1582984556": {
+   "desk_id": "1582984556",
+   "desk_name": "CABEZA 7 R 1#13",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-13",
+   "address": 49
+  },
+  "1748453032": {
+   "desk_id": "1748453032",
+   "desk_name": "Hurricane 1600 #2",
+   "desk_model": "Hurricane 1600",
+   "fixture": "hurricane-2",
+   "address": 131
+  },
+  "1748452755": {
+   "desk_id": "1748452755",
+   "desk_name": "neblina fria 2",
+   "desk_model": "neblina fria 2",
+   "fixture": "neblina-2",
+   "address": 132
+  }
+ }
+}

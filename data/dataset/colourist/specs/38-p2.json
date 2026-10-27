@@ -1,0 +1,1511 @@
+{
+ "part": "38-p2",
+ "model": "smoke",
+ "song": "38 - Please Do Not Lean",
+ "span": [
+  3585,
+  4477
+ ],
+ "kind": "break",
+ "keywords": [
+  "r&b",
+  "slow",
+  "romantic"
+ ],
+ "title": "rose smoke plays the half-time backbeat; guitar and choir carry the break",
+ "story": "Please Do Not Lean feels at 64 BPM (onset lag 30 ticks; the report's 129 BPM is the eighth grid): kick on 1 and 3 (dark, centroid <0.16), snare on 2 and 4 (bright, ~0.27), hats on the off-beat eighths. Each drum has its own carrier: every kick floods the rose smoke (corte down), lifts it and pushes in; every snare flashes the side light with contrast and a short shake; every hat flushes saturation and sharpens the edges; the light and hue step every two beats. After the fill (3842/3857/3871) the drums drop out and the smoke thins to lavender, but it keeps following the music: each guitar note swings the side light to an angle set by its pitch with a contrast flick, and each choir swell thickens the smoke with a warm rose glow. At 4342 the snare comes back and the drum carriers take over again.",
+ "base": {
+  "slot:humo": [
+   0.165,
+   0.059,
+   0.114,
+   1.0,
+   0.29,
+   0.604,
+   0.91,
+   0.627,
+   0.722,
+   1.0,
+   0.894,
+   0.925
+  ],
+  "slot:fondo": [
+   0.025,
+   0.008,
+   0.02,
+   0.025,
+   0.008,
+   0.02,
+   0.025,
+   0.008,
+   0.02,
+   0.025,
+   0.008,
+   0.02
+  ],
+  "softness": 0.08,
+  "swirl": 0.9,
+  "scale": 2.0,
+  "rise": 0.25,
+  "vignette": 0.25
+ },
+ "keys": [
+  {
+   "tick": 3585,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "col_sat": 1.0,
+    "light_direction": 1.2,
+    "col_hue": 0.0,
+    "density": 1.0,
+    "zoom": 0.0,
+    "shake": 0.0,
+    "sharpen": 0.25,
+    "light_leak": 0.0
+   },
+   "why": "span start: rms 0.228, onset 5.08@3586; rose-velvet smoke at rest"
+  },
+  {
+   "tick": 3600,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3602,
+   "set": {
+    "light": 2.0,
+    "col_contrast": 0.6,
+    "shake": 0.3
+   },
+   "why": "SNARE (bright): onset 8.69@3602, centroid 0.270 -> side light flash, contrast, shake"
+  },
+  {
+   "tick": 3608,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3615,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3617,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT (off-beat 8th): onset 7.56@3617, centroid 0.182 -> saturation + crisp edge"
+  },
+  {
+   "tick": 3621,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3628,
+   "set": {
+    "light_direction": 1.2,
+    "col_hue": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3629,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3631,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1,
+    "light_direction": 2.6,
+    "col_hue": 0.045
+   },
+   "why": "KICK (dark): onset 11.75@3631, centroid 0.152 -> smoke floods (corte), lift, push-in; half-bar step (2 beats of 30 ticks at the 64 BPM feel): light swings"
+  },
+  {
+   "tick": 3637,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3645,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3647,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT (off-beat 8th): onset 2.64@3647, centroid 0.158 -> saturation + crisp edge"
+  },
+  {
+   "tick": 3651,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3659,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3661,
+   "set": {
+    "light": 2.0,
+    "col_contrast": 0.6,
+    "shake": 0.3
+   },
+   "why": "SNARE (bright): onset 6.98@3661, centroid 0.267 -> side light flash, contrast, shake"
+  },
+  {
+   "tick": 3667,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3675,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3677,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT (off-beat 8th): onset 4.13@3677, centroid 0.234 -> saturation + crisp edge"
+  },
+  {
+   "tick": 3681,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3684,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3686,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1
+   },
+   "why": "KICK (dark): onset 4.35@3686, centroid 0.130 -> smoke floods (corte), lift, push-in"
+  },
+  {
+   "tick": 3689,
+   "set": {
+    "light_direction": 2.6,
+    "col_hue": 0.045
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3690,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3692,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1,
+    "light_direction": 1.2,
+    "col_hue": 0.0
+   },
+   "why": "KICK (dark): onset 8.49@3692, centroid 0.121 -> smoke floods (corte), lift, push-in; half-bar step (2 beats of 30 ticks at the 64 BPM feel): light swings"
+  },
+  {
+   "tick": 3698,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3705,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3707,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT (off-beat 8th): onset 5.44@3707, centroid 0.202 -> saturation + crisp edge"
+  },
+  {
+   "tick": 3711,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3719,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3721,
+   "set": {
+    "light": 2.0,
+    "col_contrast": 0.6,
+    "shake": 0.3
+   },
+   "why": "SNARE (bright): onset 10.83@3721, centroid 0.280 -> side light flash, contrast, shake"
+  },
+  {
+   "tick": 3727,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3735,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3737,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT (off-beat 8th): onset 4.56@3737, centroid 0.298 -> saturation + crisp edge"
+  },
+  {
+   "tick": 3741,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3749,
+   "set": {
+    "light_direction": 1.2,
+    "col_hue": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3750,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3752,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1,
+    "light_direction": 2.6,
+    "col_hue": 0.045
+   },
+   "why": "KICK (dark): onset 3.87@3752, centroid 0.152 -> smoke floods (corte), lift, push-in; half-bar step (2 beats of 30 ticks at the 64 BPM feel): light swings"
+  },
+  {
+   "tick": 3758,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3765,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3767,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT (off-beat 8th): onset 3.27@3767, centroid 0.197 -> saturation + crisp edge"
+  },
+  {
+   "tick": 3771,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3780,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3782,
+   "set": {
+    "light": 2.0,
+    "col_contrast": 0.6,
+    "shake": 0.3
+   },
+   "why": "SNARE (bright): onset 9.73@3782, centroid 0.270 -> side light flash, contrast, shake"
+  },
+  {
+   "tick": 3788,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3794,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3796,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT (off-beat 8th): onset 5.39@3796, centroid 0.250 -> saturation + crisp edge"
+  },
+  {
+   "tick": 3800,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3804,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3806,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1
+   },
+   "why": "KICK (dark): onset 2.63@3806, centroid 0.138 -> smoke floods (corte), lift, push-in"
+  },
+  {
+   "tick": 3809,
+   "set": {
+    "light_direction": 2.6,
+    "col_hue": 0.045
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3810,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3812,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1,
+    "light_direction": 1.2,
+    "col_hue": 0.0
+   },
+   "why": "KICK (dark): onset 4.35@3812, centroid 0.122 -> smoke floods (corte), lift, push-in; half-bar step (2 beats of 30 ticks at the 64 BPM feel): light swings"
+  },
+  {
+   "tick": 3818,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3825,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3827,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT (off-beat 8th): onset 4.03@3827, centroid 0.200 -> saturation + crisp edge"
+  },
+  {
+   "tick": 3831,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3840,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3842,
+   "set": {
+    "light": 2.0,
+    "col_contrast": 0.6,
+    "shake": 0.3
+   },
+   "why": "SNARE (bright): onset 8.71@3842, centroid 0.273 -> side light flash, contrast, shake"
+  },
+  {
+   "tick": 3848,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3855,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3857,
+   "set": {
+    "light": 2.0,
+    "col_contrast": 0.6,
+    "shake": 0.3
+   },
+   "why": "fill hit 2 (snare-type): onset 8.90@3857, centroid 0.251"
+  },
+  {
+   "tick": 3863,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3868,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "col_hue": 0.0,
+    "col_contrast": 0.1,
+    "light_direction": 1.2
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3871,
+   "set": {
+    "cut": 0.34,
+    "col_bri": 1.4,
+    "col_hue": -0.06,
+    "col_contrast": 0.45
+   },
+   "why": "last hit before the break: onset 9.03@3871, centroid 0.081, STEP- rms 0.232->0.077; billow, hue turns lavender"
+  },
+  {
+   "tick": 3878,
+   "set": {
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "density": 0.8,
+    "light": 1.0,
+    "col_contrast": 0.2,
+    "light_leak": 0.0,
+    "light_direction": 1.2,
+    "col_sat": 1.0
+   },
+   "why": "break: drums out, rms 0.074; thinner lavender smoke, guitar + chorus take over"
+  },
+  {
+   "tick": 3880,
+   "set": {
+    "light_direction": 3.48,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 4.09@3880, centroid 0.080, chroma G# -> light angle 3.48, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 3886,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3887,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3895,
+   "set": {
+    "density": 1.5,
+    "cut": 0.38,
+    "col_bri": 1.3,
+    "light_leak": 0.09
+   },
+   "why": "CHORUS swell: voice level 0.63, rms 0.089@3895 -> smoke thickens and floods (densidad, corte), rose glow"
+  },
+  {
+   "tick": 3909,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3916,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3924,
+   "set": {
+    "density": 1.5,
+    "cut": 0.38,
+    "col_bri": 1.3,
+    "light_leak": 0.09
+   },
+   "why": "CHORUS swell: voice level 0.69, rms 0.119@3924 -> smoke thickens and floods (densidad, corte), rose glow"
+  },
+  {
+   "tick": 3938,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3946,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3954,
+   "set": {
+    "density": 1.5,
+    "cut": 0.38,
+    "col_bri": 1.3,
+    "light_leak": 0.09
+   },
+   "why": "CHORUS swell: voice level 0.69, rms 0.111@3954 -> smoke thickens and floods (densidad, corte), rose glow"
+  },
+  {
+   "tick": 3959,
+   "set": {
+    "light_direction": 3.48,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3961,
+   "set": {
+    "light_direction": 3.48,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 3.31@3961, centroid 0.106, chroma G# -> light angle 3.48, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 3967,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3968,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3976,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 3984,
+   "set": {
+    "density": 1.5,
+    "cut": 0.38,
+    "col_bri": 1.3,
+    "light_leak": 0.09
+   },
+   "why": "CHORUS swell: voice level 0.70, rms 0.108@3984 -> smoke thickens and floods (densidad, corte), rose glow"
+  },
+  {
+   "tick": 3990,
+   "set": {
+    "col_hue": -0.02
+   },
+   "why": "break sway: hue breath per half bar (KEY turns 4002/4106/4121/4240)"
+  },
+  {
+   "tick": 3998,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4027,
+   "set": {
+    "light_direction": 3.48,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4029,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 3.48@4029, centroid 0.100, chroma G -> light angle 3.12, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4035,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4057,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4059,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 3.21@4059, centroid 0.088, chroma G -> light angle 3.12, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4062,
+   "set": {
+    "col_hue": -0.07
+   },
+   "why": "break sway: hue breath per half bar (KEY turns 4002/4106/4121/4240)"
+  },
+  {
+   "tick": 4065,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4087,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4089,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 4.96@4089, centroid 0.082, chroma G -> light angle 3.12, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4095,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4103,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4105,
+   "set": {
+    "light_direction": 0.6,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 3.79@4105, centroid 0.105, chroma C -> light angle 0.6, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4111,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4118,
+   "set": {
+    "light_direction": 0.6,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4120,
+   "set": {
+    "light_direction": 4.2,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 4.27@4120, centroid 0.107, chroma A# -> light angle 4.2, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4121,
+   "set": {
+    "col_hue": -0.02
+   },
+   "why": "break sway: hue breath per half bar (KEY turns 4002/4106/4121/4240)"
+  },
+  {
+   "tick": 4124,
+   "set": {
+    "light_direction": 4.2,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4126,
+   "set": {
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45,
+    "light_direction": 3.12
+   },
+   "why": "GUITAR note: onset 3.43@4126, centroid 0.101, chroma G -> light angle 3.12, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4132,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4155,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4157,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 3.49@4157, centroid 0.096, chroma G -> light angle 3.12, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4163,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4181,
+   "set": {
+    "col_hue": -0.07
+   },
+   "why": "break sway: hue breath per half bar (KEY turns 4002/4106/4121/4240)"
+  },
+  {
+   "tick": 4185,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4187,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 4.28@4187, centroid 0.099, chroma G -> light angle 3.12, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4193,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4208,
+   "set": {
+    "light_direction": 3.12,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4210,
+   "set": {
+    "light_direction": 4.2,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 3.58@4210, centroid 0.117, chroma A# -> light angle 4.2, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4216,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4238,
+   "set": {
+    "light_direction": 4.2,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4240,
+   "set": {
+    "light_direction": 3.48,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45,
+    "col_hue": -0.04
+   },
+   "why": "GUITAR note: onset 3.67@4240, centroid 0.091, chroma G# -> light angle 3.48, light flash, saturation, small bloom; break sway: hue breath per half bar (KEY turns 4002/4106/4121/4240)"
+  },
+  {
+   "tick": 4246,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52,
+    "density": 0.8,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4254,
+   "set": {
+    "density": 1.5,
+    "cut": 0.38,
+    "col_bri": 1.3,
+    "light_leak": 0.09
+   },
+   "why": "CHORUS swell: voice level 0.62, rms 0.076@4254 -> smoke thickens and floods (densidad, corte), rose glow"
+  },
+  {
+   "tick": 4268,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4283,
+   "set": {
+    "light_direction": 3.48,
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4285,
+   "set": {
+    "light_direction": 3.84,
+    "col_contrast": 0.55,
+    "light": 2.0,
+    "col_sat": 1.5,
+    "cut": 0.45
+   },
+   "why": "GUITAR note: onset 3.49@4285, centroid 0.109, chroma A -> light angle 3.84, light flash, saturation, small bloom"
+  },
+  {
+   "tick": 4291,
+   "set": {
+    "col_contrast": 0.2,
+    "light": 1.0,
+    "col_sat": 1.0,
+    "cut": 0.52
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4306,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4314,
+   "set": {
+    "density": 1.5,
+    "cut": 0.38,
+    "col_bri": 1.3,
+    "light_leak": 0.09
+   },
+   "why": "CHORUS swell: voice level 0.60, rms 0.084@4314 -> smoke thickens and floods (densidad, corte), rose glow"
+  },
+  {
+   "tick": 4328,
+   "set": {
+    "density": 0.8,
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "light_leak": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4338,
+   "set": {
+    "cut": 0.52,
+    "col_bri": 0.85,
+    "density": 0.8,
+    "light": 1.0,
+    "col_contrast": 0.2,
+    "light_direction": 3.84,
+    "col_hue": -0.04
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4340,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4342,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "density": 1.0,
+    "col_hue": 0.0,
+    "light_direction": 1.2,
+    "light": 2.0,
+    "col_contrast": 0.6,
+    "shake": 0.3
+   },
+   "why": "drums return: onset 4.54@4342, centroid 0.246, rms 0.07->0.106; SNARE: onset 4.54@4342, centroid 0.246"
+  },
+  {
+   "tick": 4348,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4352,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4354,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT: onset 2.42@4354, centroid 0.158"
+  },
+  {
+   "tick": 4358,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0,
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4360,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1
+   },
+   "why": "KICK: onset 2.27@4360, centroid 0.142"
+  },
+  {
+   "tick": 4366,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4373,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4375,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1
+   },
+   "why": "KICK: onset 2.60@4375, centroid 0.135"
+  },
+  {
+   "tick": 4381,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4387,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4389,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1
+   },
+   "why": "KICK: onset 2.90@4389, centroid 0.152"
+  },
+  {
+   "tick": 4395,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4398,
+   "set": {
+    "light_direction": 1.2
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4399,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4401,
+   "set": {
+    "light": 2.0,
+    "col_contrast": 0.6,
+    "shake": 0.3,
+    "light_direction": 2.6
+   },
+   "why": "SNARE: onset 4.03@4401, centroid 0.358; half-bar step resumes"
+  },
+  {
+   "tick": 4407,
+   "set": {
+    "light": 1.2,
+    "col_contrast": 0.1,
+    "shake": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4425,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4427,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT: onset 1.97@4427, centroid 0.181"
+  },
+  {
+   "tick": 4431,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4448,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4450,
+   "set": {
+    "col_sat": 1.5,
+    "sharpen": 0.55
+   },
+   "why": "HAT: onset 2.47@4450, centroid 0.178"
+  },
+  {
+   "tick": 4454,
+   "set": {
+    "col_sat": 1.0,
+    "sharpen": 0.25
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4461,
+   "set": {
+    "light_direction": 2.6
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4462,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4464,
+   "set": {
+    "cut": 0.3,
+    "col_bri": 1.45,
+    "zoom": 0.1,
+    "light_direction": 1.2
+   },
+   "why": "KICK: onset 5.32@4464, centroid 0.180"
+  },
+  {
+   "tick": 4470,
+   "set": {
+    "cut": 0.46,
+    "col_bri": 1.0,
+    "zoom": 0.0
+   },
+   "why": "hold: rest value so the pulse stays a pulse"
+  },
+  {
+   "tick": 4477,
+   "set": {
+    "col_hue": 0.0
+   },
+   "why": "span end: post-roll steady, rms 0.108"
+  }
+ ]
+}

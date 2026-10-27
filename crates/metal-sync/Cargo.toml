@@ -1,0 +1,43 @@
+[package]
+name = "metal-sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "metal_sync"
+path = "src/lib.rs"
+
+[[bin]]
+name = "metal-sync"
+path = "src/main.rs"
+
+[dependencies]
+metal-graph = { path = "../metal-graph" }
+metal-schema = { path = "../metal-schema" }
+metal-config = { path = "../metal-config" }
+tokio = { version = "1", features = ["full"] }
+# O.7b: the `stun-rs`/`precis_core` conflict that kept this commented out came
+# from `iroh 0.22`. The 1.x line does not depend on either — checked against the
+# crates.io index, not inferred — and its MSRV (1.91) is under the toolchain.
+iroh = "1.2"
+iroh-blobs = "0.103"
+iroh-docs = "0.101"
+iroh-gossip = "0.101"
+# LAN discovery for pairing. 0.6 depends on `iroh = "1.0"`, so it resolves
+# against the 1.2 above — checked with `cargo info`, not assumed.
+iroh-mdns-address-lookup = "0.6"
+rand = "0.10"
+blake3 = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+anyhow = "1"
+futures-lite = "2"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tempfile = "3"

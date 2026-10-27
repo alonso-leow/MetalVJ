@@ -1,0 +1,63 @@
+# CABEZA MOVIL 7R 230 W — the 7R beam/wash head on the Fiesta Resort rig.
+#
+# Ported from the ShowXpress profile of the same name
+# (`LightShows/LightShow_from_V5/fixtures/CABEZA MOVIL 7R 230 W.txt`), whose
+# channel order is white, strobe/dimmer, dimmer, gobo, prism, prism rotate,
+# beam, frost, focus, pan, pan fine, tilt, tilt fine, colour macro, dimmer
+# mode, white balance.
+#
+# ShowXpress addresses this head every 16 channels (`address = 17, 33, 49`),
+# matching the 16 slots below. Slots are 0-based offsets from `address`.
+# The rig's ShowXpress patch reverses some of these heads (`reverse_pan` /
+# `reverse_tilt`); that lives in the venue's pose, not here.
+
+label = "Cabeza Movil 7R 230 W"
+universe = 0
+address = 1
+
+[limits]
+pan = [-270.0, 270.0]
+tilt = [-135.0, 135.0]
+speed = 120.0
+rotation = [0.0, 360.0]
+zoom = [4.0, 60.0]
+dimmer = [0.0, 1.0]
+cct = [1800.0, 10000.0]
+
+# Slot 0 is the white/colour wheel (ShowXpress `white`), a discrete wheel with
+# no float of its own; the head's HSV sits on slots 13-14. Slot 2 is the true
+# dimmer.
+[[channel]]
+signal = "strobe"
+coarse = 1
+
+[[channel]]
+signal = "level"
+coarse = 2
+
+[[channel]]
+signal = "frost"
+coarse = 7
+
+[[channel]]
+signal = "focus"
+coarse = 8
+
+[[channel]]
+signal = "pan"
+coarse = 9
+fine = 10
+range = [-0.5, 0.5]
+
+[[channel]]
+signal = "tilt"
+coarse = 11
+fine = 12
+
+[[channel]]
+signal = "hue"
+coarse = 13
+
+[[channel]]
+signal = "sat"
+coarse = 14

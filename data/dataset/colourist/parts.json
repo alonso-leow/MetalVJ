@@ -1,0 +1,6560 @@
+{
+ "version": 1,
+ "rate": 32,
+ "about": "Parts per song for the Colourist dataset; see scripts/dataset_parts.py and data/dataset/colourist/README.md. Ticks are canonical 32 Hz.",
+ "keyword_songs": {
+  "slow": 12,
+  "edm": 12,
+  "pop": 12,
+  "happy": 11,
+  "hip hop": 10,
+  "smooth": 9,
+  "epic": 8,
+  "romantic": 8,
+  "drums": 7,
+  "hard": 6,
+  "salsa": 6,
+  "old": 6,
+  "merengue": 6,
+  "reggaeton": 5,
+  "dancehall": 5,
+  "bright": 5,
+  "cha cha": 5,
+  "latin": 5,
+  "bachata": 5,
+  "uplift": 5,
+  "elegant": 4,
+  "tribe": 4,
+  "swing": 3,
+  "psychedelic": 3,
+  "r&b": 3,
+  "relax": 2,
+  "cumbia": 2,
+  "afro": 2,
+  "playful": 2,
+  "energetic": 1,
+  "old school": 1,
+  "disco": 1,
+  "fast": 1,
+  "son": 1,
+  "child": 1,
+  "latin pop": 1,
+  "dark": 1,
+  "samba": 1
+ },
+ "keyword_parts": {
+  "happy": 34,
+  "slow": 29,
+  "edm": 26,
+  "pop": 24,
+  "romantic": 19,
+  "hip hop": 18,
+  "drums": 18,
+  "salsa": 17,
+  "reggaeton": 15,
+  "dancehall": 15,
+  "smooth": 14,
+  "epic": 14,
+  "tribe": 13,
+  "uplift": 13,
+  "psychedelic": 11,
+  "bright": 10,
+  "cha cha": 10,
+  "old": 10,
+  "latin": 10,
+  "bachata": 10,
+  "swing": 9,
+  "elegant": 9,
+  "hard": 9,
+  "r&b": 9,
+  "playful": 9,
+  "relax": 8,
+  "cumbia": 8,
+  "afro": 8,
+  "merengue": 6,
+  "energetic": 5,
+  "disco": 5,
+  "fast": 5,
+  "son": 5,
+  "child": 5,
+  "latin pop": 5,
+  "dark": 5,
+  "samba": 5,
+  "old school": 4
+ },
+ "model_songs": {
+  "domain": 3,
+  "corals": 3,
+  "dla": 3,
+  "escape": 3,
+  "ember": 3,
+  "strobe": 3,
+  "cyberspace": 3,
+  "fineline": 3,
+  "entrance": 3,
+  "bulb": 3,
+  "chamber": 3,
+  "ascii": 3,
+  "aurora": 3,
+  "beam": 3,
+  "catenoid": 3,
+  "neuronoise": 2,
+  "smoke": 2,
+  "colorpanels": 2,
+  "flutedglass": 2,
+  "gemsmoke": 2,
+  "simplexnoise": 2,
+  "smokering": 2,
+  "particles": 2,
+  "traffic": 2,
+  "turing": 2,
+  "oracle": 2,
+  "perlinnoise": 2,
+  "dotgrid": 2,
+  "voronoi": 2,
+  "puzzle": 2,
+  "solvent": 2,
+  "scene3d": 2,
+  "imagedithering": 2,
+  "halftonecmyk": 2,
+  "halftonedots": 2,
+  "sheettexture": 2,
+  "scratch": 2,
+  "laser": 2,
+  "dotorbit": 2,
+  "lightning": 2,
+  "moire": 2,
+  "waves": 2,
+  "landscape": 2,
+  "membrane": 2,
+  "parallax-cave": 2,
+  "terrarium": 2,
+  "vaporgrid": 2,
+  "someone": 2,
+  "dithering": 2,
+  "liquidmetal": 2,
+  "meshgradient": 2,
+  "metaballs": 2,
+  "warpcut": 2,
+  "warping": 2,
+  "object": 2,
+  "sandstorm": 2,
+  "stained-glass": 2,
+  "swirl": 2,
+  "fluid": 2,
+  "clouds": 2,
+  "godrays": 2,
+  "graingradient": 2,
+  "heatmap": 2,
+  "fractals": 2,
+  "wake": 2,
+  "parallax-fields": 2,
+  "parallax-sky": 2,
+  "geoterrain": 2,
+  "spiral": 2,
+  "river": 2,
+  "kaleido": 2,
+  "ripples": 2,
+  "rings": 2,
+  "pulsingborder": 2,
+  "water": 2,
+  "room": 2,
+  "parallax-city": 2,
+  "forge": 2
+ },
+ "kinds": {
+  "break": 54,
+  "build-drop": 36,
+  "drop": 23,
+  "intro": 19,
+  "section-change": 18,
+  "outro": 11,
+  "harmonic-change": 9,
+  "bridge": 1
+ },
+ "total_parts": 171,
+ "songs": {
+  "01 - Kybba, Ryan Castro, Sean Paul & Busy Signal - BA BA BAD REMIX (Video Oficial)": {
+   "ticks": 4795,
+   "seconds": 149.8,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 2.89,
+   "tempo_confidence": 0.3287,
+   "bars": 81,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 299,
+     "start_tick": 2,
+     "end_tick": 833,
+     "anomaly_ticks": [
+      240,
+      358
+     ],
+     "seconds": [
+      0.06,
+      26.03
+     ],
+     "score": 1.996,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.8,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.1296,
+      "rms_after": 0.3264,
+      "onset_before": 1.617,
+      "onset_after": 2.561,
+      "rms_step_sd": 2.03,
+      "build_slope": 25.365,
+      "chroma_shift": 0.035
+     },
+     "model": "domain",
+     "id": "01-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 4041,
+     "start_tick": 3803,
+     "end_tick": 4575,
+     "anomaly_ticks": [
+      4041,
+      4099
+     ],
+     "seconds": [
+      118.84,
+      142.97
+     ],
+     "score": 1.967,
+     "novelty": 0.968,
+     "repetitiveness_at_boundary": 0.766,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.3005,
+      "rms_after": 0.139,
+      "onset_before": 2.822,
+      "onset_after": 2.101,
+      "rms_step_sd": -1.67,
+      "build_slope": -0.257,
+      "chroma_shift": 0.033
+     },
+     "model": "neuronoise",
+     "id": "01-p2"
+    }
+   ],
+   "keywords": [
+    "reggaeton"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "02 - Sean Paul - I'm Still In Love With You (Official Video)": {
+   "ticks": 8802,
+   "seconds": 275.1,
+   "bpm": 86.2,
+   "beat_ticks": 22.272,
+   "bar_ticks": 89.088,
+   "grid_phase_tick": 20.16,
+   "tempo_confidence": 0.7099,
+   "bars": 99,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 376,
+     "start_tick": 20,
+     "end_tick": 999,
+     "anomaly_ticks": [
+      109,
+      464
+     ],
+     "seconds": [
+      0.62,
+      31.22
+     ],
+     "score": 2.023,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.838,
+     "repetitiveness_song_median": 0.777,
+     "facts": {
+      "rms_before": 0.0845,
+      "rms_after": 0.1441,
+      "onset_before": 2.344,
+      "onset_after": 1.964,
+      "rms_step_sd": 1.85,
+      "build_slope": -4.297,
+      "chroma_shift": 0.024
+     },
+     "model": "smoke",
+     "id": "02-p1"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 3850,
+     "start_tick": 3405,
+     "end_tick": 4562,
+     "anomaly_ticks": [
+      3761,
+      4028
+     ],
+     "seconds": [
+      106.41,
+      142.56
+     ],
+     "score": 1.138,
+     "novelty": 0.586,
+     "repetitiveness_at_boundary": 0.754,
+     "repetitiveness_song_median": 0.777,
+     "facts": {
+      "rms_before": 0.143,
+      "rms_after": 0.1495,
+      "onset_before": 1.814,
+      "onset_after": 1.922,
+      "rms_step_sd": 0.2,
+      "build_slope": -1.074,
+      "chroma_shift": 0.004
+     },
+     "model": "colorpanels",
+     "id": "02-p2"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 5454,
+     "start_tick": 5098,
+     "end_tick": 6166,
+     "anomaly_ticks": [
+      5454,
+      5631
+     ],
+     "seconds": [
+      159.31,
+      192.69
+     ],
+     "score": 1.041,
+     "novelty": 0.537,
+     "repetitiveness_at_boundary": 0.711,
+     "repetitiveness_song_median": 0.777,
+     "facts": {
+      "rms_before": 0.1502,
+      "rms_after": 0.1394,
+      "onset_before": 2.173,
+      "onset_after": 1.898,
+      "rms_step_sd": -0.33,
+      "build_slope": 0.61,
+      "chroma_shift": 0.015
+     },
+     "model": "flutedglass",
+     "id": "02-p3"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 8216,
+     "start_tick": 7859,
+     "end_tick": 8801,
+     "anomaly_ticks": [
+      8216,
+      8571
+     ],
+     "seconds": [
+      245.59,
+      275.03
+     ],
+     "score": 2.197,
+     "novelty": 0.769,
+     "repetitiveness_at_boundary": 0.623,
+     "repetitiveness_song_median": 0.777,
+     "facts": {
+      "rms_before": 0.147,
+      "rms_after": 0.0647,
+      "onset_before": 2.308,
+      "onset_after": 2.076,
+      "rms_step_sd": -2.55,
+      "build_slope": 2.818,
+      "chroma_shift": 0.032
+     },
+     "model": "gemsmoke",
+     "id": "02-p4"
+    }
+   ],
+   "keywords": [
+    "slow",
+    "relax"
+   ],
+   "budget": 4,
+   "monstruo_allowed": false
+  },
+  "03 - Jungle - Back On 74 (Official Video)": {
+   "ticks": 7693,
+   "seconds": 240.4,
+   "bpm": 143.5,
+   "beat_ticks": 13.376,
+   "bar_ticks": 53.504,
+   "grid_phase_tick": 0.9,
+   "tempo_confidence": 0.4363,
+   "bars": 144,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 1713,
+     "start_tick": 1338,
+     "end_tick": 2193,
+     "anomaly_ticks": [
+      1552,
+      1765
+     ],
+     "seconds": [
+      41.81,
+      68.53
+     ],
+     "score": 1.408,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.872,
+     "repetitiveness_song_median": 0.788,
+     "facts": {
+      "rms_before": 0.2683,
+      "rms_after": 0.2859,
+      "onset_before": 1.968,
+      "onset_after": 1.849,
+      "rms_step_sd": 0.16,
+      "build_slope": -6.146,
+      "chroma_shift": 0.064
+     },
+     "model": "simplexnoise",
+     "id": "03-p1"
+    },
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 3371,
+     "start_tick": 3157,
+     "end_tick": 4012,
+     "anomaly_ticks": [
+      3371,
+      3584
+     ],
+     "seconds": [
+      98.66,
+      125.38
+     ],
+     "score": 1.353,
+     "novelty": 0.764,
+     "repetitiveness_at_boundary": 0.75,
+     "repetitiveness_song_median": 0.788,
+     "facts": {
+      "rms_before": 0.3094,
+      "rms_after": 0.2406,
+      "onset_before": 1.594,
+      "onset_after": 1.113,
+      "rms_step_sd": -0.61,
+      "build_slope": -1.505,
+      "chroma_shift": 0.049
+     },
+     "model": "smokering",
+     "id": "03-p2"
+    },
+    {
+     "kind": "bridge",
+     "boundary_tick": 5458,
+     "start_tick": 5244,
+     "end_tick": 5938,
+     "anomaly_ticks": [
+      5458,
+      5510
+     ],
+     "seconds": [
+      163.88,
+      185.56
+     ],
+     "score": 1.327,
+     "novelty": 0.356,
+     "repetitiveness_at_boundary": 0.834,
+     "repetitiveness_song_median": 0.788,
+     "facts": {
+      "rms_before": 0.2335,
+      "rms_after": 0.0444,
+      "onset_before": 1.055,
+      "onset_after": 0.463,
+      "rms_step_sd": -1.67,
+      "build_slope": -7.449,
+      "chroma_shift": 0.087
+     },
+     "model": "particles",
+     "id": "03-p3"
+    }
+   ],
+   "keywords": [
+    "smooth",
+    "swing"
+   ],
+   "budget": 3,
+   "monstruo_allowed": false
+  },
+  "04 - Pa Curubandé Yo Voy": {
+   "ticks": 11727,
+   "seconds": 366.5,
+   "bpm": 136.1,
+   "beat_ticks": 14.112,
+   "bar_ticks": 56.448,
+   "grid_phase_tick": 0.9,
+   "tempo_confidence": 0.3461,
+   "bars": 208,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 1129,
+     "start_tick": 904,
+     "end_tick": 1749,
+     "anomaly_ticks": [
+      1129,
+      1298
+     ],
+     "seconds": [
+      28.25,
+      54.66
+     ],
+     "score": 1.812,
+     "novelty": 0.612,
+     "repetitiveness_at_boundary": 0.783,
+     "repetitiveness_song_median": 0.784,
+     "facts": {
+      "rms_before": 0.2801,
+      "rms_after": 0.1911,
+      "onset_before": 1.933,
+      "onset_after": 2.134,
+      "rms_step_sd": -2.39,
+      "build_slope": 12.957,
+      "chroma_shift": 0.032
+     },
+     "model": "corals",
+     "id": "04-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 4008,
+     "start_tick": 3782,
+     "end_tick": 4572,
+     "anomaly_ticks": [
+      4008,
+      4120
+     ],
+     "seconds": [
+      118.19,
+      142.88
+     ],
+     "score": 2.208,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.781,
+     "repetitiveness_song_median": 0.784,
+     "facts": {
+      "rms_before": 0.25,
+      "rms_after": 0.1597,
+      "onset_before": 1.796,
+      "onset_after": 2.444,
+      "rms_step_sd": -2.42,
+      "build_slope": -4.537,
+      "chroma_shift": 0.029
+     },
+     "model": "dla",
+     "id": "04-p2"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 10443,
+     "start_tick": 10217,
+     "end_tick": 10950,
+     "anomaly_ticks": [
+      10443,
+      10499
+     ],
+     "seconds": [
+      319.28,
+      342.19
+     ],
+     "score": 1.889,
+     "novelty": 0.747,
+     "repetitiveness_at_boundary": 0.787,
+     "repetitiveness_song_median": 0.784,
+     "facts": {
+      "rms_before": 0.2627,
+      "rms_after": 0.1686,
+      "onset_before": 2.074,
+      "onset_after": 2.423,
+      "rms_step_sd": -2.53,
+      "build_slope": -1.114,
+      "chroma_shift": 0.026
+     },
+     "model": "escape",
+     "id": "04-p3"
+    }
+   ],
+   "keywords": [
+    "elegant",
+    "swing"
+   ],
+   "budget": 3,
+   "monstruo_allowed": false
+  },
+  "05 - I Am Blessed": {
+   "ticks": 5813,
+   "seconds": 181.7,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 9.44,
+   "tempo_confidence": 0.5778,
+   "bars": 98,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 603,
+     "start_tick": 9,
+     "end_tick": 1077,
+     "anomaly_ticks": [
+      484,
+      721
+     ],
+     "seconds": [
+      0.28,
+      33.66
+     ],
+     "score": 1.518,
+     "novelty": 0.686,
+     "repetitiveness_at_boundary": 0.705,
+     "repetitiveness_song_median": 0.811,
+     "facts": {
+      "rms_before": 0.2077,
+      "rms_after": 0.2567,
+      "onset_before": 2.114,
+      "onset_after": 1.817,
+      "rms_step_sd": 0.95,
+      "build_slope": 7.843,
+      "chroma_shift": 0.038
+     },
+     "model": "domain",
+     "id": "05-p1"
+    },
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 1909,
+     "start_tick": 1672,
+     "end_tick": 2324,
+     "anomaly_ticks": [
+      1909,
+      1968
+     ],
+     "seconds": [
+      52.25,
+      72.62
+     ],
+     "score": 1.244,
+     "novelty": 0.854,
+     "repetitiveness_at_boundary": 0.79,
+     "repetitiveness_song_median": 0.811,
+     "facts": {
+      "rms_before": 0.2568,
+      "rms_after": 0.2682,
+      "onset_before": 2.736,
+      "onset_after": 1.735,
+      "rms_step_sd": 0.22,
+      "build_slope": -0.606,
+      "chroma_shift": 0.055
+     },
+     "model": "neuronoise",
+     "id": "05-p2"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 2860,
+     "start_tick": 2622,
+     "end_tick": 3453,
+     "anomaly_ticks": [
+      2860,
+      3096
+     ],
+     "seconds": [
+      81.94,
+      107.91
+     ],
+     "score": 1.645,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.716,
+     "repetitiveness_song_median": 0.811,
+     "facts": {
+      "rms_before": 0.2521,
+      "rms_after": 0.2722,
+      "onset_before": 2.222,
+      "onset_after": 2.229,
+      "rms_step_sd": 0.39,
+      "build_slope": -2.579,
+      "chroma_shift": 0.008
+     },
+     "model": "traffic",
+     "id": "05-p3"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 5770,
+     "start_tick": 5473,
+     "end_tick": 5812,
+     "anomaly_ticks": [
+      5711,
+      5812
+     ],
+     "seconds": [
+      171.03,
+      181.62
+     ],
+     "score": 1.346,
+     "novelty": 0.759,
+     "repetitiveness_at_boundary": 0.369,
+     "repetitiveness_song_median": 0.811,
+     "facts": {
+      "rms_before": 0.1406,
+      "rms_after": 0.0,
+      "onset_before": 1.47,
+      "onset_after": 0.0,
+      "rms_step_sd": -2.74,
+      "build_slope": -28.413,
+      "chroma_shift": 1.0
+     },
+     "model": "turing",
+     "id": "05-p4"
+    }
+   ],
+   "keywords": [
+    "relax",
+    "dancehall"
+   ],
+   "budget": 4,
+   "monstruo_allowed": false
+  },
+  "06 - Fever": {
+   "ticks": 6545,
+   "seconds": 204.5,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 12.66,
+   "tempo_confidence": 0.7113,
+   "bars": 110,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 72,
+     "start_tick": 12,
+     "end_tick": 783,
+     "anomaly_ticks": [
+      12,
+      308
+     ],
+     "seconds": [
+      0.38,
+      24.47
+     ],
+     "score": 1.441,
+     "novelty": 0.324,
+     "repetitiveness_at_boundary": 0.753,
+     "repetitiveness_song_median": 0.791,
+     "facts": {
+      "rms_before": 0.2712,
+      "rms_after": 0.1594,
+      "onset_before": 2.286,
+      "onset_after": 2.429,
+      "rms_step_sd": -1.57,
+      "build_slope": 0.0,
+      "chroma_shift": 0.044
+     },
+     "model": "oracle",
+     "id": "06-p1"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 5654,
+     "start_tick": 5417,
+     "end_tick": 6366,
+     "anomaly_ticks": [
+      5654,
+      5891
+     ],
+     "seconds": [
+      169.28,
+      198.94
+     ],
+     "score": 1.759,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.668,
+     "repetitiveness_song_median": 0.791,
+     "facts": {
+      "rms_before": 0.3309,
+      "rms_after": 0.2856,
+      "onset_before": 2.16,
+      "onset_after": 1.086,
+      "rms_step_sd": -0.63,
+      "build_slope": -2.938,
+      "chroma_shift": 0.013
+     },
+     "model": "perlinnoise",
+     "id": "06-p2"
+    }
+   ],
+   "keywords": [
+    "dancehall",
+    "hard"
+   ],
+   "budget": 2,
+   "monstruo_allowed": true
+  },
+  "07 - Who Am I": {
+   "ticks": 6296,
+   "seconds": 196.8,
+   "bpm": 172.4,
+   "beat_ticks": 11.136,
+   "bar_ticks": 44.544,
+   "grid_phase_tick": 3.12,
+   "tempo_confidence": 0.4034,
+   "bars": 141,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 359,
+     "start_tick": 3,
+     "end_tick": 892,
+     "anomaly_ticks": [
+      359,
+      536
+     ],
+     "seconds": [
+      0.09,
+      27.88
+     ],
+     "score": 1.934,
+     "novelty": 0.271,
+     "repetitiveness_at_boundary": 0.7,
+     "repetitiveness_song_median": 0.785,
+     "facts": {
+      "rms_before": 0.1047,
+      "rms_after": 0.2552,
+      "onset_before": 1.914,
+      "onset_after": 1.542,
+      "rms_step_sd": 2.97,
+      "build_slope": 3.861,
+      "chroma_shift": 0.024
+     },
+     "model": "simplexnoise",
+     "id": "07-p1"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 5882,
+     "start_tick": 5526,
+     "end_tick": 6282,
+     "anomaly_ticks": [
+      5882,
+      5926
+     ],
+     "seconds": [
+      172.69,
+      196.31
+     ],
+     "score": 1.655,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.759,
+     "repetitiveness_song_median": 0.785,
+     "facts": {
+      "rms_before": 0.221,
+      "rms_after": 0.2751,
+      "onset_before": 2.128,
+      "onset_after": 2.132,
+      "rms_step_sd": 1.07,
+      "build_slope": 0.685,
+      "chroma_shift": 0.01
+     },
+     "model": "smokering",
+     "id": "07-p2"
+    }
+   ],
+   "keywords": [
+    "epic",
+    "dancehall"
+   ],
+   "budget": 2,
+   "monstruo_allowed": true
+  },
+  "08 - Willie Bounce": {
+   "ticks": 8018,
+   "seconds": 250.6,
+   "bpm": 117.4,
+   "beat_ticks": 16.352,
+   "bar_ticks": 65.408,
+   "grid_phase_tick": 12.39,
+   "tempo_confidence": 0.2245,
+   "bars": 122,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 470,
+     "start_tick": 12,
+     "end_tick": 927,
+     "anomaly_ticks": [
+      274,
+      534
+     ],
+     "seconds": [
+      0.38,
+      28.97
+     ],
+     "score": 1.637,
+     "novelty": 0.367,
+     "repetitiveness_at_boundary": 0.722,
+     "repetitiveness_song_median": 0.763,
+     "facts": {
+      "rms_before": 0.229,
+      "rms_after": 0.331,
+      "onset_before": 2.298,
+      "onset_after": 1.883,
+      "rms_step_sd": 2.1,
+      "build_slope": 8.382,
+      "chroma_shift": 0.04
+     },
+     "model": "oracle",
+     "id": "08-p1"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 3609,
+     "start_tick": 3217,
+     "end_tick": 4132,
+     "anomaly_ticks": [
+      3479,
+      3739
+     ],
+     "seconds": [
+      100.53,
+      129.12
+     ],
+     "score": 1.876,
+     "novelty": 0.914,
+     "repetitiveness_at_boundary": 0.715,
+     "repetitiveness_song_median": 0.763,
+     "facts": {
+      "rms_before": 0.2748,
+      "rms_after": 0.3366,
+      "onset_before": 2.125,
+      "onset_after": 2.335,
+      "rms_step_sd": 1.27,
+      "build_slope": -12.95,
+      "chroma_shift": 0.062
+     },
+     "model": "dotgrid",
+     "id": "08-p2"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 4787,
+     "start_tick": 4329,
+     "end_tick": 5244,
+     "anomaly_ticks": [
+      4590,
+      4851
+     ],
+     "seconds": [
+      135.28,
+      163.88
+     ],
+     "score": 1.869,
+     "novelty": 0.885,
+     "repetitiveness_at_boundary": 0.728,
+     "repetitiveness_song_median": 0.763,
+     "facts": {
+      "rms_before": 0.2643,
+      "rms_after": 0.3449,
+      "onset_before": 1.985,
+      "onset_after": 1.969,
+      "rms_step_sd": 1.66,
+      "build_slope": -7.509,
+      "chroma_shift": 0.053
+     },
+     "model": "voronoi",
+     "id": "08-p3"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 6422,
+     "start_tick": 6160,
+     "end_tick": 6879,
+     "anomaly_ticks": [
+      6422,
+      6486
+     ],
+     "seconds": [
+      192.5,
+      214.97
+     ],
+     "score": 1.599,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.768,
+     "repetitiveness_song_median": 0.763,
+     "facts": {
+      "rms_before": 0.2897,
+      "rms_after": 0.3254,
+      "onset_before": 2.405,
+      "onset_after": 1.969,
+      "rms_step_sd": 0.74,
+      "build_slope": -2.562,
+      "chroma_shift": 0.017
+     },
+     "model": "puzzle",
+     "id": "08-p4"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 7272,
+     "start_tick": 7011,
+     "end_tick": 7729,
+     "anomaly_ticks": [
+      7272,
+      7337
+     ],
+     "seconds": [
+      219.09,
+      241.53
+     ],
+     "score": 1.997,
+     "novelty": 0.984,
+     "repetitiveness_at_boundary": 0.664,
+     "repetitiveness_song_median": 0.763,
+     "facts": {
+      "rms_before": 0.3355,
+      "rms_after": 0.2465,
+      "onset_before": 2.109,
+      "onset_after": 2.324,
+      "rms_step_sd": -1.84,
+      "build_slope": -7.792,
+      "chroma_shift": 0.016
+     },
+     "model": "solvent",
+     "id": "08-p5"
+    }
+   ],
+   "keywords": [
+    "energetic",
+    "happy",
+    "dancehall"
+   ],
+   "budget": 5,
+   "monstruo_allowed": true
+  },
+  "09 - Can I Kick It？": {
+   "ticks": 8052,
+   "seconds": 251.6,
+   "bpm": 95.7,
+   "beat_ticks": 20.064,
+   "bar_ticks": 80.256,
+   "grid_phase_tick": 9.33,
+   "tempo_confidence": 0.4343,
+   "bars": 100,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 651,
+     "start_tick": 9,
+     "end_tick": 1212,
+     "anomaly_ticks": [
+      410,
+      730
+     ],
+     "seconds": [
+      0.28,
+      37.88
+     ],
+     "score": 2.046,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.879,
+     "repetitiveness_song_median": 0.802,
+     "facts": {
+      "rms_before": 0.1513,
+      "rms_after": 0.2832,
+      "onset_before": 1.331,
+      "onset_after": 2.214,
+      "rms_step_sd": 2.02,
+      "build_slope": 2.912,
+      "chroma_shift": 0.02
+     },
+     "model": "scene3d",
+     "id": "09-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 3460,
+     "start_tick": 3139,
+     "end_tick": 4021,
+     "anomaly_ticks": [
+      3460,
+      3539
+     ],
+     "seconds": [
+      98.09,
+      125.66
+     ],
+     "score": 1.986,
+     "novelty": 0.842,
+     "repetitiveness_at_boundary": 0.784,
+     "repetitiveness_song_median": 0.802,
+     "facts": {
+      "rms_before": 0.2787,
+      "rms_after": 0.157,
+      "onset_before": 1.7,
+      "onset_after": 1.4,
+      "rms_step_sd": -1.87,
+      "build_slope": 3.331,
+      "chroma_shift": 0.05
+     },
+     "model": "imagedithering",
+     "id": "09-p2"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 5065,
+     "start_tick": 4664,
+     "end_tick": 5626,
+     "anomaly_ticks": [
+      4985,
+      5144
+     ],
+     "seconds": [
+      145.75,
+      175.81
+     ],
+     "score": 1.147,
+     "novelty": 0.377,
+     "repetitiveness_at_boundary": 0.758,
+     "repetitiveness_song_median": 0.802,
+     "facts": {
+      "rms_before": 0.3194,
+      "rms_after": 0.2542,
+      "onset_before": 1.973,
+      "onset_after": 2.319,
+      "rms_step_sd": -1.0,
+      "build_slope": -2.102,
+      "chroma_shift": 0.015
+     },
+     "model": "traffic",
+     "id": "09-p3"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6991,
+     "start_tick": 6670,
+     "end_tick": 7793,
+     "anomaly_ticks": [
+      6991,
+      7311
+     ],
+     "seconds": [
+      208.44,
+      243.53
+     ],
+     "score": 1.806,
+     "novelty": 0.724,
+     "repetitiveness_at_boundary": 0.804,
+     "repetitiveness_song_median": 0.802,
+     "facts": {
+      "rms_before": 0.2704,
+      "rms_after": 0.1462,
+      "onset_before": 1.69,
+      "onset_after": 1.238,
+      "rms_step_sd": -1.91,
+      "build_slope": 0.26,
+      "chroma_shift": 0.05
+     },
+     "model": "turing",
+     "id": "09-p4"
+    }
+   ],
+   "keywords": [
+    "old school",
+    "hip hop"
+   ],
+   "budget": 5,
+   "monstruo_allowed": true
+  },
+  "10 - Supernature (Edit)": {
+   "ticks": 8395,
+   "seconds": 262.3,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 4.58,
+   "tempo_confidence": 0.7466,
+   "bars": 134,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 129,
+     "start_tick": 4,
+     "end_tick": 565,
+     "anomaly_ticks": [
+      4,
+      190
+     ],
+     "seconds": [
+      0.12,
+      17.66
+     ],
+     "score": 1.839,
+     "novelty": 0.729,
+     "repetitiveness_at_boundary": 0.783,
+     "repetitiveness_song_median": 0.812,
+     "facts": {
+      "rms_before": 0.1254,
+      "rms_after": 0.2033,
+      "onset_before": 4.069,
+      "onset_after": 2.462,
+      "rms_step_sd": 1.8,
+      "build_slope": 0.0,
+      "chroma_shift": 0.005
+     },
+     "model": "halftonecmyk",
+     "id": "10-p1"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 2378,
+     "start_tick": 2128,
+     "end_tick": 2876,
+     "anomaly_ticks": [
+      2378,
+      2502
+     ],
+     "seconds": [
+      66.5,
+      89.88
+     ],
+     "score": 1.491,
+     "novelty": 0.964,
+     "repetitiveness_at_boundary": 0.788,
+     "repetitiveness_song_median": 0.812,
+     "facts": {
+      "rms_before": 0.2321,
+      "rms_after": 0.256,
+      "onset_before": 2.211,
+      "onset_after": 2.046,
+      "rms_step_sd": 0.55,
+      "build_slope": 2.729,
+      "chroma_shift": 0.009
+     },
+     "model": "halftonedots",
+     "id": "10-p2"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 3252,
+     "start_tick": 2940,
+     "end_tick": 3688,
+     "anomaly_ticks": [
+      3190,
+      3314
+     ],
+     "seconds": [
+      91.88,
+      115.25
+     ],
+     "score": 1.379,
+     "novelty": 0.754,
+     "repetitiveness_at_boundary": 0.776,
+     "repetitiveness_song_median": 0.812,
+     "facts": {
+      "rms_before": 0.2473,
+      "rms_after": 0.2192,
+      "onset_before": 2.0,
+      "onset_after": 2.159,
+      "rms_step_sd": -0.65,
+      "build_slope": 1.943,
+      "chroma_shift": 0.018
+     },
+     "model": "sheettexture",
+     "id": "10-p3"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 6750,
+     "start_tick": 6500,
+     "end_tick": 7311,
+     "anomaly_ticks": [
+      6750,
+      6937
+     ],
+     "seconds": [
+      203.12,
+      228.47
+     ],
+     "score": 1.461,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.79,
+     "repetitiveness_song_median": 0.812,
+     "facts": {
+      "rms_before": 0.2572,
+      "rms_after": 0.2543,
+      "onset_before": 2.172,
+      "onset_after": 2.153,
+      "rms_step_sd": -0.07,
+      "build_slope": 5.285,
+      "chroma_shift": 0.025
+     },
+     "model": "scratch",
+     "id": "10-p4"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 7937,
+     "start_tick": 7687,
+     "end_tick": 8373,
+     "anomaly_ticks": [
+      7937,
+      7998
+     ],
+     "seconds": [
+      240.22,
+      261.66
+     ],
+     "score": 1.341,
+     "novelty": 0.251,
+     "repetitiveness_at_boundary": 0.741,
+     "repetitiveness_song_median": 0.812,
+     "facts": {
+      "rms_before": 0.2603,
+      "rms_after": 0.1633,
+      "onset_before": 1.833,
+      "onset_after": 1.699,
+      "rms_step_sd": -2.24,
+      "build_slope": 4.246,
+      "chroma_shift": 0.001
+     },
+     "model": "laser",
+     "id": "10-p5"
+    }
+   ],
+   "keywords": [
+    "psychedelic",
+    "disco",
+    "edm"
+   ],
+   "budget": 5,
+   "monstruo_allowed": false
+  },
+  "11 - N95": {
+   "ticks": 6272,
+   "seconds": 196.0,
+   "bpm": 136.1,
+   "beat_ticks": 14.112,
+   "bar_ticks": 56.448,
+   "grid_phase_tick": 9.52,
+   "tempo_confidence": 0.6485,
+   "bars": 111,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 3960,
+     "start_tick": 3735,
+     "end_tick": 4467,
+     "anomaly_ticks": [
+      3960,
+      4016
+     ],
+     "seconds": [
+      116.72,
+      139.59
+     ],
+     "score": 1.467,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.786,
+     "repetitiveness_song_median": 0.769,
+     "facts": {
+      "rms_before": 0.2473,
+      "rms_after": 0.2852,
+      "onset_before": 1.293,
+      "onset_after": 2.375,
+      "rms_step_sd": 0.53,
+      "build_slope": 8.459,
+      "chroma_shift": 0.1
+     },
+     "model": "dotorbit",
+     "id": "11-p1"
+    }
+   ],
+   "keywords": [
+    "epic",
+    "hip hop",
+    "hard"
+   ],
+   "budget": 1,
+   "monstruo_allowed": true
+  },
+  "12 - Aguanile": {
+   "ticks": 11813,
+   "seconds": 369.2,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 8.01,
+   "tempo_confidence": 0.4478,
+   "bars": 199,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 2740,
+     "start_tick": 2086,
+     "end_tick": 3154,
+     "anomaly_ticks": [
+      2561,
+      2798
+     ],
+     "seconds": [
+      65.19,
+      98.56
+     ],
+     "score": 1.576,
+     "novelty": 0.812,
+     "repetitiveness_at_boundary": 0.792,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.1505,
+      "rms_after": 0.2212,
+      "onset_before": 2.157,
+      "onset_after": 1.906,
+      "rms_step_sd": 1.06,
+      "build_slope": 9.937,
+      "chroma_shift": 0.061
+     },
+     "model": "lightning",
+     "id": "12-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6006,
+     "start_tick": 5769,
+     "end_tick": 6421,
+     "anomaly_ticks": [
+      6006,
+      6064
+     ],
+     "seconds": [
+      180.28,
+      200.66
+     ],
+     "score": 2.109,
+     "novelty": 0.849,
+     "repetitiveness_at_boundary": 0.723,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.2316,
+      "rms_after": 0.0545,
+      "onset_before": 1.856,
+      "onset_after": 2.75,
+      "rms_step_sd": -2.66,
+      "build_slope": 5.896,
+      "chroma_shift": 0.025
+     },
+     "model": "ember",
+     "id": "12-p2"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 7669,
+     "start_tick": 7432,
+     "end_tick": 8143,
+     "anomaly_ticks": [
+      7669,
+      7787
+     ],
+     "seconds": [
+      232.25,
+      254.47
+     ],
+     "score": 1.658,
+     "novelty": 0.709,
+     "repetitiveness_at_boundary": 0.829,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.084,
+      "rms_after": 0.199,
+      "onset_before": 3.887,
+      "onset_after": 1.945,
+      "rms_step_sd": 1.73,
+      "build_slope": -7.921,
+      "chroma_shift": 0.03
+     },
+     "model": "corals",
+     "id": "12-p3"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 10579,
+     "start_tick": 10342,
+     "end_tick": 11053,
+     "anomaly_ticks": [
+      10579,
+      10697
+     ],
+     "seconds": [
+      323.19,
+      345.41
+     ],
+     "score": 1.664,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.79,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.1926,
+      "rms_after": 0.2358,
+      "onset_before": 2.45,
+      "onset_after": 1.296,
+      "rms_step_sd": 0.65,
+      "build_slope": -4.174,
+      "chroma_shift": 0.012
+     },
+     "model": "dla",
+     "id": "12-p4"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 11411,
+     "start_tick": 11173,
+     "end_tick": 11812,
+     "anomaly_ticks": [
+      11411,
+      11647
+     ],
+     "seconds": [
+      349.16,
+      369.12
+     ],
+     "score": 1.645,
+     "novelty": 0.465,
+     "repetitiveness_at_boundary": 0.717,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.2268,
+      "rms_after": 0.0831,
+      "onset_before": 1.352,
+      "onset_after": 1.426,
+      "rms_step_sd": -2.16,
+      "build_slope": 0.286,
+      "chroma_shift": 0.008
+     },
+     "model": "strobe",
+     "id": "12-p5"
+    }
+   ],
+   "keywords": [
+    "salsa",
+    "epic",
+    "fast"
+   ],
+   "budget": 5,
+   "monstruo_allowed": false
+  },
+  "13 - Oyelo Que Te Conviene (canta： Lalo Rodriguez)": {
+   "ticks": 12411,
+   "seconds": 387.8,
+   "bpm": 136.1,
+   "beat_ticks": 14.112,
+   "bar_ticks": 56.448,
+   "grid_phase_tick": 10.41,
+   "tempo_confidence": 0.4829,
+   "bars": 220,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 66,
+     "start_tick": 10,
+     "end_tick": 743,
+     "anomaly_ticks": [
+      10,
+      291
+     ],
+     "seconds": [
+      0.31,
+      23.22
+     ],
+     "score": 1.471,
+     "novelty": 0.685,
+     "repetitiveness_at_boundary": 0.809,
+     "repetitiveness_song_median": 0.832,
+     "facts": {
+      "rms_before": 0.1646,
+      "rms_after": 0.1512,
+      "onset_before": 3.329,
+      "onset_after": 2.311,
+      "rms_step_sd": -0.53,
+      "build_slope": 0.0,
+      "chroma_shift": 0.066
+     },
+     "model": "moire",
+     "id": "13-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6784,
+     "start_tick": 6389,
+     "end_tick": 7460,
+     "anomaly_ticks": [
+      6614,
+      7008
+     ],
+     "seconds": [
+      199.66,
+      233.12
+     ],
+     "score": 1.824,
+     "novelty": 0.747,
+     "repetitiveness_at_boundary": 0.751,
+     "repetitiveness_song_median": 0.832,
+     "facts": {
+      "rms_before": 0.1948,
+      "rms_after": 0.1631,
+      "onset_before": 1.8,
+      "onset_after": 2.133,
+      "rms_step_sd": -1.24,
+      "build_slope": 1.198,
+      "chroma_shift": 0.101
+     },
+     "model": "waves",
+     "id": "13-p2"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 12203,
+     "start_tick": 11808,
+     "end_tick": 12410,
+     "anomaly_ticks": [
+      12033,
+      12410
+     ],
+     "seconds": [
+      369.0,
+      387.81
+     ],
+     "score": 1.549,
+     "novelty": 0.861,
+     "repetitiveness_at_boundary": 0.583,
+     "repetitiveness_song_median": 0.832,
+     "facts": {
+      "rms_before": 0.1826,
+      "rms_after": 0.0444,
+      "onset_before": 1.252,
+      "onset_after": 0.494,
+      "rms_step_sd": -5.42,
+      "build_slope": -1.875,
+      "chroma_shift": 0.116
+     },
+     "model": "landscape",
+     "id": "13-p3"
+    }
+   ],
+   "keywords": [
+    "smooth",
+    "swing",
+    "salsa"
+   ],
+   "budget": 3,
+   "monstruo_allowed": false
+  },
+  "14 - Fuego a la Jicotea": {
+   "ticks": 6449,
+   "seconds": 201.5,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 10.42,
+   "tempo_confidence": 0.5497,
+   "bars": 108,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 3336,
+     "start_tick": 3039,
+     "end_tick": 3869,
+     "anomaly_ticks": [
+      3276,
+      3394
+     ],
+     "seconds": [
+      94.97,
+      120.91
+     ],
+     "score": 1.767,
+     "novelty": 0.873,
+     "repetitiveness_at_boundary": 0.797,
+     "repetitiveness_song_median": 0.781,
+     "facts": {
+      "rms_before": 0.184,
+      "rms_after": 0.1474,
+      "onset_before": 2.105,
+      "onset_after": 2.253,
+      "rms_step_sd": -1.34,
+      "build_slope": 0.095,
+      "chroma_shift": 0.01
+     },
+     "model": "membrane",
+     "id": "14-p1"
+    }
+   ],
+   "keywords": [
+    "salsa",
+    "smooth"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "15 - Descarga De La Luz": {
+   "ticks": 12135,
+   "seconds": 379.2,
+   "bpm": 112.4,
+   "beat_ticks": 17.088,
+   "bar_ticks": 68.352,
+   "grid_phase_tick": 5.71,
+   "tempo_confidence": 0.3733,
+   "bars": 177,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 279,
+     "start_tick": 5,
+     "end_tick": 961,
+     "anomaly_ticks": [
+      74,
+      414
+     ],
+     "seconds": [
+      0.16,
+      30.03
+     ],
+     "score": 2.105,
+     "novelty": 0.559,
+     "repetitiveness_at_boundary": 0.787,
+     "repetitiveness_song_median": 0.8,
+     "facts": {
+      "rms_before": 0.0632,
+      "rms_after": 0.1338,
+      "onset_before": 1.879,
+      "onset_after": 1.856,
+      "rms_step_sd": 3.53,
+      "build_slope": 4.605,
+      "chroma_shift": 0.058
+     },
+     "model": "parallax-cave",
+     "id": "15-p1"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 11147,
+     "start_tick": 10873,
+     "end_tick": 11829,
+     "anomaly_ticks": [
+      11147,
+      11282
+     ],
+     "seconds": [
+      339.78,
+      369.66
+     ],
+     "score": 1.767,
+     "novelty": 0.405,
+     "repetitiveness_at_boundary": 0.702,
+     "repetitiveness_song_median": 0.8,
+     "facts": {
+      "rms_before": 0.1099,
+      "rms_after": 0.1578,
+      "onset_before": 1.84,
+      "onset_after": 1.772,
+      "rms_step_sd": 2.39,
+      "build_slope": -8.472,
+      "chroma_shift": 0.045
+     },
+     "model": "terrarium",
+     "id": "15-p2"
+    }
+   ],
+   "keywords": [
+    "happy",
+    "salsa",
+    "bright"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "16 - Pa' Que Retozen": {
+   "ticks": 4855,
+   "seconds": 151.7,
+   "bpm": 99.3,
+   "beat_ticks": 19.328,
+   "bar_ticks": 77.312,
+   "grid_phase_tick": 10.87,
+   "tempo_confidence": 0.5494,
+   "bars": 63,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 629,
+     "start_tick": 10,
+     "end_tick": 1324,
+     "anomaly_ticks": [
+      629,
+      705
+     ],
+     "seconds": [
+      0.31,
+      41.38
+     ],
+     "score": 1.908,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.803,
+     "repetitiveness_song_median": 0.755,
+     "facts": {
+      "rms_before": 0.1935,
+      "rms_after": 0.2755,
+      "onset_before": 1.849,
+      "onset_after": 2.668,
+      "rms_step_sd": 1.8,
+      "build_slope": 13.756,
+      "chroma_shift": 0.027
+     },
+     "model": "ember",
+     "id": "16-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 3335,
+     "start_tick": 3026,
+     "end_tick": 4107,
+     "anomaly_ticks": [
+      3335,
+      3488
+     ],
+     "seconds": [
+      94.56,
+      128.34
+     ],
+     "score": 1.765,
+     "novelty": 0.943,
+     "repetitiveness_at_boundary": 0.656,
+     "repetitiveness_song_median": 0.755,
+     "facts": {
+      "rms_before": 0.2885,
+      "rms_after": 0.2413,
+      "onset_before": 2.386,
+      "onset_after": 2.366,
+      "rms_step_sd": -1.04,
+      "build_slope": 2.86,
+      "chroma_shift": 0.022
+     },
+     "model": "cyberspace",
+     "id": "16-p2"
+    }
+   ],
+   "keywords": [
+    "hip hop",
+    "reggaeton"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "17 - La Cura": {
+   "ticks": 9536,
+   "seconds": 298.0,
+   "bpm": 95.7,
+   "beat_ticks": 20.064,
+   "bar_ticks": 80.256,
+   "grid_phase_tick": 7.92,
+   "tempo_confidence": 0.4043,
+   "bars": 119,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 168,
+     "start_tick": 7,
+     "end_tick": 969,
+     "anomaly_ticks": [
+      168,
+      327
+     ],
+     "seconds": [
+      0.22,
+      30.28
+     ],
+     "score": 1.911,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.732,
+     "repetitiveness_song_median": 0.767,
+     "facts": {
+      "rms_before": 0.104,
+      "rms_after": 0.1353,
+      "onset_before": 2.629,
+      "onset_after": 1.839,
+      "rms_step_sd": 1.36,
+      "build_slope": 0.0,
+      "chroma_shift": 0.028
+     },
+     "model": "fineline",
+     "id": "17-p1"
+    }
+   ],
+   "keywords": [
+    "salsa",
+    "smooth",
+    "slow"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "18 - Watch Out!": {
+   "ticks": 11416,
+   "seconds": 356.8,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 12.96,
+   "tempo_confidence": 0.2305,
+   "bars": 183,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 9507,
+     "start_tick": 9257,
+     "end_tick": 10068,
+     "anomaly_ticks": [
+      9507,
+      9568
+     ],
+     "seconds": [
+      289.28,
+      314.62
+     ],
+     "score": 2.072,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.805,
+     "repetitiveness_song_median": 0.837,
+     "facts": {
+      "rms_before": 0.1444,
+      "rms_after": 0.0824,
+      "onset_before": 1.536,
+      "onset_after": 2.349,
+      "rms_step_sd": -2.16,
+      "build_slope": -3.502,
+      "chroma_shift": 0.022
+     },
+     "model": "dotgrid",
+     "id": "18-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 10881,
+     "start_tick": 10631,
+     "end_tick": 11415,
+     "anomaly_ticks": [
+      10881,
+      11068
+     ],
+     "seconds": [
+      332.22,
+      356.72
+     ],
+     "score": 2.023,
+     "novelty": 0.93,
+     "repetitiveness_at_boundary": 0.832,
+     "repetitiveness_song_median": 0.837,
+     "facts": {
+      "rms_before": 0.1318,
+      "rms_after": 0.0738,
+      "onset_before": 1.634,
+      "onset_after": 1.988,
+      "rms_step_sd": -2.02,
+      "build_slope": 2.868,
+      "chroma_shift": 0.011
+     },
+     "model": "puzzle",
+     "id": "18-p2"
+    }
+   ],
+   "keywords": [
+    "cha cha",
+    "old",
+    "latin"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "19 - El Diablo": {
+   "ticks": 10292,
+   "seconds": 321.6,
+   "bpm": 112.4,
+   "beat_ticks": 17.088,
+   "bar_ticks": 68.352,
+   "grid_phase_tick": 9.96,
+   "tempo_confidence": 0.3329,
+   "bars": 150,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 5136,
+     "start_tick": 4862,
+     "end_tick": 5750,
+     "anomaly_ticks": [
+      5136,
+      5203
+     ],
+     "seconds": [
+      151.94,
+      179.69
+     ],
+     "score": 2.082,
+     "novelty": 0.728,
+     "repetitiveness_at_boundary": 0.729,
+     "repetitiveness_song_median": 0.815,
+     "facts": {
+      "rms_before": 0.2278,
+      "rms_after": 0.1315,
+      "onset_before": 1.559,
+      "onset_after": 1.51,
+      "rms_step_sd": -2.59,
+      "build_slope": 0.737,
+      "chroma_shift": 0.046
+     },
+     "model": "vaporgrid",
+     "id": "19-p1"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 6776,
+     "start_tick": 6229,
+     "end_tick": 7390,
+     "anomaly_ticks": [
+      6776,
+      6844
+     ],
+     "seconds": [
+      194.66,
+      230.94
+     ],
+     "score": 1.666,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.824,
+     "repetitiveness_song_median": 0.815,
+     "facts": {
+      "rms_before": 0.1699,
+      "rms_after": 0.2152,
+      "onset_before": 2.069,
+      "onset_after": 1.86,
+      "rms_step_sd": 1.22,
+      "build_slope": 7.453,
+      "chroma_shift": 0.05
+     },
+     "model": "entrance",
+     "id": "19-p2"
+    }
+   ],
+   "keywords": [
+    "cha cha",
+    "old",
+    "latin"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "20 - Cuenta Bien - Edwin Bonilla - Jesús “El Niño” Pérez.": {
+   "ticks": 10882,
+   "seconds": 340.1,
+   "bpm": 117.4,
+   "beat_ticks": 16.352,
+   "bar_ticks": 65.408,
+   "grid_phase_tick": 1.7,
+   "tempo_confidence": 0.569,
+   "bars": 166,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 5103,
+     "start_tick": 4645,
+     "end_tick": 5691,
+     "anomaly_ticks": [
+      4907,
+      5167
+     ],
+     "seconds": [
+      145.16,
+      177.84
+     ],
+     "score": 2.005,
+     "novelty": 0.617,
+     "repetitiveness_at_boundary": 0.668,
+     "repetitiveness_song_median": 0.86,
+     "facts": {
+      "rms_before": 0.203,
+      "rms_after": 0.3101,
+      "onset_before": 1.908,
+      "onset_after": 1.885,
+      "rms_step_sd": 2.36,
+      "build_slope": -23.734,
+      "chroma_shift": 0.03
+     },
+     "model": "escape",
+     "id": "20-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6934,
+     "start_tick": 6673,
+     "end_tick": 7522,
+     "anomaly_ticks": [
+      6934,
+      6999
+     ],
+     "seconds": [
+      208.53,
+      235.06
+     ],
+     "score": 1.811,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.805,
+     "repetitiveness_song_median": 0.86,
+     "facts": {
+      "rms_before": 0.2735,
+      "rms_after": 0.2033,
+      "onset_before": 1.57,
+      "onset_after": 2.18,
+      "rms_step_sd": -1.55,
+      "build_slope": -0.73,
+      "chroma_shift": 0.02
+     },
+     "model": "fineline",
+     "id": "20-p2"
+    }
+   ],
+   "keywords": [
+    "cha cha",
+    "old",
+    "latin"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "21 - California Love (Original Version)": {
+   "ticks": 9118,
+   "seconds": 284.9,
+   "bpm": 92.3,
+   "beat_ticks": 20.8,
+   "bar_ticks": 83.2,
+   "grid_phase_tick": 19.72,
+   "tempo_confidence": 0.7237,
+   "bars": 109,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 102,
+     "start_tick": 19,
+     "end_tick": 850,
+     "anomaly_ticks": [
+      19,
+      185
+     ],
+     "seconds": [
+      0.59,
+      26.56
+     ],
+     "score": 1.891,
+     "novelty": 0.761,
+     "repetitiveness_at_boundary": 0.706,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.109,
+      "rms_after": 0.2018,
+      "onset_before": 1.419,
+      "onset_after": 1.991,
+      "rms_step_sd": 2.01,
+      "build_slope": 0.0,
+      "chroma_shift": 0.057
+     },
+     "model": "bulb",
+     "id": "21-p1"
+    }
+   ],
+   "keywords": [
+    "hip hop",
+    "slow",
+    "epic"
+   ],
+   "budget": 1,
+   "monstruo_allowed": true
+  },
+  "22 - HUMBLE.": {
+   "ticks": 5665,
+   "seconds": 177.0,
+   "bpm": 151.9,
+   "beat_ticks": 12.64,
+   "bar_ticks": 50.56,
+   "grid_phase_tick": 6.31,
+   "tempo_confidence": 0.7616,
+   "bars": 112,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 259,
+     "start_tick": 6,
+     "end_tick": 713,
+     "anomaly_ticks": [
+      107,
+      308
+     ],
+     "seconds": [
+      0.19,
+      22.28
+     ],
+     "score": 2.057,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.878,
+     "repetitiveness_song_median": 0.814,
+     "facts": {
+      "rms_before": 0.1898,
+      "rms_after": 0.3775,
+      "onset_before": 1.84,
+      "onset_after": 2.376,
+      "rms_step_sd": 1.89,
+      "build_slope": 35.073,
+      "chroma_shift": 0.083
+     },
+     "model": "someone",
+     "id": "22-p1"
+    }
+   ],
+   "keywords": [
+    "epic",
+    "hip hop",
+    "hard"
+   ],
+   "budget": 1,
+   "monstruo_allowed": true
+  },
+  "23 - Not Like Us": {
+   "ticks": 8775,
+   "seconds": 274.2,
+   "bpm": 99.5,
+   "beat_ticks": 19.296,
+   "bar_ticks": 77.184,
+   "grid_phase_tick": 15.54,
+   "tempo_confidence": 0.0999,
+   "bars": 113,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 247,
+     "start_tick": 15,
+     "end_tick": 940,
+     "anomaly_ticks": [
+      247,
+      323
+     ],
+     "seconds": [
+      0.47,
+      29.38
+     ],
+     "score": 2.222,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.872,
+     "repetitiveness_song_median": 0.781,
+     "facts": {
+      "rms_before": 0.1006,
+      "rms_after": 0.4185,
+      "onset_before": 1.901,
+      "onset_after": 2.748,
+      "rms_step_sd": 3.57,
+      "build_slope": 75.073,
+      "chroma_shift": 0.027
+     },
+     "model": "dithering",
+     "id": "23-p1"
+    }
+   ],
+   "keywords": [
+    "epic",
+    "hip hop",
+    "hard"
+   ],
+   "budget": 1,
+   "monstruo_allowed": true
+  },
+  "24 - Acaríñame": {
+   "ticks": 6500,
+   "seconds": 203.1,
+   "bpm": 83.3,
+   "beat_ticks": 23.04,
+   "bar_ticks": 92.16,
+   "grid_phase_tick": 2.87,
+   "tempo_confidence": 0.5609,
+   "bars": 70,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 95,
+     "start_tick": 2,
+     "end_tick": 923,
+     "anomaly_ticks": [
+      2,
+      370
+     ],
+     "seconds": [
+      0.06,
+      28.84
+     ],
+     "score": 1.905,
+     "novelty": 0.394,
+     "repetitiveness_at_boundary": 0.654,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.0897,
+      "rms_after": 0.212,
+      "onset_before": 2.744,
+      "onset_after": 1.783,
+      "rms_step_sd": 2.47,
+      "build_slope": 0.0,
+      "chroma_shift": 0.015
+     },
+     "model": "liquidmetal",
+     "id": "24-p1"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 1753,
+     "start_tick": 1385,
+     "end_tick": 2398,
+     "anomaly_ticks": [
+      1753,
+      1845
+     ],
+     "seconds": [
+      43.28,
+      74.94
+     ],
+     "score": 1.069,
+     "novelty": 0.698,
+     "repetitiveness_at_boundary": 0.847,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.2501,
+      "rms_after": 0.2676,
+      "onset_before": 1.755,
+      "onset_after": 1.627,
+      "rms_step_sd": 0.35,
+      "build_slope": 1.114,
+      "chroma_shift": 0.02
+     },
+     "model": "meshgradient",
+     "id": "24-p2"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 3320,
+     "start_tick": 2951,
+     "end_tick": 3964,
+     "anomaly_ticks": [
+      3320,
+      3411
+     ],
+     "seconds": [
+      92.22,
+      123.88
+     ],
+     "score": 1.207,
+     "novelty": 0.897,
+     "repetitiveness_at_boundary": 0.705,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.2424,
+      "rms_after": 0.2396,
+      "onset_before": 1.776,
+      "onset_after": 1.906,
+      "rms_step_sd": -0.06,
+      "build_slope": 4.36,
+      "chroma_shift": 0.004
+     },
+     "model": "metaballs",
+     "id": "24-p3"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 6177,
+     "start_tick": 5808,
+     "end_tick": 6453,
+     "anomaly_ticks": [
+      6177,
+      6453
+     ],
+     "seconds": [
+      181.5,
+      201.66
+     ],
+     "score": 1.569,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.674,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.2423,
+      "rms_after": 0.0939,
+      "onset_before": 1.756,
+      "onset_after": 0.358,
+      "rms_step_sd": -3.0,
+      "build_slope": -5.856,
+      "chroma_shift": 0.157
+     },
+     "model": "voronoi",
+     "id": "24-p4"
+    }
+   ],
+   "keywords": [
+    "cumbia",
+    "slow"
+   ],
+   "budget": 4,
+   "monstruo_allowed": false
+  },
+  "25 - Nunca Es Suficiente": {
+   "ticks": 8513,
+   "seconds": 266.0,
+   "bpm": 95.7,
+   "beat_ticks": 20.064,
+   "bar_ticks": 80.256,
+   "grid_phase_tick": 13.09,
+   "tempo_confidence": 0.7002,
+   "bars": 106,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 93,
+     "start_tick": 13,
+     "end_tick": 654,
+     "anomaly_ticks": [
+      13,
+      172
+     ],
+     "seconds": [
+      0.41,
+      20.44
+     ],
+     "score": 2.111,
+     "novelty": 0.534,
+     "repetitiveness_at_boundary": 0.717,
+     "repetitiveness_song_median": 0.776,
+     "facts": {
+      "rms_before": 0.0266,
+      "rms_after": 0.1676,
+      "onset_before": 5.16,
+      "onset_after": 2.078,
+      "rms_step_sd": 2.96,
+      "build_slope": 0.0,
+      "chroma_shift": 0.187
+     },
+     "model": "warpcut",
+     "id": "25-p1"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 3464,
+     "start_tick": 3062,
+     "end_tick": 4024,
+     "anomaly_ticks": [
+      3383,
+      3543
+     ],
+     "seconds": [
+      95.69,
+      125.75
+     ],
+     "score": 1.131,
+     "novelty": 0.579,
+     "repetitiveness_at_boundary": 0.793,
+     "repetitiveness_song_median": 0.776,
+     "facts": {
+      "rms_before": 0.2446,
+      "rms_after": 0.2099,
+      "onset_before": 1.676,
+      "onset_after": 2.006,
+      "rms_step_sd": -0.73,
+      "build_slope": 2.978,
+      "chroma_shift": 0.022
+     },
+     "model": "particles",
+     "id": "25-p2"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6834,
+     "start_tick": 6433,
+     "end_tick": 7475,
+     "anomaly_ticks": [
+      6754,
+      6994
+     ],
+     "seconds": [
+      201.03,
+      233.59
+     ],
+     "score": 1.817,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.747,
+     "repetitiveness_song_median": 0.776,
+     "facts": {
+      "rms_before": 0.2594,
+      "rms_after": 0.2088,
+      "onset_before": 1.81,
+      "onset_after": 2.166,
+      "rms_step_sd": -1.06,
+      "build_slope": 5.748,
+      "chroma_shift": 0.028
+     },
+     "model": "solvent",
+     "id": "25-p3"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 8279,
+     "start_tick": 7958,
+     "end_tick": 8512,
+     "anomaly_ticks": [
+      8279,
+      8512
+     ],
+     "seconds": [
+      248.69,
+      266.0
+     ],
+     "score": 1.333,
+     "novelty": 0.677,
+     "repetitiveness_at_boundary": 0.657,
+     "repetitiveness_song_median": 0.776,
+     "facts": {
+      "rms_before": 0.2343,
+      "rms_after": 0.0587,
+      "onset_before": 1.979,
+      "onset_after": 0.291,
+      "rms_step_sd": -3.69,
+      "build_slope": -3.791,
+      "chroma_shift": 0.073
+     },
+     "model": "warping",
+     "id": "25-p4"
+    }
+   ],
+   "keywords": [
+    "cumbia",
+    "slow"
+   ],
+   "budget": 4,
+   "monstruo_allowed": false
+  },
+  "26 - Ponte pa lo tuyo": {
+   "ticks": 13116,
+   "seconds": 409.9,
+   "bpm": 112.4,
+   "beat_ticks": 17.088,
+   "bar_ticks": 68.352,
+   "grid_phase_tick": 14.03,
+   "tempo_confidence": 0.6604,
+   "bars": 192,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 1312,
+     "start_tick": 560,
+     "end_tick": 1790,
+     "anomaly_ticks": [
+      1107,
+      1380
+     ],
+     "seconds": [
+      17.5,
+      55.94
+     ],
+     "score": 1.976,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.775,
+     "repetitiveness_song_median": 0.781,
+     "facts": {
+      "rms_before": 0.0728,
+      "rms_after": 0.1563,
+      "onset_before": 2.129,
+      "onset_after": 2.22,
+      "rms_step_sd": 1.65,
+      "build_slope": 0.862,
+      "chroma_shift": 0.108
+     },
+     "model": "chamber",
+     "id": "26-p1"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 6917,
+     "start_tick": 6370,
+     "end_tick": 7395,
+     "anomaly_ticks": [
+      6917,
+      6984
+     ],
+     "seconds": [
+      199.06,
+      231.09
+     ],
+     "score": 1.691,
+     "novelty": 0.803,
+     "repetitiveness_at_boundary": 0.826,
+     "repetitiveness_song_median": 0.781,
+     "facts": {
+      "rms_before": 0.1216,
+      "rms_after": 0.2221,
+      "onset_before": 2.112,
+      "onset_after": 2.309,
+      "rms_step_sd": 1.98,
+      "build_slope": 1.651,
+      "chroma_shift": 0.075
+     },
+     "model": "object",
+     "id": "26-p2"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 8968,
+     "start_tick": 8352,
+     "end_tick": 9445,
+     "anomaly_ticks": [
+      8899,
+      9035
+     ],
+     "seconds": [
+      261.0,
+      295.16
+     ],
+     "score": 1.68,
+     "novelty": 0.729,
+     "repetitiveness_at_boundary": 0.829,
+     "repetitiveness_song_median": 0.781,
+     "facts": {
+      "rms_before": 0.1328,
+      "rms_after": 0.2265,
+      "onset_before": 2.186,
+      "onset_after": 2.284,
+      "rms_step_sd": 1.84,
+      "build_slope": 2.601,
+      "chroma_shift": 0.084
+     },
+     "model": "colorpanels",
+     "id": "26-p3"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 12112,
+     "start_tick": 11633,
+     "end_tick": 12794,
+     "anomaly_ticks": [
+      11907,
+      12384
+     ],
+     "seconds": [
+      363.53,
+      399.81
+     ],
+     "score": 1.422,
+     "novelty": 0.465,
+     "repetitiveness_at_boundary": 0.71,
+     "repetitiveness_song_median": 0.781,
+     "facts": {
+      "rms_before": 0.118,
+      "rms_after": 0.0722,
+      "onset_before": 2.195,
+      "onset_after": 2.464,
+      "rms_step_sd": -0.9,
+      "build_slope": -9.242,
+      "chroma_shift": 0.029
+     },
+     "model": "flutedglass",
+     "id": "26-p4"
+    }
+   ],
+   "keywords": [
+    "afro",
+    "drums",
+    "tribe"
+   ],
+   "budget": 4,
+   "monstruo_allowed": false
+  },
+  "27 - Escucha El Ritmo": {
+   "ticks": 11277,
+   "seconds": 352.4,
+   "bpm": 92.3,
+   "beat_ticks": 20.8,
+   "bar_ticks": 83.2,
+   "grid_phase_tick": 13.57,
+   "tempo_confidence": 0.494,
+   "bars": 135,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "section-change",
+     "boundary_tick": 3424,
+     "start_tick": 3091,
+     "end_tick": 4172,
+     "anomaly_ticks": [
+      3424,
+      3506
+     ],
+     "seconds": [
+      96.59,
+      130.38
+     ],
+     "score": 1.555,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.77,
+     "repetitiveness_song_median": 0.798,
+     "facts": {
+      "rms_before": 0.216,
+      "rms_after": 0.1839,
+      "onset_before": 2.331,
+      "onset_after": 2.053,
+      "rms_step_sd": -0.77,
+      "build_slope": 2.024,
+      "chroma_shift": 0.009
+     },
+     "model": "sandstorm",
+     "id": "27-p1"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 6586,
+     "start_tick": 6253,
+     "end_tick": 7500,
+     "anomaly_ticks": [
+      6586,
+      6834
+     ],
+     "seconds": [
+      195.41,
+      234.38
+     ],
+     "score": 1.79,
+     "novelty": 0.885,
+     "repetitiveness_at_boundary": 0.683,
+     "repetitiveness_song_median": 0.798,
+     "facts": {
+      "rms_before": 0.1472,
+      "rms_after": 0.1932,
+      "onset_before": 2.809,
+      "onset_after": 1.916,
+      "rms_step_sd": 1.11,
+      "build_slope": -8.028,
+      "chroma_shift": 0.014
+     },
+     "model": "stained-glass",
+     "id": "27-p2"
+    }
+   ],
+   "keywords": [
+    "cha cha",
+    "slow",
+    "latin"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "28 - 72 Hacheros Pa' Un Palo": {
+   "ticks": 7021,
+   "seconds": 219.4,
+   "bpm": 86.2,
+   "beat_ticks": 22.272,
+   "bar_ticks": 89.088,
+   "grid_phase_tick": 10.71,
+   "tempo_confidence": 0.5949,
+   "bars": 79,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 3663,
+     "start_tick": 3306,
+     "end_tick": 4553,
+     "anomaly_ticks": [
+      3663,
+      3840
+     ],
+     "seconds": [
+      103.31,
+      142.28
+     ],
+     "score": 1.981,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.747,
+     "repetitiveness_song_median": 0.755,
+     "facts": {
+      "rms_before": 0.1767,
+      "rms_after": 0.1027,
+      "onset_before": 2.099,
+      "onset_after": 2.251,
+      "rms_step_sd": -1.77,
+      "build_slope": -1.484,
+      "chroma_shift": 0.014
+     },
+     "model": "ascii",
+     "id": "28-p1"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 6781,
+     "start_tick": 6246,
+     "end_tick": 7020,
+     "anomaly_ticks": [
+      6603,
+      7020
+     ],
+     "seconds": [
+      195.19,
+      219.38
+     ],
+     "score": 1.549,
+     "novelty": 0.931,
+     "repetitiveness_at_boundary": 0.624,
+     "repetitiveness_song_median": 0.755,
+     "facts": {
+      "rms_before": 0.1601,
+      "rms_after": 0.0395,
+      "onset_before": 2.128,
+      "onset_after": 0.506,
+      "rms_step_sd": -2.88,
+      "build_slope": -1.132,
+      "chroma_shift": 0.01
+     },
+     "model": "aurora",
+     "id": "28-p2"
+    }
+   ],
+   "keywords": [
+    "cha cha",
+    "slow",
+    "latin"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "29 - Nightcrawlers - Push The Feeling On": {
+   "ticks": 7751,
+   "seconds": 242.2,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 0.52,
+   "tempo_confidence": 0.7052,
+   "bars": 124,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 5497,
+     "start_tick": 5247,
+     "end_tick": 6245,
+     "anomaly_ticks": [
+      5497,
+      5746
+     ],
+     "seconds": [
+      163.97,
+      195.16
+     ],
+     "score": 2.165,
+     "novelty": 0.728,
+     "repetitiveness_at_boundary": 0.754,
+     "repetitiveness_song_median": 0.876,
+     "facts": {
+      "rms_before": 0.07,
+      "rms_after": 0.0361,
+      "onset_before": 1.935,
+      "onset_after": 2.087,
+      "rms_step_sd": -2.54,
+      "build_slope": 0.634,
+      "chroma_shift": 0.031
+     },
+     "model": "chamber",
+     "id": "29-p1"
+    }
+   ],
+   "keywords": [
+    "edm",
+    "old"
+   ],
+   "budget": 1,
+   "monstruo_allowed": true
+  },
+  "30 - Daft Punk - Around the World (Official Audio)": {
+   "ticks": 13746,
+   "seconds": 429.6,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 0.29,
+   "tempo_confidence": 0.8018,
+   "bars": 220,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 6871,
+     "start_tick": 6309,
+     "end_tick": 7432,
+     "anomaly_ticks": [
+      6808,
+      6932
+     ],
+     "seconds": [
+      197.16,
+      232.25
+     ],
+     "score": 2.155,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.925,
+     "repetitiveness_song_median": 0.919,
+     "facts": {
+      "rms_before": 0.1076,
+      "rms_after": 0.2247,
+      "onset_before": 2.153,
+      "onset_after": 2.7,
+      "rms_step_sd": 2.42,
+      "build_slope": 4.513,
+      "chroma_shift": 0.05
+     },
+     "model": "swirl",
+     "id": "30-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 13305,
+     "start_tick": 13055,
+     "end_tick": 13741,
+     "anomaly_ticks": [
+      13305,
+      13491
+     ],
+     "seconds": [
+      407.97,
+      429.41
+     ],
+     "score": 1.909,
+     "novelty": 0.447,
+     "repetitiveness_at_boundary": 0.816,
+     "repetitiveness_song_median": 0.919,
+     "facts": {
+      "rms_before": 0.2122,
+      "rms_after": 0.0888,
+      "onset_before": 2.989,
+      "onset_after": 2.846,
+      "rms_step_sd": -2.55,
+      "build_slope": -0.345,
+      "chroma_shift": 0.0
+     },
+     "model": "warping",
+     "id": "30-p2"
+    }
+   ],
+   "keywords": [
+    "edm",
+    "happy",
+    "bright"
+   ],
+   "budget": 2,
+   "monstruo_allowed": true
+  },
+  "31 - Daft Punk - One More Time (Official Audio)": {
+   "ticks": 10254,
+   "seconds": 320.4,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 6.36,
+   "tempo_confidence": 0.7511,
+   "bars": 164,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 2005,
+     "start_tick": 1755,
+     "end_tick": 2566,
+     "anomaly_ticks": [
+      2005,
+      2066
+     ],
+     "seconds": [
+      54.84,
+      80.19
+     ],
+     "score": 1.503,
+     "novelty": 0.586,
+     "repetitiveness_at_boundary": 0.893,
+     "repetitiveness_song_median": 0.885,
+     "facts": {
+      "rms_before": 0.1351,
+      "rms_after": 0.2235,
+      "onset_before": 1.419,
+      "onset_after": 1.553,
+      "rms_step_sd": 1.54,
+      "build_slope": -17.671,
+      "chroma_shift": 0.019
+     },
+     "model": "ascii",
+     "id": "31-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 4503,
+     "start_tick": 4253,
+     "end_tick": 5127,
+     "anomaly_ticks": [
+      4503,
+      4627
+     ],
+     "seconds": [
+      132.91,
+      160.22
+     ],
+     "score": 2.141,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.845,
+     "repetitiveness_song_median": 0.885,
+     "facts": {
+      "rms_before": 0.2135,
+      "rms_after": 0.108,
+      "onset_before": 2.09,
+      "onset_after": 1.324,
+      "rms_step_sd": -1.84,
+      "build_slope": 0.188,
+      "chroma_shift": 0.033
+     },
+     "model": "aurora",
+     "id": "31-p2"
+    }
+   ],
+   "keywords": [
+    "edm",
+    "happy",
+    "bright"
+   ],
+   "budget": 2,
+   "monstruo_allowed": true
+  },
+  "32 - Daft Punk - Harder, Better, Faster, Stronger (Official Audio)": {
+   "ticks": 7191,
+   "seconds": 224.7,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 1.75,
+   "tempo_confidence": 0.2548,
+   "bars": 115,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 3187,
+     "start_tick": 2500,
+     "end_tick": 3748,
+     "anomaly_ticks": [
+      3000,
+      3248
+     ],
+     "seconds": [
+      78.12,
+      117.12
+     ],
+     "score": 1.972,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.889,
+     "repetitiveness_song_median": 0.829,
+     "facts": {
+      "rms_before": 0.1279,
+      "rms_after": 0.1972,
+      "onset_before": 1.995,
+      "onset_after": 1.971,
+      "rms_step_sd": 1.59,
+      "build_slope": 2.554,
+      "chroma_shift": 0.024
+     },
+     "model": "beam",
+     "id": "32-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 5123,
+     "start_tick": 4873,
+     "end_tick": 5809,
+     "anomaly_ticks": [
+      5123,
+      5310
+     ],
+     "seconds": [
+      152.28,
+      181.53
+     ],
+     "score": 1.611,
+     "novelty": 0.558,
+     "repetitiveness_at_boundary": 0.752,
+     "repetitiveness_song_median": 0.829,
+     "facts": {
+      "rms_before": 0.2203,
+      "rms_after": 0.1534,
+      "onset_before": 1.987,
+      "onset_after": 2.477,
+      "rms_step_sd": -1.54,
+      "build_slope": 6.337,
+      "chroma_shift": 0.027
+     },
+     "model": "ember",
+     "id": "32-p2"
+    }
+   ],
+   "keywords": [
+    "edm",
+    "happy",
+    "bright"
+   ],
+   "budget": 2,
+   "monstruo_allowed": true
+  },
+  "33 - Carmesí - Vicente García [Letra]": {
+   "ticks": 6017,
+   "seconds": 188.0,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 4.64,
+   "tempo_confidence": 0.3749,
+   "bars": 96,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 67,
+     "start_tick": 4,
+     "end_tick": 628,
+     "anomaly_ticks": [
+      4,
+      128
+     ],
+     "seconds": [
+      0.12,
+      19.62
+     ],
+     "score": 1.958,
+     "novelty": 0.692,
+     "repetitiveness_at_boundary": 0.722,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.0,
+      "rms_after": 0.1663,
+      "onset_before": 0.0,
+      "onset_after": 2.053,
+      "rms_step_sd": 2.36,
+      "build_slope": 0.0,
+      "chroma_shift": 1.0
+     },
+     "model": "ascii",
+     "id": "33-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 5189,
+     "start_tick": 4876,
+     "end_tick": 5750,
+     "anomaly_ticks": [
+      5126,
+      5250
+     ],
+     "seconds": [
+      152.38,
+      179.69
+     ],
+     "score": 1.921,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.739,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.2914,
+      "rms_after": 0.1874,
+      "onset_before": 2.338,
+      "onset_after": 1.429,
+      "rms_step_sd": -1.48,
+      "build_slope": -7.185,
+      "chroma_shift": 0.063
+     },
+     "model": "aurora",
+     "id": "33-p2"
+    }
+   ],
+   "keywords": [
+    "bachata",
+    "romantic"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "34 - Daniel Santacruz - Larimar (Bachata)": {
+   "ticks": 6194,
+   "seconds": 193.6,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 0.77,
+   "tempo_confidence": 0.6234,
+   "bars": 99,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 63,
+     "start_tick": 0,
+     "end_tick": 624,
+     "anomaly_ticks": [
+      0,
+      124
+     ],
+     "seconds": [
+      0.0,
+      19.5
+     ],
+     "score": 2.321,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.707,
+     "repetitiveness_song_median": 0.819,
+     "facts": {
+      "rms_before": 0.0481,
+      "rms_after": 0.1709,
+      "onset_before": 2.12,
+      "onset_after": 1.928,
+      "rms_step_sd": 2.22,
+      "build_slope": 0.0,
+      "chroma_shift": 0.075
+     },
+     "model": "beam",
+     "id": "34-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 2686,
+     "start_tick": 2436,
+     "end_tick": 3247,
+     "anomaly_ticks": [
+      2686,
+      2748
+     ],
+     "seconds": [
+      76.12,
+      101.47
+     ],
+     "score": 1.478,
+     "novelty": 0.786,
+     "repetitiveness_at_boundary": 0.9,
+     "repetitiveness_song_median": 0.819,
+     "facts": {
+      "rms_before": 0.2597,
+      "rms_after": 0.1819,
+      "onset_before": 1.878,
+      "onset_after": 2.623,
+      "rms_step_sd": -1.4,
+      "build_slope": -0.307,
+      "chroma_shift": 0.027
+     },
+     "model": "catenoid",
+     "id": "34-p2"
+    }
+   ],
+   "keywords": [
+    "bachata",
+    "romantic"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "35 - GRUPO EXTRA -   LA MITAD - VERSION BACHATA - VIDEO OFICIAL": {
+   "ticks": 5301,
+   "seconds": 165.7,
+   "bpm": 103.4,
+   "beat_ticks": 18.56,
+   "bar_ticks": 74.24,
+   "grid_phase_tick": 11.13,
+   "tempo_confidence": 0.4625,
+   "bars": 71,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 2758,
+     "start_tick": 2312,
+     "end_tick": 3425,
+     "anomaly_ticks": [
+      2609,
+      2831
+     ],
+     "seconds": [
+      72.25,
+      107.03
+     ],
+     "score": 1.416,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.762,
+     "repetitiveness_song_median": 0.747,
+     "facts": {
+      "rms_before": 0.259,
+      "rms_after": 0.2575,
+      "onset_before": 1.804,
+      "onset_after": 2.043,
+      "rms_step_sd": -0.03,
+      "build_slope": -3.143,
+      "chroma_shift": 0.033
+     },
+     "model": "entrance",
+     "id": "35-p1"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 4985,
+     "start_tick": 4688,
+     "end_tick": 5281,
+     "anomaly_ticks": [
+      4985,
+      5281
+     ],
+     "seconds": [
+      146.5,
+      165.03
+     ],
+     "score": 1.374,
+     "novelty": 0.742,
+     "repetitiveness_at_boundary": 0.577,
+     "repetitiveness_song_median": 0.747,
+     "facts": {
+      "rms_before": 0.281,
+      "rms_after": 0.0801,
+      "onset_before": 2.246,
+      "onset_after": 0.95,
+      "rms_step_sd": -3.87,
+      "build_slope": 5.35,
+      "chroma_shift": 0.18
+     },
+     "model": "fluid",
+     "id": "35-p2"
+    }
+   ],
+   "keywords": [
+    "bachata",
+    "romantic"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "36 - Kitipun": {
+   "ticks": 6931,
+   "seconds": 216.6,
+   "bpm": 89.2,
+   "beat_ticks": 21.536,
+   "bar_ticks": 86.144,
+   "grid_phase_tick": 8.59,
+   "tempo_confidence": 0.6203,
+   "bars": 80,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 94,
+     "start_tick": 8,
+     "end_tick": 1041,
+     "anomaly_ticks": [
+      8,
+      352
+     ],
+     "seconds": [
+      0.25,
+      32.53
+     ],
+     "score": 2.147,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.724,
+     "repetitiveness_song_median": 0.725,
+     "facts": {
+      "rms_before": 0.1559,
+      "rms_after": 0.213,
+      "onset_before": 2.029,
+      "onset_after": 1.573,
+      "rms_step_sd": 1.62,
+      "build_slope": 0.0,
+      "chroma_shift": 0.018
+     },
+     "model": "clouds",
+     "id": "36-p1"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 2420,
+     "start_tick": 2076,
+     "end_tick": 3194,
+     "anomaly_ticks": [
+      2420,
+      2505
+     ],
+     "seconds": [
+      64.88,
+      99.81
+     ],
+     "score": 1.269,
+     "novelty": 0.675,
+     "repetitiveness_at_boundary": 0.706,
+     "repetitiveness_song_median": 0.725,
+     "facts": {
+      "rms_before": 0.181,
+      "rms_after": 0.2165,
+      "onset_before": 2.34,
+      "onset_after": 2.083,
+      "rms_step_sd": 1.01,
+      "build_slope": -0.949,
+      "chroma_shift": 0.014
+     },
+     "model": "landscape",
+     "id": "36-p2"
+    }
+   ],
+   "keywords": [
+    "bachata",
+    "romantic"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "37 - O Tu o Yo (Bachata)": {
+   "ticks": 7720,
+   "seconds": 241.2,
+   "bpm": 136.1,
+   "beat_ticks": 14.112,
+   "bar_ticks": 56.448,
+   "grid_phase_tick": 7.58,
+   "tempo_confidence": 0.8379,
+   "bars": 137,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 4805,
+     "start_tick": 4579,
+     "end_tick": 5312,
+     "anomaly_ticks": [
+      4805,
+      4861
+     ],
+     "seconds": [
+      143.09,
+      166.0
+     ],
+     "score": 1.461,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.795,
+     "repetitiveness_song_median": 0.787,
+     "facts": {
+      "rms_before": 0.1801,
+      "rms_after": 0.1694,
+      "onset_before": 2.483,
+      "onset_after": 2.473,
+      "rms_step_sd": -0.2,
+      "build_slope": 1.511,
+      "chroma_shift": 0.094
+     },
+     "model": "godrays",
+     "id": "37-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 7176,
+     "start_tick": 6950,
+     "end_tick": 7719,
+     "anomaly_ticks": [
+      7176,
+      7401
+     ],
+     "seconds": [
+      217.19,
+      241.22
+     ],
+     "score": 2.18,
+     "novelty": 0.807,
+     "repetitiveness_at_boundary": 0.751,
+     "repetitiveness_song_median": 0.787,
+     "facts": {
+      "rms_before": 0.196,
+      "rms_after": 0.0656,
+      "onset_before": 2.305,
+      "onset_after": 2.449,
+      "rms_step_sd": -2.37,
+      "build_slope": 0.439,
+      "chroma_shift": 0.108
+     },
+     "model": "graingradient",
+     "id": "37-p2"
+    }
+   ],
+   "keywords": [
+    "bachata",
+    "romantic"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "38 - Please Do Not Lean": {
+   "ticks": 7712,
+   "seconds": 241.0,
+   "bpm": 129.0,
+   "beat_ticks": 14.88,
+   "bar_ticks": 59.52,
+   "grid_phase_tick": 14.43,
+   "tempo_confidence": 0.8704,
+   "bars": 129,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 2871,
+     "start_tick": 2335,
+     "end_tick": 3465,
+     "anomaly_ticks": [
+      2811,
+      2989
+     ],
+     "seconds": [
+      72.97,
+      108.28
+     ],
+     "score": 1.886,
+     "novelty": 0.799,
+     "repetitiveness_at_boundary": 0.735,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.0546,
+      "rms_after": 0.1529,
+      "onset_before": 1.562,
+      "onset_after": 1.438,
+      "rms_step_sd": 1.67,
+      "build_slope": 0.866,
+      "chroma_shift": 0.04
+     },
+     "model": "smoke",
+     "id": "38-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 3823,
+     "start_tick": 3585,
+     "end_tick": 4477,
+     "anomaly_ticks": [
+      3823,
+      4001
+     ],
+     "seconds": [
+      112.03,
+      139.91
+     ],
+     "score": 1.767,
+     "novelty": 0.827,
+     "repetitiveness_at_boundary": 0.714,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.1927,
+      "rms_after": 0.0988,
+      "onset_before": 1.521,
+      "onset_after": 1.124,
+      "rms_step_sd": -1.59,
+      "build_slope": 3.051,
+      "chroma_shift": 0.107
+     },
+     "model": "gemsmoke",
+     "id": "38-p2"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 5311,
+     "start_tick": 5073,
+     "end_tick": 5846,
+     "anomaly_ticks": [
+      5311,
+      5370
+     ],
+     "seconds": [
+      158.53,
+      182.69
+     ],
+     "score": 1.765,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.753,
+     "repetitiveness_song_median": 0.792,
+     "facts": {
+      "rms_before": 0.1148,
+      "rms_after": 0.1919,
+      "onset_before": 1.219,
+      "onset_after": 1.373,
+      "rms_step_sd": 1.31,
+      "build_slope": -5.13,
+      "chroma_shift": 0.039
+     },
+     "model": "godrays",
+     "id": "38-p3"
+    }
+   ],
+   "keywords": [
+    "r&b",
+    "slow",
+    "romantic"
+   ],
+   "budget": 3,
+   "monstruo_allowed": false
+  },
+  "39 - See You Again": {
+   "ticks": 5774,
+   "seconds": 180.4,
+   "bpm": 136.1,
+   "beat_ticks": 14.112,
+   "bar_ticks": 56.448,
+   "grid_phase_tick": 3.41,
+   "tempo_confidence": 0.3777,
+   "bars": 102,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 229,
+     "start_tick": 3,
+     "end_tick": 736,
+     "anomaly_ticks": [
+      229,
+      284
+     ],
+     "seconds": [
+      0.09,
+      23.0
+     ],
+     "score": 1.125,
+     "novelty": 0.736,
+     "repetitiveness_at_boundary": 0.721,
+     "repetitiveness_song_median": 0.747,
+     "facts": {
+      "rms_before": 0.0638,
+      "rms_after": 0.0865,
+      "onset_before": 2.115,
+      "onset_after": 1.287,
+      "rms_step_sd": 0.22,
+      "build_slope": 13.522,
+      "chroma_shift": 0.174
+     },
+     "model": "graingradient",
+     "id": "39-p1"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 2430,
+     "start_tick": 2204,
+     "end_tick": 2937,
+     "anomaly_ticks": [
+      2430,
+      2486
+     ],
+     "seconds": [
+      68.88,
+      91.78
+     ],
+     "score": 2.203,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.758,
+     "repetitiveness_song_median": 0.747,
+     "facts": {
+      "rms_before": 0.1221,
+      "rms_after": 0.3584,
+      "onset_before": 1.453,
+      "onset_after": 1.792,
+      "rms_step_sd": 2.34,
+      "build_slope": -2.176,
+      "chroma_shift": 0.086
+     },
+     "model": "heatmap",
+     "id": "39-p2"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 4801,
+     "start_tick": 4575,
+     "end_tick": 5364,
+     "anomaly_ticks": [
+      4801,
+      4913
+     ],
+     "seconds": [
+      142.97,
+      167.62
+     ],
+     "score": 1.768,
+     "novelty": 0.915,
+     "repetitiveness_at_boundary": 0.784,
+     "repetitiveness_song_median": 0.747,
+     "facts": {
+      "rms_before": 0.2519,
+      "rms_after": 0.101,
+      "onset_before": 1.292,
+      "onset_after": 1.441,
+      "rms_step_sd": -1.5,
+      "build_slope": -6.144,
+      "chroma_shift": 0.028
+     },
+     "model": "liquidmetal",
+     "id": "39-p3"
+    }
+   ],
+   "keywords": [
+    "r&b",
+    "slow",
+    "romantic"
+   ],
+   "budget": 3,
+   "monstruo_allowed": false
+  },
+  "40 - ARE WE STILL FRIENDS？": {
+   "ticks": 8496,
+   "seconds": 265.5,
+   "bpm": 184.6,
+   "beat_ticks": 10.4,
+   "bar_ticks": 41.6,
+   "grid_phase_tick": 4.78,
+   "tempo_confidence": 0.4573,
+   "bars": 204,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 3499,
+     "start_tick": 3291,
+     "end_tick": 3955,
+     "anomaly_ticks": [
+      3457,
+      3622
+     ],
+     "seconds": [
+      102.84,
+      123.59
+     ],
+     "score": 2.076,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.776,
+     "repetitiveness_song_median": 0.804,
+     "facts": {
+      "rms_before": 0.2893,
+      "rms_after": 0.126,
+      "onset_before": 1.018,
+      "onset_after": 1.288,
+      "rms_step_sd": -1.74,
+      "build_slope": -1.453,
+      "chroma_shift": 0.135
+     },
+     "model": "meshgradient",
+     "id": "40-p1"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 5038,
+     "start_tick": 4622,
+     "end_tick": 5411,
+     "anomaly_ticks": [
+      4955,
+      5078
+     ],
+     "seconds": [
+      144.44,
+      169.09
+     ],
+     "score": 1.824,
+     "novelty": 0.577,
+     "repetitiveness_at_boundary": 0.772,
+     "repetitiveness_song_median": 0.804,
+     "facts": {
+      "rms_before": 0.0639,
+      "rms_after": 0.294,
+      "onset_before": 0.773,
+      "onset_after": 1.281,
+      "rms_step_sd": 2.46,
+      "build_slope": 2.031,
+      "chroma_shift": 0.106
+     },
+     "model": "metaballs",
+     "id": "40-p2"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 8075,
+     "start_tick": 7908,
+     "end_tick": 8490,
+     "anomaly_ticks": [
+      8075,
+      8240
+     ],
+     "seconds": [
+      247.12,
+      265.31
+     ],
+     "score": 2.003,
+     "novelty": 0.635,
+     "repetitiveness_at_boundary": 0.758,
+     "repetitiveness_song_median": 0.804,
+     "facts": {
+      "rms_before": 0.3238,
+      "rms_after": 0.1068,
+      "onset_before": 1.056,
+      "onset_after": 1.337,
+      "rms_step_sd": -2.32,
+      "build_slope": -9.474,
+      "chroma_shift": 0.129
+     },
+     "model": "perlinnoise",
+     "id": "40-p3"
+    }
+   ],
+   "keywords": [
+    "r&b",
+    "slow",
+    "romantic"
+   ],
+   "budget": 3,
+   "monstruo_allowed": false
+  },
+  "41 - Losing My Way": {
+   "ticks": 8297,
+   "seconds": 259.3,
+   "bpm": 99.3,
+   "beat_ticks": 19.328,
+   "bar_ticks": 77.312,
+   "grid_phase_tick": 13.84,
+   "tempo_confidence": 0.4298,
+   "bars": 107,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 4884,
+     "start_tick": 4420,
+     "end_tick": 5579,
+     "anomaly_ticks": [
+      4729,
+      4960
+     ],
+     "seconds": [
+      138.12,
+      174.34
+     ],
+     "score": 2.177,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.785,
+     "repetitiveness_song_median": 0.789,
+     "facts": {
+      "rms_before": 0.0578,
+      "rms_after": 0.2056,
+      "onset_before": 1.987,
+      "onset_after": 2.133,
+      "rms_step_sd": 1.91,
+      "build_slope": -5.965,
+      "chroma_shift": 0.072
+     },
+     "model": "bulb",
+     "id": "41-p1"
+    }
+   ],
+   "keywords": [
+    "slow",
+    "smooth"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "42 - Tadow": {
+   "ticks": 9609,
+   "seconds": 300.3,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 9.97,
+   "tempo_confidence": 0.2071,
+   "bars": 154,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 2508,
+     "start_tick": 2196,
+     "end_tick": 3069,
+     "anomaly_ticks": [
+      2446,
+      2569
+     ],
+     "seconds": [
+      68.62,
+      95.91
+     ],
+     "score": 2.236,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.721,
+     "repetitiveness_song_median": 0.794,
+     "facts": {
+      "rms_before": 0.3213,
+      "rms_after": 0.1786,
+      "onset_before": 1.674,
+      "onset_after": 1.589,
+      "rms_step_sd": -2.06,
+      "build_slope": 2.835,
+      "chroma_shift": 0.058
+     },
+     "model": "fractals",
+     "id": "42-p1"
+    }
+   ],
+   "keywords": [
+    "slow",
+    "smooth"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "43 - Kool & The Gang - Get Down On It": {
+   "ticks": 8837,
+   "seconds": 276.2,
+   "bpm": 112.4,
+   "beat_ticks": 17.088,
+   "bar_ticks": 68.352,
+   "grid_phase_tick": 15.04,
+   "tempo_confidence": 0.7176,
+   "bars": 129,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 8353,
+     "start_tick": 8012,
+     "end_tick": 8831,
+     "anomaly_ticks": [
+      8285,
+      8421
+     ],
+     "seconds": [
+      250.38,
+      275.97
+     ],
+     "score": 1.779,
+     "novelty": 0.655,
+     "repetitiveness_at_boundary": 0.829,
+     "repetitiveness_song_median": 0.81,
+     "facts": {
+      "rms_before": 0.0847,
+      "rms_after": 0.0502,
+      "onset_before": 1.903,
+      "onset_after": 1.851,
+      "rms_step_sd": -2.11,
+      "build_slope": 0.416,
+      "chroma_shift": 0.021
+     },
+     "model": "wake",
+     "id": "43-p1"
+    }
+   ],
+   "keywords": [
+    "old",
+    "hip hop"
+   ],
+   "budget": 1,
+   "monstruo_allowed": true
+  },
+  "44 - El General - Boriqua_Anthem(que es lo que quiere esa nena)": {
+   "ticks": 14464,
+   "seconds": 452.0,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 13.92,
+   "tempo_confidence": 0.5703,
+   "bars": 243,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 489,
+     "start_tick": 13,
+     "end_tick": 1022,
+     "anomaly_ticks": [
+      310,
+      547
+     ],
+     "seconds": [
+      0.41,
+      31.94
+     ],
+     "score": 1.915,
+     "novelty": 0.78,
+     "repetitiveness_at_boundary": 0.746,
+     "repetitiveness_song_median": 0.813,
+     "facts": {
+      "rms_before": 0.0481,
+      "rms_after": 0.1018,
+      "onset_before": 1.787,
+      "onset_after": 2.313,
+      "rms_step_sd": 2.09,
+      "build_slope": 5.825,
+      "chroma_shift": 0.015
+     },
+     "model": "parallax-fields",
+     "id": "44-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 8625,
+     "start_tick": 8328,
+     "end_tick": 9337,
+     "anomaly_ticks": [
+      8566,
+      8862
+     ],
+     "seconds": [
+      260.25,
+      291.78
+     ],
+     "score": 1.93,
+     "novelty": 0.62,
+     "repetitiveness_at_boundary": 0.754,
+     "repetitiveness_song_median": 0.813,
+     "facts": {
+      "rms_before": 0.112,
+      "rms_after": 0.0596,
+      "onset_before": 2.142,
+      "onset_after": 2.281,
+      "rms_step_sd": -2.04,
+      "build_slope": -2.432,
+      "chroma_shift": 0.049
+     },
+     "model": "parallax-sky",
+     "id": "44-p2"
+    }
+   ],
+   "keywords": [
+    "bright",
+    "reggaeton",
+    "happy",
+    "uplift"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "45 - Houdini": {
+   "ticks": 5951,
+   "seconds": 186.0,
+   "bpm": 117.4,
+   "beat_ticks": 16.352,
+   "bar_ticks": 65.408,
+   "grid_phase_tick": 7.65,
+   "tempo_confidence": 0.2439,
+   "bars": 91,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 73,
+     "start_tick": 7,
+     "end_tick": 856,
+     "anomaly_ticks": [
+      7,
+      333
+     ],
+     "seconds": [
+      0.22,
+      26.75
+     ],
+     "score": 2.155,
+     "novelty": 0.944,
+     "repetitiveness_at_boundary": 0.83,
+     "repetitiveness_song_median": 0.805,
+     "facts": {
+      "rms_before": 0.1435,
+      "rms_after": 0.235,
+      "onset_before": 1.356,
+      "onset_after": 2.705,
+      "rms_step_sd": 1.98,
+      "build_slope": 0.0,
+      "chroma_shift": 0.013
+     },
+     "model": "geoterrain",
+     "id": "45-p1"
+    }
+   ],
+   "keywords": [
+    "pop",
+    "smooth"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "46 - Kiss Me More": {
+   "ticks": 6679,
+   "seconds": 208.7,
+   "bpm": 112.4,
+   "beat_ticks": 17.088,
+   "bar_ticks": 68.352,
+   "grid_phase_tick": 5.44,
+   "tempo_confidence": 0.4359,
+   "bars": 98,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 825,
+     "start_tick": 552,
+     "end_tick": 1439,
+     "anomaly_ticks": [
+      825,
+      893
+     ],
+     "seconds": [
+      17.25,
+      44.97
+     ],
+     "score": 1.895,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.83,
+     "repetitiveness_song_median": 0.797,
+     "facts": {
+      "rms_before": 0.2453,
+      "rms_after": 0.3628,
+      "onset_before": 1.775,
+      "onset_after": 2.205,
+      "rms_step_sd": 1.64,
+      "build_slope": -0.132,
+      "chroma_shift": 0.011
+     },
+     "model": "spiral",
+     "id": "46-p1"
+    }
+   ],
+   "keywords": [
+    "pop"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "47 - Amor Adolescente": {
+   "ticks": 6933,
+   "seconds": 216.7,
+   "bpm": 95.7,
+   "beat_ticks": 20.064,
+   "bar_ticks": 80.256,
+   "grid_phase_tick": 7.68,
+   "tempo_confidence": 0.3607,
+   "bars": 86,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 7,
+     "start_tick": 7,
+     "end_tick": 809,
+     "anomaly_ticks": [
+      7,
+      327
+     ],
+     "seconds": [
+      0.22,
+      25.28
+     ],
+     "score": 1.223,
+     "novelty": 0.057,
+     "repetitiveness_at_boundary": 0.628,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.0,
+      "rms_after": 0.1581,
+      "onset_before": 0.0,
+      "onset_after": 3.208,
+      "rms_step_sd": 3.33,
+      "build_slope": 0.0,
+      "chroma_shift": 0.0
+     },
+     "model": "river",
+     "id": "47-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 1291,
+     "start_tick": 970,
+     "end_tick": 1852,
+     "anomaly_ticks": [
+      1291,
+      1371
+     ],
+     "seconds": [
+      30.31,
+      57.88
+     ],
+     "score": 1.681,
+     "novelty": 0.588,
+     "repetitiveness_at_boundary": 0.732,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.2497,
+      "rms_after": 0.1614,
+      "onset_before": 2.595,
+      "onset_after": 3.091,
+      "rms_step_sd": -1.86,
+      "build_slope": 9.798,
+      "chroma_shift": 0.011
+     },
+     "model": "fluid",
+     "id": "47-p2"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 2415,
+     "start_tick": 1933,
+     "end_tick": 3056,
+     "anomaly_ticks": [
+      2254,
+      2574
+     ],
+     "seconds": [
+      60.41,
+      95.5
+     ],
+     "score": 0.978,
+     "novelty": 0.142,
+     "repetitiveness_at_boundary": 0.633,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.2106,
+      "rms_after": 0.2467,
+      "onset_before": 2.513,
+      "onset_after": 2.553,
+      "rms_step_sd": 0.76,
+      "build_slope": 11.257,
+      "chroma_shift": 0.007
+     },
+     "model": "fractals",
+     "id": "47-p3"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 3859,
+     "start_tick": 3538,
+     "end_tick": 4420,
+     "anomaly_ticks": [
+      3859,
+      3939
+     ],
+     "seconds": [
+      110.56,
+      138.12
+     ],
+     "score": 1.787,
+     "novelty": 0.937,
+     "repetitiveness_at_boundary": 0.758,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.2621,
+      "rms_after": 0.1781,
+      "onset_before": 2.254,
+      "onset_after": 3.016,
+      "rms_step_sd": -1.77,
+      "build_slope": 2.232,
+      "chroma_shift": 0.018
+     },
+     "model": "kaleido",
+     "id": "47-p4"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6267,
+     "start_tick": 5946,
+     "end_tick": 6828,
+     "anomaly_ticks": [
+      6267,
+      6346
+     ],
+     "seconds": [
+      185.81,
+      213.38
+     ],
+     "score": 1.688,
+     "novelty": 0.919,
+     "repetitiveness_at_boundary": 0.82,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.2572,
+      "rms_after": 0.1827,
+      "onset_before": 2.258,
+      "onset_after": 2.955,
+      "rms_step_sd": -1.57,
+      "build_slope": 2.807,
+      "chroma_shift": 0.016
+     },
+     "model": "clouds",
+     "id": "47-p5"
+    }
+   ],
+   "keywords": [
+    "son",
+    "salsa",
+    "happy"
+   ],
+   "budget": 5,
+   "monstruo_allowed": false
+  },
+  "48 - La Makina - Nadie Se Muere": {
+   "ticks": 7029,
+   "seconds": 219.7,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 2.33,
+   "tempo_confidence": 0.3531,
+   "bars": 118,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 3209,
+     "start_tick": 2793,
+     "end_tick": 3743,
+     "anomaly_ticks": [
+      3031,
+      3267
+     ],
+     "seconds": [
+      87.28,
+      116.97
+     ],
+     "score": 2.122,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.772,
+     "repetitiveness_song_median": 0.787,
+     "facts": {
+      "rms_before": 0.1943,
+      "rms_after": 0.2635,
+      "onset_before": 2.772,
+      "onset_after": 2.026,
+      "rms_step_sd": 2.06,
+      "build_slope": -15.452,
+      "chroma_shift": 0.009
+     },
+     "model": "ripples",
+     "id": "48-p1"
+    }
+   ],
+   "keywords": [
+    "merengue"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "49 - Los Hermanos Rosario - Rompecintura": {
+   "ticks": 8540,
+   "seconds": 266.9,
+   "bpm": 152.3,
+   "beat_ticks": 12.608,
+   "bar_ticks": 50.432,
+   "grid_phase_tick": 3.38,
+   "tempo_confidence": 0.5209,
+   "bars": 169,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 7870,
+     "start_tick": 7669,
+     "end_tick": 8474,
+     "anomaly_ticks": [
+      7870,
+      8071
+     ],
+     "seconds": [
+      239.66,
+      264.81
+     ],
+     "score": 2.169,
+     "novelty": 0.659,
+     "repetitiveness_at_boundary": 0.715,
+     "repetitiveness_song_median": 0.83,
+     "facts": {
+      "rms_before": 0.1927,
+      "rms_after": 0.0922,
+      "onset_before": 2.034,
+      "onset_after": 1.715,
+      "rms_step_sd": -3.57,
+      "build_slope": 0.361,
+      "chroma_shift": 0.021
+     },
+     "model": "rings",
+     "id": "49-p1"
+    }
+   ],
+   "keywords": [
+    "merengue"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "50 - Hermanos Rosario - En el fin de semana": {
+   "ticks": 8182,
+   "seconds": 255.7,
+   "bpm": 151.9,
+   "beat_ticks": 12.64,
+   "bar_ticks": 50.56,
+   "grid_phase_tick": 7.01,
+   "tempo_confidence": 0.667,
+   "bars": 162,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 7388,
+     "start_tick": 7135,
+     "end_tick": 7943,
+     "anomaly_ticks": [
+      7338,
+      7539
+     ],
+     "seconds": [
+      222.97,
+      248.22
+     ],
+     "score": 1.805,
+     "novelty": 0.544,
+     "repetitiveness_at_boundary": 0.776,
+     "repetitiveness_song_median": 0.789,
+     "facts": {
+      "rms_before": 0.1768,
+      "rms_after": 0.1356,
+      "onset_before": 1.888,
+      "onset_after": 2.021,
+      "rms_step_sd": -1.99,
+      "build_slope": 1.093,
+      "chroma_shift": 0.01
+     },
+     "model": "dotorbit",
+     "id": "50-p1"
+    }
+   ],
+   "keywords": [
+    "merengue"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "51 - Elvis Crespo - Nuestra Cancion (Cover Audio)": {
+   "ticks": 6794,
+   "seconds": 212.3,
+   "bpm": 129.0,
+   "beat_ticks": 14.88,
+   "bar_ticks": 59.52,
+   "grid_phase_tick": 7.21,
+   "tempo_confidence": 0.7095,
+   "bars": 114,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 66,
+     "start_tick": 7,
+     "end_tick": 601,
+     "anomaly_ticks": [
+      7,
+      125
+     ],
+     "seconds": [
+      0.22,
+      18.78
+     ],
+     "score": 1.972,
+     "novelty": 0.585,
+     "repetitiveness_at_boundary": 0.816,
+     "repetitiveness_song_median": 0.799,
+     "facts": {
+      "rms_before": 0.0438,
+      "rms_after": 0.195,
+      "onset_before": 1.694,
+      "onset_after": 2.341,
+      "rms_step_sd": 3.83,
+      "build_slope": 0.0,
+      "chroma_shift": 0.082
+     },
+     "model": "halftonecmyk",
+     "id": "51-p1"
+    }
+   ],
+   "keywords": [
+    "merengue"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "52 - Elvis Crespo - Tu Sonrisa": {
+   "ticks": 8654,
+   "seconds": 270.4,
+   "bpm": 86.2,
+   "beat_ticks": 22.272,
+   "bar_ticks": 89.088,
+   "grid_phase_tick": 9.93,
+   "tempo_confidence": 0.409,
+   "bars": 97,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 811,
+     "start_tick": 9,
+     "end_tick": 1612,
+     "anomaly_ticks": [
+      544,
+      899
+     ],
+     "seconds": [
+      0.28,
+      50.38
+     ],
+     "score": 1.977,
+     "novelty": 0.691,
+     "repetitiveness_at_boundary": 0.782,
+     "repetitiveness_song_median": 0.757,
+     "facts": {
+      "rms_before": 0.0946,
+      "rms_after": 0.1407,
+      "onset_before": 1.795,
+      "onset_after": 1.753,
+      "rms_step_sd": 2.49,
+      "build_slope": 4.16,
+      "chroma_shift": 0.018
+     },
+     "model": "halftonedots",
+     "id": "52-p1"
+    }
+   ],
+   "keywords": [
+    "merengue"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "53 - Elvis Crespo - Suavemente": {
+   "ticks": 8587,
+   "seconds": 268.3,
+   "bpm": 123.2,
+   "beat_ticks": 15.584,
+   "bar_ticks": 62.336,
+   "grid_phase_tick": 0.72,
+   "tempo_confidence": 0.5872,
+   "bars": 138,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 7481,
+     "start_tick": 7231,
+     "end_tick": 8041,
+     "anomaly_ticks": [
+      7481,
+      7542
+     ],
+     "seconds": [
+      225.97,
+      251.28
+     ],
+     "score": 1.741,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.881,
+     "repetitiveness_song_median": 0.785,
+     "facts": {
+      "rms_before": 0.1512,
+      "rms_after": 0.1089,
+      "onset_before": 1.666,
+      "onset_after": 2.655,
+      "rms_step_sd": -1.67,
+      "build_slope": -0.304,
+      "chroma_shift": 0.031
+     },
+     "model": "sheettexture",
+     "id": "53-p1"
+    }
+   ],
+   "keywords": [
+    "merengue"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "54 - Shabba Ranks - Ting-A-ling": {
+   "ticks": 7551,
+   "seconds": 236.0,
+   "bpm": 136.1,
+   "beat_ticks": 14.112,
+   "bar_ticks": 56.448,
+   "grid_phase_tick": 12.78,
+   "tempo_confidence": 0.4194,
+   "bars": 134,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 182,
+     "start_tick": 12,
+     "end_tick": 689,
+     "anomaly_ticks": [
+      182,
+      237
+     ],
+     "seconds": [
+      0.38,
+      21.53
+     ],
+     "score": 1.787,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.757,
+     "repetitiveness_song_median": 0.77,
+     "facts": {
+      "rms_before": 0.0385,
+      "rms_after": 0.0683,
+      "onset_before": 2.115,
+      "onset_after": 2.801,
+      "rms_step_sd": 1.22,
+      "build_slope": 29.036,
+      "chroma_shift": 0.071
+     },
+     "model": "catenoid",
+     "id": "54-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 7068,
+     "start_tick": 6786,
+     "end_tick": 7550,
+     "anomaly_ticks": [
+      7012,
+      7237
+     ],
+     "seconds": [
+      212.06,
+      235.94
+     ],
+     "score": 1.724,
+     "novelty": 0.504,
+     "repetitiveness_at_boundary": 0.777,
+     "repetitiveness_song_median": 0.77,
+     "facts": {
+      "rms_before": 0.0869,
+      "rms_after": 0.0345,
+      "onset_before": 2.668,
+      "onset_after": 2.38,
+      "rms_step_sd": -2.14,
+      "build_slope": -0.593,
+      "chroma_shift": 0.022
+     },
+     "model": "chamber",
+     "id": "54-p2"
+    }
+   ],
+   "keywords": [
+    "dancehall",
+    "happy",
+    "old"
+   ],
+   "budget": 2,
+   "monstruo_allowed": true
+  },
+  "55 - Melody - El Baile del Gorila (Videoclip)": {
+   "ticks": 6473,
+   "seconds": 202.3,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 7.89,
+   "tempo_confidence": 0.5008,
+   "bars": 104,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 445,
+     "start_tick": 195,
+     "end_tick": 1068,
+     "anomaly_ticks": [
+      445,
+      693
+     ],
+     "seconds": [
+      6.09,
+      33.38
+     ],
+     "score": 2.52,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.732,
+     "repetitiveness_song_median": 0.784,
+     "facts": {
+      "rms_before": 0.0554,
+      "rms_after": 0.1782,
+      "onset_before": 1.144,
+      "onset_after": 1.918,
+      "rms_step_sd": 2.73,
+      "build_slope": -2.091,
+      "chroma_shift": 0.041
+     },
+     "model": "someone",
+     "id": "55-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 1694,
+     "start_tick": 1444,
+     "end_tick": 2130,
+     "anomaly_ticks": [
+      1694,
+      1755
+     ],
+     "seconds": [
+      45.12,
+      66.56
+     ],
+     "score": 1.185,
+     "novelty": 0.719,
+     "repetitiveness_at_boundary": 0.857,
+     "repetitiveness_song_median": 0.784,
+     "facts": {
+      "rms_before": 0.2228,
+      "rms_after": 0.1851,
+      "onset_before": 1.774,
+      "onset_after": 1.765,
+      "rms_step_sd": -0.84,
+      "build_slope": 6.138,
+      "chroma_shift": 0.05
+     },
+     "model": "beam",
+     "id": "55-p2"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 2693,
+     "start_tick": 2381,
+     "end_tick": 3192,
+     "anomaly_ticks": [
+      2631,
+      2817
+     ],
+     "seconds": [
+      74.41,
+      99.75
+     ],
+     "score": 0.857,
+     "novelty": 0.507,
+     "repetitiveness_at_boundary": 0.806,
+     "repetitiveness_song_median": 0.784,
+     "facts": {
+      "rms_before": 0.1919,
+      "rms_after": 0.195,
+      "onset_before": 1.739,
+      "onset_after": 1.835,
+      "rms_step_sd": 0.07,
+      "build_slope": 2.425,
+      "chroma_shift": 0.014
+     },
+     "model": "bulb",
+     "id": "55-p3"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 4442,
+     "start_tick": 3755,
+     "end_tick": 4879,
+     "anomaly_ticks": [
+      4255,
+      4504
+     ],
+     "seconds": [
+      117.34,
+      152.47
+     ],
+     "score": 1.89,
+     "novelty": 0.944,
+     "repetitiveness_at_boundary": 0.816,
+     "repetitiveness_song_median": 0.784,
+     "facts": {
+      "rms_before": 0.1574,
+      "rms_after": 0.2261,
+      "onset_before": 2.138,
+      "onset_after": 1.748,
+      "rms_step_sd": 1.53,
+      "build_slope": 1.928,
+      "chroma_shift": 0.059
+     },
+     "model": "catenoid",
+     "id": "55-p4"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 6316,
+     "start_tick": 6066,
+     "end_tick": 6472,
+     "anomaly_ticks": [
+      6316,
+      6472
+     ],
+     "seconds": [
+      189.56,
+      202.25
+     ],
+     "score": 1.399,
+     "novelty": 0.848,
+     "repetitiveness_at_boundary": 0.75,
+     "repetitiveness_song_median": 0.784,
+     "facts": {
+      "rms_before": 0.1911,
+      "rms_after": 0.0655,
+      "onset_before": 1.801,
+      "onset_after": 0.842,
+      "rms_step_sd": -2.79,
+      "build_slope": 0.313,
+      "chroma_shift": 0.03
+     },
+     "model": "cyberspace",
+     "id": "55-p5"
+    }
+   ],
+   "keywords": [
+    "child",
+    "playful",
+    "happy"
+   ],
+   "budget": 5,
+   "monstruo_allowed": false
+  },
+  "56 - Mayonesa - Chocolate (Video Oficial)": {
+   "ticks": 7463,
+   "seconds": 233.2,
+   "bpm": 95.7,
+   "beat_ticks": 20.064,
+   "bar_ticks": 80.256,
+   "grid_phase_tick": 10.78,
+   "tempo_confidence": 0.5181,
+   "bars": 93,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 91,
+     "start_tick": 10,
+     "end_tick": 892,
+     "anomaly_ticks": [
+      10,
+      411
+     ],
+     "seconds": [
+      0.31,
+      27.88
+     ],
+     "score": 1.377,
+     "novelty": 0.346,
+     "repetitiveness_at_boundary": 0.712,
+     "repetitiveness_song_median": 0.764,
+     "facts": {
+      "rms_before": 0.11,
+      "rms_after": 0.1565,
+      "onset_before": 2.557,
+      "onset_after": 2.054,
+      "rms_step_sd": 1.12,
+      "build_slope": 0.0,
+      "chroma_shift": 0.037
+     },
+     "model": "parallax-cave",
+     "id": "56-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 3060,
+     "start_tick": 2659,
+     "end_tick": 3621,
+     "anomaly_ticks": [
+      2980,
+      3139
+     ],
+     "seconds": [
+      83.09,
+      113.16
+     ],
+     "score": 1.72,
+     "novelty": 0.973,
+     "repetitiveness_at_boundary": 0.718,
+     "repetitiveness_song_median": 0.764,
+     "facts": {
+      "rms_before": 0.2275,
+      "rms_after": 0.1829,
+      "onset_before": 1.968,
+      "onset_after": 2.293,
+      "rms_step_sd": -1.08,
+      "build_slope": -7.714,
+      "chroma_shift": 0.021
+     },
+     "model": "rings",
+     "id": "56-p2"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 5708,
+     "start_tick": 5387,
+     "end_tick": 6269,
+     "anomaly_ticks": [
+      5708,
+      5788
+     ],
+     "seconds": [
+      168.34,
+      195.91
+     ],
+     "score": 1.703,
+     "novelty": 0.944,
+     "repetitiveness_at_boundary": 0.707,
+     "repetitiveness_song_median": 0.764,
+     "facts": {
+      "rms_before": 0.2272,
+      "rms_after": 0.1788,
+      "onset_before": 2.14,
+      "onset_after": 2.102,
+      "rms_step_sd": -1.17,
+      "build_slope": 3.444,
+      "chroma_shift": 0.043
+     },
+     "model": "scratch",
+     "id": "56-p3"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6752,
+     "start_tick": 6431,
+     "end_tick": 7313,
+     "anomaly_ticks": [
+      6752,
+      6831
+     ],
+     "seconds": [
+      200.97,
+      228.53
+     ],
+     "score": 1.614,
+     "novelty": 0.694,
+     "repetitiveness_at_boundary": 0.742,
+     "repetitiveness_song_median": 0.764,
+     "facts": {
+      "rms_before": 0.2686,
+      "rms_after": 0.2017,
+      "onset_before": 1.571,
+      "onset_after": 1.809,
+      "rms_step_sd": -1.62,
+      "build_slope": 5.277,
+      "chroma_shift": 0.036
+     },
+     "model": "terrarium",
+     "id": "56-p4"
+    }
+   ],
+   "keywords": [
+    "reggaeton",
+    "playful"
+   ],
+   "budget": 4,
+   "monstruo_allowed": false
+  },
+  "57 - RAYE - WHERE IS MY HUSBAND! (Official Music Video)": {
+   "ticks": 6331,
+   "seconds": 197.8,
+   "bpm": 117.4,
+   "beat_ticks": 16.352,
+   "bar_ticks": 65.408,
+   "grid_phase_tick": 13.97,
+   "tempo_confidence": 0.4139,
+   "bars": 97,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 79,
+     "start_tick": 13,
+     "end_tick": 863,
+     "anomaly_ticks": [
+      13,
+      340
+     ],
+     "seconds": [
+      0.41,
+      26.97
+     ],
+     "score": 1.663,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.766,
+     "repetitiveness_song_median": 0.748,
+     "facts": {
+      "rms_before": 0.1217,
+      "rms_after": 0.137,
+      "onset_before": 1.101,
+      "onset_after": 1.186,
+      "rms_step_sd": 0.32,
+      "build_slope": 0.0,
+      "chroma_shift": 0.189
+     },
+     "model": "sandstorm",
+     "id": "57-p1"
+    },
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 4919,
+     "start_tick": 4657,
+     "end_tick": 5507,
+     "anomaly_ticks": [
+      4919,
+      4983
+     ],
+     "seconds": [
+      145.53,
+      172.09
+     ],
+     "score": 1.677,
+     "novelty": 0.877,
+     "repetitiveness_at_boundary": 0.649,
+     "repetitiveness_song_median": 0.748,
+     "facts": {
+      "rms_before": 0.1914,
+      "rms_after": 0.1557,
+      "onset_before": 1.606,
+      "onset_after": 1.209,
+      "rms_step_sd": -0.74,
+      "build_slope": 6.42,
+      "chroma_shift": 0.041
+     },
+     "model": "vaporgrid",
+     "id": "57-p2"
+    }
+   ],
+   "keywords": [
+    "pop",
+    "drums",
+    "happy",
+    "uplift",
+    "elegant"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "58 - PinkPantheress - Stateside + Zara Larsson (Official Video)": {
+   "ticks": 6181,
+   "seconds": 193.2,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 6.83,
+   "tempo_confidence": 0.2938,
+   "bars": 99,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 319,
+     "start_tick": 6,
+     "end_tick": 880,
+     "anomaly_ticks": [
+      194,
+      380
+     ],
+     "seconds": [
+      0.19,
+      27.5
+     ],
+     "score": 2.19,
+     "novelty": 0.74,
+     "repetitiveness_at_boundary": 0.812,
+     "repetitiveness_song_median": 0.8,
+     "facts": {
+      "rms_before": 0.0477,
+      "rms_after": 0.1495,
+      "onset_before": 1.466,
+      "onset_after": 2.496,
+      "rms_step_sd": 2.94,
+      "build_slope": 8.777,
+      "chroma_shift": 0.007
+     },
+     "model": "laser",
+     "id": "58-p1"
+    },
+    {
+     "kind": "harmonic-change",
+     "boundary_tick": 4566,
+     "start_tick": 4254,
+     "end_tick": 5127,
+     "anomaly_ticks": [
+      4504,
+      4628
+     ],
+     "seconds": [
+      132.94,
+      160.22
+     ],
+     "score": 1.397,
+     "novelty": 0.796,
+     "repetitiveness_at_boundary": 0.815,
+     "repetitiveness_song_median": 0.8,
+     "facts": {
+      "rms_before": 0.1414,
+      "rms_after": 0.1618,
+      "onset_before": 1.539,
+      "onset_after": 1.606,
+      "rms_step_sd": 0.59,
+      "build_slope": 4.108,
+      "chroma_shift": 0.054
+     },
+     "model": "pulsingborder",
+     "id": "58-p2"
+    }
+   ],
+   "keywords": [
+    "elegant",
+    "smooth",
+    "pop"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "59 - Beyoncé - Countdown (Official Video)": {
+   "ticks": 6804,
+   "seconds": 212.6,
+   "bpm": 89.2,
+   "beat_ticks": 21.536,
+   "bar_ticks": 86.144,
+   "grid_phase_tick": 13.39,
+   "tempo_confidence": 0.7736,
+   "bars": 79,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 4492,
+     "start_tick": 3803,
+     "end_tick": 5525,
+     "anomaly_ticks": [
+      4492,
+      4836
+     ],
+     "seconds": [
+      118.84,
+      172.66
+     ],
+     "score": 2.037,
+     "novelty": 0.938,
+     "repetitiveness_at_boundary": 0.671,
+     "repetitiveness_song_median": 0.764,
+     "facts": {
+      "rms_before": 0.2051,
+      "rms_after": 0.2704,
+      "onset_before": 2.265,
+      "onset_after": 2.166,
+      "rms_step_sd": 1.77,
+      "build_slope": 0.82,
+      "chroma_shift": 0.006
+     },
+     "model": "water",
+     "id": "59-p1"
+    }
+   ],
+   "keywords": [
+    "pop",
+    "epic"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "60 - Fergie - Fergalicious": {
+   "ticks": 7314,
+   "seconds": 228.6,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 6.49,
+   "tempo_confidence": 0.3402,
+   "bars": 123,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 125,
+     "start_tick": 6,
+     "end_tick": 658,
+     "anomaly_ticks": [
+      6,
+      183
+     ],
+     "seconds": [
+      0.19,
+      20.56
+     ],
+     "score": 2.362,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.75,
+     "repetitiveness_song_median": 0.793,
+     "facts": {
+      "rms_before": 0.0726,
+      "rms_after": 0.2319,
+      "onset_before": 2.137,
+      "onset_after": 2.121,
+      "rms_step_sd": 2.36,
+      "build_slope": 0.0,
+      "chroma_shift": 0.04
+     },
+     "model": "lightning",
+     "id": "60-p1"
+    }
+   ],
+   "keywords": [
+    "pop",
+    "hip hop"
+   ],
+   "budget": 1,
+   "monstruo_allowed": true
+  },
+  "61 - Shakira - Hips Don't Lie (featuring Wyclef Jean) (Official 4K Video) ft. Wyclef Jean": {
+   "ticks": 6984,
+   "seconds": 218.2,
+   "bpm": 99.3,
+   "beat_ticks": 19.328,
+   "bar_ticks": 77.312,
+   "grid_phase_tick": 4.7,
+   "tempo_confidence": 0.472,
+   "bars": 90,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 313,
+     "start_tick": 4,
+     "end_tick": 1008,
+     "anomaly_ticks": [
+      236,
+      544
+     ],
+     "seconds": [
+      0.12,
+      31.5
+     ],
+     "score": 2.133,
+     "novelty": 0.796,
+     "repetitiveness_at_boundary": 0.727,
+     "repetitiveness_song_median": 0.729,
+     "facts": {
+      "rms_before": 0.0554,
+      "rms_after": 0.163,
+      "onset_before": 1.742,
+      "onset_after": 1.849,
+      "rms_step_sd": 2.49,
+      "build_slope": 8.13,
+      "chroma_shift": 0.022
+     },
+     "model": "strobe",
+     "id": "61-p1"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 2169,
+     "start_tick": 1550,
+     "end_tick": 2709,
+     "anomaly_ticks": [
+      2169,
+      2245
+     ],
+     "seconds": [
+      48.44,
+      84.66
+     ],
+     "score": 1.365,
+     "novelty": 0.766,
+     "repetitiveness_at_boundary": 0.831,
+     "repetitiveness_song_median": 0.729,
+     "facts": {
+      "rms_before": 0.1558,
+      "rms_after": 0.2029,
+      "onset_before": 1.772,
+      "onset_after": 2.023,
+      "rms_step_sd": 1.09,
+      "build_slope": 5.696,
+      "chroma_shift": 0.012
+     },
+     "model": "kaleido",
+     "id": "61-p2"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 3097,
+     "start_tick": 2787,
+     "end_tick": 3714,
+     "anomaly_ticks": [
+      3097,
+      3250
+     ],
+     "seconds": [
+      87.09,
+      116.06
+     ],
+     "score": 1.204,
+     "novelty": 0.651,
+     "repetitiveness_at_boundary": 0.696,
+     "repetitiveness_song_median": 0.729,
+     "facts": {
+      "rms_before": 0.1699,
+      "rms_after": 0.1906,
+      "onset_before": 1.956,
+      "onset_after": 2.387,
+      "rms_step_sd": 0.48,
+      "build_slope": -0.269,
+      "chroma_shift": 0.017
+     },
+     "model": "moire",
+     "id": "61-p3"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 4643,
+     "start_tick": 4334,
+     "end_tick": 5260,
+     "anomaly_ticks": [
+      4643,
+      4797
+     ],
+     "seconds": [
+      135.44,
+      164.38
+     ],
+     "score": 1.487,
+     "novelty": 0.6,
+     "repetitiveness_at_boundary": 0.571,
+     "repetitiveness_song_median": 0.729,
+     "facts": {
+      "rms_before": 0.2079,
+      "rms_after": 0.147,
+      "onset_before": 1.859,
+      "onset_after": 2.101,
+      "rms_step_sd": -1.41,
+      "build_slope": 6.355,
+      "chroma_shift": 0.026
+     },
+     "model": "waves",
+     "id": "61-p4"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 6885,
+     "start_tick": 6421,
+     "end_tick": 6961,
+     "anomaly_ticks": [
+      6730,
+      6961
+     ],
+     "seconds": [
+      200.66,
+      217.53
+     ],
+     "score": 1.063,
+     "novelty": 0.58,
+     "repetitiveness_at_boundary": 0.653,
+     "repetitiveness_song_median": 0.729,
+     "facts": {
+      "rms_before": 0.0652,
+      "rms_after": 0.001,
+      "onset_before": 1.239,
+      "onset_after": 0.261,
+      "rms_step_sd": -1.48,
+      "build_slope": -21.217,
+      "chroma_shift": 0.075
+     },
+     "model": "heatmap",
+     "id": "61-p5"
+    }
+   ],
+   "keywords": [
+    "pop",
+    "reggaeton",
+    "latin pop"
+   ],
+   "budget": 5,
+   "monstruo_allowed": false
+  },
+  "63 - Voy Pa Arriba": {
+   "ticks": 14163,
+   "seconds": 442.6,
+   "bpm": 123.2,
+   "beat_ticks": 15.584,
+   "bar_ticks": 62.336,
+   "grid_phase_tick": 8.5,
+   "tempo_confidence": 0.5444,
+   "bars": 227,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 70,
+     "start_tick": 8,
+     "end_tick": 693,
+     "anomaly_ticks": [
+      8,
+      319
+     ],
+     "seconds": [
+      0.25,
+      21.66
+     ],
+     "score": 1.854,
+     "novelty": 0.725,
+     "repetitiveness_at_boundary": 0.758,
+     "repetitiveness_song_median": 0.782,
+     "facts": {
+      "rms_before": 0.0649,
+      "rms_after": 0.149,
+      "onset_before": 1.937,
+      "onset_after": 3.434,
+      "rms_step_sd": 1.66,
+      "build_slope": 0.0,
+      "chroma_shift": 0.119
+     },
+     "model": "wake",
+     "id": "63-p1"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 1317,
+     "start_tick": 818,
+     "end_tick": 1752,
+     "anomaly_ticks": [
+      1317,
+      1378
+     ],
+     "seconds": [
+      25.56,
+      54.75
+     ],
+     "score": 1.472,
+     "novelty": 0.52,
+     "repetitiveness_at_boundary": 0.783,
+     "repetitiveness_song_median": 0.782,
+     "facts": {
+      "rms_before": 0.1742,
+      "rms_after": 0.2575,
+      "onset_before": 2.16,
+      "onset_after": 2.002,
+      "rms_step_sd": 1.64,
+      "build_slope": 0.871,
+      "chroma_shift": 0.04
+     },
+     "model": "warpcut",
+     "id": "63-p2"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 4870,
+     "start_tick": 4559,
+     "end_tick": 5430,
+     "anomaly_ticks": [
+      4808,
+      5056
+     ],
+     "seconds": [
+      142.47,
+      169.69
+     ],
+     "score": 1.566,
+     "novelty": 0.613,
+     "repetitiveness_at_boundary": 0.755,
+     "repetitiveness_song_median": 0.782,
+     "facts": {
+      "rms_before": 0.2515,
+      "rms_after": 0.1904,
+      "onset_before": 2.098,
+      "onset_after": 2.162,
+      "rms_step_sd": -1.21,
+      "build_slope": -1.337,
+      "chroma_shift": 0.035
+     },
+     "model": "water",
+     "id": "63-p3"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 13971,
+     "start_tick": 13722,
+     "end_tick": 14157,
+     "anomaly_ticks": [
+      13971,
+      14157
+     ],
+     "seconds": [
+      428.81,
+      442.41
+     ],
+     "score": 1.412,
+     "novelty": 0.709,
+     "repetitiveness_at_boundary": 0.74,
+     "repetitiveness_song_median": 0.782,
+     "facts": {
+      "rms_before": 0.2406,
+      "rms_after": 0.0406,
+      "onset_before": 2.354,
+      "onset_after": 0.445,
+      "rms_step_sd": -3.95,
+      "build_slope": -10.803,
+      "chroma_shift": 0.127
+     },
+     "model": "river",
+     "id": "63-p4"
+    }
+   ],
+   "keywords": [
+    "afro",
+    "drums",
+    "tribe"
+   ],
+   "budget": 4,
+   "monstruo_allowed": false
+  },
+  "64 - Megan Thee Stallion - Cash Shit ft. Da Baby": {
+   "ticks": 6168,
+   "seconds": 192.8,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 2.22,
+   "tempo_confidence": 0.3125,
+   "bars": 104,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 477,
+     "start_tick": 2,
+     "end_tick": 1010,
+     "anomaly_ticks": [
+      477,
+      535
+     ],
+     "seconds": [
+      0.06,
+      31.56
+     ],
+     "score": 1.89,
+     "novelty": 0.977,
+     "repetitiveness_at_boundary": 0.833,
+     "repetitiveness_song_median": 0.767,
+     "facts": {
+      "rms_before": 0.0971,
+      "rms_after": 0.262,
+      "onset_before": 2.689,
+      "onset_after": 2.587,
+      "rms_step_sd": 2.13,
+      "build_slope": 3.025,
+      "chroma_shift": 0.016
+     },
+     "model": "stained-glass",
+     "id": "64-p1"
+    }
+   ],
+   "keywords": [
+    "hip hop",
+    "pop",
+    "hard"
+   ],
+   "budget": 1,
+   "monstruo_allowed": true
+  },
+  "65 - Michael Jackson - In the Closet (Official Video - Upscaled)": {
+   "ticks": 11734,
+   "seconds": 366.7,
+   "bpm": 112.4,
+   "beat_ticks": 17.088,
+   "bar_ticks": 68.352,
+   "grid_phase_tick": 6.1,
+   "tempo_confidence": 0.4266,
+   "bars": 172,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 1168,
+     "start_tick": 689,
+     "end_tick": 1782,
+     "anomaly_ticks": [
+      963,
+      1235
+     ],
+     "seconds": [
+      21.53,
+      55.69
+     ],
+     "score": 1.974,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.866,
+     "repetitiveness_song_median": 0.808,
+     "facts": {
+      "rms_before": 0.0214,
+      "rms_after": 0.0946,
+      "onset_before": 1.105,
+      "onset_after": 2.764,
+      "rms_step_sd": 1.71,
+      "build_slope": -4.607,
+      "chroma_shift": 0.16
+     },
+     "model": "membrane",
+     "id": "65-p1"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 5952,
+     "start_tick": 5337,
+     "end_tick": 6566,
+     "anomaly_ticks": [
+      5884,
+      6020
+     ],
+     "seconds": [
+      166.78,
+      205.19
+     ],
+     "score": 1.925,
+     "novelty": 0.748,
+     "repetitiveness_at_boundary": 0.819,
+     "repetitiveness_song_median": 0.808,
+     "facts": {
+      "rms_before": 0.0682,
+      "rms_after": 0.1593,
+      "onset_before": 1.778,
+      "onset_after": 1.958,
+      "rms_step_sd": 2.13,
+      "build_slope": 0.508,
+      "chroma_shift": 0.007
+     },
+     "model": "object",
+     "id": "65-p2"
+    }
+   ],
+   "keywords": [
+    "pop",
+    "drums",
+    "elegant"
+   ],
+   "budget": 2,
+   "monstruo_allowed": true
+  },
+  "66 - The Pussycat Dolls - Buttons (Official Music Video) ft. Snoop Dogg": {
+   "ticks": 7537,
+   "seconds": 235.5,
+   "bpm": 107.5,
+   "beat_ticks": 17.856,
+   "bar_ticks": 71.424,
+   "grid_phase_tick": 5.85,
+   "tempo_confidence": 0.4098,
+   "bars": 105,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 77,
+     "start_tick": 5,
+     "end_tick": 790,
+     "anomaly_ticks": [
+      77,
+      361
+     ],
+     "seconds": [
+      0.16,
+      24.69
+     ],
+     "score": 2.378,
+     "novelty": 0.736,
+     "repetitiveness_at_boundary": 0.657,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.0625,
+      "rms_after": 0.1591,
+      "onset_before": 1.373,
+      "onset_after": 1.921,
+      "rms_step_sd": 3.24,
+      "build_slope": 0.0,
+      "chroma_shift": 0.01
+     },
+     "model": "scene3d",
+     "id": "66-p1"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 2148,
+     "start_tick": 1720,
+     "end_tick": 2647,
+     "anomaly_ticks": [
+      2005,
+      2218
+     ],
+     "seconds": [
+      53.75,
+      82.72
+     ],
+     "score": 1.518,
+     "novelty": 0.726,
+     "repetitiveness_at_boundary": 0.761,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.1411,
+      "rms_after": 0.171,
+      "onset_before": 2.226,
+      "onset_after": 1.667,
+      "rms_step_sd": 1.0,
+      "build_slope": -4.296,
+      "chroma_shift": 0.008
+     },
+     "model": "room",
+     "id": "66-p2"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 3862,
+     "start_tick": 3362,
+     "end_tick": 4361,
+     "anomaly_ticks": [
+      3648,
+      3933
+     ],
+     "seconds": [
+      105.06,
+      136.28
+     ],
+     "score": 1.683,
+     "novelty": 0.827,
+     "repetitiveness_at_boundary": 0.838,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.1548,
+      "rms_after": 0.1925,
+      "onset_before": 1.952,
+      "onset_after": 1.661,
+      "rms_step_sd": 1.26,
+      "build_slope": -3.2,
+      "chroma_shift": 0.007
+     },
+     "model": "dithering",
+     "id": "66-p3"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 5648,
+     "start_tick": 5291,
+     "end_tick": 6361,
+     "anomaly_ticks": [
+      5576,
+      5933
+     ],
+     "seconds": [
+      165.34,
+      198.78
+     ],
+     "score": 1.868,
+     "novelty": 0.73,
+     "repetitiveness_at_boundary": 0.827,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.1398,
+      "rms_after": 0.1962,
+      "onset_before": 1.903,
+      "onset_after": 2.546,
+      "rms_step_sd": 1.89,
+      "build_slope": -5.3,
+      "chroma_shift": 0.054
+     },
+     "model": "imagedithering",
+     "id": "66-p4"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 7362,
+     "start_tick": 7076,
+     "end_tick": 7504,
+     "anomaly_ticks": [
+      7362,
+      7504
+     ],
+     "seconds": [
+      221.12,
+      234.5
+     ],
+     "score": 1.424,
+     "novelty": 0.79,
+     "repetitiveness_at_boundary": 0.686,
+     "repetitiveness_song_median": 0.78,
+     "facts": {
+      "rms_before": 0.2023,
+      "rms_after": 0.0463,
+      "onset_before": 1.588,
+      "onset_after": 0.737,
+      "rms_step_sd": -5.23,
+      "build_slope": -3.694,
+      "chroma_shift": 0.079
+     },
+     "model": "parallax-city",
+     "id": "66-p5"
+    }
+   ],
+   "keywords": [
+    "pop",
+    "dark",
+    "hip hop"
+   ],
+   "budget": 5,
+   "monstruo_allowed": true
+  },
+  "67 - Sergio Mendes - Magalenha (Official Visualizer)": {
+   "ticks": 6944,
+   "seconds": 217.0,
+   "bpm": 117.4,
+   "beat_ticks": 16.352,
+   "bar_ticks": 65.408,
+   "grid_phase_tick": 15.37,
+   "tempo_confidence": 0.4821,
+   "bars": 106,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "intro",
+     "boundary_tick": 15,
+     "start_tick": 15,
+     "end_tick": 668,
+     "anomaly_ticks": [
+      15,
+      275
+     ],
+     "seconds": [
+      0.47,
+      20.88
+     ],
+     "score": 1.28,
+     "novelty": 0.116,
+     "repetitiveness_at_boundary": 0.628,
+     "repetitiveness_song_median": 0.804,
+     "facts": {
+      "rms_before": 0.0,
+      "rms_after": 0.0054,
+      "onset_before": 0.0,
+      "onset_after": 2.905,
+      "rms_step_sd": 0.11,
+      "build_slope": 0.0,
+      "chroma_shift": 0.0
+     },
+     "model": "pulsingborder",
+     "id": "67-p1"
+    },
+    {
+     "kind": "build-drop",
+     "boundary_tick": 1454,
+     "start_tick": 865,
+     "end_tick": 1911,
+     "anomaly_ticks": [
+      1388,
+      1518
+     ],
+     "seconds": [
+      27.03,
+      59.72
+     ],
+     "score": 1.908,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.885,
+     "repetitiveness_song_median": 0.804,
+     "facts": {
+      "rms_before": 0.0507,
+      "rms_after": 0.1425,
+      "onset_before": 1.758,
+      "onset_after": 1.928,
+      "rms_step_sd": 1.87,
+      "build_slope": 1.773,
+      "chroma_shift": 0.014
+     },
+     "model": "ripples",
+     "id": "67-p2"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 3351,
+     "start_tick": 3089,
+     "end_tick": 3808,
+     "anomaly_ticks": [
+      3351,
+      3415
+     ],
+     "seconds": [
+      96.53,
+      119.0
+     ],
+     "score": 0.801,
+     "novelty": 0.432,
+     "repetitiveness_at_boundary": 0.725,
+     "repetitiveness_song_median": 0.804,
+     "facts": {
+      "rms_before": 0.1424,
+      "rms_after": 0.14,
+      "onset_before": 1.909,
+      "onset_after": 2.095,
+      "rms_step_sd": -0.05,
+      "build_slope": 0.275,
+      "chroma_shift": 0.005
+     },
+     "model": "parallax-fields",
+     "id": "67-p3"
+    },
+    {
+     "kind": "section-change",
+     "boundary_tick": 4528,
+     "start_tick": 4201,
+     "end_tick": 5050,
+     "anomaly_ticks": [
+      4463,
+      4658
+     ],
+     "seconds": [
+      131.28,
+      157.81
+     ],
+     "score": 1.369,
+     "novelty": 0.809,
+     "repetitiveness_at_boundary": 0.753,
+     "repetitiveness_song_median": 0.804,
+     "facts": {
+      "rms_before": 0.1338,
+      "rms_after": 0.1204,
+      "onset_before": 1.864,
+      "onset_after": 1.796,
+      "rms_step_sd": -0.27,
+      "build_slope": -1.929,
+      "chroma_shift": 0.007
+     },
+     "model": "parallax-sky",
+     "id": "67-p4"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6490,
+     "start_tick": 6229,
+     "end_tick": 6943,
+     "anomaly_ticks": [
+      6490,
+      6620
+     ],
+     "seconds": [
+      194.66,
+      216.97
+     ],
+     "score": 1.805,
+     "novelty": 0.667,
+     "repetitiveness_at_boundary": 0.662,
+     "repetitiveness_song_median": 0.804,
+     "facts": {
+      "rms_before": 0.1207,
+      "rms_after": 0.0418,
+      "onset_before": 1.874,
+      "onset_after": 1.938,
+      "rms_step_sd": -1.61,
+      "build_slope": -2.491,
+      "chroma_shift": 0.005
+     },
+     "model": "parallax-city",
+     "id": "67-p5"
+    }
+   ],
+   "keywords": [
+    "uplift",
+    "happy",
+    "samba"
+   ],
+   "budget": 5,
+   "monstruo_allowed": false
+  },
+  "68 - Gypsy Woman (She's Homeless) (La Da Dee La Da Da) (Basement Boy Strip To The Bone Mix)": {
+   "ticks": 14460,
+   "seconds": 451.9,
+   "bpm": 143.5,
+   "beat_ticks": 13.376,
+   "bar_ticks": 53.504,
+   "grid_phase_tick": 4.08,
+   "tempo_confidence": 0.6721,
+   "bars": 270,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "drop",
+     "boundary_tick": 6157,
+     "start_tick": 5782,
+     "end_tick": 6637,
+     "anomaly_ticks": [
+      5996,
+      6209
+     ],
+     "seconds": [
+      180.69,
+      207.41
+     ],
+     "score": 2.085,
+     "novelty": 0.89,
+     "repetitiveness_at_boundary": 0.882,
+     "repetitiveness_song_median": 0.882,
+     "facts": {
+      "rms_before": 0.0681,
+      "rms_after": 0.1663,
+      "onset_before": 1.386,
+      "onset_after": 1.878,
+      "rms_step_sd": 2.09,
+      "build_slope": -10.695,
+      "chroma_shift": 0.015
+     },
+     "model": "room",
+     "id": "68-p1"
+    }
+   ],
+   "keywords": [
+    "pop",
+    "edm"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "69 - Adrian Younge, Ali Shaheed Muhammad - Apocalíptico feat. Azymuth": {
+   "ticks": 18177,
+   "seconds": 568.0,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 0.78,
+   "tempo_confidence": 0.4256,
+   "bars": 306,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 4395,
+     "start_tick": 3742,
+     "end_tick": 5107,
+     "anomaly_ticks": [
+      4217,
+      4632
+     ],
+     "seconds": [
+      116.94,
+      159.59
+     ],
+     "score": 1.901,
+     "novelty": 0.995,
+     "repetitiveness_at_boundary": 0.827,
+     "repetitiveness_song_median": 0.824,
+     "facts": {
+      "rms_before": 0.1973,
+      "rms_after": 0.223,
+      "onset_before": 1.551,
+      "onset_after": 1.367,
+      "rms_step_sd": 0.98,
+      "build_slope": 0.058,
+      "chroma_shift": 0.104
+     },
+     "model": "geoterrain",
+     "id": "69-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 6296,
+     "start_tick": 5999,
+     "end_tick": 7008,
+     "anomaly_ticks": [
+      6236,
+      6532
+     ],
+     "seconds": [
+      187.47,
+      219.0
+     ],
+     "score": 1.703,
+     "novelty": 0.891,
+     "repetitiveness_at_boundary": 0.841,
+     "repetitiveness_song_median": 0.824,
+     "facts": {
+      "rms_before": 0.2218,
+      "rms_after": 0.1981,
+      "onset_before": 1.227,
+      "onset_after": 1.59,
+      "rms_step_sd": -0.9,
+      "build_slope": -3.556,
+      "chroma_shift": 0.122
+     },
+     "model": "spiral",
+     "id": "69-p2"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 13126,
+     "start_tick": 12770,
+     "end_tick": 13719,
+     "anomaly_ticks": [
+      13007,
+      13244
+     ],
+     "seconds": [
+      399.06,
+      428.72
+     ],
+     "score": 1.98,
+     "novelty": 0.979,
+     "repetitiveness_at_boundary": 0.859,
+     "repetitiveness_song_median": 0.824,
+     "facts": {
+      "rms_before": 0.2329,
+      "rms_after": 0.1932,
+      "onset_before": 1.22,
+      "onset_after": 1.742,
+      "rms_step_sd": -1.51,
+      "build_slope": -3.703,
+      "chroma_shift": 0.077
+     },
+     "model": "swirl",
+     "id": "69-p3"
+    }
+   ],
+   "keywords": [
+    "drums",
+    "edm",
+    "tribe",
+    "psychedelic"
+   ],
+   "budget": 3,
+   "monstruo_allowed": false
+  },
+  "70 - Kid Cudi - Pursuit of Happiness [Remix Steve Aoki] (lyrics)": {
+   "ticks": 11960,
+   "seconds": 373.8,
+   "bpm": 129.3,
+   "beat_ticks": 14.848,
+   "bar_ticks": 59.392,
+   "grid_phase_tick": 11.36,
+   "tempo_confidence": 0.3427,
+   "bars": 201,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "break",
+     "boundary_tick": 486,
+     "start_tick": 248,
+     "end_tick": 1198,
+     "anomaly_ticks": [
+      486,
+      723
+     ],
+     "seconds": [
+      7.75,
+      37.44
+     ],
+     "score": 1.996,
+     "novelty": 0.787,
+     "repetitiveness_at_boundary": 0.736,
+     "repetitiveness_song_median": 0.808,
+     "facts": {
+      "rms_before": 0.1921,
+      "rms_after": 0.1263,
+      "onset_before": 1.888,
+      "onset_after": 1.859,
+      "rms_step_sd": -2.0,
+      "build_slope": 7.074,
+      "chroma_shift": 0.119
+     },
+     "model": "cyberspace",
+     "id": "70-p1"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 3812,
+     "start_tick": 3574,
+     "end_tick": 4345,
+     "anomaly_ticks": [
+      3812,
+      3870
+     ],
+     "seconds": [
+      111.69,
+      135.78
+     ],
+     "score": 2.179,
+     "novelty": 0.785,
+     "repetitiveness_at_boundary": 0.819,
+     "repetitiveness_song_median": 0.808,
+     "facts": {
+      "rms_before": 0.0977,
+      "rms_after": 0.2006,
+      "onset_before": 1.764,
+      "onset_after": 1.508,
+      "rms_step_sd": 3.13,
+      "build_slope": -10.243,
+      "chroma_shift": 0.03
+     },
+     "model": "domain",
+     "id": "70-p2"
+    }
+   ],
+   "keywords": [
+    "epic",
+    "edm",
+    "pop",
+    "uplift"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "71 - Riton & Kah-Lo - Fake ID [Official Audio]": {
+   "ticks": 7905,
+   "seconds": 247.0,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 8.85,
+   "tempo_confidence": 0.6777,
+   "bars": 126,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 1507,
+     "start_tick": 945,
+     "end_tick": 2069,
+     "anomaly_ticks": [
+      1445,
+      1569
+     ],
+     "seconds": [
+      29.53,
+      64.66
+     ],
+     "score": 1.665,
+     "novelty": 0.64,
+     "repetitiveness_at_boundary": 0.823,
+     "repetitiveness_song_median": 0.807,
+     "facts": {
+      "rms_before": 0.1257,
+      "rms_after": 0.3069,
+      "onset_before": 1.988,
+      "onset_after": 2.459,
+      "rms_step_sd": 1.96,
+      "build_slope": 6.804,
+      "chroma_shift": 0.042
+     },
+     "model": "entrance",
+     "id": "71-p1"
+    },
+    {
+     "kind": "break",
+     "boundary_tick": 4631,
+     "start_tick": 4381,
+     "end_tick": 5192,
+     "anomaly_ticks": [
+      4631,
+      4692
+     ],
+     "seconds": [
+      136.91,
+      162.25
+     ],
+     "score": 2.047,
+     "novelty": 0.932,
+     "repetitiveness_at_boundary": 0.771,
+     "repetitiveness_song_median": 0.807,
+     "facts": {
+      "rms_before": 0.3048,
+      "rms_after": 0.0961,
+      "onset_before": 2.335,
+      "onset_after": 1.799,
+      "rms_step_sd": -2.26,
+      "build_slope": 1.43,
+      "chroma_shift": 0.025
+     },
+     "model": "strobe",
+     "id": "71-p2"
+    }
+   ],
+   "keywords": [
+    "edm",
+    "uplift"
+   ],
+   "budget": 2,
+   "monstruo_allowed": false
+  },
+  "72 - Daily Twist (Extended Mix)": {
+   "ticks": 10097,
+   "seconds": 315.5,
+   "bpm": 123.0,
+   "beat_ticks": 15.616,
+   "bar_ticks": 62.464,
+   "grid_phase_tick": 13.51,
+   "tempo_confidence": 0.8001,
+   "bars": 161,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 4760,
+     "start_tick": 4261,
+     "end_tick": 5321,
+     "anomaly_ticks": [
+      4760,
+      4822
+     ],
+     "seconds": [
+      133.16,
+      166.28
+     ],
+     "score": 2.073,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.854,
+     "repetitiveness_song_median": 0.857,
+     "facts": {
+      "rms_before": 0.1692,
+      "rms_after": 0.3236,
+      "onset_before": 1.59,
+      "onset_after": 1.939,
+      "rms_step_sd": 2.08,
+      "build_slope": 5.129,
+      "chroma_shift": 0.2
+     },
+     "model": "fineline",
+     "id": "72-p1"
+    }
+   ],
+   "keywords": [
+    "drums",
+    "edm",
+    "smooth"
+   ],
+   "budget": 1,
+   "monstruo_allowed": false
+  },
+  "73 - Undercover - Balikali On Acid (Blazy & Doktor Froid Bootleg)": {
+   "ticks": 10637,
+   "seconds": 332.4,
+   "bpm": 120.1,
+   "beat_ticks": 15.984,
+   "bar_ticks": 63.936,
+   "grid_phase_tick": 13.18,
+   "tempo_confidence": 0.8724,
+   "bars": 166,
+   "repetitive_share": 0.5,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 3593,
+     "start_tick": 2954,
+     "end_tick": 4168,
+     "anomaly_ticks": [
+      3465,
+      3656
+     ],
+     "seconds": [
+      92.31,
+      130.25
+     ],
+     "score": 1.846,
+     "novelty": 0.795,
+     "repetitiveness_at_boundary": 0.832,
+     "repetitiveness_song_median": 0.811,
+     "facts": {
+      "rms_before": 0.1037,
+      "rms_after": 0.3339,
+      "onset_before": 1.742,
+      "onset_after": 3.327,
+      "rms_step_sd": 1.87,
+      "build_slope": 12.525,
+      "chroma_shift": 0.015
+     },
+     "model": "forge",
+     "id": "73-p1"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 8452,
+     "start_tick": 8069,
+     "end_tick": 9027,
+     "anomaly_ticks": [
+      8324,
+      8515
+     ],
+     "seconds": [
+      252.16,
+      282.09
+     ],
+     "score": 2.048,
+     "novelty": 0.945,
+     "repetitiveness_at_boundary": 0.803,
+     "repetitiveness_song_median": 0.811,
+     "facts": {
+      "rms_before": 0.1112,
+      "rms_after": 0.3365,
+      "onset_before": 1.781,
+      "onset_after": 4.763,
+      "rms_step_sd": 1.83,
+      "build_slope": -12.156,
+      "chroma_shift": 0.02
+     },
+     "model": "corals",
+     "id": "73-p2"
+    },
+    {
+     "kind": "drop",
+     "boundary_tick": 9539,
+     "start_tick": 9283,
+     "end_tick": 10114,
+     "anomaly_ticks": [
+      9539,
+      9602
+     ],
+     "seconds": [
+      290.09,
+      316.06
+     ],
+     "score": 2.131,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.817,
+     "repetitiveness_song_median": 0.811,
+     "facts": {
+      "rms_before": 0.0741,
+      "rms_after": 0.345,
+      "onset_before": 1.523,
+      "onset_after": 6.806,
+      "rms_step_sd": 2.2,
+      "build_slope": -50.752,
+      "chroma_shift": 0.006
+     },
+     "model": "dla",
+     "id": "73-p3"
+    }
+   ],
+   "keywords": [
+    "hard",
+    "edm",
+    "psychedelic"
+   ],
+   "budget": 3,
+   "monstruo_allowed": true
+  },
+  "74 - Sere (Remix)": {
+   "ticks": 6215,
+   "seconds": 194.2,
+   "bpm": 78.3,
+   "beat_ticks": 24.512,
+   "bar_ticks": 98.048,
+   "grid_phase_tick": 19.47,
+   "tempo_confidence": 0.3955,
+   "bars": 63,
+   "repetitive_share": 0.49,
+   "parts": [
+    {
+     "kind": "build-drop",
+     "boundary_tick": 1097,
+     "start_tick": 19,
+     "end_tick": 1979,
+     "anomaly_ticks": [
+      803,
+      1195
+     ],
+     "seconds": [
+      0.59,
+      61.84
+     ],
+     "score": 1.801,
+     "novelty": 0.688,
+     "repetitiveness_at_boundary": 0.756,
+     "repetitiveness_song_median": 0.756,
+     "facts": {
+      "rms_before": 0.1296,
+      "rms_after": 0.2565,
+      "onset_before": 2.411,
+      "onset_after": 2.392,
+      "rms_step_sd": 1.97,
+      "build_slope": 0.803,
+      "chroma_shift": 0.025
+     },
+     "model": "forge",
+     "id": "74-p1"
+    },
+    {
+     "kind": "outro",
+     "boundary_tick": 6098,
+     "start_tick": 5706,
+     "end_tick": 6195,
+     "anomaly_ticks": [
+      6098,
+      6195
+     ],
+     "seconds": [
+      178.31,
+      193.59
+     ],
+     "score": 1.271,
+     "novelty": 1.0,
+     "repetitiveness_at_boundary": 0.625,
+     "repetitiveness_song_median": 0.756,
+     "facts": {
+      "rms_before": 0.2833,
+      "rms_after": 0.1215,
+      "onset_before": 1.831,
+      "onset_after": 1.42,
+      "rms_step_sd": -2.51,
+      "build_slope": 3.113,
+      "chroma_shift": 0.027
+     },
+     "model": "escape",
+     "id": "74-p2"
+    }
+   ],
+   "keywords": [
+    "edm",
+    "tribe",
+    "drums"
+   ],
+   "budget": 2,
+   "monstruo_allowed": true
+  }
+ }
+}

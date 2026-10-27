@@ -1,0 +1,59 @@
+{
+ "id": "fx-grade-tone",
+ "name": "Tone",
+ "target": {
+  "effect": "grade"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "grade_exposure"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.2,
+    0.253,
+    0.38,
+    0.507,
+    0.56,
+    0.507,
+    0.38,
+    0.253,
+    0.2,
+    0.253,
+    0.38,
+    0.507,
+    0.56,
+    0.507,
+    0.38,
+    0.253
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "grade_saturation"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.0,
+    0.1,
+    0.22,
+    0.35,
+    0.5,
+    0.62,
+    0.75,
+    0.88,
+    1.0,
+    0.88,
+    0.75,
+    0.62,
+    0.5,
+    0.35,
+    0.22,
+    0.1
+   ]
+  }
+ ]
+}

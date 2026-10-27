@@ -1,0 +1,107 @@
+{
+ "id": "hf-x-x-moviles-escenario-parpadeo-color-aire",
+ "name": "X moviles escenario parpadeo color aire",
+ "family": "x",
+ "source": "ShowXpress 00-Alonso/X moviles escenario parpadeo color aire.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 146,
+      "strobe_dimmer": 141,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 48
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.5529
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 135,
+      "strobe_dimmer": 141,
+      "tilt": 72,
+      "upan": 14,
+      "utilt": 70,
+      "white": 48
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.5294,
+      "tilt": 0.2824,
+      "strobe": 0.5529
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 141,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 48
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.5529
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 135,
+      "strobe_dimmer": 141,
+      "tilt": 72,
+      "upan": 14,
+      "utilt": 70,
+      "white": 48
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5294,
+      "tilt": 0.2824,
+      "strobe": 0.5529
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984555": {
+   "desk_id": "1582984555",
+   "desk_name": "CABEZA 7 R 1#12",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-12",
+   "address": 177
+  },
+  "1582984556": {
+   "desk_id": "1582984556",
+   "desk_name": "CABEZA 7 R 1#13",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-13",
+   "address": 49
+  }
+ }
+}

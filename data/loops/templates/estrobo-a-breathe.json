@@ -1,0 +1,113 @@
+{
+ "id": "estrobo-a-breathe",
+ "name": "Breathe",
+ "target": {
+  "model": "strobe"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "glare"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.1,
+    null,
+    null,
+    null,
+    0.3,
+    null,
+    null,
+    null,
+    0.5,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    0.9
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "fall"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.6,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "vignette"
+   },
+   "curve": "step",
+   "steps": [
+    0.1,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "light",
+    "palette": "skies"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,74 @@
+{
+ "id": "hf-agua-agua-azules",
+ "name": "Agua azules",
+ "family": "agua",
+ "source": "ShowXpress 00-Alonso/Agua azules.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 1500,
+   "fixtures": {
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "blue": 138
+     },
+     "floats": {}
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "blue": 23,
+      "green": 74
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "blue": 23,
+      "green": 74
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "blue": 138
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1617813006": {
+   "desk_id": "1617813006",
+   "desk_name": "NUEVA LED #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-4",
+   "address": 364
+  },
+  "1617813051": {
+   "desk_id": "1617813051",
+   "desk_name": "NUEVA LED #2 #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-5",
+   "address": 371
+  },
+  "1617813052": {
+   "desk_id": "1617813052",
+   "desk_name": "NUEVA LED #2 #2 #2 #3",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-6",
+   "address": 378
+  },
+  "1617813053": {
+   "desk_id": "1617813053",
+   "desk_name": "NUEVA LED #2 #2 #2 #4",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-7",
+   "address": 385
+  }
+ }
+}

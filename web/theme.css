@@ -1,0 +1,500 @@
+/* ==========================================================================
+   MetalVJ — design tokens.
+
+   A Swiss grid on a phosphor tube, with deliberate departures from the
+   classic look, and everything else held.
+
+   1. The tube is grey, not blue. The original's surfaces all carried a cool
+      blue cast; here they are neutral, so the one saturated thing on screen
+      is the accent. A control surface that is going to sit behind a DJ for
+      six hours should not have a second opinion about hue.
+   2. The phosphor is red. One red carries every accent — a lit control, a
+      running transport, the model currently on air. `--accent-soft` is a
+      cold grey rather than a second hue, because "gray and red" only reads
+      as gray and red if the secondary does not smuggle in a third colour.
+
+   What is held, because it is what makes the reference work: one monospace
+   for everything, hairline rules instead of contrast, radius 2px, scanlines
+   near the threshold of visibility, and a glitch that lasts under a second
+   so it reads as an interruption rather than as broken layout.
+
+   Consumed by both apps via include_str! into a <style> block — see
+   `fw-studio::page` — so there is one theme, not one per app.
+   ========================================================================== */
+
+/* --- IBM Plex Mono -------------------------------------------------------
+   The same three subset weights the portfolio self-hosts, ~47 kB total,
+   served from the binary at /fonts/. No second typeface: hierarchy is size,
+   weight and space.
+
+   **The urls are relative to this stylesheet, not to the site root.** Both
+   apps are normally served at `/`, where the two are the same thing; behind a
+   reverse proxy on a path prefix they are not, and an absolute `/fonts/…`
+   asks the proxy's host for a file it has never heard of. The failure is
+   quiet — the browser falls back to a system mono and the page looks nearly
+   right — which is exactly why it is written down here. */
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/plex-mono-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/plex-mono-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/plex-mono-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* --- Surfaces ---------------------------------------------------------
+     Neutral greys, a short ladder, all close together. Depth comes from
+     hairlines. The faintest possible warm lean (one point of red in the
+     blue channel's place) keeps the black from reading as dead LCD grey
+     without becoming a colour. */
+  --bg:          #08080a;
+  --bg-raise:    #0d0d10;
+  --bg-panel:    #111114;
+  --bg-inset:    #050506;
+
+  /* --- Phosphor ---------------------------------------------------------
+     One hue. `--accent` is the signal red; the ladder below it is the same
+     red at four distances, used the way the reference used its greens: lit
+     for the thing under the cursor, dim for the rule that connects things,
+     deep only as a selection wash. */
+  --accent:       #ff2e2e;
+  --accent-lit:   #ff6f60;
+  --accent-dim:   #a01d1d;
+  --accent-deep:  #7d101f;
+
+  /* The second accent, for when two lit things must be told apart at a
+     glance. Cold grey on purpose — see the header note. */
+  --accent-soft:      #c8ccd2;
+  --accent-soft-dim:  #6a7079;
+
+  /* Reserved for meaning, never for decoration. `--alert` is the accent:
+     in a red-keyed design danger is signalled by filling the shape, not by
+     changing its hue. */
+  --ok:          #6fbf8f;
+  --warn:        #d9a441;
+  --alert:       #ff2e2e;
+
+  /* --- Text -------------------------------------------------------------- */
+  --fg:          #e6e6e8;
+  --fg-mute:     #9a9aa2;
+  --fg-faint:    #62626b;
+
+  /* --- Structure --------------------------------------------------------- */
+  --rule:        #1c1c20;
+  --rule-bright: #2c2c33;
+
+  /* --- Type -------------------------------------------------------------
+     One family, declared once. Every fallback is monospace, so the webfont
+     swap changes the letterforms and never the measure. */
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+          Consolas, "Liberation Mono", monospace;
+  --display: var(--mono);
+
+  --step--2: 0.66rem;
+  --step--1: clamp(0.7rem, 0.67rem + 0.14vw, 0.78rem);
+  --step-0:  clamp(0.82rem, 0.8rem + 0.12vw, 0.9rem);
+  --step-1:  clamp(1.02rem, 0.95rem + 0.34vw, 1.25rem);
+  --step-2:  clamp(1.3rem, 1.08rem + 1.05vw, 2rem);
+  --step-3:  clamp(1.85rem, 1.3rem + 2.6vw, 3.5rem);
+
+  /* --- Rhythm -----------------------------------------------------------
+     Tighter than the reference, and deliberately so. That was a page you
+     read once; this is a surface you work in for hours, where every row of
+     empty space is a slider you have to scroll to reach. The Swiss
+     discipline survives in the alignment, not in the margins. */
+  --pad:     0.75rem;
+  --pad-lg:  1.15rem;
+  --row:     1.55rem;      /* one control row, the unit the panels count in */
+  --gutter:  1rem;
+
+  --radius: 2px;      /* square, like the grid it sits on */
+  --border: 1px solid var(--rule);
+
+  --speed: 0.18s;     /* faster than the page's 0.4s — this thing responds */
+  --ease:  cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root { color-scheme: dark; }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: var(--step-0);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- CRT atmosphere ------------------------------------------------------
+   Two fixed, inert layers over everything, at the same near-invisible
+   strength as the reference. `z-index` sits under any modal but over the
+   working surface. Note the scanlines are *not* drawn over the video tiles
+   — see `.tile canvas, .tile img` below: a scanline over a rendered frame is
+   a lie about what the renderer is producing, and this app exists to show
+   you what the renderer is producing. */
+
+.crt-scanlines,
+.crt-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+}
+
+.crt-scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.014) 0px,
+    rgb(255 255 255 / 0.014) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  opacity: 0.55;
+}
+
+.crt-vignette {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 62%,
+    rgb(0 0 0 / 0.34) 100%
+  );
+}
+
+/* --- Typography ---------------------------------------------------------- */
+
+h1, h2, h3, h4 {
+  font-family: var(--display);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.5em;
+}
+
+h1 { font-size: var(--step-2); }
+h2 { font-size: var(--step-1); }
+h3 { font-size: var(--step-0); letter-spacing: 0; }
+
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: var(--accent-lit); }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: var(--accent-deep); color: var(--fg); }
+
+/* The workhorse label: the small half of the Swiss size contrast, and the
+   only place letterspacing goes wide. */
+.label {
+  font-size: var(--step--1);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+.kicker {
+  font-size: var(--step--1);
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Drawn, not typed — the block glyph this used to be is absent from the
+   Plex Mono subset, and a rule you can size in ems behaves better anyway. */
+.kicker::before {
+  content: "";
+  width: 1.6rem;
+  height: 1px;
+  background: var(--accent-dim);
+  flex: none;
+}
+
+/* Numbers that must not jitter as they count: transport clocks, float
+   readouts, meter values. */
+.num { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+
+/* --- Panels --------------------------------------------------------------
+   A hairline box with one lit edge — the bevel of 90s software reduced to
+   the single pixel that carried the effect. */
+
+.panel {
+  background: var(--bg-panel);
+  border: var(--border);
+  border-radius: var(--radius);
+  position: relative;
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--rule-bright);
+}
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gutter);
+  padding: var(--pad) var(--pad-lg);
+  border-bottom: var(--border);
+}
+
+.panel__body { padding: var(--pad) var(--pad-lg); }
+
+/* --- Buttons ------------------------------------------------------------- */
+
+.btn {
+  --btn-accent: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font: inherit;
+  font-size: var(--step--1);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--btn-accent);
+  background: transparent;
+  border: 1px solid var(--btn-accent);
+  border-radius: var(--radius);
+  padding: 0.42rem 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--speed) var(--ease), color var(--speed) var(--ease),
+    border-color var(--speed) var(--ease);
+}
+
+.btn:hover:not(:disabled),
+.btn:focus-visible { background: var(--btn-accent); color: var(--bg); }
+
+.btn:disabled { --btn-accent: var(--fg-faint); cursor: not-allowed; opacity: 0.5; }
+
+.btn--alt   { --btn-accent: var(--accent-soft); }
+.btn--ghost { --btn-accent: var(--fg-mute); }
+
+/* Held down / currently true. Inverted rather than merely tinted, so "this
+   is on" survives being glanced at from across a booth. */
+.btn.is-on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn--ghost.is-on,
+.btn--alt.is-on { background: var(--accent-soft); border-color: var(--accent-soft); }
+
+/* --- Controls -------------------------------------------------------------
+   Range inputs are the single most repeated element in this app — every
+   float of every model is one — so they are styled once here rather than in
+   either page. The track is a hairline; the thumb is the only lit part. */
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: var(--row);
+  background: transparent;
+  cursor: ew-resize;
+  margin: 0;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--rule-bright);
+}
+input[type="range"]::-moz-range-track {
+  height: 1px;
+  background: var(--rule-bright);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 3px;
+  height: 13px;
+  margin-top: -6px;
+  background: var(--accent);
+  border: 0;
+  border-radius: 0;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 3px;
+  height: 13px;
+  background: var(--accent);
+  border: 0;
+  border-radius: 0;
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb { background: var(--fg-faint); }
+input[type="range"]:disabled::-moz-range-thumb { background: var(--fg-faint); }
+
+input[type="text"],
+input[type="number"],
+input[type="search"],
+select {
+  font: inherit;
+  font-size: var(--step--1);
+  color: var(--fg);
+  background: var(--bg-inset);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 0.28rem 0.45rem;
+  min-width: 0;
+}
+
+input:focus-visible, select:focus-visible { border-color: var(--accent-dim); }
+
+input[type="color"] {
+  width: 100%;
+  height: 1.35rem;
+  padding: 0;
+  background: transparent;
+  border: var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 0; }
+
+/* --- Rendered output ------------------------------------------------------
+   Frames the renderers produced. Deliberately exempt from the CRT layers
+   above via `isolation`: everything else on screen may wear the era, but a
+   preview tile has to be trusted as a literal report of what wgpu drew. */
+
+.tile {
+  position: relative;
+  background: var(--bg-inset);
+  border: var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.tile img, .tile canvas { display: block; width: 100%; height: auto; }
+
+.tile.is-live { border-color: var(--accent); }
+
+.tile__name {
+  position: absolute;
+  left: 0; bottom: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: var(--step--2);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+  background: rgb(0 0 0 / 0.55);
+}
+
+.tile.is-live .tile__name { color: var(--accent); }
+
+/* --- Meters ---------------------------------------------------------------
+   The float monitor's bar. One element, driven by --v in 0..1, so a row of
+   fifty of them costs fifty style writes and no layout. */
+
+.meter {
+  position: relative;
+  height: 3px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.meter::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--v, 0) * 100%);
+  background: var(--accent);
+}
+
+/* A float that is being driven from outside (digest, or the simulator
+   standing in for it) rather than held by a slider. */
+.meter.is-driven::after { background: var(--accent-lit); }
+
+/* --- Status --------------------------------------------------------------- */
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+  flex: none;
+}
+.dot.is-on   { background: var(--accent); }
+.dot.is-ok   { background: var(--ok); }
+.dot.is-warn { background: var(--warn); }
+
+/* --- Glitch ---------------------------------------------------------------
+   Carried over verbatim from the reference: an old-TV pop, a brief flash and
+   a distorted offset, held under a second so it reads as an interruption
+   rather than as broken layout. Used here for state changes worth noticing —
+   the model on air changing, the transport catching. */
+
+@keyframes glitch-flash {
+  0%   { opacity: 1; filter: none; transform: none; }
+  10%  { opacity: 0.15; filter: brightness(6) contrast(2); transform: translateX(-2px); }
+  20%  { opacity: 1; filter: none; transform: translateX(2px); }
+  30%  { opacity: 0.3; filter: brightness(4); transform: translateX(-1px) skewX(2deg); }
+  40%  { opacity: 1; filter: none; transform: none; }
+  100% { opacity: 1; filter: none; transform: none; }
+}
+
+.is-glitching { animation: glitch-flash 0.5s steps(2, end); }
+
+/* --- Blinking cursor ----------------------------------------------------- */
+
+.cursor-block {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  animation: blink 1.05s steps(1) infinite;
+}
+
+@keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+/* --- Scrollbars -----------------------------------------------------------
+   The panels scroll a lot in this app and a default GTK scrollbar is the one
+   element that would give away that this is a browser. */
+
+* { scrollbar-width: thin; scrollbar-color: var(--rule-bright) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--rule-bright); border-radius: 0; }
+*::-webkit-scrollbar-thumb:hover { background: var(--fg-faint); }
+
+/* --- Motion -------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .crt-scanlines { display: none; }
+  .cursor-block, .is-glitching { animation: none; }
+}

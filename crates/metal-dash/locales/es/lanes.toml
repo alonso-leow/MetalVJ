@@ -1,0 +1,57 @@
+# Spanish for the shell module `lanes`: "English source text" = "Spanish text".
+# See ../README.md.
+"add loop" = "añadir bucle"
+"{n} ticks" = "{n} tics"
+"voice" = "voz"
+"not digested for voice" = "sin digestión de voz"
+"base-only" = "solo base"
+"mute layer" = "silenciar capa"
+"solo layer" = "solo de capa"
+"layer blend · {b}" = "mezcla de capa · {b}"
+"looking for this song's audio on a paired device…" = "buscando el audio de esta canción en un dispositivo emparejado…"
+"pulling the audio from {peer} · {pct}%" = "bajando el audio de {peer} · {pct}%"
+"no paired device has the audio of {song}" = "ningún dispositivo emparejado tiene el audio de {song}"
+"the audio pull failed: {why}" = "falló la descarga del audio: {why}"
+"sync is not running, so this song has no audio here" = "la sincronización no está activa; esta canción no tiene audio aquí"
+
+# P-G: the floating preview bar over an authored sequence.
+"{name} · sequence" = "{name} · secuencia"
+
+# 4b/4c: the panel header's editable name field.
+"sequence name" = "nombre de la secuencia"
+"collection name" = "nombre de la colección"
+
+# 4b/4c: the sequence page strip (the collection crumb's tabs).
+"+ page" = "+ página"
+"add a page" = "agregar una página"
+# V1: the layer editor.
+"layer stack" = "pila de capas"
+"no layers on this page" = "no hay capas en esta página"
+"raise layer" = "subir capa"
+"lower layer" = "bajar capa"
+"layer active" = "capa activa"
+"blend normal" = "normal"
+"blend add" = "suma"
+"blend multiply" = "multiplicar"
+"blend screen" = "trama"
+
+# The head's way back from the sequence to the buttons grid.
+"back to overlays" = " overlays"
+"close the sequence and show the buttons grid" = "cerrar la secuencia y volver a la grilla de botones"
+"animation" = "animación"
+"animations" = "animaciones"
+"fx layers" = "capas fx"
+"effect" = "efecto"
+
+# 2026-10-18: the overlays `+` menu — controller button, create sequence, add
+# loop — and the controller submenu's one mode switch.
+"switch" = "interruptor"
+"Press to activate" = "presionar para activar"
+"create sequence" = "crear secuencia"
+"controller button" = "botón de control"
+"controller name" = "nombre del control"
+"controller settings" = "ajustes del control"
+"delete controller" = "borrar control"
+"— open a graph to control its nodes —" = "— abre un grafo para controlar sus nodos —"
+"— the graph has no nodes —" = "— el grafo no tiene nodos —"
+"drop to add to the sequence" = "soltar para añadir a la secuencia"

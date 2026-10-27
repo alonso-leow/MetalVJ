@@ -1,0 +1,14 @@
+# Hurricane 1600 — the fog machine on the Fiesta Resort rig.
+#
+# Ported from ShowXpress (`fixtures/Hurricane 1600.txt`): one slot, the smoke
+# machine's output. The venue has no float that drives haze, so this profile
+# declares the single slot as `level`: it is what the desk writes and what the
+# simulation shows as the machine's output on the smoke bar.
+
+label = "Hurricane 1600 (fog machine, 1ch)"
+universe = 0
+address = 1
+
+[[channel]]
+signal = "level"
+coarse = 0

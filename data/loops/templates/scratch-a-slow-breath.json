@@ -1,0 +1,115 @@
+{
+ "id": "scratch-a-slow-breath",
+ "name": "Slow Breath",
+ "target": {
+  "model": "scratch"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.2,
+    0.3,
+    0.42,
+    0.55,
+    0.68,
+    0.8,
+    0.9,
+    0.95,
+    0.9,
+    0.8,
+    0.68,
+    0.55,
+    0.42,
+    0.3,
+    0.22,
+    0.2
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "rest"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "speed"
+   },
+   "curve": "step",
+   "steps": [
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "develop",
+    "palette": "skies"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 0
+    }
+   ]
+  }
+ ]
+}

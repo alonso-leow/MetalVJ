@@ -1,0 +1,139 @@
+{
+  "id": "hotel-fiesta",
+  "name": "Fiesta Resort — screen, patch and camera",
+  "domain": "live",
+  "nodes": [
+    {
+      "id": "audio-0",
+      "kind": "audio.live",
+      "pos": [-320.0, 220.0],
+      "label": "room audio (digest)",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    },
+    {
+      "id": "capture-0",
+      "kind": "capture",
+      "pos": [-320.0, 40.0],
+      "label": "production room webcam",
+      "bypass": false,
+      "solo": false,
+      "config": { "source": "dshow:USB Video Device" }
+    },
+    {
+      "id": "sensor-0",
+      "kind": "sensor.yolo",
+      "pos": [-80.0, 40.0],
+      "label": "people in frame",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    },
+    {
+      "id": "track-0",
+      "kind": "cam.track",
+      "pos": [160.0, 40.0],
+      "label": "follow the room",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    },
+    {
+      "id": "gen-0",
+      "kind": "gen.cyberspace",
+      "pos": [0.0, -180.0],
+      "label": "screen picture",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    },
+    {
+      "id": "screen-0",
+      "kind": "venue.surface",
+      "pos": [480.0, -180.0],
+      "label": "LED wall (1024x2048)",
+      "bypass": false,
+      "solo": false,
+      "config": { "venue": "fiesta-resort", "surface": "screen-main" }
+    },
+    {
+      "id": "rig-0",
+      "kind": "venue.fixtures",
+      "pos": [480.0, 120.0],
+      "label": "stage washes",
+      "bypass": false,
+      "solo": false,
+      "config": { "venue": "fiesta-resort", "group": "stage-wash" }
+    },
+    {
+      "id": "heads-0",
+      "kind": "venue.fixtures",
+      "pos": [480.0, 240.0],
+      "label": "truss heads",
+      "bypass": false,
+      "solo": false,
+      "config": { "venue": "fiesta-resort", "group": "shy" }
+    },
+    {
+      "id": "out-0",
+      "kind": "output.device",
+      "pos": [820.0, -180.0],
+      "label": "screen-main",
+      "bypass": false,
+      "solo": false,
+      "config": { "mode": { "kind": "own" } }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-0",
+      "from": { "node": "capture-0", "port": "image" },
+      "to": { "node": "sensor-0", "port": "image" }
+    },
+    {
+      "id": "edge-1",
+      "from": { "node": "sensor-0", "port": "control" },
+      "to": { "node": "track-0", "port": "control" }
+    },
+    {
+      "id": "edge-2",
+      "from": { "node": "gen-0", "port": "image" },
+      "to": { "node": "screen-0", "port": "image" }
+    },
+    {
+      "id": "edge-3",
+      "from": { "node": "screen-0", "port": "image" },
+      "to": { "node": "out-0", "port": "image" }
+    },
+    {
+      "id": "edge-4",
+      "from": { "node": "audio-0", "port": "control" },
+      "to": { "node": "out-0", "port": "control" }
+    },
+    {
+      "id": "edge-5",
+      "from": { "node": "gen-0", "port": "image" },
+      "to": { "node": "rig-0", "port": "image" }
+    },
+    {
+      "id": "edge-6",
+      "from": { "node": "gen-0", "port": "image" },
+      "to": { "node": "heads-0", "port": "image" }
+    }
+  ],
+  "ids": {
+    "next": {
+      "audio": 1,
+      "capture": 1,
+      "sensor": 1,
+      "track": 1,
+      "gen": 1,
+      "screen": 1,
+      "rig": 1,
+      "heads": 1,
+      "out": 1,
+      "edge": 7
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+ "id": "aurora-a-call-beat4",
+ "name": "Call Beat 4",
+ "target": {"model": "aurora"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "band_5"}, "curve": "step",
+   "steps": [0.4, null, null, null, 0.6, null, null, null, 0.4, null, null, null, null, null, null, null]},
+  {"target": {"kind": "float", "param": "band_6"}, "curve": "step",
+   "steps": [null, null, null, null, null, null, null, null, null, null, null, null, 0.95, null, 0.6, null]},
+  {"target": {"kind": "palette", "slot": "palette", "palette": "metalvj-red"},
+   "steps": [{"colour": 0}, null, null, null, {"colour": 2}, null, null, null, {"colour": 0}, null, null, null, {"colour": 3}, null, null, null]}
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "id": "fractals-skip",
+ "name": "Skip",
+ "target": {
+  "model": "fractals"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "drift"
+   },
+   "curve": "step",
+   "steps": [0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "fold"
+   },
+   "curve": "step",
+   "steps": [0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15, 0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "escape",
+    "palette": "psychedelia"
+   },
+   "steps": [{"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null]
+  }
+ ]
+}

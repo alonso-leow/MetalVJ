@@ -1,0 +1,1304 @@
+# Fiesta Resort — the production room, rebuilt from the ShowXpress show.
+#
+# This venue is the 3D recreation of the room the desk actually drives. It was
+# read from the ShowXpress show at
+#
+#   <LightingController>/LightShows/LightShow_from_V5/
+#     fixtures.ini          the patch: 61 entries, model + DMX address + group
+#     3DView\fixtures.ini   the desk's own positions (the survey below)
+#     3DView\3dview.ini     scene size 20 x 6 x 100 m, metre units
+#     fixtures\*.txt        the per-model profiles
+#
+# Where the desk's 3D file and the room as built disagree, the room as built
+# wins: the desk's positions are a fixture dump on a 100 m line, they place
+# every head at one height and put the production heads 100 m out. The room
+# below is dimensioned from the brief:
+#
+#   stage      12 m deep, 18 m wide, 1.0 m above the floor
+#   truss      10 m wide, hung at 9 m, carries the rig
+#   screen     3 tiles, 1024 px each, heights 256 : 1536 : 256 -> a 1024x2048
+#              face, 5.05 m wide x 10.1 m tall, on the back wall
+#   camera     15 m from the stage front, 3.4 m up (the production room)
+#   columns    four, at the corners of the stage, one light on each
+#   booth      the production room, 2 moving heads above the operator
+#
+# The desk's surveys are kept in each fixture's `notes` (`desk 3D: ...`) so the
+# two can be compared without reopening ShowXpress.
+#
+# Units: metres, +y up, floor y = 0. The stage front edge is z = 0 and the
+# stage runs back to z = -12; the back wall is at z = -12.6. yaw 0 looks at
+# the back wall (-z), +90 looks right (+x); pitch > 0 looks up. A surface is
+# origin + s*u + t*v, (0,0) top-left seen from the side that gets light.
+# Fixture `at` is the light's own point in space, not an object's base.
+
+[venue]
+id = "fiesta-resort"
+name = "Fiesta Resort — production room and stage"
+setting = "indoor"
+based_on = [
+  "ShowXpress LightShow_from_V5/fixtures.ini",
+  "ShowXpress LightShow_from_V5/3DView/fixtures.ini",
+  "ShowXpress LightShow_from_V5/3DView/3dview.ini",
+]
+notes = """
+Rebuilt from the Fiesta Resort's ShowXpress show. The screen is the 1024x2048
+face of three 1024-px tiles (256 / 1536 / 256) on the back wall, 5.05 m wide
+and 10.1 m tall so the pixels stay square. The working light is the desk's own
+rig, all 61 patch entries: the CABEZA 7R heads (16 on the truss and stage,
+plus the R7s), the WASH ESCENARIO washes, the PAR LED RIEL pars, the NUEVA LED
+and RECTANGULO LED TECHO panels, the 12x4in1 Slim Pars (the four column
+lights and the side strips), the beamZ heads, and the fog and low-fog
+machines. Every fixture carries its ShowXpress DMX address and group.
+"""
+
+# ---------------------------------------------------------------- shots ---
+
+# Designed viewpoints behind the desk, in the production room. The camera is
+# 15 m from the stage front and 3.4 m up; the second is the operator's own eye
+# line at the console.
+[[shot]]
+id = "production"
+image = ""
+camera = { eye = [0.0, 3.4, 15.0], yaw = 0.0, pitch = -3.0, roll = 0.0, fov = 55.0, aspect = 1.7778 }
+projector_distance = 0.0
+floor_brightness = 0.12
+background_brightness = 0.10
+horizon_path = []
+notes = "The production room camera: 15 m out from the stage front, 3.4 m up, looking level and a little down over the deck to the screen."
+
+[[shot]]
+id = "console"
+image = ""
+camera = { eye = [-3.2, 1.55, 13.4], yaw = 6.0, pitch = -1.0, roll = 0.0, fov = 60.0, aspect = 1.7778 }
+projector_distance = 0.0
+floor_brightness = 0.14
+background_brightness = 0.11
+horizon_path = []
+notes = "The operator at the console, stage left of the room's centre line, eyes at 1.55 m."
+
+[[shot]]
+id = "audience"
+image = ""
+camera = { eye = [0.0, 1.65, 8.0], yaw = 0.0, pitch = 7.0, roll = 0.0, fov = 58.0, aspect = 1.7778 }
+projector_distance = 0.0
+floor_brightness = 0.16
+background_brightness = 0.12
+horizon_path = []
+notes = "Designed: standing on the audience floor 8 m from the stage front, the whole screen and deck in frame. Used to line the composition up."
+
+# Corner order is (0,0) (1,0) (1,1) (0,1) of each surface, reprojected
+# through the `audience` camera above and the venue's own geometry: these are
+# the numbers `Venue::check` re-derives, not estimates. The deck's near
+# corners fall outside the frame (the deck runs back under the camera's eye
+# line), so they are reported past the edge, which the check allows.
+[[shot.sees]]
+surface = "screen-top"
+corners = [[0.44031862, 0.25301551], [0.55968138, 0.25301551], [0.56011224, 0.30426795], [0.43988776, 0.30426795]]
+
+[[shot.sees]]
+surface = "screen-main"
+corners = [[0.43988776, 0.30426795], [0.56011224, 0.30426795], [0.56283392, 0.62802637], [0.43716608, 0.62802637]]
+
+[[shot.sees]]
+surface = "screen-bottom"
+corners = [[0.43716608, 0.62802637], [0.56283392, 0.62802637], [0.56331168, 0.68485808], [0.43668832, 0.68485808]]
+
+[[shot.sees]]
+surface = "stage-deck"
+corners = [[0.26904176, 0.64063157], [0.73095824, 0.64063157], [1.08088656, 0.68589862], [-0.08088656, 0.68589862]]
+
+# ------------------------------------------------------------- surfaces ---
+
+[[surface]]
+id = "back-wall"
+name = "back wall"
+origin = [-9.0, 9.0, -12.6]
+u = [18.0, 0.0, 0.0]
+v = [0.0, -9.0, 0.0]
+material = "matte black"
+
+[[surface]]
+id = "stage-deck"
+name = "stage deck"
+origin = [-9.0, 1.0, -12.0]
+u = [18.0, 0.0, 0.0]
+v = [0.0, 0.0, 12.0]
+material = "black marley"
+
+[[surface]]
+id = "audience-floor"
+name = "audience floor"
+origin = [-9.0, 0.0, 16.0]
+u = [18.0, 0.0, 0.0]
+v = [0.0, 0.0, -16.0]
+material = "concrete"
+
+[[surface]]
+id = "stage-front"
+name = "stage front face"
+origin = [9.0, 1.0, 0.0]
+u = [-18.0, 0.0, 0.0]
+v = [0.0, -1.0, 0.0]
+material = "matte black skirt"
+
+# The screen: three tiles, 1024 px wide each, heights 256 : 1536 : 256, so
+# each pixel is square. 1024 px = 5.05 m gives the 256-px bands 1.2625 m and
+# the 1536-px main tile 7.575 m; the wall reads 5.05 m wide by 10.1 m tall.
+# It stands 0.01 m proud of the back wall, centred on the room's centre line.
+[[surface]]
+id = "screen-top"
+name = "screen, top band (256 px)"
+origin = [-2.525, 10.1, -12.59]
+u = [5.05, 0.0, 0.0]
+v = [0.0, -1.2625, 0.0]
+material = "LED panel, top band"
+
+[[surface]]
+id = "screen-main"
+name = "screen, main (1536 px)"
+origin = [-2.525, 8.8375, -12.59]
+u = [5.05, 0.0, 0.0]
+v = [0.0, -7.575, 0.0]
+material = "LED panel, main"
+
+[[surface]]
+id = "screen-bottom"
+name = "screen, bottom band (256 px)"
+origin = [-2.525, 1.2625, -12.59]
+u = [5.05, 0.0, 0.0]
+v = [0.0, -1.2625, 0.0]
+material = "LED panel, bottom band"
+
+# -------------------------------------------------------------- objects ---
+
+# The deck, as a solid the camera and the beams can see.
+[[object]]
+id = "stage"
+name = "stage"
+kind = "stage"
+at = [0.0, 0.5, -6.0]
+size = [18.0, 1.0, 12.0]
+description = "18 x 12 m deck, 1.0 m above the audience floor. ShowXpress reads the deck as a plane; here it is a solid so the low-fog spill has a face."
+
+# The truss: 10 m wide, hung at 9 m, 1.2 m in from the stage front.
+[[object]]
+id = "truss-main"
+name = "main lighting truss"
+kind = "truss"
+at = [0.0, 9.0, -1.2]
+size = [10.0, 0.3, 0.3]
+description = "10 m box truss at 9 m over the downstage edge. Carries the CABEZA 7R heads, the washes and the pars."
+
+[[object]]
+id = "truss-rear"
+name = "rear truss"
+kind = "truss"
+at = [0.0, 8.6, -9.0]
+size = [10.0, 0.3, 0.3]
+description = "Rear span near the back wall, at 8.6 m. Carries the backlight heads and the RECTANGULO ceiling panels."
+
+# The four columns at the corners of the deck, one light on each.
+[[object]]
+id = "column-front-left"
+name = "column, front left"
+kind = "column"
+at = [-9.6, 4.5, -0.6]
+size = [0.6, 9.0, 0.6]
+description = "Floor-to-truss column at the stage's front-left corner."
+
+[[object]]
+id = "column-front-right"
+name = "column, front right"
+kind = "column"
+at = [9.6, 4.5, -0.6]
+size = [0.6, 9.0, 0.6]
+description = "Floor-to-truss column at the stage's front-right corner."
+
+[[object]]
+id = "column-rear-left"
+name = "column, rear left"
+kind = "column"
+at = [-9.6, 4.5, -11.4]
+size = [0.6, 9.0, 0.6]
+description = "Column at the rear-left corner, against the back wall."
+
+[[object]]
+id = "column-rear-right"
+name = "column, rear right"
+kind = "column"
+at = [9.6, 4.5, -11.4]
+size = [0.6, 9.0, 0.6]
+description = "Column at the rear-right corner, against the back wall."
+
+# The production room: a raised booth, 15 m out.
+[[object]]
+id = "production-room"
+name = "production room"
+kind = "booth"
+at = [0.0, 1.6, 15.0]
+size = [7.0, 3.2, 4.0]
+description = "The raised production room, 15 m from the stage front. Its floor is 1.6 m up, so the operator's eyes sit at about 3.2 m; the desk's two moving heads hang above it."
+
+[[object]]
+id = "console-desk"
+name = "console desk"
+kind = "table"
+at = [-3.2, 2.05, 13.4]
+size = [2.4, 0.9, 0.8]
+description = "The lighting desk, inside the production room, stage left."
+
+# -------------------------------------------------------------- fixtures ---
+#
+# Every fixture below is one patch entry in `fixtures.ini`. Order follows the
+# desk's own `[FixtureN]` order so a patch row and a line here answer to each
+# other. `address` is the ShowXpress DMX start address (1-based), `group` is
+# the desk's own group word, and `notes` carries the desk's 3D position where
+# the 3D file has one.
+
+# --- WASH ESCENARIO 1 — address 1. Desk survey: no 3D entry.
+[[fixture]]
+id = "wash-escenario-1"
+name = "WASH ESCENARIO 1"
+kind = "wash"
+profile = "wash-escenario"
+at = [-4.2, 8.75, -1.2]
+yaw = 0.0
+pitch = -58.0
+beam = 42.0
+wire = "dmx"
+drive = "fixed"
+address = 1
+group = "stage-wash"
+notes = "First of the stage washes on the main truss, downstage left. ShowXpress Fixture1, address 1."
+
+# --- CABEZA 7 R 1#14 — address 17 (model: CABEZA MOVIL 7R 230 W).
+[[fixture]]
+id = "cabeza-7r-14"
+name = "CABEZA 7 R 1#14"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [1.0, 4.5, 2.0]
+yaw = 0.0
+pitch = -18.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 17
+group = "stgq"
+notes = "Desk 3D: (1.00, 4.50, 2.00). A downstage head on a 4.5 m bar over the deck; reverse_pan and reverse_tilt set on the desk."
+
+# --- CABEZA 7 R 1#10 — address 33.
+[[fixture]]
+id = "cabeza-7r-10"
+name = "CABEZA 7 R 1#10"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [-3.01, 5.19, 5.0]
+yaw = 180.0
+pitch = -26.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 33
+group = "shr"
+notes = "Desk 3D: (-3.01, 5.19, 5.00). Mid-stage head; the desk draws it as big_wash and reverses pan and tilt."
+
+# --- CABEZA 7 R 1#13 — address 49.
+[[fixture]]
+id = "cabeza-7r-13"
+name = "CABEZA 7 R 1#13"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [-1.0, 4.5, 2.0]
+yaw = 0.0
+pitch = -18.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 49
+group = "sthq"
+notes = "Desk 3D: (-1.00, 4.50, 2.00). Downstage head beside #14, no reversal on the desk."
+
+# --- CABEZA R7 RIEL 2 — address 65.
+[[fixture]]
+id = "cabeza-riel-2"
+name = "CABEZA R7 RIEL 2"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [-2.0, 4.92, -5.0]
+yaw = 0.0
+pitch = -24.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 65
+group = "istv"
+notes = "Desk 3D: (-2.00, 4.92, -5.00). One of the four rail heads across the downstage bar; reverse_tilt set."
+
+# --- CABEZA R7 RIEL 3 — address 81.
+[[fixture]]
+id = "cabeza-riel-3"
+name = "CABEZA R7 RIEL 3"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [2.13, 5.11, -5.0]
+yaw = 0.0
+pitch = -24.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 81
+group = "istv"
+notes = "Desk 3D: (2.13, 5.11, -5.00). Rail head; reverse_pan and reverse_tilt set."
+
+# --- CABEZA R7 RIEL 4 — address 97.
+[[fixture]]
+id = "cabeza-riel-4"
+name = "CABEZA R7 RIEL 4"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [5.8, 4.9, -5.0]
+yaw = 0.0
+pitch = -24.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 97
+group = "isthv"
+notes = "Desk 3D: (5.80, 4.90, -5.00). Rail head; reverse_pan and reverse_tilt set."
+
+# --- CABEZA R7 RIEL 1 — address 113.
+[[fixture]]
+id = "cabeza-riel-1"
+name = "CABEZA R7 RIEL 1"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [-6.12, 5.06, -5.0]
+yaw = 0.0
+pitch = -24.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 113
+group = "isthv"
+notes = "Desk 3D: (-6.12, 5.06, -5.00). Rail head, stage left end of the bar."
+
+# --- Hurricane 1600 — address 129. A fog machine, not a light.
+[[fixture]]
+id = "hurricane-1"
+name = "Hurricane 1600"
+kind = "continuous"
+profile = "hurricane-1600"
+at = [-7.5, 1.0, -10.0]
+yaw = 0.0
+pitch = 12.0
+beam = 60.0
+wire = "dmx"
+drive = "fixed"
+address = 129
+notes = "Hurricane 1600 fog machine, back-left of the deck. One slot on the desk."
+
+# --- neblina fria — address 130. Low fog.
+[[fixture]]
+id = "neblina-1"
+name = "neblina fria"
+kind = "continuous"
+profile = "neblina-fria"
+at = [-5.0, 1.0, -0.4]
+yaw = 180.0
+pitch = -6.0
+beam = 80.0
+wire = "dmx"
+drive = "fixed"
+address = 130
+notes = "Cold low-fog machine at the stage's front edge, pouring onto the deck."
+
+# --- Hurricane 1600 #2 — address 131.
+[[fixture]]
+id = "hurricane-2"
+name = "Hurricane 1600 #2"
+kind = "continuous"
+profile = "hurricane-1600"
+at = [7.5, 1.0, -10.0]
+yaw = 0.0
+pitch = 12.0
+beam = 60.0
+wire = "dmx"
+drive = "fixed"
+address = 131
+notes = "Second Hurricane 1600, back-right of the deck."
+
+# --- neblina fria 2 — address 132.
+[[fixture]]
+id = "neblina-2"
+name = "neblina fria 2"
+kind = "continuous"
+profile = "neblina-fria"
+at = [5.0, 1.0, -0.4]
+yaw = 180.0
+pitch = -6.0
+beam = 80.0
+wire = "dmx"
+drive = "fixed"
+address = 132
+notes = "Second low-fog machine, front-right of the deck."
+
+# --- WASH 5 ESCENARIO — address 133.
+[[fixture]]
+id = "wash-escenario-5"
+name = "WASH 5 ESCENARIO"
+kind = "wash"
+profile = "wash-escenario"
+at = [-1.5, 8.75, -1.2]
+yaw = 0.0
+pitch = -58.0
+beam = 42.0
+wire = "dmx"
+drive = "fixed"
+address = 133
+group = "stage-wash"
+notes = "Main-truss wash, downstage centre-left. The desk reverses pan and tilt."
+
+# --- WASH 5 ESCENARIO #2 — address 147.
+[[fixture]]
+id = "wash-escenario-5b"
+name = "WASH 5 ESCENARIO #2"
+kind = "wash"
+profile = "wash-escenario"
+at = [1.5, 8.75, -1.2]
+yaw = 0.0
+pitch = -58.0
+beam = 42.0
+wire = "dmx"
+drive = "fixed"
+address = 147
+group = "stage-wash"
+notes = "Main-truss wash, downstage centre-right. Reverse tilt set."
+
+# --- WASH ESCENARIO 6 — address 161.
+[[fixture]]
+id = "wash-escenario-6"
+name = "WASH ESCENARIO 6"
+kind = "wash"
+profile = "wash-escenario"
+at = [4.2, 8.75, -1.2]
+yaw = 0.0
+pitch = -58.0
+beam = 42.0
+wire = "dmx"
+drive = "fixed"
+address = 161
+group = "stage-wash"
+notes = "Main-truss wash, downstage right."
+
+# --- CABEZA 7 R 1#12 — address 177.
+[[fixture]]
+id = "cabeza-7r-12"
+name = "CABEZA 7 R 1#12"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [0.99, 5.19, 5.0]
+yaw = 180.0
+pitch = -26.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 177
+group = "shr"
+notes = "Desk 3D: (0.99, 5.19, 5.00). Mid-stage head, drawn as big_wash."
+
+# --- CABEZA 7 R 1#16 — address 209.
+[[fixture]]
+id = "cabeza-7r-16"
+name = "CABEZA 7 R 1#16"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [5.0, 4.5, 2.0]
+yaw = 0.0
+pitch = -18.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 209
+group = "sthq"
+notes = "Desk 3D: (5.00, 4.50, 2.00). Downstage head, stage right end of the 4.5 m bar."
+
+# --- CABEZA 7 R 1#11 — address 225.
+[[fixture]]
+id = "cabeza-7r-11"
+name = "CABEZA 7 R 1#11"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [-1.15, 5.21, 4.08]
+yaw = 272.0
+pitch = 77.0
+roll = 230.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 225
+group = "sr"
+notes = "Desk 3D: (-1.15, 5.21, 4.08), orientation (272, 77, 230) - the one head the desk poses in full, drawn as small_led_2 and reversed."
+
+# --- 12x4in1 LED Slim Par — address 241. Column light.
+[[fixture]]
+id = "slim-par-1"
+name = "12x4in1 LED Slim Par"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [-9.3, 2.6, -0.6]
+yaw = 90.0
+pitch = -20.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 241
+group = "columns"
+notes = "Desk 3D: (7.50, 4.50, 0.00) - a column light; here on the front-left column at 2.6 m, aimed across the deck."
+
+# --- 12x4in1 LED Slim Par #2 — address 249. Column light.
+[[fixture]]
+id = "slim-par-2"
+name = "12x4in1 LED Slim Par #2"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [9.3, 2.6, -0.6]
+yaw = 270.0
+pitch = -20.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 249
+group = "columns"
+notes = "Desk 3D: (9.50, 4.50, 0.00). Front-right column light."
+
+# --- PAR LED RIEL 7 — address 257.
+[[fixture]]
+id = "par-riel-7"
+name = "PAR LED RIEL 7"
+kind = "wash"
+profile = "par-led-frente"
+at = [-8.4, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 257
+group = "bc"
+notes = "A rail par, foot-of-stage, pointing up the deck. Desk reverses nothing on this one."
+
+# --- PAR LED RIEL 7 (second) — address 264.
+[[fixture]]
+id = "par-riel-7b"
+name = "PAR LED RIEL 7"
+kind = "wash"
+profile = "par-led-frente"
+at = [-6.3, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 264
+group = "bcw"
+notes = "Second rail par. Both share the desk name RIEL 7; the addresses differ."
+
+# --- PAR LED RIEL 5 — address 271.
+[[fixture]]
+id = "par-riel-5"
+name = "PAR LED RIEL 5"
+kind = "wash"
+profile = "par-led-frente"
+at = [-4.2, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 271
+group = "abkpw"
+
+# --- PAR LED RIEL 4 — address 278.
+[[fixture]]
+id = "par-riel-4"
+name = "PAR LED RIEL 4"
+kind = "wash"
+profile = "par-led-frente"
+at = [-2.1, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 278
+group = "abjx"
+
+# --- PAR LED RIEL PUBLIC — address 285.
+[[fixture]]
+id = "par-riel-public"
+name = "PAR LED RIEL PUBLIC"
+kind = "wash"
+profile = "par-led-frente"
+at = [0.0, 1.35, 0.15]
+yaw = 0.0
+pitch = 40.0
+beam = 50.0
+wire = "dmx"
+drive = "fixed"
+address = 285
+notes = "The rail par aimed at the audience, centre front. Points out and up, not at the deck."
+
+# --- PAR LED RIEL 1 — address 292.
+[[fixture]]
+id = "par-riel-1"
+name = "PAR LED RIEL 1"
+kind = "wash"
+profile = "par-led-frente"
+at = [2.1, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 292
+group = "bc"
+
+# --- PAR LED RIEL 2 — address 299.
+[[fixture]]
+id = "par-riel-2"
+name = "PAR LED RIEL 2"
+kind = "wash"
+profile = "par-led-frente"
+at = [4.2, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 299
+group = "abjw"
+
+# --- NUEVA LED #2 #2 #2 #4 #3 — address 306.
+[[fixture]]
+id = "nueva-led-4-3"
+name = "NUEVA LED #2 #2 #2 #4 #3"
+kind = "wash"
+profile = "nueva-led"
+at = [6.3, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 306
+group = "abjmpw"
+
+# --- NUEVA LED #2 #2 #2 #4 #4 — address 313.
+[[fixture]]
+id = "nueva-led-4-4"
+name = "NUEVA LED #2 #2 #2 #4 #4"
+kind = "wash"
+profile = "nueva-led"
+at = [8.4, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 313
+group = "abklnox"
+
+# --- PAR LED RIEL 3 — address 320.
+[[fixture]]
+id = "par-riel-3"
+name = "PAR LED RIEL 3"
+kind = "wash"
+profile = "par-led-frente"
+at = [6.3, 1.35, 0.15]
+yaw = 0.0
+pitch = 32.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 320
+group = "abkpw"
+
+# --- WASH ESCENARIO 7 — address 327.
+[[fixture]]
+id = "wash-escenario-7"
+name = "WASH ESCENARIO 7"
+kind = "wash"
+profile = "wash-escenario"
+at = [-4.8, 8.6, -9.0]
+yaw = 215.0
+pitch = -70.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+address = 327
+group = "stage-wash"
+notes = "A rear-truss backlight wash, at 8.6 m, aimed down and forward over the upstage deck."
+
+# --- NUEVA LED — address 343.
+[[fixture]]
+id = "nueva-led-1"
+name = "NUEVA LED"
+kind = "wash"
+profile = "nueva-led"
+at = [-8.4, 1.35, -11.4]
+yaw = 180.0
+pitch = 24.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 343
+group = "abjlmox"
+notes = "Upstage rail par, back-left."
+
+# --- NUEVA LED #2 — address 350.
+[[fixture]]
+id = "nueva-led-2"
+name = "NUEVA LED #2"
+kind = "wash"
+profile = "nueva-led"
+at = [-6.3, 1.35, -11.4]
+yaw = 180.0
+pitch = 24.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 350
+group = "abknpw"
+
+# --- NUEVA LED #2 #2 — address 357.
+[[fixture]]
+id = "nueva-led-3"
+name = "NUEVA LED #2 #2"
+kind = "wash"
+profile = "nueva-led"
+at = [-4.2, 1.35, -11.4]
+yaw = 180.0
+pitch = 24.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 357
+group = "abjmx"
+
+# --- NUEVA LED #2 #2 #2 — address 364.
+[[fixture]]
+id = "nueva-led-4"
+name = "NUEVA LED #2 #2 #2"
+kind = "wash"
+profile = "nueva-led"
+at = [-2.1, 1.35, -11.4]
+yaw = 180.0
+pitch = 24.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 364
+group = "abknx"
+
+# --- NUEVA LED #2 #2 #2 #2 — address 371.
+[[fixture]]
+id = "nueva-led-5"
+name = "NUEVA LED #2 #2 #2 #2"
+kind = "wash"
+profile = "nueva-led"
+at = [0.0, 1.35, -11.4]
+yaw = 180.0
+pitch = 24.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 371
+group = "abjlmpw"
+
+# --- NUEVA LED #2 #2 #2 #3 — address 378.
+[[fixture]]
+id = "nueva-led-6"
+name = "NUEVA LED #2 #2 #2 #3"
+kind = "wash"
+profile = "nueva-led"
+at = [2.1, 1.35, -11.4]
+yaw = 180.0
+pitch = 24.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 378
+group = "abklnpw"
+
+# --- NUEVA LED #2 #2 #2 #4 — address 385.
+[[fixture]]
+id = "nueva-led-7"
+name = "NUEVA LED #2 #2 #2 #4"
+kind = "wash"
+profile = "nueva-led"
+at = [4.2, 1.35, -11.4]
+yaw = 180.0
+pitch = 24.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 385
+group = "abjmx"
+
+# --- NUEVA LED #2 #2 #2 #4 #2 — address 392.
+[[fixture]]
+id = "nueva-led-8"
+name = "NUEVA LED #2 #2 #2 #4 #2"
+kind = "wash"
+profile = "nueva-led"
+at = [6.3, 1.35, -11.4]
+yaw = 180.0
+pitch = 24.0
+beam = 40.0
+wire = "dmx"
+drive = "fixed"
+address = 392
+group = "abknx"
+
+# --- 12x4in1 LED Slim Par #2 #5 — address 399. Side-wall strip.
+[[fixture]]
+id = "slim-par-5"
+name = "12x4in1 LED Slim Par #2 #5"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [-8.9, 4.2, -3.0]
+yaw = 90.0
+pitch = -35.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+address = 399
+group = "z"
+notes = "Desk 3D: (9.00, 4.50, 6.00). A side strip light on the room's left wall, aimed at the deck."
+
+# --- 12x4in1 LED Slim Par #2 #6 — address 407.
+[[fixture]]
+id = "slim-par-6"
+name = "12x4in1 LED Slim Par #2 #6"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [8.9, 4.2, -3.0]
+yaw = 270.0
+pitch = -35.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+address = 407
+group = "z"
+notes = "Desk 3D: (-7.00, 4.50, 8.00). A side strip light on the room's right wall, aimed at the deck."
+
+# --- CABEZA 7 R 1#1 — address 415. Booth head 1.
+[[fixture]]
+id = "cabeza-7r-1"
+name = "CABEZA 7 R 1#1"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [-1.8, 4.9, 14.6]
+yaw = 0.0
+pitch = -32.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 415
+group = "stgq"
+notes = "Desk 3D: (-6.84, 4.07, 5.00) orientation (269, 267, 2), drawn as big_spot. The first of the production room's two heads; moved to the booth at 15 m."
+
+# --- CABEZA 7 R 1#8 — address 431.
+[[fixture]]
+id = "cabeza-7r-8"
+name = "CABEZA 7 R 1#8"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [7.0, 4.5, 0.0]
+yaw = 0.0
+pitch = -20.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 431
+group = "stu"
+notes = "Desk 3D: (7.00, 4.50, 0.00). A downstage head at the stage's right edge."
+
+# --- 12x4in1 LED Slim Par #2 #11 — address 447.
+[[fixture]]
+id = "slim-par-11"
+name = "12x4in1 LED Slim Par #2 #11"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [8.9, 4.2, -6.0]
+yaw = 270.0
+pitch = -35.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+address = 447
+group = "z"
+notes = "Desk 3D: (7.87, 4.50, 8.00). Side strip, further upstage on the right wall."
+
+# --- 12x4in1 LED Slim Par #2 #12 — address 455.
+[[fixture]]
+id = "slim-par-12"
+name = "12x4in1 LED Slim Par #2 #12"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [8.9, 4.2, -9.0]
+yaw = 270.0
+pitch = -35.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+address = 455
+group = "z"
+notes = "Desk 3D: (9.87, 4.50, 8.00). Rear rail of the right-wall strip."
+
+# --- 12x4in1 LED Slim Par #2 #13 — address 463.
+[[fixture]]
+id = "slim-par-13"
+name = "12x4in1 LED Slim Par #2 #13"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [-8.9, 4.2, -6.0]
+yaw = 90.0
+pitch = -35.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+address = 463
+group = "z"
+notes = "Desk 3D: (-7.00, 4.50, 10.00). Side strip, upstage on the left wall."
+
+# --- 12x4in1 LED Slim Par #2 #14 — address 471.
+[[fixture]]
+id = "slim-par-14"
+name = "12x4in1 LED Slim Par #2 #14"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [-8.9, 4.2, -9.0]
+yaw = 90.0
+pitch = -35.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+address = 471
+group = "z"
+notes = "Desk 3D: (-5.00, 4.50, 10.00). Rear rail of the left-wall strip."
+
+# --- 12x4in1 LED Slim Par #2 #14 #2 — address 480.
+[[fixture]]
+id = "slim-par-14b"
+name = "12x4in1 LED Slim Par #2 #14 #2"
+kind = "wash"
+profile = "slim-par-12x4in1"
+at = [-8.9, 4.2, -11.0]
+yaw = 90.0
+pitch = -35.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+address = 480
+group = "z"
+notes = "Desk 3D: (-3.00, 4.50, 10.00). Last of the left-wall strip."
+
+# --- CABEZA 7 R 1#16 #2 — address 488. Booth head 2.
+[[fixture]]
+id = "cabeza-7r-16b"
+name = "CABEZA 7 R 1#16 #2"
+kind = "moving"
+profile = "cabeza-7r-230"
+at = [1.8, 4.9, 14.6]
+yaw = 0.0
+pitch = -32.0
+beam = 16.0
+wire = "dmx"
+drive = "fixed"
+address = 488
+group = "sthu"
+notes = "Desk 3D: (5.50, 4.50, 100.00). The second production-room head; the desk parks it 100 m out. Here above the booth, beside #1, both facing the stage."
+
+# --- beamZ2 — address 513.
+[[fixture]]
+id = "beamz2"
+name = "beamZ2"
+kind = "moving"
+profile = "beamz2"
+at = [-2.5, 1.35, -11.4]
+yaw = 180.0
+pitch = 30.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 1
+notes = "Upstage beam head on the back rail, aimed forward. The desk reverses its tilt."
+
+# --- beam z 2 — address 533.
+[[fixture]]
+id = "beam-z-2"
+name = "beam z 2"
+kind = "moving"
+profile = "beam-z-2"
+at = [2.5, 1.35, -11.4]
+yaw = 180.0
+pitch = 30.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 21
+notes = "Second upstage beam head, back rail right."
+
+# --- wash 3 — address 553.
+[[fixture]]
+id = "wash-3"
+name = "wash 3"
+kind = "wash"
+profile = "wash-3"
+at = [-2.0, 8.6, -9.0]
+yaw = 200.0
+pitch = -70.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 41
+group = "stage-wash"
+notes = "Rear-truss wash. The desk reverses pan and tilt."
+
+# --- Humo&Neblina #2 — address 615. The desk patches this as `quantity = 2`:
+# one patch row, two physical units sharing the address. The venue carries
+# both units so the room shows both machine positions, and it is the one case
+# where two `[[fixture]]` entries share an address. (ShowXpress Fixture53.)
+[[fixture]]
+id = "humo-neblina-1"
+name = "Humo&Neblina #2"
+kind = "continuous"
+profile = "humo-neblina"
+at = [-3.0, 1.0, -8.5]
+yaw = 0.0
+pitch = 10.0
+beam = 60.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 103
+notes = "The smoke-and-bubble machine, upstage left. One of the two units on address 615."
+
+[[fixture]]
+id = "humo-neblina-2"
+name = "Humo&Neblina #2 (second unit)"
+kind = "continuous"
+profile = "humo-neblina"
+at = [3.0, 1.0, -8.5]
+yaw = 0.0
+pitch = 10.0
+beam = 60.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 103
+notes = "The second unit of the quantity-2 smoke machine, upstage right. Same address as the first."
+
+# --- RECTANGULO LED TECHO #2 #7 #4 #2 — address 623.
+[[fixture]]
+id = "rectangulo-techo-2"
+name = "RECTANGULO LED TECHO #2 #7 #4 #2"
+kind = "panel"
+profile = "rectangulo-led-techo"
+at = [-3.0, 8.4, -9.0]
+yaw = 180.0
+pitch = -55.0
+beam = 60.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 111
+group = "ceiling"
+notes = "A ceiling LED panel on the rear span, washing the deck."
+
+# --- RECTANGULO LED TECHO #2 #7 #4 #3 — address 633.
+[[fixture]]
+id = "rectangulo-techo-3"
+name = "RECTANGULO LED TECHO #2 #7 #4 #3"
+kind = "panel"
+profile = "rectangulo-led-techo"
+at = [0.0, 8.4, -9.0]
+yaw = 180.0
+pitch = -55.0
+beam = 60.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 121
+group = "ceiling"
+
+# --- RECTANGULO LED TECHO #2 #7 #4 #4 — address 643.
+[[fixture]]
+id = "rectangulo-techo-4"
+name = "RECTANGULO LED TECHO #2 #7 #4 #4"
+kind = "panel"
+profile = "rectangulo-led-techo"
+at = [3.0, 8.4, -9.0]
+yaw = 180.0
+pitch = -55.0
+beam = 60.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 131
+group = "ceiling"
+
+# --- R7 #2 #2 #2 — address 653. Truss R7 head.
+[[fixture]]
+id = "r7-a"
+name = "R7 #2 #2 #2"
+kind = "moving"
+profile = "r7"
+at = [-3.5, 8.75, -1.2]
+yaw = 0.0
+pitch = -60.0
+beam = 14.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 141
+group = "shy"
+notes = "An R7 on the main truss, downstage left. Reverse pan and tilt set."
+
+# --- R7 #2 #2 #3 — address 669.
+[[fixture]]
+id = "r7-b"
+name = "R7 #2 #2 #3"
+kind = "moving"
+profile = "r7"
+at = [3.5, 8.75, -1.2]
+yaw = 0.0
+pitch = -60.0
+beam = 14.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 157
+group = "shy"
+notes = "An R7 on the main truss, downstage right. Reverse pan set."
+
+# --- R7 #2 #2 #4 — address 685.
+[[fixture]]
+id = "r7-c"
+name = "R7 #2 #2 #4"
+kind = "moving"
+profile = "r7"
+at = [-1.8, 8.75, -1.2]
+yaw = 0.0
+pitch = -60.0
+beam = 14.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 173
+group = "shy"
+notes = "A centre-left R7 on the main truss."
+
+# --- R7 #2 #2 #5 — address 701.
+[[fixture]]
+id = "r7-d"
+name = "R7 #2 #2 #5"
+kind = "moving"
+profile = "r7"
+at = [1.8, 8.75, -1.2]
+yaw = 0.0
+pitch = -60.0
+beam = 14.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 189
+group = "shy"
+notes = "A centre-right R7 on the main truss."
+
+# --- wash 3 #2 // 205 — address 717.
+[[fixture]]
+id = "wash-3b"
+name = "wash 3 #2 // 205"
+kind = "wash"
+profile = "wash-3"
+at = [2.0, 8.6, -9.0]
+yaw = 160.0
+pitch = -70.0
+beam = 45.0
+wire = "dmx"
+drive = "fixed"
+universe = 1
+address = 205
+group = "stage-wash"
+notes = "Rear-truss wash, the desk labels it with its second universe position (205). Reverse tilt set."
+
+# ------------------------------------------------------------- displays ---
+
+[[display]]
+id = "screen-top"
+name = "screen, top band"
+kind = "led_wall"
+output = "screen-top"
+surface = "screen-top"
+resolution = [1024, 256]
+link = "local"
+notes = "Top 256-px band of the 1024x2048 screen."
+
+[[display]]
+id = "screen-main"
+name = "screen, main"
+kind = "led_wall"
+output = "screen-main"
+surface = "screen-main"
+resolution = [1024, 1536]
+link = "local"
+notes = "Main 1536-px tile of the screen."
+
+[[display]]
+id = "screen-bottom"
+name = "screen, bottom band"
+kind = "led_wall"
+output = "screen-bottom"
+surface = "screen-bottom"
+resolution = [1024, 256]
+link = "local"
+notes = "Bottom 256-px band of the screen."
+
+# --------------------------------------------------------- compositions ---
+
+[[composition]]
+id = "screen"
+name = "one 1024x2048 picture over the three tiles"
+model = "aurora"
+displays = ["screen-top", "screen-main", "screen-bottom"]
+seen_from = "audience"
+content = "One 1024x2048 picture across the three tiles. From the audience it reads as a single tall screen; the 256-px bands are its top and bottom."
+# --------------------------------------------------------------- sensors ---
+#
+# The USB webcam in the production room. Its `at`/`yaw`/`pitch`/`fov` are the
+# same numbers as the `production` shot above, so the 3D camera the venue draws
+# and the physical camera on the desk are one pose: point the real webcam from
+# the operator position and the frame it delivers matches what the room expects
+# to see. `capture` is the same string a graph's `capture` node carries, so the
+# node and this sensor name one device.
+#
+# The source is a Windows DirectShow device (`dshow:<name>`). `name` is what
+# `ffmpeg -list_devices true -f dshow -i dummy` prints -- replace it with the
+# caption your webcam shows there (it also appears in the Settings > Sources
+# list as "<name> - DirectShow"). A Linux box would use `v4l2:/dev/video0`.
+[[sensor]]
+id = "production-cam"
+name = "production room webcam"
+at = [0.0, 3.4, 15.0]
+yaw = 0.0
+pitch = -3.0
+roll = 0.0
+fov = 55.0
+aspect = 1.7778
+capture = "dshow:USB Video Device"

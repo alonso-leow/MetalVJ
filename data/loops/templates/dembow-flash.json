@@ -1,0 +1,25 @@
+{
+ "id": "dembow-flash",
+ "name": "Dembow flash",
+ "target": {
+  "effect": "flash"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "opacity"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.0, 0.0, 0.75, 0.525, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.75, 0.525, 0.0, 0.0, 0.0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "diffuse"
+   },
+   "curve": "step",
+   "steps": [0.8, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+  }
+ ]
+}

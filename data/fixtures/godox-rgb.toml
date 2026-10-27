@@ -1,0 +1,26 @@
+# A full-RGB Godox Bluetooth light (BLE Phase B) — the FH50R-class model.
+#
+# Level, hue, sat and a temperature: the widest of the three Bluetooth
+# profiles. `Fixture::light_state` hands HSI to a lamp only when it has both a
+# `hue` and a `sat` channel *and* the saturation is above zero — at sat 0 the
+# row is asking for white, which is the `cct` channel's job, so the HSI is
+# left `None` and the temperature speaks instead.
+
+label = "Godox RGB (FH50R-class)"
+wire = "bluetooth"
+
+[bluetooth]
+protocol = "godox-mesh"
+
+[[channel]]
+signal = "level"
+
+[[channel]]
+signal = "hue"
+
+[[channel]]
+signal = "sat"
+
+[[channel]]
+signal = "cct"
+range = [2800.0, 6500.0]

@@ -1,0 +1,59 @@
+{
+ "id": "fx-math-split",
+ "name": "Split",
+ "target": {
+  "effect": "math"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "mul_r"
+   },
+   "curve": "step",
+   "steps": [
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "mul_b"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,94 @@
+{
+ "id": "oracle-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "oracle"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "gaze_x"
+   },
+   "curve": "step",
+   "steps": [
+    0.5,
+    null,
+    null,
+    0.9,
+    null,
+    0.1,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.1,
+    null,
+    0.8,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "pupil"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "iris",
+    "palette": "rays"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null
+   ]
+  }
+ ]
+}

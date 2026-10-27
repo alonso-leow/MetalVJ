@@ -1,0 +1,33 @@
+{
+ "id": "fx-forge-climb",
+ "name": "Climb",
+ "target": {
+  "effect": "forge"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "rms"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.067, 0.133, 0.2, 0.267, 0.333, 0.4, 0.467, 0.533, 0.6, 0.667, 0.733, 0.8, 0.867, 0.933, 1.0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "centroid"
+   },
+   "curve": "ramp",
+   "steps": [0.2, 0.223, 0.288, 0.385, 0.5, 0.615, 0.712, 0.777, 0.8, 0.777, 0.712, 0.615, 0.5, 0.385, 0.288, 0.223]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "bandwidth"
+   },
+   "curve": "step",
+   "steps": [0.0, null, null, null, 0.18, null, null, null, 0.0, null, null, null, 0.9, 0.27, 0.9, 0.27]
+  }
+ ]
+}

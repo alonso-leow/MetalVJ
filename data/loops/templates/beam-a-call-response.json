@@ -1,0 +1,92 @@
+{
+ "id": "beam-a-call-response",
+ "name": "Call Response",
+ "target": {
+  "model": "beam"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "pulse"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    0.2,
+    0.9,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "tone"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    0.7,
+    0.95
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "beam",
+    "palette": "metalvj-red"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 3
+    }
+   ]
+  }
+ ]
+}

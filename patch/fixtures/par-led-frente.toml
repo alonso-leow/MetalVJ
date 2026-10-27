@@ -1,0 +1,36 @@
+# PAR LED FRENTE — the front LED par on the Fiesta Resort rig's rails.
+#
+# Ported from ShowXpress (`fixtures/PAR LED FRENTE.txt`): red, green, blue,
+# white, amber, uv, zoom. Same seven-slot footprint as `nueva-led.toml`; the
+# two models differ only in how the desk groups them (these are the "RIEL"
+# pars, the rail pars, on the front and side rails).
+#
+# Slots are 0-based offsets from `address`.
+
+label = "Par LED Frente (RGBAW+UV, 7ch)"
+universe = 0
+address = 1
+
+[limits]
+zoom = [10.0, 60.0]
+dimmer = [0.0, 1.0]
+
+[[channel]]
+signal = "level"
+coarse = 0
+
+[[channel]]
+signal = "hue"
+coarse = 1
+
+[[channel]]
+signal = "sat"
+coarse = 2
+
+[[channel]]
+signal = "strobe"
+coarse = 4
+
+[[channel]]
+signal = "zoom"
+coarse = 6

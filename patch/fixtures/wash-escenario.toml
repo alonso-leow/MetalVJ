@@ -1,0 +1,56 @@
+# WASH ESCENARIO 1 / 5 / 6 / 7 — the big stage washes on the Fiesta Resort rig.
+#
+# Ported from ShowXpress (`fixtures/WASH ESCENARIO 1.txt` and
+# `WASH ESCENARIO 6.txt`): shutter, dimmer, zoom, pan, pan fine, tilt, tilt
+# fine, the fixture's `???` slot, colour wheel, red, green, blue, white,
+# amber. 1 and 6 share this layout; 5 and 7 differ only in the ShowXpress
+# label. Fourteen slots, addressed every 14 or 16 channels on the desk; the
+# venue carries each head's own `address`, so the block length here is what
+# matters.
+#
+# This is a pan/tilt wash, aimed with `yaw`/`pitch` in the venue; the colour
+# is answered as HSV, `zoom` shapes the beam.
+#
+# Slots are 0-based offsets from `address`.
+
+label = "Wash Escenario (pan/tilt wash, 14ch)"
+universe = 0
+address = 1
+
+[limits]
+pan = [-270.0, 270.0]
+tilt = [-135.0, 135.0]
+speed = 120.0
+zoom = [10.0, 60.0]
+dimmer = [0.0, 1.0]
+
+[[channel]]
+signal = "strobe"
+coarse = 0
+
+[[channel]]
+signal = "level"
+coarse = 1
+
+[[channel]]
+signal = "zoom"
+coarse = 2
+
+[[channel]]
+signal = "pan"
+coarse = 3
+fine = 4
+range = [-0.5, 0.5]
+
+[[channel]]
+signal = "tilt"
+coarse = 5
+fine = 6
+
+[[channel]]
+signal = "hue"
+coarse = 8
+
+[[channel]]
+signal = "sat"
+coarse = 9

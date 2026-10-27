@@ -1,0 +1,80 @@
+{
+ "id": "hf-acomodar-acomodar-moviles-cabina",
+ "name": "Acomodar moviles cabina",
+ "family": "acomodar",
+ "source": "ShowXpress 00-Alonso/Acomodar moviles cabina.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984551": {
+     "fixture": "cabeza-7r-8",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 172,
+      "strobe_dimmer": 255,
+      "tilt": 22,
+      "upan": 113,
+      "utilt": 75
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.6745,
+      "tilt": 0.0863,
+      "strobe": 1.0
+     }
+    },
+    "1641053008": {
+     "fixture": "cabeza-7r-16b",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 173,
+      "strobe_dimmer": 255,
+      "tilt": 21,
+      "upan": 150,
+      "utilt": 158
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.6784,
+      "tilt": 0.0824,
+      "strobe": 1.0
+     }
+    },
+    "1764424683": {
+     "fixture": "wash-escenario-1",
+     "dmx": {
+      "dimmer": 0
+     },
+     "floats": {
+      "level": 0.0
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984551": {
+   "desk_id": "1582984551",
+   "desk_name": "CABEZA 7 R 1#8",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-8",
+   "address": 431
+  },
+  "1641053008": {
+   "desk_id": "1641053008",
+   "desk_name": "CABEZA 7 R 1#16 #2",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-16b",
+   "address": 488
+  },
+  "1764424683": {
+   "desk_id": "1764424683",
+   "desk_name": "WASH ESCENARIO 1",
+   "desk_model": "WASH ESCENARIO 1",
+   "fixture": "wash-escenario-1",
+   "address": 1
+  }
+ }
+}

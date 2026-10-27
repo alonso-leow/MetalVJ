@@ -1,0 +1,13 @@
+{
+ "id": "escape-a-breathe",
+ "name": "Breathe",
+ "target": {"model": "escape"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "variation"}, "curve": "ramp",
+   "steps": [0.1, 0.153, 0.207, 0.26, 0.313, 0.367, 0.42, 0.473, 0.527, 0.58, 0.633, 0.687, 0.74, 0.793, 0.847, 0.9]},
+  {"target": {"kind": "float", "param": "tension"}, "curve": "step",
+   "steps": [0.3, null, null, null, null, null, null, null, 0.6, null, null, null, null, null, null, null]},
+  {"target": {"kind": "palette", "slot": "background", "palette": "backgrounds"},
+   "steps": [{"colour": 0}, null, null, null, {"colour": 1}, null, null, null, {"colour": 2}, null, null, null, {"colour": 3}, null, null, null]}
+ ]
+}

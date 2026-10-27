@@ -1,0 +1,13 @@
+{
+ "id": "mengano-a-four-floor",
+ "name": "Four Floor",
+ "target": {"model": "someone"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "size"}, "curve": "step",
+   "steps": [0.9, null, 0.3, null, 0.9, null, 0.3, null, 0.9, null, 0.3, null, 0.9, null, 0.3, null]},
+  {"target": {"kind": "float", "param": "blink"}, "curve": "step",
+   "steps": [0.9, null, null, null, 0.1, null, null, null, 0.9, null, null, null, 0.1, null, null, null]},
+  {"target": {"kind": "palette", "slot": "body", "palette": "neon"},
+   "steps": [{"colour": 3}, null, null, null, {"colour": 0}, null, null, null, {"colour": 3}, null, null, null, {"colour": 0}, null, null, null]}
+ ]
+}

@@ -1,0 +1,92 @@
+{
+ "id": "kaleido-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "kaleido"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "arms"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "mirrors"
+   },
+   "curve": "step",
+   "steps": [
+    0.7,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "crystal",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

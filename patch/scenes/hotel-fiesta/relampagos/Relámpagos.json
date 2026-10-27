@@ -1,0 +1,205 @@
+{
+ "id": "hf-relampagos-relampagos",
+ "name": "Relámpagos",
+ "family": "relampagos",
+ "source": "ShowXpress 00-Alonso/Relámpagos.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1764327535": {
+     "fixture": "wash-escenario-5",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 58,
+      "shutter": 138,
+      "tilt": 85,
+      "upan": 192,
+      "utilt": 201,
+      "white": 238
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.2275,
+      "tilt": 0.3333,
+      "strobe": 0.5412
+     }
+    },
+    "1764327536": {
+     "fixture": "wash-escenario-5b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 145,
+      "shutter": 138,
+      "tilt": 43,
+      "upan": 189,
+      "utilt": 59,
+      "white": 238
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5686,
+      "tilt": 0.1686,
+      "strobe": 0.5412
+     }
+    },
+    "1764602686": {
+     "fixture": "wash-escenario-7",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 158,
+      "shutter": 138,
+      "tilt": 87,
+      "upan": 181,
+      "utilt": 35,
+      "white": 238
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.6196,
+      "tilt": 0.3412,
+      "strobe": 0.5412
+     }
+    },
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "amber": 0,
+      "blue": 64,
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1764602241": {
+     "fixture": "wash-escenario-6",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 177,
+      "shutter": 138,
+      "tilt": 87,
+      "upan": 201,
+      "utilt": 208,
+      "white": 238
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.6941,
+      "tilt": 0.3412,
+      "strobe": 0.5412
+     }
+    },
+    "1764424683": {
+     "fixture": "wash-escenario-1",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 112,
+      "shutter": 138,
+      "tilt": 79,
+      "upan": 237,
+      "utilt": 8,
+      "white": 238
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.4392,
+      "tilt": 0.3098,
+      "strobe": 0.5412
+     }
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "amber": 0,
+      "blue": 64,
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "amber": 0,
+      "blue": 64,
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "amber": 0,
+      "blue": 64,
+      "white": 0
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1764327535": {
+   "desk_id": "1764327535",
+   "desk_name": "WASH 5 ESCENARIO",
+   "desk_model": "WASH 5 ESCENARIO",
+   "fixture": "wash-escenario-5",
+   "address": 133
+  },
+  "1764327536": {
+   "desk_id": "1764327536",
+   "desk_name": "WASH 5 ESCENARIO #2",
+   "desk_model": "WASH 5 ESCENARIO",
+   "fixture": "wash-escenario-5b",
+   "address": 147
+  },
+  "1764602686": {
+   "desk_id": "1764602686",
+   "desk_name": "WASH ESCENARIO 7",
+   "desk_model": "WASH ESCENARIO 7",
+   "fixture": "wash-escenario-7",
+   "address": 327
+  },
+  "1617813006": {
+   "desk_id": "1617813006",
+   "desk_name": "NUEVA LED #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-4",
+   "address": 364
+  },
+  "1764602241": {
+   "desk_id": "1764602241",
+   "desk_name": "WASH ESCENARIO 6",
+   "desk_model": "WASH ESCENARIO 6",
+   "fixture": "wash-escenario-6",
+   "address": 161
+  },
+  "1764424683": {
+   "desk_id": "1764424683",
+   "desk_name": "WASH ESCENARIO 1",
+   "desk_model": "WASH ESCENARIO 1",
+   "fixture": "wash-escenario-1",
+   "address": 1
+  },
+  "1617813051": {
+   "desk_id": "1617813051",
+   "desk_name": "NUEVA LED #2 #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-5",
+   "address": 371
+  },
+  "1617813052": {
+   "desk_id": "1617813052",
+   "desk_name": "NUEVA LED #2 #2 #2 #3",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-6",
+   "address": 378
+  },
+  "1617813053": {
+   "desk_id": "1617813053",
+   "desk_name": "NUEVA LED #2 #2 #2 #4",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-7",
+   "address": 385
+  }
+ }
+}

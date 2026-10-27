@@ -1,0 +1,59 @@
+{
+ "id": "fx-lookup-blend",
+ "name": "Blend",
+ "target": {
+  "effect": "lookup"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "mix"
+   },
+   "curve": "step",
+   "steps": [
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "channel"
+   },
+   "curve": "step",
+   "steps": [
+    0,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

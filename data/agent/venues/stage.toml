@@ -1,0 +1,417 @@
+# Few-shot example, invented: no photo behind it. A club stage lit by four
+# kinds of Godox Bluetooth light plus a pair of moving heads, and a video
+# wall of three LED tiles stacked on the back wall.
+#
+# What this example teaches:
+#
+# - **A wall of screens, one picture.** The LED wall is three `[[display]]`
+#   tiles (`kind = "led_wall"`), each its own `output`, stacked A over B over
+#   C — 1024x256, 1024x1536, 1024x256, the heights in the ratio 256:1536:256
+#   so one 1024x2048 picture runs across all three (`[[composition]]`).
+# - **Bluetooth fixtures.** The keys, fills and backlights name Godox
+#   Bluetooth profiles (`wire = "bluetooth"`: level only, level + colour
+#   temperature, and full RGB). The moves are pan/tilt heads on DMX
+#   (`moving-head-beam`); their addresses are laid one after another by the
+#   venue projector, so they never overlap.
+# - **A comb.** Five parallel battens above the deck (`peine`), the front and
+#   rear truss spans and two towers carrying them.
+#
+# Units: metres, +y up, floor y = 0, the front edge of the stage at z = 0 and
+# the back wall at z = -6. yaw 0 looks at the back wall (-z), +90 looks right
+# (+x); pitch > 0 looks up. A surface is origin + s*u + t*v, (0,0) top-left
+# seen from the side that gets light. Image points 0..1, top-left.
+
+[venue]
+id = "stage"
+name = "Club stage, comb and LED wall"
+setting = "indoor"
+based_on = []
+notes = """
+Invented. A 10 x 6 m deck 1 m above the audience floor, against a 9 m back
+wall. Three LED tiles fill the middle of the back wall (4 m wide, 8 m tall in
+all). Two towers at the front corners carry a front and a rear truss span;
+above them five parallel battens (the comb) at about 7 m. Front keys are
+daylight SL60II Ds, the fills are SL60II Bis, the backlights on the rear
+batten are full RGB, and four pan/tilt moving heads ride the comb battens.
+"""
+
+# ---------------------------------------------------------------- shots ---
+
+# Designed viewpoints: exact image coordinates (a venue with an LED wall has
+# no projector to measure, so the projection fields are absent and
+# projector_distance is 0; the other four fields still come in order).
+[[shot]]
+id = "audience"
+image = ""
+camera = { eye = [0.0, 1.65, 7.0], yaw = 0.0, pitch = 6.0, roll = 0.0, fov = 60.0, aspect = 1.7778 }
+projector_distance = 0.0
+floor_brightness = 0.18
+background_brightness = 0.22
+horizon_path = []
+notes = "Designed: standing on the audience floor, 7 m out, eyes at 1.65 m. The whole LED wall, the deck and the back wall are in frame."
+
+[[shot.sees]]
+surface = "wall-a"
+corners = [[0.42881876, 0.12340462], [0.57118124, 0.12340462], [0.571729, 0.1839171], [0.42827097, 0.1839171]]
+
+[[shot.sees]]
+surface = "wall-b"
+corners = [[0.42827097, 0.1839171], [0.571729, 0.1839171], [0.5752014, 0.56749773], [0.42479858, 0.56749773]]
+
+[[shot.sees]]
+surface = "wall-c"
+corners = [[0.42479858, 0.56749773], [0.5752014, 0.56749773], [0.5758131, 0.6350678], [0.4241869, 0.6350678]]
+
+[[shot.sees]]
+surface = "stage-deck"
+corners = [[0.3106138, 0.6350338], [0.6893862, 0.6350338], [0.85331714, 0.6731292], [0.14668283, 0.6731292]]
+
+[[shot]]
+id = "balcony"
+image = ""
+camera = { eye = [-5.5, 4.2, 4.5], yaw = 24.0, pitch = -4.0, roll = 0.0, fov = 60.0, aspect = 1.7778 }
+projector_distance = 0.0
+floor_brightness = 0.15
+background_brightness = 0.2
+horizon_path = []
+notes = "Designed: a balcony mix position up and to the left, looking down across at the LED wall. The deck is mostly behind this camera's lower edge, so it is not listed."
+
+[[shot.sees]]
+surface = "wall-b"
+corners = [[0.45138758, 0.13155547], [0.60206074, 0.17205665], [0.5987121, 0.58916426], [0.4532151, 0.6109904]]
+
+# ------------------------------------------------------------- surfaces ---
+
+[[surface]]
+id = "back-wall"
+name = "back wall"
+origin = [-5.0, 9.0, -6.0]
+u = [10.0, 0.0, 0.0]
+v = [0.0, -9.0, 0.0]
+material = "matte black"
+
+[[surface]]
+id = "stage-deck"
+name = "stage deck"
+origin = [-5.0, 1.0, -6.0]
+u = [10.0, 0.0, 0.0]
+v = [0.0, 0.0, 6.0]
+material = "black marley"
+
+[[surface]]
+id = "audience-floor"
+name = "audience floor"
+origin = [-5.0, 0.0, 10.0]
+u = [10.0, 0.0, 0.0]
+v = [0.0, 0.0, -10.0]
+material = "concrete"
+
+# The LED wall: three tiles 4 m wide, 1 cm proud of the back wall, stacked A
+# over B over C with heights 1 : 6 : 1 (the ratio 256 : 1536 : 256), so the
+# 1024-px width and the 2048-px total height keep square pixels.
+[[surface]]
+id = "wall-a"
+name = "LED wall, top band"
+origin = [-2.0, 9.0, -5.99]
+u = [4.0, 0.0, 0.0]
+v = [0.0, -1.0, 0.0]
+material = "LED panel, top band"
+
+[[surface]]
+id = "wall-b"
+name = "LED wall, main"
+origin = [-2.0, 8.0, -5.99]
+u = [4.0, 0.0, 0.0]
+v = [0.0, -6.0, 0.0]
+material = "LED panel, main"
+
+[[surface]]
+id = "wall-c"
+name = "LED wall, bottom band"
+origin = [-2.0, 2.0, -5.99]
+u = [4.0, 0.0, 0.0]
+v = [0.0, -1.0, 0.0]
+material = "LED panel, bottom band"
+
+# -------------------------------------------------------------- objects ---
+
+[[object]]
+id = "tower-left"
+name = "left truss tower"
+kind = "truss"
+at = [-4.6, 1.0, -0.8]
+size = [0.3, 6.0, 0.3]
+description = "Box truss tower at the front-left corner of the deck, carrying the front span."
+
+[[object]]
+id = "tower-right"
+name = "right truss tower"
+kind = "truss"
+at = [4.6, 1.0, -0.8]
+size = [0.3, 6.0, 0.3]
+description = "Box truss tower at the front-right corner of the deck, carrying the front span."
+
+[[object]]
+id = "truss-front"
+name = "front truss span"
+kind = "truss"
+at = [0.0, 6.4, -0.8]
+size = [9.4, 0.3, 0.3]
+description = "Front box truss between the two towers. The keys and fills hang from it."
+
+[[object]]
+id = "truss-rear"
+name = "rear truss span"
+kind = "truss"
+at = [0.0, 6.4, -5.2]
+size = [9.4, 0.3, 0.3]
+description = "Rear box truss near the back wall. The backlights hang from it."
+
+# The comb: five parallel overhead battens across the deck at about 7 m.
+[[object]]
+id = "batten-1"
+name = "comb batten 1"
+kind = "batten"
+at = [0.0, 7.1, -1.6]
+size = [9.4, 0.2, 0.2]
+description = "Front-most comb batten."
+
+[[object]]
+id = "batten-2"
+name = "comb batten 2"
+kind = "batten"
+at = [0.0, 7.1, -2.6]
+size = [9.4, 0.2, 0.2]
+description = "Second comb batten."
+
+[[object]]
+id = "batten-3"
+name = "comb batten 3"
+kind = "batten"
+at = [0.0, 7.1, -3.6]
+size = [9.4, 0.2, 0.2]
+description = "Middle comb batten."
+
+[[object]]
+id = "batten-4"
+name = "comb batten 4"
+kind = "batten"
+at = [0.0, 7.1, -4.6]
+size = [9.4, 0.2, 0.2]
+description = "Fourth comb batten."
+
+[[object]]
+id = "batten-5"
+name = "comb batten 5"
+kind = "batten"
+at = [0.0, 7.1, -5.6]
+size = [9.4, 0.2, 0.2]
+description = "Rear-most comb batten, just in front of the rear truss."
+
+# -------------------------------------------------------------- fixtures ---
+
+# Front keys: Godox SL60II D (daylight, level only) over Bluetooth.
+[[fixture]]
+id = "key-1"
+name = "front key 1"
+kind = "wash"
+profile = "godox-sl60iid"
+at = [-3.0, 6.7, -0.8]
+yaw = 0.0
+pitch = -38.0
+beam = 45.0
+wire = "bluetooth"
+drive = "fixed"
+notes = "Daylight key on the front truss, over the downstage-left third of the deck."
+
+[[fixture]]
+id = "key-2"
+name = "front key 2"
+kind = "wash"
+profile = "godox-sl60iid"
+at = [0.0, 6.7, -0.8]
+yaw = 0.0
+pitch = -38.0
+beam = 45.0
+wire = "bluetooth"
+drive = "fixed"
+notes = "Daylight key centre, on the front truss."
+
+[[fixture]]
+id = "key-3"
+name = "front key 3"
+kind = "wash"
+profile = "godox-sl60iid"
+at = [3.0, 6.7, -0.8]
+yaw = 0.0
+pitch = -38.0
+beam = 45.0
+wire = "bluetooth"
+drive = "fixed"
+notes = "Daylight key over the downstage-right third of the deck."
+
+# Fills/sides: Godox SL60II Bi (level + colour temperature, 2800-6500 K).
+[[fixture]]
+id = "fill-left"
+name = "side fill left"
+kind = "wash"
+profile = "godox-sl60iibi"
+at = [-4.3, 6.7, -0.8]
+yaw = 0.0
+pitch = -30.0
+beam = 55.0
+wire = "bluetooth"
+drive = "fixed"
+notes = "Bicolour fill at the left end of the front truss."
+
+[[fixture]]
+id = "fill-right"
+name = "side fill right"
+kind = "wash"
+profile = "godox-sl60iibi"
+at = [4.3, 6.7, -0.8]
+yaw = 0.0
+pitch = -30.0
+beam = 55.0
+wire = "bluetooth"
+drive = "fixed"
+notes = "Bicolour fill at the right end of the front truss."
+
+# Backlights: full-RGB Godox on the rear batten, aimed down and forward at
+# the performers.
+[[fixture]]
+id = "back-1"
+name = "backlight 1"
+kind = "backlight"
+profile = "godox-rgb"
+at = [-3.0, 7.1, -5.6]
+yaw = 180.0
+pitch = -45.0
+beam = 40.0
+wire = "bluetooth"
+drive = "fixed"
+notes = "RGB backlight, rear batten, aimed forward and down at whoever is at stage left."
+
+[[fixture]]
+id = "back-2"
+name = "backlight 2"
+kind = "backlight"
+profile = "godox-rgb"
+at = [0.0, 7.1, -5.6]
+yaw = 180.0
+pitch = -45.0
+beam = 40.0
+wire = "bluetooth"
+drive = "fixed"
+notes = "RGB backlight centre, rear batten."
+
+[[fixture]]
+id = "back-3"
+name = "backlight 3"
+kind = "backlight"
+profile = "godox-rgb"
+at = [3.0, 7.1, -5.6]
+yaw = 180.0
+pitch = -45.0
+beam = 40.0
+wire = "bluetooth"
+drive = "fixed"
+notes = "RGB backlight, rear batten, aimed forward and down at stage right."
+
+# Moving heads: pan/tilt heads with beam shaping, on DMX. Four of them ride
+# the comb battens. Each is one head of the venue's single `out.sacn` node;
+# the venue projector addresses each after the last, so their 10-channel
+# blocks never overlap.
+[[fixture]]
+id = "move-1"
+name = "moving head 1"
+kind = "moving"
+profile = "moving-head-beam"
+at = [-2.0, 7.1, -2.6]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+notes = "Moving head on comb batten 2, downstage left."
+
+[[fixture]]
+id = "move-2"
+name = "moving head 2"
+kind = "moving"
+profile = "moving-head-beam"
+at = [2.0, 7.1, -2.6]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+notes = "Moving head on comb batten 2, downstage right."
+
+[[fixture]]
+id = "move-3"
+name = "moving head 3"
+kind = "moving"
+profile = "moving-head-beam"
+at = [-2.0, 7.1, -4.6]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+notes = "Moving head on comb batten 4, upstage left."
+
+[[fixture]]
+id = "move-4"
+name = "moving head 4"
+kind = "moving"
+profile = "moving-head-beam"
+at = [2.0, 7.1, -4.6]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+notes = "Moving head on comb batten 4, upstage right."
+
+# ------------------------------------------------------------- displays ---
+
+[[display]]
+id = "wall-a"
+name = "LED wall top band"
+kind = "led_wall"
+output = "wall-a"
+surface = "wall-a"
+resolution = [1024, 256]
+link = "local"
+notes = "Top band of the video wall, on the machine that composes."
+
+[[display]]
+id = "wall-b"
+name = "LED wall main"
+kind = "led_wall"
+output = "wall-b"
+surface = "wall-b"
+resolution = [1024, 1536]
+link = "local"
+notes = "Main tile of the video wall."
+
+[[display]]
+id = "wall-c"
+name = "LED wall bottom band"
+kind = "led_wall"
+output = "wall-c"
+surface = "wall-c"
+resolution = [1024, 256]
+link = "local"
+notes = "Bottom band of the video wall."
+
+# --------------------------------------------------------- compositions ---
+
+[[composition]]
+id = "video-wall"
+name = "one picture over the three tiles"
+model = "aurora"
+displays = ["wall-a", "wall-b", "wall-c"]
+seen_from = "audience"
+content = "One 1024x2048 picture across the three tiles: from the audience it reads as a single tall screen with the bands as its top and bottom."

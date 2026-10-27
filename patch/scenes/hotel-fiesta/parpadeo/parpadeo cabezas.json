@@ -1,0 +1,705 @@
+{
+ "id": "hf-parpadeo-parpadeo-cabezas",
+ "name": "parpadeo cabezas",
+ "family": "parpadeo",
+ "source": "ShowXpress 00-Alonso/parpadeo cabezas.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 128,
+      "utilt": 237,
+      "white": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5725,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 140,
+      "strobe_dimmer": 202,
+      "tilt": 70,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.549,
+      "tilt": 0.2745,
+      "strobe": 0.7922
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984555": {
+   "desk_id": "1582984555",
+   "desk_name": "CABEZA 7 R 1#12",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-12",
+   "address": 177
+  },
+  "1582984556": {
+   "desk_id": "1582984556",
+   "desk_name": "CABEZA 7 R 1#13",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-13",
+   "address": 49
+  }
+ }
+}

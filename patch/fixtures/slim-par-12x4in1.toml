@@ -1,0 +1,32 @@
+# 12x4in1 LED Slim Par — the 8-channel slim par on the Fiesta Resort rig.
+#
+# Ported from ShowXpress (`fixtures/12x4in1 LED Slim Par.txt`): dimmer,
+# strobe effect, red, green, blue, white, rgb (a combined macro slot), zoom.
+# These are the four column lights on the room's columns and the strips along
+# the side walls, so they are a `wash` in the venue: a fixed aim with a colour.
+#
+# Slots are 0-based offsets from `address`.
+
+label = "12x4in1 LED Slim Par (8ch)"
+universe = 0
+address = 1
+
+[limits]
+zoom = [10.0, 60.0]
+dimmer = [0.0, 1.0]
+
+[[channel]]
+signal = "level"
+coarse = 0
+
+[[channel]]
+signal = "strobe"
+coarse = 1
+
+[[channel]]
+signal = "hue"
+coarse = 6
+
+[[channel]]
+signal = "sat"
+coarse = 7

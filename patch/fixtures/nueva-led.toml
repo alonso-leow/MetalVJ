@@ -1,0 +1,37 @@
+# NUEVA LED — the 7-channel RGBAW+UV par on the Fiesta Resort rig.
+#
+# Ported from ShowXpress (`fixtures/NUEVA LED.txt`): red, green, blue, white,
+# amber, uv, zoom. The rig answers the six colour channels as HSV for the
+# simulation (`hue`/`sat` drive the mix, `level` is the dimmer-less par's
+# master) - ShowXpress has no separate dimmer here, so the level is folded
+# into the colour mix and `zoom` stays the only beam control.
+#
+# Slots are 0-based offsets from `address`.
+
+label = "Nueva LED (RGBAW+UV, 7ch)"
+universe = 0
+address = 1
+
+[limits]
+zoom = [10.0, 60.0]
+dimmer = [0.0, 1.0]
+
+[[channel]]
+signal = "level"
+coarse = 0
+
+[[channel]]
+signal = "hue"
+coarse = 1
+
+[[channel]]
+signal = "sat"
+coarse = 2
+
+[[channel]]
+signal = "strobe"
+coarse = 4
+
+[[channel]]
+signal = "zoom"
+coarse = 6

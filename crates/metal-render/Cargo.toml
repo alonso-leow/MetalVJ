@@ -1,0 +1,76 @@
+[package]
+name = "metal-render"
+default-run = "metal-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+metal-rig = { path = "../metal-rig" }
+metal-schema = { path = "../metal-schema" }
+# `palette-proof --tone-digest/--synth`: the tone gradient's one home. A leaf
+# crate (metal-rig only), so this is not the metal-perform cycle — see `tone.rs`.
+metal-notation = { path = "../metal-notation" }
+# Transmissions: the library index, the Curator's cue, and the JPEG decode a
+# rung needs on its way to the GPU. No graphics in it — see `models::estela`.
+metal-reel = { path = "../metal-reel" }
+# `headless::Exporter` (plan §9.1): the `Encoder` trait + ffmpeg backend and
+# the neutral `FrameJob`/`FrameSource` currency an offline executor feeds it.
+# No cycle: `metal-ingest` reaches `metal-schema`/`metal-vfs`/`metal-rig`/…,
+# never this crate.
+metal-ingest = { path = "../metal-ingest" }
+# `forge`: the model that draws WGSL written at runtime. `metal_forge::check` is
+# the naga gate every custom shader passes before this crate's device sees
+# it — the same gate `raster` uses, so a shader that tested is a shader that
+# goes on air.
+metal-forge = { path = "../metal-forge" }
+# `monstruo`: the face rig it poses every frame (the voice design notes V5).
+metal-face = { path = "../metal-face" }
+glam.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+wgpu = "30"
+pollster = "1"
+bytemuck = { version = "1", features = ["derive"] }
+# Pure Rust, no transitive dependencies. The headless path ends in a JPEG over
+# a socket; raw pixels would be megabytes per frame.
+jpeg-encoder = { version = "0.7.1", default-features = false, features = ["std", "simd"] }
+# The proof sheets of `palette-proof` (already in the lockfile via egui).
+png = "0.18"
+
+# The native window (`app.rs`, `main.rs`) and its egui panel. Not on wasm:
+# `egui-winit` pulls `arboard`, a native clipboard, which does not build for
+# wasm32. The browser draws through `metal_perform::paint::Gpu` with no window.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+winit = "0.30"
+egui = "0.36"
+egui-wgpu = "0.36"
+egui-winit = "0.36"
+
+# The browser build. WebGL2 is the backend every browser has; WebGPU comes in
+# with the default features where the page provides it. `scripts/build-wasm.sh`
+# builds metal-dash for wasm32, which pulls this crate in through `metal-perform/gpu`.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "30", features = ["webgl"] }
+# The canvas a WebGL2 context is created on (`gpu::web`).
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+
+[[bin]]
+name = "metal-render"
+path = "src/main.rs"
+
+[[bin]]
+name = "model-demo"
+path = "src/bin/model-demo.rs"
+
+[[bin]]
+name = "example-proof"
+path = "src/bin/example-proof.rs"
+
+[[bin]]
+name = "palette-proof"
+path = "src/bin/palette-proof.rs"
+
+[dev-dependencies]
+half = "2"

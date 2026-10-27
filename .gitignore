@@ -1,0 +1,111 @@
+﻿/target
+/data/corpus/dataset.csv
+/data/click/
+/data/shot/
+/data/figures/
+.suite-corpus.pid
+.suite-corpus.log
+.suite.pid
+.suite.log
+# Conjunto C7: scripts/app replaces scripts/dash + scripts/studio (one
+# binary now, see the design notes ┬º10 C7).
+.app.pid
+.app.log
+.app.port
+# Saved layer stacks. A property of the operator's act rather than of the repo,
+# the same way outputs.json is a property of the room.
+data/collections.json
+
+# The one-way conversion of collections.json into graphs, written once at
+# startup (the design notes Conjunto B6). Same reason as collections.json
+# above: it's a projection of the operator's own data, not the repo's.
+data/graphs/
+
+# Modo edit's shows: which generator and which effects are alive over which
+# span of ticks, plus whatever `POST /timeline/export` wrote beside them.
+# A show is the operator's work, like a collection ÔÇö the repo has no business
+# carrying one, and a pre-produced piece for a venue is not something to
+# commit by accident.
+data/timelines/
+
+# The song library and its 8 Hz digests. Someone else's copyright, hundreds of
+# megabytes, and a checkout does not need them ÔÇö `click-100` is tracked because
+# the harnesses need one song to open, and the rest is the operator's own crate.
+# This is also why a trained router `model.json` must be committed when there is
+# one: it cannot be rebuilt from a checkout, because the audio it was fit to is
+# not in it. See docs/ROUTER.md.
+/data/audio/*
+!/data/audio/click-100.toml
+!/data/audio/click-100.wav
+
+# A transmission's frame ladder. Hundreds of megabytes of proxy JPEGs derived
+# from footage that is not in the repo either, and rebuildable in one command
+# from the folder it came from (`metal-reel index`). The `index.json` beside it
+# stays tracked ÔÇö it is a few hundred kilobytes and it is what makes a library
+# usable without re-extracting.
+#
+# `curator.json` and `colourist-*.json` must be committed when they exist, for
+# exactly the reason `docs/ROUTER.md` gives about `model.json`: they are fitted
+# against picks *and* the songs' 8 Hz matrices, and a fresh checkout has neither,
+# so the file is the only copy of a night of authoring.
+/data/reels/*/frames/
+
+# Test scratch. `author::models::agent_tools` tests write `data/reels/<name>/`
+# and `data/timelines/` relative to the cwd `cargo test` gives them, which is
+# the crate dir ÔÇö two of those files were committed by accident in Ola 1 and
+# "restored" once by S.U4b as if they were fixtures. They are not: the tests
+# build them. Same for whatever the JS harnesses leave when run from here.
+crates/metal-dash/data/
+
+# Claude Code's own worktrees for parallel subagents ÔÇö local state, never
+# part of the repo.
+.claude/worktrees/
+
+# Graphify's derived side ÔÇö a local index, rebuilt on demand, never tracked.
+/graphify-out/
+
+# Chat transcripts Claude Code leaves behind.
+/data/chats/
+
+# ML model binaries. Not committed (D9): each is fetched on demand into its
+# registry folder and hash-checked against the sibling model.toml. The folder
+# and its model.toml stay tracked; only the .onnx blob is ignored.
+data/models/*/model.onnx
+!data/models/basic-pitch/model.onnx
+
+__pycache__/
+
+# The operator's AI provider config (holds the raw API key) and per-tool
+# policy ÔÇö local, the same "operator's own data" rule as collections.json.
+# A fresh checkout has no provider until the settings IA page writes one.
+/data/ai.json
+/data/ai_tools.json
+/secrets/
+
+# Packed into the APK by scripts/build-apk.sh (a copy of part of data/).
+/android/app/src/main/assets/
+web/wasm/pkg/
+
+# ---------------------------------------------------------------------------
+# Venue content for a specific room. Kept out of the published tree: the
+# eight scenes, the patch profiles and the venue itself describe one job, not
+# the engine. They live in the local hotel-fiesta-local branch.
+# ---------------------------------------------------------------------------
+/data/scenes/hotel-fiesta/
+/data/agent/venues/fiesta-resort.toml
+/web/wasm/data/graphs/hotel-fiesta.json
+/data/fixtures/beam-z-2.toml
+/data/fixtures/beamz2.toml
+/data/fixtures/cabeza-7r-230.toml
+/data/fixtures/humo-neblina.toml
+/data/fixtures/hurricane-1600.toml
+/data/fixtures/neblina-fria.toml
+/data/fixtures/nueva-led.toml
+/data/fixtures/par-led-frente.toml
+/data/fixtures/r7.toml
+/data/fixtures/rectangulo-led-techo.toml
+/data/fixtures/slim-par-12x4in1.toml
+/data/fixtures/wash-3.toml
+/data/fixtures/wash-escenario.toml
+/crates/metal-graph/tests/hotel_fiesta_graph.rs
+/crates/metal-perform/tests/fiesta_patch.rs

@@ -1,0 +1,41 @@
+{
+ "part": "04-p1",
+ "model": "corals",
+ "song": "04 - Pa Curubandé Yo Voy",
+ "span": [904, 1749],
+ "kind": "break",
+ "keywords": ["elegant", "swing"],
+ "title": "an elegant swing break turns the coral to glass, gently",
+ "story": "Pa Curubandé at 136 BPM, a relaxed son-swing: the loop plays steady through the pre-roll (rms 0.28) and then drops into the break at 1129, where the level steps down (rms 0.28 -> 0.18, -2.39 sd) and the bright percussive peaks thin out. This is a slow part, so slow stays slow (rule 30): the coral is left as it is, and the material only seasons it — a glass skin is mixed in across the break, at its strongest on the two bright peaks (1184, 1267), with one short broken-surface glitch on the 11.56 accent at 1267 that lands on the hit and is gone by the next beat. The palette motion breathes a little per bar; nothing about the tempo changes.",
+ "base": {
+  "mat_kind": 5,
+  "mat_mix": 0.15,
+  "mat_scale": 1.2,
+  "mat_rough": 0.18,
+  "mat_tint": 0.12,
+  "mat_tint_hue": 0.55,
+  "mat_env": 0.1,
+  "mat_glitch": 0.0,
+  "mat_glitch_rate": 3.0,
+  "mat_glitch_seed": 0.2,
+  "stroke_shine": 1.1,
+  "fill_alpha": 0.6,
+  "shine": 1.0,
+  "contrast": 1.0,
+  "background_level": 0.45,
+  "col_hue": 0.0,
+  "col_sat": 1.0,
+  "col_bri": 1.0,
+  "col_contrast": 0.0
+ },
+ "keys": [
+  { "tick": 904, "set": {}, "why": "span start, bar 17.1: rms 0.284, the loop as it is" },
+  { "tick": 1129, "set": { "mat_mix": 0.5, "col_bri": 0.92 }, "why": "break boundary: rms 0.28 -> 0.18 (STEP-, -2.39 sd); the glass comes in" },
+  { "tick": 1184, "set": { "mat_mix": 0.6 }, "why": "PEAK onset 7.90@1184 inside the break" },
+  { "tick": 1266, "set": { "mat_glitch": 0.0 }, "why": "the glitch rests at zero until the hit (rule 29)" },
+  { "tick": 1267, "set": { "mat_mix": 0.6, "mat_glitch": 0.6 }, "why": "strongest break accent, onset 11.56@1267 (PEAK); one broken-surface hit" },
+  { "tick": 1272, "set": { "mat_glitch": 0.0 }, "why": "the glitch is gone within a beat (rule 29)" },
+  { "tick": 1299, "set": { "mat_mix": 0.5, "col_bri": 1.0 }, "why": "post-anomaly, bar 24.1: rms settles to 0.116" },
+  { "tick": 1749, "set": { "mat_mix": 0.4 }, "why": "span end: the steady state the break leaves behind" }
+ ]
+}

@@ -1,0 +1,18 @@
+# Spanish for the shell module `library`: "English source text" = "Spanish text".
+# See ../README.md.
+
+# --- the column's routes (2026-10-01) ---------------------------------------
+"files" = "archivos"
+
+# --- the search fields and filters (2026-10-08) -----------------------------
+"search folder…" = "buscar carpeta…"
+"search file…" = "buscar archivo…"
+"favourites" = "favoritos"
+"all" = "todo"
+"audio" = "audio"
+"video" = "vídeo"
+"image" = "imagen"
+"sequence" = "secuencia"
+
+# --- touch: a video card's long-press menu (2026-10-09) -------------------
+"add as layer" = "añadir como capa"

@@ -1,0 +1,50 @@
+# wash 3 — the 14-channel pan/tilt wash on the Fiesta Resort rig.
+#
+# Ported from ShowXpress (`fixtures/wash  3.txt`): shutter, dimmer, zoom,
+# pan, pan fine, tilt, tilt fine, a `???` slot, colour, red, green, blue,
+# white, and a final `???`. Same footprint as `wash-escenario.toml`; it is a
+# separate model on the desk, so it is a separate profile here.
+#
+# Slots are 0-based offsets from `address`.
+
+label = "wash 3 (pan/tilt wash, 14ch)"
+universe = 0
+address = 1
+
+[limits]
+pan = [-270.0, 270.0]
+tilt = [-135.0, 135.0]
+speed = 120.0
+zoom = [10.0, 60.0]
+dimmer = [0.0, 1.0]
+
+[[channel]]
+signal = "strobe"
+coarse = 0
+
+[[channel]]
+signal = "level"
+coarse = 1
+
+[[channel]]
+signal = "zoom"
+coarse = 2
+
+[[channel]]
+signal = "pan"
+coarse = 3
+fine = 4
+range = [-0.5, 0.5]
+
+[[channel]]
+signal = "tilt"
+coarse = 5
+fine = 6
+
+[[channel]]
+signal = "hue"
+coarse = 8
+
+[[channel]]
+signal = "sat"
+coarse = 9

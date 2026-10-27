@@ -1,0 +1,92 @@
+{
+ "id": "hf-yerberito-yerberito-laterales",
+ "name": "Yerberito laterales",
+ "family": "yerberito",
+ "source": "ShowXpress 00-Alonso/Yerberito laterales.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1713279700": {
+     "fixture": "slim-par-5",
+     "dmx": {
+      "blue": 0,
+      "dimmer": 255,
+      "red": 155,
+      "white": 190
+     },
+     "floats": {
+      "level": 1.0
+     }
+    },
+    "1713279701": {
+     "fixture": "slim-par-6",
+     "dmx": {
+      "blue": 0,
+      "dimmer": 255,
+      "red": 155,
+      "white": 190
+     },
+     "floats": {
+      "level": 1.0
+     }
+    },
+    "1693911820": {
+     "fixture": "slim-par-1",
+     "dmx": {
+      "blue": 0,
+      "dimmer": 255,
+      "red": 155,
+      "white": 190
+     },
+     "floats": {
+      "level": 1.0
+     }
+    },
+    "1693912246": {
+     "fixture": "slim-par-2",
+     "dmx": {
+      "blue": 0,
+      "dimmer": 255,
+      "red": 155,
+      "white": 190
+     },
+     "floats": {
+      "level": 1.0
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1713279700": {
+   "desk_id": "1713279700",
+   "desk_name": "12x4in1 LED Slim Par #2 #5",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-5",
+   "address": 399
+  },
+  "1713279701": {
+   "desk_id": "1713279701",
+   "desk_name": "12x4in1 LED Slim Par #2 #6",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-6",
+   "address": 407
+  },
+  "1693911820": {
+   "desk_id": "1693911820",
+   "desk_name": "12x4in1 LED Slim Par",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-1",
+   "address": 241
+  },
+  "1693912246": {
+   "desk_id": "1693912246",
+   "desk_name": "12x4in1 LED Slim Par #2",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-2",
+   "address": 249
+  }
+ }
+}

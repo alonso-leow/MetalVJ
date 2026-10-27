@@ -1,0 +1,33 @@
+{
+ "id": "rio-a-stab",
+ "name": "Stab",
+ "target": {
+  "model": "river"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "wind"
+   },
+   "curve": "step",
+   "steps": [0.8, 0.15, 0.15, 0.15, 0.15, 0.8, 0.15, 0.8, 0.15, 0.15, 0.15, 0.15, 0.8, 0.15, 0.15, 0.15]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "gusts"
+   },
+   "curve": "step",
+   "steps": [0.9, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.9, 0.2, 0.2, 0.2]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "rays"
+   },
+   "steps": [{"colour": 3}, null, null, null, null, {"colour": 2}, null, {"colour": 1}, null, null, null, null, {"colour": 3}, null, {"colour": 2}, null]
+  }
+ ]
+}

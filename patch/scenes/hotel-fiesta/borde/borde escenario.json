@@ -1,0 +1,132 @@
+{
+ "id": "hf-borde-borde-escenario",
+ "name": "borde escenario",
+ "family": "borde",
+ "source": "ShowXpress 00-Alonso/borde escenario.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984548": {
+     "fixture": "cabeza-riel-2",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "focus": 0,
+      "pan": 25,
+      "strobe_dimmer": 255,
+      "tilt": 194,
+      "upan": 0,
+      "utilt": 0,
+      "white": 19
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.098,
+      "tilt": 0.7608,
+      "focus": 0.0,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984549": {
+     "fixture": "cabeza-riel-3",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "focus": 0,
+      "pan": 25,
+      "strobe_dimmer": 255,
+      "tilt": 194,
+      "upan": 0,
+      "utilt": 0,
+      "white": 19
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.098,
+      "tilt": 0.7608,
+      "focus": 0.0,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984550": {
+     "fixture": "cabeza-riel-4",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "focus": 0,
+      "pan": 25,
+      "strobe_dimmer": 255,
+      "tilt": 194,
+      "upan": 0,
+      "utilt": 0,
+      "white": 19
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.098,
+      "tilt": 0.7608,
+      "focus": 0.0,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984552": {
+     "fixture": "cabeza-riel-1",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "focus": 0,
+      "pan": 25,
+      "strobe_dimmer": 255,
+      "tilt": 194,
+      "upan": 0,
+      "utilt": 0,
+      "white": 19
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.098,
+      "tilt": 0.7608,
+      "focus": 0.0,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984548": {
+   "desk_id": "1582984548",
+   "desk_name": "CABEZA R7 RIEL 2",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-2",
+   "address": 65
+  },
+  "1582984549": {
+   "desk_id": "1582984549",
+   "desk_name": "CABEZA R7 RIEL 3",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-3",
+   "address": 81
+  },
+  "1582984550": {
+   "desk_id": "1582984550",
+   "desk_name": "CABEZA R7 RIEL 4",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-4",
+   "address": 97
+  },
+  "1582984552": {
+   "desk_id": "1582984552",
+   "desk_name": "CABEZA R7 RIEL 1",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-1",
+   "address": 113
+  }
+ }
+}

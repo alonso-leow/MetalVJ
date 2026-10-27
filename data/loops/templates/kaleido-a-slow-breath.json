@@ -1,0 +1,88 @@
+{
+ "id": "kaleido-a-slow-breath",
+ "name": "Slow Breath",
+ "target": {
+  "model": "kaleido"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "rings"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    null,
+    0.6,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "radius"
+   },
+   "curve": "step",
+   "steps": [
+    0.3,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.5,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "crystal",
+    "palette": "skies"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

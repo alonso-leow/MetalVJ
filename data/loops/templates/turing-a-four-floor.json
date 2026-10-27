@@ -1,0 +1,92 @@
+{
+ "id": "turing-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "turing"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "fold"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.95,
+    0.5,
+    0.5,
+    0.5,
+    0.95,
+    0.5,
+    0.5,
+    0.5,
+    0.95,
+    0.5,
+    0.5,
+    0.5,
+    0.95,
+    0.5,
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "sharp"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.9,
+    0.35,
+    0.35,
+    0.35,
+    0.9,
+    0.35,
+    0.35,
+    0.35,
+    0.9,
+    0.35,
+    0.35,
+    0.35,
+    0.9,
+    0.35,
+    0.35,
+    0.35
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "patron",
+    "palette": "metalvj-red"
+   },
+   "steps": [
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

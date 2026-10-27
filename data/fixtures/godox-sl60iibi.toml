@@ -1,0 +1,20 @@
+# Godox SL60II Bi — bi-colour LED, level + colour temperature (BLE Phase B).
+#
+# Bluetooth, like its daylight sibling, but this lamp also takes a temperature.
+# The `cct` channel's `range` is the lamp's own supported window, 2800..6500 K
+# (below the `sig_cct` float's declared 1800..10000). `Fixture::light_state`
+# clamps into that window rather than remapping a byte out of it — the row's
+# `sig_cct` already *is* kelvin.
+
+label = "Godox SL60II Bi"
+wire = "bluetooth"
+
+[bluetooth]
+protocol = "godox-mesh"
+
+[[channel]]
+signal = "level"
+
+[[channel]]
+signal = "cct"
+range = [2800.0, 6500.0]

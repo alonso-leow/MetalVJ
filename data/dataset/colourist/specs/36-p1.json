@@ -1,0 +1,1705 @@
+{
+ "part": "36-p1",
+ "model": "aurora",
+ "song": "36 - Kitipun",
+ "span": [
+  8,
+  1041
+ ],
+ "kind": "intro",
+ "keywords": [
+  "bachata",
+  "romantic"
+ ],
+ "title": "crisp pastel curtains playing the bongo martillo",
+ "story": "Kitipun opens out of silence on one big chord (onset 31.5@33) and a sparse guitar intro: three thin lilac threads fade up slowly with the voice, nothing pulsed because no drum plays. At 396 (STEP+, KEY C) the band comes in and the palette warms from lilac to rose-coral; speed stays 0.4 throughout. From 536 the bongo martillo plays (eighths every 7.26 ticks, 58-tick bars): every stroke flashes the emphasised curtain (enfasis_fuerza), bright slaps also open the contrast, and the dark open tone near beat 4 flares the outer curtains with impacto and a brightness lift. Every half bar the structure flips: bands close with the emphasis low and a rose hue on beat 1, open with the emphasis high and a lilac hue on beat 3, drifting a little each bar.",
+ "base": {
+  "slot:paleta": [
+   0.91,
+   0.627,
+   0.722,
+   1.0,
+   0.894,
+   0.925,
+   0.165,
+   0.059,
+   0.114,
+   1.0,
+   0.29,
+   0.604
+  ],
+  "speed": 0.4,
+  "separation": 1.9,
+  "width_shine": 0.02,
+  "band_0": 0,
+  "band_1": 0,
+  "band_2": 0,
+  "band_3": 0.012,
+  "band_4": 0,
+  "band_5": 0,
+  "band_6": 0,
+  "energy": 0.0,
+  "impact": 0.0,
+  "emphasis_band": 3.0,
+  "emphasis_force": 0.8,
+  "vignette": 0.25,
+  "light_leak": 0.0,
+  "col_hue": -0.06,
+  "col_sat": 0.95,
+  "col_bri": 0.85,
+  "col_contrast": 0.0
+ },
+ "keys": [
+  {
+   "tick": 8,
+   "set": {},
+   "why": "span start, rms 0.000 (silence before the first chord): three faint lilac threads, thin glow (ancho_brillo 0.020), slow (velocidad 0.4, never keyed). Palette rose-velvet (pastel-romantic family) set once in base, cooled to lilac by col_hue -0.06"
+  },
+  {
+   "tick": 95,
+   "set": {
+    "band_0": 0.01,
+    "band_1": 0.03,
+    "band_2": 0.06,
+    "band_3": 0.09,
+    "band_4": 0.07,
+    "band_5": 0.05,
+    "band_6": 0.01
+   },
+   "why": "part boundary 94, onset 7.92@115 PEAK: the chord from 31.51@33 has settled (rms 0.185-0.263, KEY A); the centre curtains fade up"
+  },
+  {
+   "tick": 181,
+   "set": {
+    "col_bri": 0.97,
+    "col_hue": -0.04
+   },
+   "why": "bar 3.1, onset 7.11@183, rms 0.262: first colour breath with the guitar phrase, brightness up and a touch warmer"
+  },
+  {
+   "tick": 224,
+   "set": {
+    "band_0": 0.03,
+    "band_1": 0.05,
+    "band_2": 0.09,
+    "band_3": 0.13,
+    "band_4": 0.12,
+    "band_5": 0.08,
+    "band_6": 0.04,
+    "separation": 1.6
+   },
+   "why": "KEY B, centroid 0.223 (brightest timbre of the intro), rms 0.237: curtains brighter, separacion 1.9->1.6 lets more bands in"
+  },
+  {
+   "tick": 267,
+   "set": {
+    "col_bri": 0.85,
+    "col_hue": -0.07
+   },
+   "why": "bar 4.1, KEY G at 245-267, rms 0.174: the colour breathes back, cooler lilac"
+  },
+  {
+   "tick": 375,
+   "set": {
+    "col_bri": 0.82,
+    "col_hue": -0.07,
+    "col_sat": 0.95,
+    "width_shine": 0.02,
+    "band_0": 0.03,
+    "band_1": 0.05,
+    "band_2": 0.09,
+    "band_3": 0.13,
+    "band_4": 0.12,
+    "band_5": 0.08,
+    "band_6": 0.04,
+    "separation": 1.6
+   },
+   "why": "hold 21 ticks before the band: rms 0.128, centroid 0.102 (quietest point of the intro). No bongo in the intro: the onsets 8..396 have no periodicity (autocorrelation 0.6 vs 4.5 in the groove) - nothing is pulsed"
+  },
+  {
+   "tick": 396,
+   "set": {
+    "col_hue": 0.05,
+    "col_sat": 1.15,
+    "col_bri": 1.0,
+    "width_shine": 0.015,
+    "separation": 1.25,
+    "band_0": 0.18,
+    "band_1": 0.19,
+    "band_2": 0.21,
+    "band_3": 0.23,
+    "band_4": 0.22,
+    "band_5": 0.19,
+    "band_6": 0.15,
+    "emphasis_force": 0.8
+   },
+   "why": "STEP+ rms 0.203->0.274, onset 10.98@416 PEAK, KEY C: the band comes in. The warm move: col_hue -0.07 -> +0.05 (lilac to rose-coral), saturation and brightness up, every curtain lifts, bands close (separacion 1.25), glow tightens to 0.015 (crisp). Speed stays 0.4"
+  },
+  {
+   "tick": 420,
+   "set": {
+    "col_hue": 0.07,
+    "col_bri": 1.05
+   },
+   "why": "bar downbeat 420 (onset 6.31@427): colour sways on the bar, hue +0.07 brightness 1.05. Strums here are irregular (gaps at 441-448, 486-491): no martillo yet, so no pulses"
+  },
+  {
+   "tick": 478,
+   "set": {
+    "col_hue": 0.04,
+    "col_bri": 0.95
+   },
+   "why": "bar downbeat 478 (onset 5.9@479): hue sways back to +0.04, brightness 0.95"
+  },
+  {
+   "tick": 533,
+   "set": {
+    "col_bri": 0.95,
+    "emphasis_force": 0.8,
+    "width_shine": 0.015,
+    "separation": 1.25,
+    "emphasis_band": 3.0,
+    "col_hue": 0.04,
+    "band_0": 0.18,
+    "band_1": 0.19,
+    "band_2": 0.21,
+    "band_3": 0.23,
+    "band_4": 0.22,
+    "band_5": 0.19,
+    "band_6": 0.15
+   },
+   "why": "hold before the bongo: col_bri / enfasis_fuerza / separacion at their intro-end values"
+  },
+  {
+   "tick": 536,
+   "set": {
+    "band_0": 0.33,
+    "band_1": 0.33,
+    "band_2": 0.33,
+    "band_3": 0.6,
+    "band_4": 0.33,
+    "band_5": 0.33,
+    "band_6": 0.33,
+    "width_shine": 0.011,
+    "col_bri": 0.92,
+    "separation": 1.0,
+    "emphasis_band": 2.5,
+    "col_hue": 0.02,
+    "emphasis_force": 1.0
+   },
+   "why": "the bongo enters at 536 (onsets every 7.26 ticks = eighths at ~133 BPM, bar 58 ticks): all seven curtains to 0.33, brightness floor 0.92, glow thinned 0.015->0.011 (crisp) | half bar A, bar 1/9 beat 1 (536): bands close (separacion 1.00), emphasis on the low curtain (enfasis_banda 2.5), hue +0.02 rose | STROKE (1) STROKE eighth 1 (1): onset 7.9@536, centroid 0.27: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 540,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 543,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1&) STROKE eighth 2 (1&): onset 6.3@543, centroid 0.22: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 547,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 548,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 551,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2) STROKE eighth 3 (2): onset 7.2@551, centroid 0.20: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 555,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 558,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2&) STROKE eighth 4 (2&): onset 4.8@558, centroid 0.27: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 562,
+   "set": {
+    "separation": 1.0,
+    "emphasis_band": 2.5,
+    "col_hue": 0.02,
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 565,
+   "set": {
+    "separation": 1.4,
+    "emphasis_band": 3.5,
+    "col_hue": -0.05,
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "half bar B, bar 1/9 beat 3 (565): bands open (separacion 1.40), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.05 lilac | STROKE (3) STROKE eighth 5 (3): onset 10.6@565, centroid 0.24: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 569,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 572,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (3&) STROKE eighth 6 (3&): onset 9.4@572, centroid 0.29: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 576,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 577,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 580,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "impact": 0.6,
+    "band_0": 0.9,
+    "band_6": 0.9,
+    "col_bri": 1.5,
+    "col_sat": 1.4
+   },
+   "why": "OPEN TONE (4) OPEN TONE eighth 7 (4): onset 12.6@580, centroid 0.26, bw 2877 (dark, the bar's strongest), dark and the bar's strongest: impacto 0.6, outer curtains banda_0/banda_6 0.33->0.9, col_bri 1.5, col_sat 1.4 + stroke pulse"
+  },
+  {
+   "tick": 584,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 585,
+   "set": {
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "open tone released"
+  },
+  {
+   "tick": 587,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (4&) STROKE eighth 8 (4&): onset 8.5@587, centroid 0.26: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 591,
+   "set": {
+    "separation": 1.4,
+    "emphasis_band": 3.5,
+    "col_hue": -0.05,
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 592,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 594,
+   "set": {
+    "separation": 1.05,
+    "emphasis_band": 2.5,
+    "col_hue": 0.04
+   },
+   "why": "half bar A, bar 2/9 beat 1 (594): bands close (separacion 1.05), emphasis on the low curtain (enfasis_banda 2.5), hue +0.04 rose"
+  },
+  {
+   "tick": 595,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1) STROKE eighth 1 (1): onset 7.6@595, centroid 0.20: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 598,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 599,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 601,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (1&) SLAP eighth 2 (1&): onset 8.6@601, centroid 0.30 bw 3316 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 605,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 608,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (2) SLAP eighth 3 (2): onset 5.5@608, centroid 0.37 bw 3642 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 612,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 615,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (2&) SLAP eighth 4 (2&): onset 6.3@615, centroid 0.39 bw 3605 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 619,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 620,
+   "set": {
+    "separation": 1.05,
+    "emphasis_band": 2.5,
+    "col_hue": 0.04,
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 623,
+   "set": {
+    "separation": 1.45,
+    "emphasis_band": 3.5,
+    "col_hue": -0.03,
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "half bar B, bar 2/9 beat 3 (623): bands open (separacion 1.45), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.03 lilac | STROKE (3) STROKE eighth 5 (3): onset 8.3@623, centroid 0.26: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 627,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 630,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (3&) SLAP eighth 6 (3&): onset 10.9@630, centroid 0.30 bw 2705 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 634,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0,
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 637,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "impact": 0.6,
+    "band_0": 0.9,
+    "band_6": 0.9,
+    "col_bri": 1.5,
+    "col_sat": 1.4
+   },
+   "why": "OPEN TONE (4) OPEN TONE eighth 7 (4): onset 13.1@637, centroid 0.26, bw 2805 (dark, the bar's strongest), dark and the bar's strongest: impacto 0.6, outer curtains banda_0/banda_6 0.33->0.9, col_bri 1.5, col_sat 1.4 + stroke pulse"
+  },
+  {
+   "tick": 641,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 642,
+   "set": {
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "open tone released"
+  },
+  {
+   "tick": 649,
+   "set": {
+    "separation": 1.45,
+    "emphasis_band": 3.5,
+    "col_hue": -0.03
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 652,
+   "set": {
+    "separation": 0.95,
+    "emphasis_band": 2.5,
+    "col_hue": 0.01
+   },
+   "why": "half bar A, bar 3/9 beat 1 (652): bands close (separacion 0.95), emphasis on the low curtain (enfasis_banda 2.5), hue +0.01 rose"
+  },
+  {
+   "tick": 656,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 659,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1&) STROKE eighth 2 (1&): onset 4.8@659, centroid 0.28: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 663,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 664,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 667,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2) STROKE eighth 3 (2): onset 9.6@667, centroid 0.21: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 671,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 674,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2&) STROKE eighth 4 (2&): onset 4.5@674, centroid 0.24: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 678,
+   "set": {
+    "separation": 0.95,
+    "emphasis_band": 2.5,
+    "col_hue": 0.01,
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 681,
+   "set": {
+    "separation": 1.35,
+    "emphasis_band": 3.5,
+    "col_hue": -0.06
+   },
+   "why": "half bar B, bar 3/9 beat 3 (681): bands open (separacion 1.35), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.06 lilac"
+  },
+  {
+   "tick": 685,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 688,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (3&) SLAP eighth 6 (3&): onset 7.3@688, centroid 0.32 bw 3074 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 692,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 693,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 696,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "impact": 0.6,
+    "band_0": 0.9,
+    "band_6": 0.9,
+    "col_bri": 1.5,
+    "col_sat": 1.4
+   },
+   "why": "OPEN TONE (4) OPEN TONE eighth 7 (4): onset 15.9@696, centroid 0.22, bw 2597 (dark, the bar's strongest), dark and the bar's strongest: impacto 0.6, outer curtains banda_0/banda_6 0.33->0.9, col_bri 1.5, col_sat 1.4 + stroke pulse"
+  },
+  {
+   "tick": 700,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 701,
+   "set": {
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "open tone released"
+  },
+  {
+   "tick": 703,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (4&) STROKE eighth 8 (4&): onset 5.6@703, centroid 0.24: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 707,
+   "set": {
+    "separation": 1.35,
+    "emphasis_band": 3.5,
+    "col_hue": -0.06,
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 708,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 710,
+   "set": {
+    "separation": 1.08,
+    "emphasis_band": 2.5,
+    "col_hue": 0.05
+   },
+   "why": "half bar A, bar 4/9 beat 1 (710): bands close (separacion 1.08), emphasis on the low curtain (enfasis_banda 2.5), hue +0.05 rose"
+  },
+  {
+   "tick": 711,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1) STROKE eighth 1 (1): onset 7.6@711, centroid 0.25: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 715,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 718,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1&) STROKE eighth 2 (1&): onset 5.1@718, centroid 0.24: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 722,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 725,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2) STROKE eighth 3 (2): onset 8.7@725, centroid 0.23: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 729,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 732,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (2&) SLAP eighth 4 (2&): onset 9.6@732, centroid 0.35 bw 3622 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 736,
+   "set": {
+    "separation": 1.08,
+    "emphasis_band": 2.5,
+    "col_hue": 0.05,
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 739,
+   "set": {
+    "separation": 1.48,
+    "emphasis_band": 3.5,
+    "col_hue": -0.02,
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "half bar B, bar 4/9 beat 3 (739): bands open (separacion 1.48), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.02 lilac | SLAP (3) SLAP eighth 5 (3): onset 11.6@739, centroid 0.35 bw 3668 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 743,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 746,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (3&) SLAP eighth 6 (3&): onset 11.0@746, centroid 0.31 bw 3049 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 750,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 751,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 754,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "impact": 0.6,
+    "band_0": 0.9,
+    "band_6": 0.9,
+    "col_bri": 1.5,
+    "col_sat": 1.4
+   },
+   "why": "OPEN TONE (4) OPEN TONE eighth 7 (4): onset 13.0@754, centroid 0.21, bw 2821 (dark, the bar's strongest), dark and the bar's strongest: impacto 0.6, outer curtains banda_0/banda_6 0.33->0.9, col_bri 1.5, col_sat 1.4 + stroke pulse"
+  },
+  {
+   "tick": 758,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 759,
+   "set": {
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "open tone released"
+  },
+  {
+   "tick": 761,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (4&) SLAP eighth 8 (4&): onset 5.4@761, centroid 0.32 bw 3466 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 765,
+   "set": {
+    "separation": 1.48,
+    "emphasis_band": 3.5,
+    "col_hue": -0.02,
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 768,
+   "set": {
+    "separation": 1.0,
+    "emphasis_band": 2.5,
+    "col_hue": 0.03
+   },
+   "why": "half bar A, bar 5/9 beat 1 (768): bands close (separacion 1.00), emphasis on the low curtain (enfasis_banda 2.5), hue +0.03 rose"
+  },
+  {
+   "tick": 772,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 775,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (1&) SLAP eighth 2 (1&): onset 7.0@775, centroid 0.31 bw 3111 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 779,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 780,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 783,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2) STROKE eighth 3 (2): onset 11.0@783, centroid 0.24: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 787,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 794,
+   "set": {
+    "separation": 1.0,
+    "emphasis_band": 2.5,
+    "col_hue": 0.03
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 797,
+   "set": {
+    "separation": 1.4,
+    "emphasis_band": 3.5,
+    "col_hue": -0.04
+   },
+   "why": "half bar B, bar 5/9 beat 3 (797): bands open (separacion 1.40), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.04 lilac"
+  },
+  {
+   "tick": 802,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 805,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (3&) STROKE eighth 6 (3&): onset 8.9@805, centroid 0.27: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 809,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 823,
+   "set": {
+    "separation": 1.4,
+    "emphasis_band": 3.5,
+    "col_hue": -0.04
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 826,
+   "set": {
+    "separation": 0.95,
+    "emphasis_band": 2.5,
+    "col_hue": 0.0
+   },
+   "why": "half bar A, bar 6/9 beat 1 (826): bands close (separacion 0.95), emphasis on the low curtain (enfasis_banda 2.5), hue +0.00 rose"
+  },
+  {
+   "tick": 831,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 834,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1&) STROKE eighth 2 (1&): onset 7.2@834, centroid 0.29: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 838,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 841,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2) STROKE eighth 3 (2): onset 4.7@841, centroid 0.27: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 845,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 846,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 849,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2&) STROKE eighth 4 (2&): onset 4.7@849, centroid 0.24: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 852,
+   "set": {
+    "separation": 0.95,
+    "emphasis_band": 2.5,
+    "col_hue": 0.0,
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 853,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 855,
+   "set": {
+    "separation": 1.35,
+    "emphasis_band": 3.5,
+    "col_hue": -0.07,
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "half bar B, bar 6/9 beat 3 (855): bands open (separacion 1.35), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.07 lilac | STROKE (3) STROKE eighth 5 (3): onset 8.8@855, centroid 0.29: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 859,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 860,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 863,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "impact": 0.6,
+    "band_0": 0.9,
+    "band_6": 0.9,
+    "col_bri": 1.5,
+    "col_sat": 1.4
+   },
+   "why": "OPEN TONE (3&) OPEN TONE eighth 6 (3&): onset 14.2@863, centroid 0.26, bw 2863 (dark, the bar's strongest), dark and the bar's strongest: impacto 0.6, outer curtains banda_0/banda_6 0.33->0.9, col_bri 1.5, col_sat 1.4 + stroke pulse"
+  },
+  {
+   "tick": 867,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 868,
+   "set": {
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "open tone released"
+  },
+  {
+   "tick": 870,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (4) SLAP eighth 7 (4): onset 6.8@870, centroid 0.34 bw 3541 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 874,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 875,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 878,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (4&) STROKE eighth 8 (4&): onset 7.5@878, centroid 0.27: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 880,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 881,
+   "set": {
+    "separation": 1.35,
+    "emphasis_band": 3.5,
+    "col_hue": -0.07
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 882,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 883,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1) STROKE eighth 1 (1): onset 4.6@883, centroid 0.20: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 884,
+   "set": {
+    "separation": 1.05,
+    "emphasis_band": 2.5,
+    "col_hue": 0.04
+   },
+   "why": "half bar A, bar 7/9 beat 1 (884): bands close (separacion 1.05), emphasis on the low curtain (enfasis_banda 2.5), hue +0.04 rose"
+  },
+  {
+   "tick": 887,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 889,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 892,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1&) STROKE eighth 2 (1&): onset 8.0@892, centroid 0.30: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 896,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 899,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (2) SLAP eighth 3 (2): onset 6.4@899, centroid 0.35 bw 3461 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 903,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 910,
+   "set": {
+    "separation": 1.05,
+    "emphasis_band": 2.5,
+    "col_hue": 0.04,
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 913,
+   "set": {
+    "separation": 1.45,
+    "emphasis_band": 3.5,
+    "col_hue": -0.03,
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "impact": 0.6,
+    "band_0": 0.9,
+    "band_6": 0.9,
+    "col_bri": 1.5,
+    "col_sat": 1.4
+   },
+   "why": "half bar B, bar 7/9 beat 3 (913): bands open (separacion 1.45), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.03 lilac | OPEN TONE (3) OPEN TONE eighth 5 (3): onset 15.5@913, centroid 0.26, bw 2901 (dark, the bar's strongest), dark and the bar's strongest: impacto 0.6, outer curtains banda_0/banda_6 0.33->0.9, col_bri 1.5, col_sat 1.4 + stroke pulse"
+  },
+  {
+   "tick": 917,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 918,
+   "set": {
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "open tone released"
+  },
+  {
+   "tick": 919,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 922,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (3&) STROKE eighth 6 (3&): onset 5.4@922, centroid 0.28: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 925,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 926,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 928,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (4) SLAP eighth 7 (4): onset 14.9@928, centroid 0.30 bw 3148 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 932,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 939,
+   "set": {
+    "separation": 1.45,
+    "emphasis_band": 3.5,
+    "col_hue": -0.03
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 942,
+   "set": {
+    "separation": 1.1,
+    "emphasis_band": 2.5,
+    "col_hue": 0.02
+   },
+   "why": "half bar A, bar 8/9 beat 1 (942): bands close (separacion 1.10), emphasis on the low curtain (enfasis_banda 2.5), hue +0.02 rose"
+  },
+  {
+   "tick": 948,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 951,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1&) STROKE eighth 2 (1&): onset 7.5@951, centroid 0.21: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 955,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 958,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2) STROKE eighth 3 (2): onset 4.7@958, centroid 0.18: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 962,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 965,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2&) STROKE eighth 4 (2&): onset 7.1@965, centroid 0.27: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 968,
+   "set": {
+    "separation": 1.1,
+    "emphasis_band": 2.5,
+    "col_hue": 0.02
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 969,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 971,
+   "set": {
+    "separation": 1.5,
+    "emphasis_band": 3.5,
+    "col_hue": -0.05
+   },
+   "why": "half bar B, bar 8/9 beat 3 (971): bands open (separacion 1.50), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.05 lilac"
+  },
+  {
+   "tick": 972,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (3) STROKE eighth 5 (3): onset 9.2@972, centroid 0.30: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 976,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 977,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 980,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (3&) STROKE eighth 6 (3&): onset 5.6@980, centroid 0.28: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 984,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 987,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "impact": 0.6,
+    "band_0": 0.9,
+    "band_6": 0.9,
+    "col_bri": 1.5,
+    "col_sat": 1.4
+   },
+   "why": "OPEN TONE (4) OPEN TONE eighth 7 (4): onset 12.4@987, centroid 0.27, bw 3442 (dark, the bar's strongest), dark and the bar's strongest: impacto 0.6, outer curtains banda_0/banda_6 0.33->0.9, col_bri 1.5, col_sat 1.4 + stroke pulse"
+  },
+  {
+   "tick": 991,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 992,
+   "set": {
+    "impact": 0.0,
+    "band_0": 0.33,
+    "band_6": 0.33,
+    "col_bri": 0.92,
+    "col_sat": 1.15
+   },
+   "why": "open tone released"
+  },
+  {
+   "tick": 997,
+   "set": {
+    "separation": 1.5,
+    "emphasis_band": 3.5,
+    "col_hue": -0.05
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 1000,
+   "set": {
+    "separation": 1.0,
+    "emphasis_band": 2.5,
+    "col_hue": 0.01
+   },
+   "why": "half bar A, bar 9/9 beat 1 (1000): bands close (separacion 1.00), emphasis on the low curtain (enfasis_banda 2.5), hue +0.01 rose"
+  },
+  {
+   "tick": 1006,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 1009,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (1&) STROKE eighth 2 (1&): onset 5.8@1009, centroid 0.23: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 1013,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 1016,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6,
+    "col_contrast": 0.45
+   },
+   "why": "SLAP (2) SLAP eighth 3 (2): onset 12.8@1016, centroid 0.34 bw 3279 (bright), bright: stroke pulse + col_contrast 0.45"
+  },
+  {
+   "tick": 1020,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33,
+    "col_contrast": 0.0
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 1023,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (2&) STROKE eighth 4 (2&): onset 5.4@1023, centroid 0.28: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 1026,
+   "set": {
+    "separation": 1.0,
+    "emphasis_band": 2.5,
+    "col_hue": 0.01
+   },
+   "why": "hold the previous half-bar state"
+  },
+  {
+   "tick": 1027,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 1028,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 1029,
+   "set": {
+    "separation": 1.4,
+    "emphasis_band": 3.5,
+    "col_hue": -0.06
+   },
+   "why": "half bar B, bar 9/9 beat 3 (1029): bands open (separacion 1.40), emphasis on the upper curtain (enfasis_banda 3.5), hue -0.06 lilac"
+  },
+  {
+   "tick": 1031,
+   "set": {
+    "emphasis_force": 1.0,
+    "band_3": 0.6
+   },
+   "why": "STROKE (3) STROKE eighth 5 (3): onset 4.8@1031, centroid 0.27: enfasis_fuerza 0.15->1.0 + centre curtain banda_3 0.33->0.6, the emphasised curtain flashes bright and thin"
+  },
+  {
+   "tick": 1035,
+   "set": {
+    "emphasis_force": 0.15,
+    "band_3": 0.33
+   },
+   "why": "anchor"
+  },
+  {
+   "tick": 1041,
+   "set": {
+    "col_hue": 0.0,
+    "separation": 1.25,
+    "emphasis_band": 3.0
+   },
+   "why": "span end, STEP- at 1021 (rms 0.136): loopable, hue cooled back"
+  }
+ ]
+}

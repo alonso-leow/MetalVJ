@@ -1,0 +1,13 @@
+{
+ "id": "mengano-a-slow-breath",
+ "name": "Slow Breath",
+ "target": {"model": "someone"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "size"}, "curve": "ramp",
+   "steps": [0.2, 0.25, 0.3, 0.36, 0.42, 0.48, 0.5, 0.46, 0.4, 0.34, 0.28, 0.24, 0.2, 0.2, 0.2, 0.2]},
+  {"target": {"kind": "float", "param": "wander"}, "curve": "step",
+   "steps": [0.9, null, null, null, null, null, null, null, 0.3, null, null, null, null, null, null, null]},
+  {"target": {"kind": "palette", "slot": "body", "palette": "skies"},
+   "steps": [{"colour": 0}, null, null, null, null, null, null, null, {"colour": 2}, null, null, null, null, null, null, null]}
+ ]
+}

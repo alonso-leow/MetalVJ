@@ -1,0 +1,69 @@
+# A moving head with beam shaping, as data (BLE Phase B).
+#
+# The DMX other half of the four Phase B fixtures: pan/tilt (16-bit each),
+# level, hue, sat, strobe, then the four beam-shaping channels the new signal
+# floats drive — zoom, focus, iris, frost. One 8-bit slot each, exactly the
+# way `example-moving-head.toml` places the older channels.
+#
+# Same conventions as its neighbours: slots are 0-based offsets from
+# `address` (1-based, as a desk numbers them). `range` is omitted everywhere
+# because every channel uses its `sig_*` float's own declared range.
+
+label = "Moving Head Beam (pan/tilt, zoom/focus/iris/frost)"
+universe = 0
+address = 1
+
+# The head's physical travel: a 540° pan, a 270° tilt, and how fast it gets
+# there (M1 of the pixel map). The venue's slew model reads `speed` so a
+# command is reached over time, not instantly.
+[limits]
+pan = [-270.0, 270.0]
+tilt = [-135.0, 135.0]
+speed = 120.0
+rotation = [0.0, 360.0]
+zoom = [4.0, 60.0]
+dimmer = [0.0, 1.0]
+cct = [1800.0, 10000.0]
+
+[[channel]]
+signal = "pan"
+coarse = 0
+fine = 1
+range = [-0.5, 0.5]
+
+[[channel]]
+signal = "tilt"
+coarse = 2
+fine = 3
+
+[[channel]]
+signal = "level"
+coarse = 4
+
+[[channel]]
+signal = "hue"
+coarse = 5
+
+[[channel]]
+signal = "sat"
+coarse = 6
+
+[[channel]]
+signal = "strobe"
+coarse = 7
+
+[[channel]]
+signal = "zoom"
+coarse = 8
+
+[[channel]]
+signal = "focus"
+coarse = 9
+
+[[channel]]
+signal = "iris"
+coarse = 10
+
+[[channel]]
+signal = "frost"
+coarse = 11

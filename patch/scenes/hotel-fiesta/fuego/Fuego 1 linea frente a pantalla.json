@@ -1,0 +1,510 @@
+{
+ "id": "hf-fuego-fuego-1-linea-frente-a-pantalla",
+ "name": "Fuego 1 linea frente a pantalla",
+ "family": "fuego",
+ "source": "ShowXpress 00-Alonso/Fuego 1 linea frente a pantalla.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1764327535": {
+     "fixture": "wash-escenario-5",
+     "dmx": {
+      "blue": 51,
+      "color": 26,
+      "dimmer": 0,
+      "green": 0,
+      "pan": 119,
+      "red": 0,
+      "shutter": 255,
+      "tilt": 194,
+      "upan": 203,
+      "utilt": 121
+     },
+     "floats": {
+      "level": 0.0,
+      "hue": 0.6667,
+      "sat": 1.0,
+      "pan": 0.4667,
+      "tilt": 0.7608,
+      "strobe": 1.0
+     }
+    },
+    "1764327536": {
+     "fixture": "wash-escenario-5b",
+     "dmx": {
+      "dimmer": 0,
+      "red": 0,
+      "shutter": 0,
+      "tilt": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "gobo": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 0,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1617887195": {
+     "fixture": "par-riel-7",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1691945218": {
+     "fixture": "par-riel-7b",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1764602686": {
+     "fixture": "wash-escenario-7",
+     "dmx": {
+      "amber": 0,
+      "blue": 0,
+      "color": 0,
+      "dimmer": 0,
+      "green": 0,
+      "pan": 0,
+      "red": 53,
+      "shutter": 255,
+      "tilt": 148,
+      "upan": 0,
+      "utilt": 0,
+      "white": 126
+     },
+     "floats": {
+      "level": 0.0,
+      "hue": 0.0,
+      "sat": 1.0,
+      "pan": 0.0,
+      "tilt": 0.5804,
+      "strobe": 1.0
+     }
+    },
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "amber": 0,
+      "uv": 0
+     },
+     "floats": {}
+    },
+    "1617887656": {
+     "fixture": "par-riel-5",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887657": {
+     "fixture": "par-riel-4",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887659": {
+     "fixture": "par-riel-1",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887660": {
+     "fixture": "par-riel-2",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887663": {
+     "fixture": "par-riel-3",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1764602241": {
+     "fixture": "wash-escenario-6",
+     "dmx": {
+      "amber": 0,
+      "blue": 0,
+      "color": 0,
+      "dimmer": 0,
+      "green": 0,
+      "red": 53,
+      "shutter": 255,
+      "tilt": 148,
+      "utilt": 0,
+      "white": 126
+     },
+     "floats": {
+      "level": 0.0,
+      "hue": 0.0,
+      "sat": 1.0,
+      "tilt": 0.5804,
+      "strobe": 1.0
+     }
+    },
+    "1764424683": {
+     "fixture": "wash-escenario-1",
+     "dmx": {
+      "blue": 51,
+      "color": 26,
+      "dimmer": 0,
+      "green": 0,
+      "pan": 219,
+      "red": 0,
+      "shutter": 255,
+      "tilt": 188,
+      "upan": 192,
+      "utilt": 28
+     },
+     "floats": {
+      "level": 0.0,
+      "hue": 0.6667,
+      "sat": 1.0,
+      "pan": 0.8588,
+      "tilt": 0.7373,
+      "strobe": 1.0
+     }
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "amber": 0,
+      "uv": 0
+     },
+     "floats": {}
+    }
+   }
+  },
+  {
+   "length_ms": 800,
+   "fixtures": {
+    "1764327535": {
+     "fixture": "wash-escenario-5",
+     "dmx": {
+      "blue": 51,
+      "color": 26,
+      "dimmer": 255,
+      "green": 0,
+      "pan": 119,
+      "red": 0,
+      "shutter": 255,
+      "tilt": 194,
+      "upan": 203,
+      "utilt": 121
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.6667,
+      "sat": 1.0,
+      "pan": 0.4667,
+      "tilt": 0.7608,
+      "strobe": 1.0
+     }
+    },
+    "1764327536": {
+     "fixture": "wash-escenario-5b",
+     "dmx": {
+      "dimmer": 0,
+      "red": 0,
+      "shutter": 0,
+      "tilt": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "gobo": 0,
+      "pan": 0,
+      "strobe_dimmer": 0,
+      "tilt": 0,
+      "upan": 0,
+      "utilt": 0,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.0,
+      "tilt": 0.0,
+      "strobe": 0.0
+     }
+    },
+    "1617887195": {
+     "fixture": "par-riel-7",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1691945218": {
+     "fixture": "par-riel-7b",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1764602686": {
+     "fixture": "wash-escenario-7",
+     "dmx": {
+      "amber": 0,
+      "blue": 0,
+      "color": 0,
+      "dimmer": 255,
+      "green": 0,
+      "pan": 0,
+      "red": 53,
+      "shutter": 255,
+      "tilt": 148,
+      "upan": 0,
+      "utilt": 0,
+      "white": 126
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.0,
+      "sat": 1.0,
+      "pan": 0.0,
+      "tilt": 0.5804,
+      "strobe": 1.0
+     }
+    },
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "amber": 191,
+      "uv": 0
+     },
+     "floats": {}
+    },
+    "1617887656": {
+     "fixture": "par-riel-5",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887657": {
+     "fixture": "par-riel-4",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887659": {
+     "fixture": "par-riel-1",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887660": {
+     "fixture": "par-riel-2",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887663": {
+     "fixture": "par-riel-3",
+     "dmx": {
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1764602241": {
+     "fixture": "wash-escenario-6",
+     "dmx": {
+      "amber": 0,
+      "blue": 0,
+      "color": 0,
+      "dimmer": 255,
+      "green": 0,
+      "red": 53,
+      "shutter": 255,
+      "tilt": 148,
+      "utilt": 0,
+      "white": 126
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.0,
+      "sat": 1.0,
+      "tilt": 0.5804,
+      "strobe": 1.0
+     }
+    },
+    "1764424683": {
+     "fixture": "wash-escenario-1",
+     "dmx": {
+      "blue": 51,
+      "color": 26,
+      "dimmer": 255,
+      "green": 0,
+      "pan": 219,
+      "red": 0,
+      "shutter": 255,
+      "tilt": 188,
+      "upan": 192,
+      "utilt": 28
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.6667,
+      "sat": 1.0,
+      "pan": 0.8588,
+      "tilt": 0.7373,
+      "strobe": 1.0
+     }
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "amber": 191,
+      "uv": 0
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1764327535": {
+   "desk_id": "1764327535",
+   "desk_name": "WASH 5 ESCENARIO",
+   "desk_model": "WASH 5 ESCENARIO",
+   "fixture": "wash-escenario-5",
+   "address": 133
+  },
+  "1764327536": {
+   "desk_id": "1764327536",
+   "desk_name": "WASH 5 ESCENARIO #2",
+   "desk_model": "WASH 5 ESCENARIO",
+   "fixture": "wash-escenario-5b",
+   "address": 147
+  },
+  "1582984556": {
+   "desk_id": "1582984556",
+   "desk_name": "CABEZA 7 R 1#13",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-13",
+   "address": 49
+  },
+  "1617887195": {
+   "desk_id": "1617887195",
+   "desk_name": "PAR LED RIEL 7",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-7",
+   "address": 257
+  },
+  "1691945218": {
+   "desk_id": "1691945218",
+   "desk_name": "PAR LED RIEL 7 ",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-7b",
+   "address": 264
+  },
+  "1764602686": {
+   "desk_id": "1764602686",
+   "desk_name": "WASH ESCENARIO 7",
+   "desk_model": "WASH ESCENARIO 7",
+   "fixture": "wash-escenario-7",
+   "address": 327
+  },
+  "1617813006": {
+   "desk_id": "1617813006",
+   "desk_name": "NUEVA LED #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-4",
+   "address": 364
+  },
+  "1617887656": {
+   "desk_id": "1617887656",
+   "desk_name": "PAR LED RIEL 5",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-5",
+   "address": 271
+  },
+  "1617887657": {
+   "desk_id": "1617887657",
+   "desk_name": "PAR LED RIEL 4",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-4",
+   "address": 278
+  },
+  "1617887659": {
+   "desk_id": "1617887659",
+   "desk_name": "PAR LED RIEL 1",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-1",
+   "address": 292
+  },
+  "1617887660": {
+   "desk_id": "1617887660",
+   "desk_name": "PAR LED RIEL 2",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-2",
+   "address": 299
+  },
+  "1617887663": {
+   "desk_id": "1617887663",
+   "desk_name": "PAR LED RIEL 3",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-3",
+   "address": 320
+  },
+  "1764602241": {
+   "desk_id": "1764602241",
+   "desk_name": "WASH ESCENARIO 6",
+   "desk_model": "WASH ESCENARIO 6",
+   "fixture": "wash-escenario-6",
+   "address": 161
+  },
+  "1764424683": {
+   "desk_id": "1764424683",
+   "desk_name": "WASH ESCENARIO 1",
+   "desk_model": "WASH ESCENARIO 1",
+   "fixture": "wash-escenario-1",
+   "address": 1
+  },
+  "1617813053": {
+   "desk_id": "1617813053",
+   "desk_name": "NUEVA LED #2 #2 #2 #4",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-7",
+   "address": 385
+  }
+ }
+}

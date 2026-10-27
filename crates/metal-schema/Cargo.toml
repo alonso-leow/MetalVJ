@@ -1,0 +1,19 @@
+[package]
+name = "metal-schema"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Deliberately nothing but serde, plus the one leaf the face rig needs. This
+# crate is the half of `metal-render` that does not need a GPU, and the moment it
+# grows a graphics dependency it stops being able to do the one job it was
+# split out for. `metal-face` is not a graphics dependency — it is pure CPU maths
+# over `glam` vectors and serde values (no GPU, no audio, no I/O), which is why
+# `FloatSpec::rig` can name `metal_face::FaceControl` here without reopening that
+# door. See `FloatSpec::rig` and `metal-face`'s own crate doc.
+[dependencies]
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+metal-face = { path = "../metal-face" }

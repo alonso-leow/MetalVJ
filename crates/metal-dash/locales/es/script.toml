@@ -1,0 +1,9 @@
+# Spanish for the shell module `script`: "English source text" = "Spanish text".
+# See ../README.md.
+"Source" = "Código"
+"Save" = "Guardar"
+"Python" = "Python"
+"JavaScript" = "JavaScript"
+"Rust" = "Rust"
+"Runtime error" = "Error en tiempo de ejecución"
+"the save was refused" = "no se pudo guardar"

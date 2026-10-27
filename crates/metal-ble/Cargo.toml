@@ -1,0 +1,47 @@
+[package]
+name = "metal-ble"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "metal_ble"
+path = "src/lib.rs"
+
+[dependencies]
+# `std::time::Instant` panics on wasm32-unknown-unknown; `web-time` is std on native.
+web-time = "1"
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# Bluetooth Mesh security is AES-128 throughout: CMAC for key derivation,
+# CCM for every encryption layer, ECB for header obfuscation. RustCrypto, on
+# the `cipher 0.4` line the lockfile already carries for `aes`.
+aes = "0.8"
+ccm = "0.5"
+cmac = "0.7"
+# Provisioning's ECDH is P-256, and only P-256.
+p256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdh"] }
+getrandom = "0.2"
+uuid = "1"
+# Mesh state files store keys as 32 hex characters, so the crate parses/prints
+# hex in several modules (not just tests).
+hex = "0.4"
+
+# The radio. Cross-platform on purpose (BlueZ, CoreBluetooth, WinRT): see the
+# `transport` module docs for why btleplug and not bluer. Native only: a
+# browser has no btleplug, so on wasm32 `open` returns a link that reports
+# itself failed (`lib.rs`).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+btleplug = "0.13"
+tokio = { version = "1", features = ["rt", "time", "sync", "macros"] }
+futures = "0.3"
+
+# `getrandom` 0.2 refuses to build for wasm32-unknown-unknown without an
+# entropy source; the browser's `crypto.getRandomValues` is the one.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[dev-dependencies]
+tempfile = "3"

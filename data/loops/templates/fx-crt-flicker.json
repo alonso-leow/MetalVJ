@@ -1,0 +1,16 @@
+{
+ "id": "fx-crt-flicker",
+ "name": "Flicker",
+ "target": {
+  "effect": "crt"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.6, 0.2, 0.6, 0.2, 0.6, 0.2, 0.6, 0.2, 0.6, 0.2, 0.6, 0.2, 0.6, 0.2, 0.6, 0.2]
+  }
+ ]
+}

@@ -1,0 +1,16 @@
+{
+ "id": "fx-grain-dust",
+ "name": "Dust",
+ "target": {
+  "effect": "grain"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.4, 0.15, 0.4, 0.15, 0.4, 0.15, 0.4, 0.15, 0.4, 0.15, 0.4, 0.15, 0.4, 0.15, 0.4, 0.15]
+  }
+ ]
+}

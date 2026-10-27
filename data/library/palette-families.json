@@ -1,0 +1,99 @@
+{
+  "families": {
+    "warm-tropical": {
+      "keywords": [
+        "samba",
+        "salsa",
+        "merengue",
+        "merengeue",
+        "happy",
+        "bright",
+        "uplift",
+        "playful",
+        "child",
+        "latin pop",
+        "fast"
+      ],
+      "palettes": [
+        "tropical-sunset",
+        "mango-carnival",
+        "papaya-coast"
+      ]
+    },
+    "night-neon": {
+      "keywords": [
+        "edm",
+        "psychedelic",
+        "hard",
+        "disco",
+        "tribe",
+        "drums"
+      ],
+      "palettes": [
+        "neon-abyss",
+        "acid-rave",
+        "ultraviolet"
+      ]
+    },
+    "earthy": {
+      "keywords": [
+        "cha cha",
+        "old",
+        "son",
+        "cumbia",
+        "latin",
+        "afro",
+        "old school",
+        "swing"
+      ],
+      "palettes": [
+        "terracotta",
+        "havana-tobacco",
+        "cumbia-river"
+      ]
+    },
+    "pastel-romantic": {
+      "keywords": [
+        "bachata",
+        "R&B",
+        "romantic",
+        "slow",
+        "smooth",
+        "relax",
+        "elegant"
+      ],
+      "palettes": [
+        "rose-velvet",
+        "lavender-haze",
+        "peach-candle",
+        "mint-whisper"
+      ]
+    },
+    "mono-industrial": {
+      "keywords": [
+        "dark",
+        "hip hop",
+        "epic"
+      ],
+      "palettes": [
+        "steel-hazard",
+        "concrete-cyan",
+        "blackout-red"
+      ]
+    },
+    "high-contrast-club": {
+      "keywords": [
+        "dancehall",
+        "reggaeton",
+        "pop",
+        "energetic"
+      ],
+      "palettes": [
+        "club-magenta",
+        "perreo-lime",
+        "dancehall-flag",
+        "cobalt-flash"
+      ]
+    }
+  }
+}

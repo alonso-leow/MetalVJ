@@ -1,0 +1,92 @@
+{
+ "id": "ascii-a-pulse",
+ "name": "Pulse",
+ "target": {
+  "model": "ascii"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "amplitude"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    0.15,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.15,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    0.15,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "thickness"
+   },
+   "curve": "step",
+   "steps": [
+    0.55,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null,
+    0.55,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "text",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

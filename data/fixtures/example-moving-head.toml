@@ -1,0 +1,44 @@
+# O.20 / S.AC — a fixture profile, as data.
+#
+# The file name is the model id a `Device` head names. DMX slots here are
+# 0-based relative offsets from `address` (which is 1-based, the way a desk
+# numbers them). `range` is the slice of the signal float's own units that
+# maps to full travel; omit it to use the float's declared range. `physical`
+# is the raw slot range; omit it for 0..255, or 0..65535 when `fine` exists.
+
+label = "Example Moving Head"
+universe = 0
+address = 1
+
+# Physical travel, read by the venue's slew model (M1 of the pixel map).
+[limits]
+pan = [-270.0, 270.0]
+tilt = [-135.0, 135.0]
+speed = 120.0
+
+[[channel]]
+signal = "pan"
+coarse = 0
+fine = 1
+range = [-0.5, 0.5]
+
+[[channel]]
+signal = "tilt"
+coarse = 2
+fine = 3
+
+[[channel]]
+signal = "level"
+coarse = 4
+
+[[channel]]
+signal = "hue"
+coarse = 5
+
+[[channel]]
+signal = "sat"
+coarse = 6
+
+[[channel]]
+signal = "strobe"
+coarse = 7

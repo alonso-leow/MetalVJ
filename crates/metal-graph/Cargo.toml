@@ -1,0 +1,20 @@
+[package]
+name = "metal-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# No wgpu, no winit, no app. This crate owns the node-graph model the same
+# way `metal-schema` owns the float manifest — a thing several consumers (an
+# editor, a headless exporter, a test harness) want as plain data, none of
+# which should have to pull a graphics stack to ask "is this graph a DAG".
+# `serde_json` is a dependency for internal (de)serialization only — it must
+# never appear in this crate's public API (see `lib.rs`).
+[dependencies]
+# `std::time::Instant` panics on wasm32-unknown-unknown; `web-time` is std on native.
+web-time = "1"
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+metal-schema = { path = "../metal-schema" }
+serde = { workspace = true }
+serde_json = { workspace = true }

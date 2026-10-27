@@ -1,0 +1,80 @@
+# Spanish for the shell module `settings`: "English source text" = "Spanish text".
+# See ../README.md.
+"settings" = "ajustes"
+"ui" = "ui"
+"theme" = "tema"
+"language" = "idioma"
+"interface scale" = "escala de interfaz"
+"borders per surface type" = "bordes por tipo de superficie"
+"shell mode" = "modo de shell"
+"— designed below, no batch open yet —" = "— lo siguiente ya tiene diseño, no lote abierto todavía —"
+"coming soon — {note}" = "próximamente — {note}"
+"interface language" = "idioma de la interfaz"
+"text without a translation stays in English" = "los textos sin traducción quedan en inglés"
+"tick level" = "nivel de tick"
+"build video proxies on drop" = "construir proxies de video al soltar"
+"ai" = "ia"
+"provider" = "proveedor"
+"configured" = "configurado"
+"not configured" = "sin configurar"
+"preset" = "preset"
+"url" = "url"
+"model" = "modelo"
+"api key" = "clave de api"
+"AI instructions" = "instrucciones para la IA"
+"permissions" = "permisos"
+"internet" = "internet"
+"devices" = "dispositivos"
+"files" = "archivos"
+"always" = "siempre"
+"ask" = "preguntar"
+"deny" = "denegar"
+
+# P-G: where "Exportar cuadro" writes.
+"export" = "Exportar"
+"export folder" = "carpeta de exportación"
+"~/Pictures/MetalVJ (default)" = "~/Pictures/MetalVJ (por defecto)"
+"reset to default" = "volver al predeterminado"
+
+"performance" = "rendimiento"
+"frame rate cap" = "límite de fotogramas"
+
+# D1: the Fixtures section — the active venue's fixtures, the single place to
+# list and map devices (`POST /venue {op:"fixture"}`). Headers/most buttons
+# reuse the shared keys ("name"/"kind"/"profile"/"group"/"wire"/"universe"/
+# "address"/"remove"/"cancel"/"none"/"— no fixtures —"); only these are new.
+"fixtures" = "fixtures"
+"span" = "canales"
+"edit" = "editar"
+"add fixture" = "añadir fixture"
+"no active venue — project one first" = "sin venue activo — proyectá uno primero"
+"fixture saved" = "fixture guardada"
+"fixture removed" = "fixture borrada"
+
+# F8: the "En el grafo" column — a per-fixture `venue.fixture` node, and the
+# orphan nodes whose row is gone. Every literal is the shell's English source.
+"in graph" = "en el grafo"
+"add node" = "agregar nodo"
+"go to node" = "ir al nodo"
+"node added" = "nodo agregado"
+"node removed" = "nodo eliminado"
+"orphan nodes" = "nodos huérfanos"
+"node for {fixture}" = "nodo de {fixture}"
+
+# F13: the Discover section — Art-Net ArtPoll, sACN Universe Discovery and the
+# camera flash. It only proposes rows; the operator accepts each one. The
+# headers reuse the shared keys ("name"/"wire"/"port-address"/"discovery"/
+# "— no node answered —"/"fixture saved"); only these are new.
+"discover" = "descubrir"
+"discovery only proposes — accept each row to write it" = "el descubrimiento solo propone — aceptá cada fila para escribirla"
+"art-net" = "art-net"
+"find art-net nodes" = "buscar nodos art-net"
+"sacn" = "sacn"
+"listen for sources" = "escuchar fuentes"
+"camera (flash)" = "cámara (flash)"
+"discover by flash" = "descubrir por flash"
+"add as fixture" = "añadir como fixture"
+"draft proposed" = "borrador propuesto"
+"P2P" = "P2P"
+"Palettes" = "Paletas"
+"default" = "predeterminado"

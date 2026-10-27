@@ -1,0 +1,46 @@
+[package]
+name = "metal-reel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Serde, a JPEG decoder, and nothing else. This crate is what a venue laptop
+# runs to decide which footage is on and how it is graded, and it is also what
+# `fw-studio` trains — so, like `metal-router`, it must build on a host with no GPU
+# and must not drag a runtime behind it.
+#
+# `zune-jpeg` is pure Rust and was already in the lockfile. It is here because
+# the descriptor is computed from the *proxy frames we wrote*, not from a second
+# ffmpeg pass — see `index::build` for why that is the honest way round.
+[dependencies]
+# `std::time::Instant` panics on wasm32-unknown-unknown; `web-time` is std on native.
+web-time = "1"
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+# ffprobe and ffmpeg, wrapped once in the workspace rather than twice.
+metal-ingest = { path = "../metal-ingest" }
+# The Curator asks the same question about the music that the Router does, over
+# the same twelve features. Depending on it is the point, not a shortcut — see
+# `curate`.
+metal-router = { path = "../metal-router" }
+# `grade::row` writes a float row against a model's own schema, exactly as
+# `metal-dash::drive` does, so it needs the manifest types and not a renderer.
+metal-schema = { path = "../metal-schema" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zune-jpeg = "0.5"
+
+# Android: the clip decoder (`src/clip/media.rs`) is AMediaExtractor +
+# AMediaCodec, rendering into an AImageReader (`api-level-24`). The extractor
+# is called through ndk-sys. Nothing else in this crate is platform-specific, and this
+# table does not exist on the host build.
+[target.'cfg(target_os = "android")'.dependencies]
+ndk = { version = "0.9", features = ["media", "api-level-24", "api-level-26"] }
+ndk-sys = "0.6"
+# The rungs a natively decoded clip writes (`index::native_rungs`). The same
+# encoder `metal-dash` uses for its previews, pinned to the lockfile version.
+jpeg-encoder = { version = "0.7.1", default-features = false, features = ["std"] }
+
+[[bin]]
+name = "metal-reel"
+path = "src/bin/metal-reel.rs"

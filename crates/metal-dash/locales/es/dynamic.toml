@@ -1,0 +1,43 @@
+# Spanish for text the door answers rather than a literal in the shell
+# (catalog labels, family names), looked up with `i18n::tr_dyn`. See ../README.md.
+# V2b: the tick-level combo labels come from `metal_schema::TickRate::wire()`, a
+# runtime value, so they are looked up with `tr_dyn` like the catalog labels.
+"base" = "base"
+"fine" = "fino"
+# Surface parts (plan: surface sources): the shell shows a part by its id.
+"skin" = "piel"
+"eyes" = "ojos"
+"water" = "agua"
+"stones" = "piedras"
+"bushes" = "arbustos"
+"wire" = "cables"
+# Ported community tools (2026-10-21).
+"Isoflow" = "Isoflujo"
+"Ringflow" = "Flujo anular"
+"Caustic Weave" = "Tejido cáustico"
+"Cellfield" = "Campo celular"
+"Helix Thread" = "Hilo helicoidal"
+"Chargefield" = "Campo de carga"
+"Form Cut" = "Forma cortada"
+"Morphform" = "Forma mutable"
+"Shatter Mask" = "Máscara quebrada"
+"Hairlines" = "Filamentos"
+"Glyph Stele" = "Monolito glífico"
+
+# Ported built-in tools (2026-10-21).
+"Magnet Spikes" = "Púas magnéticas"
+"Spore Drift" = "Deriva de esporas"
+"Cymatics" = "Cimática"
+"Concrete" = "Hormigón"
+"Effigies" = "Efigies"
+"Swarmfield" = "Enjambre"
+"Inkline" = "Trazos de tinta"
+"Slumped Grid" = "Cuadrícula fundida"
+
+# Ported equivalents that were not the same (2026-10-21).
+"Blobfield" = "Campo de gotas"
+"Chrome Pour" = "Vertido de cromo"
+"Phosphor Trace" = "Traza de fósforo"
+"Spectral Ridges" = "Crestas espectrales"
+"Orbit Swarm" = "Enjambre orbital"
+"Deep Tunnel" = "Túnel profundo"

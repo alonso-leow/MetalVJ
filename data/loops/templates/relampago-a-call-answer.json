@@ -1,0 +1,94 @@
+{
+ "id": "relampago-a-call-answer",
+ "name": "Call Answer",
+ "target": {
+  "model": "lightning"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "fork"
+   },
+   "curve": "step",
+   "steps": [
+    0.15,
+    null,
+    0.15,
+    null,
+    0.15,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.95,
+    null,
+    0.95,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "glare"
+   },
+   "curve": "step",
+   "steps": [
+    0.7,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0.95,
+    0.3,
+    0.3,
+    0.3
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "ray",
+    "palette": "metalvj-red"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    {
+     "colour": 2
+    },
+    null
+   ]
+  }
+ ]
+}

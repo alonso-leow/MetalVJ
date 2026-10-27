@@ -1,0 +1,110 @@
+[package]
+name = "metal-perform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+# Test builds only (enabled from dependents' dev-dependencies): graph files
+# go to a scratch copy instead of `data/graphs`. See `engine::graphs_dir`.
+test-isolated-graphs = []
+
+# The real wgpu painters. Off is the `stand`-only build — the same swap
+# `metal-dash --no-default-features` makes, now a feature of the crate the
+# painters actually live in. `metal-dash`'s own `gpu` feature forwards here.
+gpu = ["dep:metal-render", "dep:glyphon", "dep:wgpu"]
+
+# Real capture (`metal-listen`). On in `metal-dash`'s default build and separable
+# there for the same reason it always was: a box without a sound card should
+# still build and run. `metal-dash`'s own `listen` feature forwards here.
+listen = ["dep:metal-listen"]
+
+# P-C: virtual camera / NDI / Spout / Syphon sinks and the `ndi:` capture
+# source (`metal-videoio`). Never in the wasm build; `metal-dash`'s `desktop`
+# forwards here.
+videoio = ["dep:metal-videoio"]
+
+# The engine half of the app, as a library: resolving a generator's `fx.*`
+# chain into the `metal_schema::Post` the GPU wants (LAY.6), the `Paint`
+# boundary the frame pipeline executes through (LAY.9), the CPU `Stand` on
+# the same trait (LAY.10), and — since LAY.9b — the whole engine
+# (`resolve → compile → execute → output`: `engine.rs`, the app's `State`,
+# the module set it owns) so the conformance corpus runs without starting the
+# binary and both builds share one execution path.
+#
+# No wgpu, no winit, no HTTP unless `gpu` asks for the real renderers.
+#
+# H3: the head-tracking runtime can run a real `metal-sense` detector. Off by
+# default so this crate never links an inference runtime unless asked; on, it
+# forwards to `metal-sense`'s own `mediapipe` feature.
+vision = ["metal-sense/mediapipe"]
+
+[dependencies]
+# `std::time::Instant` panics on wasm32-unknown-unknown; `web-time` is std on native.
+web-time = "1"
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+metal-graph = { path = "../metal-graph" }
+metal-geom = { path = "../metal-geom" }
+# S.AM: the `ai.*` nodes' inference runs through the shared CPU-before-drawing
+# seam (`metal_logic::AuxLogic`, D1) instead of a second path in `row_for`.
+metal-logic = { path = "../metal-logic" }
+# H3: the head-tracking runtime reads a `sensor.yolo` node's `Mode::Eyes`
+# reading (`metal_sense::Control`) and turns it into the reserved camera floats a
+# `cam.track` node writes. The detector itself stays behind metal-sense's own
+# `mediapipe` feature, so this crate never links an inference runtime.
+metal-sense = { path = "../metal-sense" }
+metal-schema = { path = "../metal-schema" }
+# The facial rig the voice columns drive: 23 controls, 14 visemes, per-control
+# springs and the singing `Style`. Pure CPU (glam + serde), shared with V5's
+# `monstruo` model. See `crate::face`.
+metal-face = { path = "../metal-face" }
+metal-reel = { path = "../metal-reel" }
+metal-router = { path = "../metal-router" }
+# export.video's Offline executor (plan §9.1 E1): the `FrameSource` currency
+# and the `Encoder` trait live in `metal-ingest`, beside the ffmpeg backend
+# that is the first one. No cycle: `metal-ingest` does not reach this crate.
+metal-ingest = { path = "../metal-ingest" }
+# BLE Phase B: `wire.rs`'s `out.bluetooth` branch drives a Godox-class lamp
+# through `metal-ble`'s `Link` (`LightState` in, `protocol` out). The link is
+# behind a trait, so this crate never opens a radio itself and tests inject a
+# `metal_ble::Recorder` instead.
+metal-ble = { path = "../metal-ble" }
+metal-videoio = { path = "../metal-videoio", optional = true }
+# `drive.rs`'s colour maths (Oklch → sRGB) — pure, no GPU in it.
+metal-notation = { path = "../metal-notation" }
+metal-render = { path = "../metal-render", optional = true }
+# default-features off: `metal-listen`'s default is `tone` (ONNX Runtime), which
+# has no Android binary and is only wanted by `metal-dash`'s desktop feature.
+metal-listen = { path = "../metal-listen", default-features = false, features = ["capture", "decode"], optional = true }
+glam = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# `script.rs`'s isolation errors (timeout, raised, spawn, bad output) — the
+# same crate `metal-forge::RasterError` already uses for its own hard budget.
+thiserror = { workspace = true }
+# O.20/S.AC: fixture profiles are read from `data/fixtures/<model>.toml`.
+toml = { workspace = true }
+# D2: `gdtf.rs` reads a `.gdtf` (a zip whose `description.xml` is DEFLATE).
+# No `zip` crate is in the workspace; this reader is the local-file-header
+# walk, and flate2 is already in the tree (png/miniz_oxide → crc32fast), so
+# the deflate half is no new crate (rule 11's libc reasoning).
+flate2 = "1"
+# S.W: text layout and shaping for `text.source` (pure Rust, no HTML).
+cosmic-text = "0.19"
+# P-B: the `gpu` painter's text path — glyphon's atlas on the renderer's own
+# wgpu device; same cosmic-text as the CPU reference so the layout matches.
+glyphon = { version = "0.12", optional = true }
+wgpu = { version = "30", optional = true }
+# Pure Rust, no transitive dependencies. The headless path ends in a JPEG
+# over a socket; raw pixels would be megabytes per frame.
+# P-E: a `still` tile reads PNG as well as JPEG (`reel_batch::image`).
+png = "0.18"
+jpeg-encoder = { version = "0.7.1", default-features = false, features = ["std", "simd"] }
+
+# `out.serial` (`wire::Adalight`): the tty is set raw with termios. Measured
+# against the `serialport` crate (rule 11, see `wire::Adalight`): libc is
+# already in this crate's tree (cosmic-text → fontdb → memmap2), so this is
+# no new crate; `serialport` would have been 15 more (18 with libudev).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

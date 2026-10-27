@@ -1,0 +1,53 @@
+# Spanish for the shell module `shell`: "English source text" = "Spanish text".
+# See ../README.md.
+"⏸ pause sequence" = "⏸ pausar secuencia"
+" play sequence" = " reproducir secuencia"
+
+# The F12 performance HUD (2026-10-09).
+"frame" = "cuadro"
+"per frame" = "por cuadro"
+"perf" = "rendimiento"
+"slow" = "lentos"
+"thread · route — calls/s · wait · run · max ms · lock share" = "hilo · ruta — llamadas/s · espera · uso · máx ms · cuota del candado"
+"UI pass — ms per frame · max" = "pasada de UI — ms por cuadro · máx"
+
+# The floating preview's bar (parity lote P-G).
+"export frame" = "Exportar cuadro"
+"{label} · {w}×{h} · {fps} fps" = "{label} · {w}×{h} · {fps} fps"
+"saved {path}" = "guardado en {path}"
+"export failed: {err}" = "no se pudo exportar: {err}"
+
+# The header Edit/Show mode toggle (one button, label = the other mode).
+"Edit" = "Editar"
+"Show" = "Mostrar"
+
+# The gallery sections for the global favourites and recent picks (shell/favorites.rs).
+"favorites" = "favoritos"
+"recent files" = "archivos recientes"
+
+# The AI sidebar (shell/panels/chat.rs): the header, the history view and the
+# conversation's labels. `stop`, `deny` and `working…` already live in the
+# other tables with these same translations.
+"new chat" = "nuevo chat"
+"history" = "historial"
+"back" = "volver"
+"untitled" = "sin título"
+"no chats yet" = "todavía no hay chats"
+"delete chat" = "borrar chat"
+"no messages yet" = "sin mensajes todavía"
+"args" = "argumentos"
+"output" = "salida"
+"error" = "error"
+"copy" = "copiar"
+"allow" = "permitir"
+"send" = "enviar"
+"now" = "ahora"
+"yesterday" = "ayer"
+"{n} min ago" = "hace {n} min"
+"{n} h ago" = "hace {n} h"
+"{n} days ago" = "hace {n} días"
+"{n} weeks ago" = "hace {n} semanas"
+"{n} messages" = "{n} mensajes"
+"attach the selection" = "adjuntar la selección"
+"ask about the graph…" = "pregunta sobre el grafo…"
+"remove" = "quitar"

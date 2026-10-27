@@ -1,0 +1,41 @@
+{
+ "id": "hf-x-x-moviles-escenario-parpadeo-solo-izq",
+ "name": "X moviles escenario parpadeo solo izq",
+ "family": "x",
+ "source": "ShowXpress 00-Alonso/X moviles escenario parpadeo solo izq.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 244,
+      "pan": 146,
+      "strobe_dimmer": 202,
+      "tilt": 66,
+      "upan": 226,
+      "utilt": 50,
+      "white": 0
+     },
+     "floats": {
+      "level": 0.9569,
+      "pan": 0.5725,
+      "tilt": 0.2588,
+      "strobe": 0.7922
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984556": {
+   "desk_id": "1582984556",
+   "desk_name": "CABEZA 7 R 1#13",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-13",
+   "address": 49
+  }
+ }
+}

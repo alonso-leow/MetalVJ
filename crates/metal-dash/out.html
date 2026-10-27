@@ -1,0 +1,257 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MetalVJ · output</title>
+
+<!--
+  One venue screen. Drag this window onto the projector, press F for
+  fullscreen, and leave it there.
+
+  Deliberately not the app: no chrome, no theme, no CRT layers, no controls
+  that can be leaned on. The only thing on this page is the picture the server
+  masked, and the only thing it does is ask for the next one.
+
+  Everything about *what* it shows lives on the server — which device this is
+  comes out of the URL, and the masks, the resolution and the calibration grid
+  are the server's. A reload is harmless mid-set, and a browser crash costs a
+  reload rather than a mapping.
+
+  Contouring happens here too, because a mask has to be drawn against the thing
+  it is contouring: click on the projected surface to drop a key point, and the
+  page posts it to the server, which draws it back into the projected grid. The
+  browser's own overlay is only so a point can be found and dragged; the
+  authority is the grid landing on the wall.
+-->
+
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    cursor: none;
+  }
+  body.is-editing { cursor: crosshair; }
+
+  /* The picture fills the screen exactly. `object-fit: fill` and not
+     `contain`: the server already rendered at this device's own resolution, so
+     anything that letterboxes here is the browser disagreeing with the mapping
+     the masks were drawn against. */
+  #frame {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    object-fit: fill;
+  }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  #hint {
+    position: fixed;
+    left: 1rem; bottom: 1rem;
+    font: 500 12px/1.6 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #ff2e2e;
+    background: rgb(0 0 0 / 0.72);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #2a2a2e;
+    white-space: pre-line;
+    /* Only ever visible while contouring: a venue screen with a caption on it
+       is a venue screen with a caption on it. */
+    display: none;
+  }
+  body.is-editing #hint { display: block; }
+</style>
+
+<img id="frame" alt="">
+<svg id="overlay"></svg>
+<div id="hint"></div>
+
+<script>
+"use strict";
+
+/* This page lives one segment deeper than the app — `<root>/out/<device>` —
+   so both the device id and the route prefix come out of the same split. The
+   old form anchored on a leading `/out/`, which is only true when the app is
+   at the site root; behind a proxy prefix it left the whole path in `device`
+   and every request 404'd. */
+const [PREFIX, DEVICE_SEGMENT] = (() => {
+  const at = location.pathname.lastIndexOf("/out/");
+  return at < 0
+    ? ["/", location.pathname.replace(/^.*\//, "")]
+    : [location.pathname.slice(0, at + 1), location.pathname.slice(at + 5)];
+})();
+const device = decodeURIComponent(DEVICE_SEGMENT);
+const api = (path) => PREFIX + path.replace(/^\//, "");
+const post = (path, body) =>
+  fetch(path, { method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body || {}) }).then((r) => r.json());
+
+let editing = false;
+let masks = [];        // as the server has them
+let current = null;    // index of the mask being drawn, or null
+let dragging = null;   // {mask, point} while a key point is under the pointer
+
+/* --- The picture -----------------------------------------------------------
+   The same pump the app uses: ask for the next frame only once the last one
+   arrived, so a heavy model slows this screen down instead of queueing frames
+   nobody will see. A counter defeats the cache without needing a clock. */
+function pump(img, url, minGapMs) {
+  let n = 0;
+  const next = () => {
+    const t = performance.now();
+    img.src = `${url}${url.includes("?") ? "&" : "?"}_=${n++}`;
+    img._sent = t;
+  };
+  const again = () => {
+    const spent = performance.now() - (img._sent || 0);
+    setTimeout(next, Math.max(0, minGapMs - spent));
+  };
+  img.addEventListener("load", again);
+  // A failed frame must not stop the pump for good: at a venue that is a black
+  // screen with no way to tell it from a dead machine.
+  img.addEventListener("error", () => setTimeout(next, 700));
+  next();
+}
+
+/* --- Contouring ----------------------------------------------------------- */
+async function refresh() {
+  const r = await fetch(api("/state"));
+  if (!r.ok) return;
+  const s = await r.json();
+  const mine = (s.outputs || []).find((o) => o.id === device);
+  masks = mine ? mine.masks : [];
+  if (mine && mine.calibrating !== editing) setEditing(mine.calibrating);
+  paint();
+}
+
+function setEditing(on) {
+  editing = on;
+  document.body.classList.toggle("is-editing", on);
+  if (!on) current = null;
+  paint();
+}
+
+function paint() {
+  const svg = document.getElementById("overlay");
+  svg.replaceChildren();
+  if (!editing) return;
+
+  const ns = "http://www.w3.org/2000/svg";
+  masks.forEach((m, mi) => {
+    if (m.points.length >= 2) {
+      const poly = document.createElementNS(ns, m.points.length >= 3 ? "polygon" : "polyline");
+      poly.setAttribute("points",
+        m.points.map((p) => `${p[0] * innerWidth},${p[1] * innerHeight}`).join(" "));
+      poly.setAttribute("fill", mi === current ? "rgb(255 46 46 / 0.10)" : "none");
+      poly.setAttribute("stroke", "#ff2e2e");
+      poly.setAttribute("stroke-width", "1.5");
+      svg.appendChild(poly);
+    }
+    m.points.forEach((p) => {
+      const c = document.createElementNS(ns, "rect");
+      c.setAttribute("x", p[0] * innerWidth - 6);
+      c.setAttribute("y", p[1] * innerHeight - 6);
+      c.setAttribute("width", 12);
+      c.setAttribute("height", 12);
+      c.setAttribute("fill", "#ff2e2e");
+      c.setAttribute("stroke", "#fff");
+      svg.appendChild(c);
+    });
+  });
+
+  document.getElementById("hint").textContent =
+    `${device} · ${masks.length} máscara(s)\n` +
+    `click: punto   ·   n: máscara nueva   ·   z: deshacer   ·   ` +
+    `x: borrar máscara   ·   f: pantalla completa   ·   esc: terminar`;
+}
+
+const send = (index, points, name) =>
+  post(api("/outputs"), { op: "mask", id: device, index, points, name }).then(refresh);
+
+function nearestPoint(x, y) {
+  // In pixels, not in normalised units: "within 12 pixels of the pointer" is
+  // the same distance on a 4:3 projector and a wide wall, and a normalised
+  // radius is not.
+  let best = null;
+  masks.forEach((m, mi) => {
+    m.points.forEach((p, pi) => {
+      const d = Math.hypot(p[0] * innerWidth - x, p[1] * innerHeight - y);
+      if (d < 14 && (!best || d < best.d)) best = { mask: mi, point: pi, d };
+    });
+  });
+  return best;
+}
+
+document.addEventListener("pointerdown", (e) => {
+  if (!editing) return;
+  const hit = nearestPoint(e.clientX, e.clientY);
+  if (hit) {
+    dragging = hit;
+    current = hit.mask;
+    return;
+  }
+  // A click on empty space adds a key point to the mask being drawn, starting
+  // one if there is none.
+  const p = [e.clientX / innerWidth, e.clientY / innerHeight];
+  if (current === null || !masks[current]) {
+    current = masks.length;
+    send(null, [p], `máscara ${masks.length + 1}`);
+  } else {
+    send(current, masks[current].points.concat([p]), masks[current].name);
+  }
+});
+
+document.addEventListener("pointermove", (e) => {
+  if (!dragging || !editing) return;
+  const m = masks[dragging.mask];
+  if (!m) return;
+  // Written straight into the local copy so the drag is smooth, and posted on
+  // release: one request per point moved, not one per pixel.
+  m.points[dragging.point] = [e.clientX / innerWidth, e.clientY / innerHeight];
+  paint();
+});
+
+document.addEventListener("pointerup", () => {
+  if (!dragging) return;
+  const m = masks[dragging.mask];
+  const at = dragging.mask;
+  dragging = null;
+  if (m) send(at, m.points, m.name);
+});
+
+document.addEventListener("keydown", (e) => {
+  const k = e.key.toLowerCase();
+  if (k === "f") {
+    // Not automatic: a browser will not go fullscreen without a gesture, and
+    // pretending otherwise would leave the operator wondering why it did not.
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => {});
+  } else if (editing && k === "n") {
+    current = null;
+  } else if (editing && k === "z") {
+    const m = masks[current];
+    if (m && m.points.length) send(current, m.points.slice(0, -1), m.name);
+  } else if (editing && k === "x") {
+    if (current !== null && masks[current]) {
+      send(current, null, null);
+      current = null;
+    }
+  } else if (k === "escape") {
+    post(api("/outputs"), { op: "calibrate", id: device, on: false }).then(refresh);
+  }
+});
+
+addEventListener("resize", paint);
+
+refresh().then(() => {
+  pump(document.getElementById("frame"), api(`/output.jpg?device=${encodeURIComponent(device)}`), 33);
+  // Slower than the app's: this page only needs to hear about a mask changing
+  // or calibration being switched on from the other room.
+  setInterval(refresh, 1500);
+});
+</script>

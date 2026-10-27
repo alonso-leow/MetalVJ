@@ -1,0 +1,51 @@
+# Spanish for the shell module `nodes`: "English source text" = "Spanish text".
+# See ../README.md. The Spanish column keeps the wording the panel used before
+# the English rewrite (N) wherever a string had one.
+
+"— no graph open —" = "— sin grafo abierto —"
+"create {kind} · {name}" = "crear {kind} · {name}"
+"drop to add sources" = "soltá para añadir fuentes"
+"pause all" = "pausar todo"
+"play all" = "reproducir todo"
+"zoom in" = "acercar"
+"zoom out" = "alejar"
+"revert" = "revertir"
+"{id} · handed to {to}" = "{id} · cedida a {to}"
+"{id} · on {n}" = "{id} · en {n}"
+"{id} · local" = "{id} · local"
+"take back" = "retomar"
+"hand over" = "ceder"
+"no graph" = "sin grafo"
+"bind {param}" = "vincular {param}"
+"cancel" = "cancelar"
+"bypass" = "bypass"
+"solo" = "solo"
+"duplicate" = "duplicar"
+"remove" = "quitar"
+"add node before" = "añadir nodo antes"
+"add node after" = "añadir nodo después"
+
+# --- the canvas colour picker (2026-10-08) ----------------------------------
+"colour {key}" = "color {key}"
+"colour" = "color"
+"key" = "clave"
+"secondary" = "secundario"
+
+# The floating preview bar's subject (P-G).
+"{name} · {kind}" = "{name} · {kind}"
+
+# The "new" gallery (shell/gallery.rs).
+"search…" = "buscar…"
+"nothing here" = "nada por aquí"
+"animations" = "animaciones"
+"sensors" = "sensores"
+"effects" = "efectos"
+"scripts" = "scripts"
+"other" = "otros"
+"new" = "nuevo"
+"new node" = "nuevo nodo"
+"remove cable" = "quitar cable"
+"import" = "importar"
+"materials" = "materiales"
+"math" = "matemáticas"
+"+ effect" = "+ efecto"

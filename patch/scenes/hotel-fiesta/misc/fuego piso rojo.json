@@ -1,0 +1,107 @@
+{
+ "id": "hf-misc-fuego-piso-rojo",
+ "name": "fuego piso rojo",
+ "family": "misc",
+ "source": "ShowXpress 00-Alonso/fuego piso rojo.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 144,
+      "strobe_dimmer": 215,
+      "tilt": 30,
+      "upan": 54,
+      "utilt": 102,
+      "white": 10
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.5647,
+      "tilt": 0.1176,
+      "strobe": 0.8431
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 0,
+      "pan": 247,
+      "strobe_dimmer": 215,
+      "tilt": 231,
+      "upan": 154,
+      "utilt": 2,
+      "white": 10
+     },
+     "floats": {
+      "level": 0.0,
+      "pan": 0.9686,
+      "tilt": 0.9059,
+      "strobe": 0.8431
+     }
+    }
+   }
+  },
+  {
+   "length_ms": 500,
+   "fixtures": {
+    "1582984555": {
+     "fixture": "cabeza-7r-12",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 144,
+      "strobe_dimmer": 215,
+      "tilt": 30,
+      "upan": 54,
+      "utilt": 102,
+      "white": 10
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5647,
+      "tilt": 0.1176,
+      "strobe": 0.8431
+     }
+    },
+    "1582984556": {
+     "fixture": "cabeza-7r-13",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 247,
+      "strobe_dimmer": 215,
+      "tilt": 231,
+      "upan": 154,
+      "utilt": 2,
+      "white": 10
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.9686,
+      "tilt": 0.9059,
+      "strobe": 0.8431
+     }
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1582984555": {
+   "desk_id": "1582984555",
+   "desk_name": "CABEZA 7 R 1#12",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-12",
+   "address": 177
+  },
+  "1582984556": {
+   "desk_id": "1582984556",
+   "desk_name": "CABEZA 7 R 1#13",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-13",
+   "address": 49
+  }
+ }
+}

@@ -1,0 +1,33 @@
+{
+ "id": "rings-a-call-answer",
+ "name": "Call Answer",
+ "target": {
+  "model": "rings"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "impulse"
+   },
+   "curve": "step",
+   "steps": [0.7, 0.15, 0.7, 0.15, 0.7, 0.15, 0.15, 0.15, 0.6, 0.15, 0.6, 0.15, 0.95, 0.15, 0.6, 0.15]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "step",
+   "steps": [0.5, null, null, null, 0.5, null, null, null, null, null, null, null, 0.95, 0.4, null, null]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "rings",
+    "palette": "metalvj-red"
+   },
+   "steps": [{"colour": 1}, null, null, null, {"colour": 2}, null, null, null, null, null, null, null, {"colour": 3}, null, {"colour": 0}, null]
+  }
+ ]
+}

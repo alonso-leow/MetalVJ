@@ -1,0 +1,92 @@
+{
+ "id": "entrance-a-stab",
+ "name": "Stab",
+ "target": {
+  "model": "entrance"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "density"
+   },
+   "curve": "step",
+   "steps": [
+    0.95,
+    null,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.95,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "variation_palette"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    0.1,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.4,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "elements",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null
+   ]
+  }
+ ]
+}

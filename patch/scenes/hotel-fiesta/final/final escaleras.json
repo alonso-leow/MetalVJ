@@ -1,0 +1,271 @@
+{
+ "id": "hf-final-final-escaleras",
+ "name": "final escaleras",
+ "family": "final",
+ "source": "ShowXpress 00-Alonso/final escaleras.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 100,
+   "fixtures": {
+    "1733314331": {
+     "fixture": "beamz2",
+     "dmx": {
+      "???#4": 255,
+      "dimmer": 255,
+      "pan": 28,
+      "shutter": 255,
+      "tilt": 17
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.1098,
+      "tilt": 0.0667,
+      "strobe": 1.0
+     }
+    },
+    "1582984548": {
+     "fixture": "cabeza-riel-2",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "pan": 7,
+      "strobe_dimmer": 255,
+      "tilt": 177,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.0275,
+      "tilt": 0.6941,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984549": {
+     "fixture": "cabeza-riel-3",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "focus": 0,
+      "pan": 11,
+      "strobe_dimmer": 255,
+      "tilt": 173,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.0431,
+      "tilt": 0.6784,
+      "focus": 0.0,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984550": {
+     "fixture": "cabeza-riel-4",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "pan": 20,
+      "strobe_dimmer": 255,
+      "tilt": 190,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.0784,
+      "tilt": 0.7451,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984551": {
+     "fixture": "cabeza-7r-8",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "pan": 1,
+      "strobe_dimmer": 255,
+      "tilt": 17,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.0039,
+      "tilt": 0.0667,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1582984552": {
+     "fixture": "cabeza-riel-1",
+     "dmx": {
+      "FROST": 255,
+      "dimmer": 255,
+      "pan": 21,
+      "strobe_dimmer": 255,
+      "tilt": 196,
+      "upan": 0,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.0824,
+      "tilt": 0.7686,
+      "frost": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1733318836": {
+     "fixture": "wash-3",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 25,
+      "shutter": 255,
+      "tilt": 9,
+      "upan": 0,
+      "utilt": 0,
+      "white": 255,
+      "zoom": 255
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.098,
+      "tilt": 0.0353,
+      "zoom": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1641053008": {
+     "fixture": "cabeza-7r-16b",
+     "dmx": {
+      "FROST": 0,
+      "dimmer": 255,
+      "focus": 255,
+      "pan": 0,
+      "strobe_dimmer": 255,
+      "tilt": 17,
+      "upan": 167,
+      "utilt": 0
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.0,
+      "tilt": 0.0667,
+      "focus": 1.0,
+      "frost": 0.0,
+      "strobe": 1.0
+     }
+    },
+    "1735487438": {
+     "fixture": "wash-3b",
+     "dmx": {
+      "dimmer": 255,
+      "pan": 148,
+      "shutter": 255,
+      "tilt": 12,
+      "upan": 0,
+      "utilt": 0,
+      "white": 255,
+      "zoom": 255
+     },
+     "floats": {
+      "level": 1.0,
+      "pan": 0.5804,
+      "tilt": 0.0471,
+      "zoom": 1.0,
+      "strobe": 1.0
+     }
+    },
+    "1734364560": {
+     "fixture": "beam-z-2",
+     "dmx": {
+      "???#10": 141,
+      "???#12": 17,
+      "???#2": 255,
+      "???#3": 255,
+      "???#8": 255
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1733314331": {
+   "desk_id": "1733314331",
+   "desk_name": "beamZ2",
+   "desk_model": "beamZ2",
+   "fixture": "beamz2",
+   "address": 513
+  },
+  "1582984548": {
+   "desk_id": "1582984548",
+   "desk_name": "CABEZA R7 RIEL 2",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-2",
+   "address": 65
+  },
+  "1582984549": {
+   "desk_id": "1582984549",
+   "desk_name": "CABEZA R7 RIEL 3",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-3",
+   "address": 81
+  },
+  "1582984550": {
+   "desk_id": "1582984550",
+   "desk_name": "CABEZA R7 RIEL 4",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-4",
+   "address": 97
+  },
+  "1582984551": {
+   "desk_id": "1582984551",
+   "desk_name": "CABEZA 7 R 1#8",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-8",
+   "address": 431
+  },
+  "1582984552": {
+   "desk_id": "1582984552",
+   "desk_name": "CABEZA R7 RIEL 1",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-riel-1",
+   "address": 113
+  },
+  "1733318836": {
+   "desk_id": "1733318836",
+   "desk_name": "wash  3",
+   "desk_model": "wash  3",
+   "fixture": "wash-3",
+   "address": 553
+  },
+  "1641053008": {
+   "desk_id": "1641053008",
+   "desk_name": "CABEZA 7 R 1#16 #2",
+   "desk_model": "CABEZA MOVIL 7R 230 W",
+   "fixture": "cabeza-7r-16b",
+   "address": 488
+  },
+  "1735487438": {
+   "desk_id": "1735487438",
+   "desk_name": "wash  3 #2",
+   "desk_model": "wash  3",
+   "fixture": "wash-3b",
+   "address": 717
+  },
+  "1734364560": {
+   "desk_id": "1734364560",
+   "desk_name": "beam z 2",
+   "desk_model": "beam z 2",
+   "fixture": "beam-z-2",
+   "address": 533
+  }
+ }
+}

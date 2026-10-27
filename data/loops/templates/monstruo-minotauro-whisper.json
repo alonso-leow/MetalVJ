@@ -1,0 +1,105 @@
+{
+ "id": "monstruo-minotauro-whisper",
+ "name": "Maze whisper",
+ "target": {
+  "model": "monster"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "species"
+   },
+   "curve": "step",
+   "steps": [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "jaw_open"
+   },
+   "curve": "ramp",
+   "steps": [0.1, 0.18, 0.08, 0.15, 0.05, 0.12, 0.2, 0.08, 0.1, 0.15, 0.05, 0.0, 0.12, 0.2, 0.1, 0.05]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lip_funnel"
+   },
+   "curve": "ramp",
+   "steps": [0.5, 0.7, 0.8, 0.6, 0.3, 0.6, 0.9, 0.7, 0.4, 0.2, 0.5, 0.8, 0.7, 0.4, 0.3, 0.5]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lip_close"
+   },
+   "curve": "step",
+   "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "squint"
+   },
+   "curve": "ramp",
+   "steps": [0.55, 0.6, 0.65, 0.7, 0.7, 0.65, 0.6, 0.6, 0.6, 0.6, 0.65, 0.7, 0.7, 0.65, 0.6, 0.55]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "blink"
+   },
+   "curve": "step",
+   "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "nostril_flare"
+   },
+   "curve": "ramp",
+   "steps": [0.6, 0.8, 0.6, 0.3, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.3]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "head_yaw"
+   },
+   "curve": "ramp",
+   "steps": [0.45, 0.47, 0.5, 0.53, 0.56, 0.58, 0.58, 0.57, 0.55, 0.52, 0.49, 0.46, 0.44, 0.43, 0.43, 0.44]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "head_pitch"
+   },
+   "curve": "step",
+   "steps": [0.56, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "trip"
+   },
+   "curve": "ramp",
+   "steps": [0.25, 0.277, 0.353, 0.466, 0.6, 0.734, 0.847, 0.923, 0.95, 0.923, 0.847, 0.734, 0.6, 0.466, 0.353, 0.277]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "flow"
+   },
+   "curve": "step",
+   "steps": [0.2, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "ramp",
+   "steps": [0.4, 0.415, 0.459, 0.523, 0.6, 0.677, 0.741, 0.785, 0.8, 0.785, 0.741, 0.677, 0.6, 0.523, 0.459, 0.415]
+  }
+ ]
+}

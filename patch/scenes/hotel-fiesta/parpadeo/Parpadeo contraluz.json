@@ -1,0 +1,171 @@
+{
+ "id": "hf-parpadeo-parpadeo-contraluz",
+ "name": "Parpadeo contraluz",
+ "family": "parpadeo",
+ "source": "ShowXpress 00-Alonso/Parpadeo contraluz.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "white": 255
+     },
+     "floats": {}
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "white": 255
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "white": 255
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "white": 255
+     },
+     "floats": {}
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "white": 255
+     },
+     "floats": {}
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "white": 255
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "white": 255
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "white": 255
+     },
+     "floats": {}
+    }
+   }
+  },
+  {
+   "length_ms": 300,
+   "fixtures": {
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "white": 0
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1617813006": {
+   "desk_id": "1617813006",
+   "desk_name": "NUEVA LED #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-4",
+   "address": 364
+  },
+  "1617813051": {
+   "desk_id": "1617813051",
+   "desk_name": "NUEVA LED #2 #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-5",
+   "address": 371
+  },
+  "1617813052": {
+   "desk_id": "1617813052",
+   "desk_name": "NUEVA LED #2 #2 #2 #3",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-6",
+   "address": 378
+  },
+  "1617813053": {
+   "desk_id": "1617813053",
+   "desk_name": "NUEVA LED #2 #2 #2 #4",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-7",
+   "address": 385
+  }
+ }
+}

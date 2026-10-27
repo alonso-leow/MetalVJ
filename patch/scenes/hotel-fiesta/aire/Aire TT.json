@@ -1,0 +1,439 @@
+{
+ "id": "hf-aire-aire-tt",
+ "name": "Aire TT",
+ "family": "aire",
+ "source": "ShowXpress 00-Alonso/Aire TT.scex",
+ "venue": "fiesta-resort",
+ "steps": [
+  {
+   "length_ms": 100,
+   "fixtures": {
+    "1713449277": {
+     "fixture": "slim-par-14b",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1713279706": {
+     "fixture": "slim-par-11",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1713279707": {
+     "fixture": "slim-par-12",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1713279708": {
+     "fixture": "slim-par-13",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1713279709": {
+     "fixture": "slim-par-14",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1691945218": {
+     "fixture": "par-riel-7b",
+     "dmx": {
+      "blue": 255,
+      "green": 255,
+      "uv": 0,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "blue": 0,
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617887656": {
+     "fixture": "par-riel-5",
+     "dmx": {
+      "blue": 255,
+      "green": 255,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617887657": {
+     "fixture": "par-riel-4",
+     "dmx": {
+      "blue": 255,
+      "green": 255,
+      "uv": 0,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617887660": {
+     "fixture": "par-riel-2",
+     "dmx": {
+      "blue": 255,
+      "green": 255,
+      "uv": 0,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617887663": {
+     "fixture": "par-riel-3",
+     "dmx": {
+      "blue": 255,
+      "green": 255,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "blue": 0,
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "blue": 0,
+      "red": 0
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "blue": 0,
+      "red": 0
+     },
+     "floats": {}
+    }
+   }
+  },
+  {
+   "length_ms": 100,
+   "fixtures": {
+    "1713449277": {
+     "fixture": "slim-par-14b",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1713279706": {
+     "fixture": "slim-par-11",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1713279707": {
+     "fixture": "slim-par-12",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1713279708": {
+     "fixture": "slim-par-13",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1713279709": {
+     "fixture": "slim-par-14",
+     "dmx": {
+      "blue": 255,
+      "dimmer": 255,
+      "green": 0,
+      "red": 87
+     },
+     "floats": {
+      "level": 1.0,
+      "hue": 0.7235,
+      "sat": 1.0
+     }
+    },
+    "1691945218": {
+     "fixture": "par-riel-7b",
+     "dmx": {
+      "blue": 0,
+      "green": 0,
+      "uv": 0,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617813006": {
+     "fixture": "nueva-led-4",
+     "dmx": {
+      "blue": 255,
+      "red": 255
+     },
+     "floats": {}
+    },
+    "1617887656": {
+     "fixture": "par-riel-5",
+     "dmx": {
+      "blue": 0,
+      "green": 0,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617887657": {
+     "fixture": "par-riel-4",
+     "dmx": {
+      "blue": 0,
+      "green": 0,
+      "uv": 0,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617887660": {
+     "fixture": "par-riel-2",
+     "dmx": {
+      "blue": 0,
+      "green": 0,
+      "uv": 0,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617887663": {
+     "fixture": "par-riel-3",
+     "dmx": {
+      "blue": 0,
+      "green": 0,
+      "zoom": 255
+     },
+     "floats": {
+      "zoom": 1.0
+     }
+    },
+    "1617813051": {
+     "fixture": "nueva-led-5",
+     "dmx": {
+      "blue": 255,
+      "red": 255
+     },
+     "floats": {}
+    },
+    "1617813052": {
+     "fixture": "nueva-led-6",
+     "dmx": {
+      "blue": 255,
+      "red": 255
+     },
+     "floats": {}
+    },
+    "1617813053": {
+     "fixture": "nueva-led-7",
+     "dmx": {
+      "blue": 255,
+      "red": 255
+     },
+     "floats": {}
+    }
+   }
+  }
+ ],
+ "fixtures": {
+  "1713449277": {
+   "desk_id": "1713449277",
+   "desk_name": "12x4in1 LED Slim Par #2 #14 #2",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-14b",
+   "address": 480
+  },
+  "1713279706": {
+   "desk_id": "1713279706",
+   "desk_name": "12x4in1 LED Slim Par #2 #11",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-11",
+   "address": 447
+  },
+  "1713279707": {
+   "desk_id": "1713279707",
+   "desk_name": "12x4in1 LED Slim Par #2 #12",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-12",
+   "address": 455
+  },
+  "1713279708": {
+   "desk_id": "1713279708",
+   "desk_name": "12x4in1 LED Slim Par #2 #13",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-13",
+   "address": 463
+  },
+  "1713279709": {
+   "desk_id": "1713279709",
+   "desk_name": "12x4in1 LED Slim Par #2 #14",
+   "desk_model": "12x4in1 LED Slim Par",
+   "fixture": "slim-par-14",
+   "address": 471
+  },
+  "1691945218": {
+   "desk_id": "1691945218",
+   "desk_name": "PAR LED RIEL 7 ",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-7b",
+   "address": 264
+  },
+  "1617813006": {
+   "desk_id": "1617813006",
+   "desk_name": "NUEVA LED #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-4",
+   "address": 364
+  },
+  "1617887656": {
+   "desk_id": "1617887656",
+   "desk_name": "PAR LED RIEL 5",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-5",
+   "address": 271
+  },
+  "1617887657": {
+   "desk_id": "1617887657",
+   "desk_name": "PAR LED RIEL 4",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-4",
+   "address": 278
+  },
+  "1617887660": {
+   "desk_id": "1617887660",
+   "desk_name": "PAR LED RIEL 2",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-2",
+   "address": 299
+  },
+  "1617887663": {
+   "desk_id": "1617887663",
+   "desk_name": "PAR LED RIEL 3",
+   "desk_model": "PAR LED FRENTE",
+   "fixture": "par-riel-3",
+   "address": 320
+  },
+  "1617813051": {
+   "desk_id": "1617813051",
+   "desk_name": "NUEVA LED #2 #2 #2 #2",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-5",
+   "address": 371
+  },
+  "1617813052": {
+   "desk_id": "1617813052",
+   "desk_name": "NUEVA LED #2 #2 #2 #3",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-6",
+   "address": 378
+  },
+  "1617813053": {
+   "desk_id": "1617813053",
+   "desk_name": "NUEVA LED #2 #2 #2 #4",
+   "desk_model": "NUEVA LED",
+   "fixture": "nueva-led-7",
+   "address": 385
+  }
+ }
+}

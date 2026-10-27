@@ -1,0 +1,31 @@
+# RECTANGULO LED TECHO — the ceiling LED panel on the Fiesta Resort rig.
+#
+# Ported from ShowXpress (`fixtures/RECTANGULO LED TECHO.txt`): dimmer, red,
+# green, blue, white, amber, uv, strobe/shutter, colour macro, mode. A 10-slot
+# ceiling wash panel; the venue answers its colour as HSV with `level` as the
+# dimmer, and has no beam aim (it is fixed to the ceiling, not a head).
+#
+# Slots are 0-based offsets from `address`.
+
+label = "Rectangulo LED Techo (RGBWA+UV panel, 10ch)"
+universe = 0
+address = 1
+
+[limits]
+dimmer = [0.0, 1.0]
+
+[[channel]]
+signal = "level"
+coarse = 0
+
+[[channel]]
+signal = "hue"
+coarse = 1
+
+[[channel]]
+signal = "sat"
+coarse = 2
+
+[[channel]]
+signal = "strobe"
+coarse = 7

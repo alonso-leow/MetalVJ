@@ -1,0 +1,16 @@
+{
+ "id": "fx-blur-focus",
+ "name": "Focus",
+ "target": {
+  "effect": "blur"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.0, 0.0, 0.0, 0.5, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.2, 0.0, 0.0]
+  }
+ ]
+}

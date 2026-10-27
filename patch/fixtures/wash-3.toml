@@ -34,7 +34,6 @@ coarse = 2
 signal = "pan"
 coarse = 3
 fine = 4
-range = [-0.5, 0.5]
 
 [[channel]]
 signal = "tilt"

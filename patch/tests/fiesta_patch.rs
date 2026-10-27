@@ -1,4 +1,4 @@
-//! The Fiesta Resort venue's patch, as the Settings > Fixtures table reads it.
+﻿//! The Fiesta Resort venue's patch, as the Settings > Fixtures table reads it.
 //!
 //! `GET /venue` reports one row per `[[fixture]]` with the DMX span its profile
 //! occupies, and the settings page paints exactly that. Two invariants the
@@ -18,7 +18,7 @@ fn repo() -> PathBuf {
 }
 
 fn the_venue() -> venue::Venue {
-    let text = std::fs::read_to_string(repo().join("data/agent/venues/fiesta-resort.toml"))
+    let text = std::fs::read_to_string(repo().join("patch/venues/fiesta-resort.toml"))
         .expect("fiesta-resort.toml on disk");
     venue::Venue::parse(&text).expect("parses")
 }
@@ -109,3 +109,4 @@ fn the_production_camera_shares_the_camera_shot_pose() {
     let src = s.capture.as_deref().expect("the sensor names a capture source");
     assert!(src.starts_with("dshow:") || src.starts_with("v4l2:"), "{src}");
 }
+

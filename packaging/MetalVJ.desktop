@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=MetalVJ
+GenericName=Visual Instrument
+Comment=Visual design tool for musical reactivity
+Exec=metal-dash %F
+Icon=MetalVJ
+Terminal=false
+Categories=AudioVideo;Audio;Video;Graphics;
+Keywords=VJ;visuals;music;live;
+StartupNotify=true
+StartupWMClass=metal-dash

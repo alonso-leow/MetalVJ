@@ -1,0 +1,194 @@
+# Release: build the desktop binaries and attach them to a GitHub Release.
+#
+# TAG CONVENTION (must match docs/DISTRIBUTION.md):
+#   v1.2.3      -> stable/main channel.  If it is a prerelease, set
+#                  `prerelease: false` and mark it "Latest" in the UI.
+#   dev-v1.2.3  -> dev channel.          Always a prerelease.
+# Anything else (branch pushes, PRs) does not build a release. Use
+# workflow_dispatch to rebuild an existing tag's assets (e.g. re-run a job).
+#
+# ASSET NAMES are exactly what the scripts produce; the updater matches them
+# byte for byte:
+#   MetalVJ-<version>-windows-x86_64.exe
+#   MetalVJ-<version>-linux-x86_64.AppImage
+# <version> is read from [workspace.package] in Cargo.toml, NOT from the tag,
+# so a tag that disagrees with Cargo.toml fails at the "version guard" step
+# instead of shipping a mislabelled binary.
+#
+# Why the AppImage is built here: the maintainers develop on Windows with no
+# WSL, no Docker and no Linux toolchain, but the binary links ALSA, X11/Wayland
+# and the GL stack. ubuntu-24.04 is the only place this can be built.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "dev-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build assets for, e.g. v0.1.0 or dev-v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  version-guard:
+    name: version guard
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      tag: ${{ steps.tag.outputs.tag }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: resolve tag and channel
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          case "$tag" in
+            dev-v*) echo "prerelease=true"  >> "$GITHUB_OUTPUT" ;;
+            v*)     echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+            *)      echo "release: tag '$tag' is not v* or dev-v*" >&2; exit 1 ;;
+          esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release: tag '$tag'"
+
+      - name: Cargo.toml version must match the tag
+        id: read
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk '
+            /^\[workspace\.package\]/ { inpkg = 1; next }
+            /^\[/ { inpkg = 0 }
+            inpkg && $1 == "version" { gsub(/[" ]/, "", $3); print $3; exit }
+          ' Cargo.toml)"
+          [[ -n "$version" ]] || { echo "release: no [workspace.package] version" >&2; exit 1; }
+          tag="${{ steps.tag.outputs.tag }}"
+          tagver="${tag#dev-v}"
+          tagver="${tagver#v}"
+          if [[ "$version" != "$tagver" ]]; then
+            echo "release: tag '$tag' implies version '$tagver' but Cargo.toml says '$version'." >&2
+            echo "release: bump [workspace.package] version first, then tag." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release: version $version"
+
+  windows:
+    name: windows-x86_64
+    needs: version-guard
+    runs-on: windows-latest
+    # The runner image has Rust 1.99.1 and VS 2022 Enterprise with
+    # VC.Tools.x86.x64 ("Desktop development with C++"), which is what the
+    # msvc link step needs; dtolnay/rust-toolchain only pins the toolkit.
+    #
+    # No explicit `shell:`: the default is Windows PowerShell 5.1, and that is
+    # what this workflow is written against. package-windows.ps1 does not use
+    # 7.x-only syntax, and it guards the one 5.1 trap (native stderr under
+    # $ErrorActionPreference = 'Stop'). If you add `shell: pwsh` you change the
+    # tested path for no gain -- pwsh is on the image, but 5.1 is the stricter
+    # of the two, so staying on it keeps local and CI behaviour identical.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      # The workspace is large (wgpu, naga, manifold-C++). Caching target/ is
+      # the difference between a few minutes and a long rebuild.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-windows
+
+      # The MSVC linker ships with the runner image; rustup's stable msvc
+      # toolchain finds it. The script probes for it and fails early if not.
+      - name: package
+        run: ./scripts/package-windows.ps1
+
+      - name: upload to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version-guard.outputs.tag }}
+          name: ${{ needs.version-guard.outputs.tag }}
+          prerelease: ${{ needs.version-guard.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/MetalVJ-${{ needs.version-guard.outputs.version }}-windows-x86_64.exe
+
+  linux:
+    name: linux-x86_64
+    needs: version-guard
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-linux
+
+      # Link-time packages for the default feature set
+      # (desktop,gpu,glow). Checked against Cargo.toml + Cargo.lock + a real
+      # `cargo tree`, not guessed:
+      #   libasound2-dev     cpal/ALSA capture          (feature `listen`)
+      #   libssl-dev         openssl-sys is a **build**-dependency, not linked:
+      #                      ort-sys (ONNX) uses ureq/native-tls to download
+      #                      its prebuilt runtime at build time. Still needed
+      #                      to compile, so it stays.
+      #   libxkbcommon-dev   winit 0.30 keyboard/XKB
+      #   libwayland-dev     winit/glutin wayland       (egui_glow "wayland")
+      #   libx11-*-dev       winit/glutin x11/glx       (egui_glow "x11")
+      #   libgl1-mesa-dev    GL/EGL for glutin (glow)
+      #   libegl1-mesa-dev   ditto
+      #   pkg-config, file, wget, curl, xz-utils for the AppImage tooling
+      #   libudev-dev is NOT needed: libudev-sys is not in the resolve graph
+      #   (this btleplug/BlueZ build does not use it).
+      #   libfuse2 is NOT needed: appimagetool runs with
+      #   --appimage-extract-and-run.
+      - name: system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config file wget curl xz-utils \
+            libasound2-dev libssl-dev \
+            libxkbcommon-dev libwayland-dev \
+            libx11-dev libxcursor-dev libxi-dev libxrandr-dev \
+            libxinerama-dev libxkbcommon-x11-dev \
+            libgl1-mesa-dev libegl1-mesa-dev \
+            libglu1-mesa-dev mesa-common-dev
+
+      - name: package
+        run: ./scripts/package-linux.sh
+
+      - name: upload to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version-guard.outputs.tag }}
+          name: ${{ needs.version-guard.outputs.tag }}
+          prerelease: ${{ needs.version-guard.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/MetalVJ-${{ needs.version-guard.outputs.version }}-linux-x86_64.AppImage

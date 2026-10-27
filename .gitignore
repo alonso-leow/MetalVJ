@@ -109,3 +109,14 @@ web/wasm/pkg/
 /data/fixtures/wash-escenario.toml
 /crates/metal-graph/tests/hotel_fiesta_graph.rs
 /crates/metal-perform/tests/fiesta_patch.rs
+
+# ---------------------------------------------------------------------------
+# Packaging output. `scripts/package-*.{ps1,sh}` writes release artifacts to
+# dist/ and assembles the AppImage from packaging/AppDir; the AppImage tooling
+# is downloaded into packaging/.cache. All three are rebuilt from source and
+# are never part of the tree. packaging/icons/ stays tracked: it is the
+# (placeholder) icon the packages embed.
+# ---------------------------------------------------------------------------
+/dist/
+/packaging/AppDir/
+/packaging/.cache/

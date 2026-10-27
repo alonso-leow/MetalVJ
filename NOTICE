@@ -1,0 +1,54 @@
+MetalVJ
+======
+
+This product includes the following third-party components.
+
+Basic Pitch (Spotify AB)
+  Apache License 2.0
+  https://github.com/spotify/basic-pitch
+  Model: basic_pitch/saved_models/icassp_2022/nmp.onnx, vendored at
+  data/models/basic-pitch/model.onnx (sha256-checked, see model.toml).
+
+Wave-2 model references (algorithms re-implemented in Rust/WGSL from the
+published method; no source copied)
+  MIT: inconvergent/differential-line, filipedeschamps/doom-fire-algorithm,
+       abey79/lines and abey79/vpype, LingDong-/shan-shui-inf,
+       PavelDoGreat/WebGL-Fluid-Simulation, fogleman/primitive
+  GPL-3.0: buddhi1980/mandelbulber2, hannorein/rebound, pmocz/finitevolume-python
+  GPL-2.0-or-later: NanoComp/meep
+  AGPL-3.0: hydra-synth/hydra (transform catalogue)
+  Paper shaders: behaviour and parameter names only, shaders written from
+  scratch from the underlying mathematics.
+
+Lucide (icon font, crates/metal-dash/assets/lucide.ttf)
+  ISC License (text: crates/metal-dash/assets/LUCIDE-LICENSE)
+  https://lucide.dev
+Geometry kernel — algorithms and API design studied; no source copied
+  Blender (GPL-2.0-or-later)
+    BMesh (source/blender/bmesh): the non-manifold B-rep, operator slots and
+    per-op tool flags that inform metal-geom's pure ops.
+    geometry/ (GEO_mesh_boolean, GEO_mesh_bevel, GEO_mesh_primitive_*,
+    GEO_*_curves): the boolean contract (MeshArr/Float/Manifold solvers) and
+    the curve-operation shortlist re-implemented in Rust.
+    editors/space_view3d (navigation, camera control, gizmos, snapping): the
+    interaction model for the viewport, re-implemented with egui.
+  MetalVJ is AGPL-3.0-or-later; Blender is GPL-2.0-or-later. No Blender source
+  is vendored. If any is ever vendored it must carry SPDX GPL-2.0-or-later
+  headers and be isolated in its own crate.
+
+manifold3d / Manifold — Apache-2.0 OR MIT — robust CSG kernel.
+kurbo — Apache-2.0 OR MIT — 2D Bézier/spline geometry.
+lyon — MIT OR Apache-2.0 — planned path tessellation.
+transform-gizmo — MIT OR Apache-2.0 — planned 3D transform gizmo.
+parry3d — Apache-2.0 — planned ray casting and BVH (verify at the pinned version).
+gltf — Apache-2.0 OR MIT — glTF 2.0 import (crates/metal-geom/src/gltf.rs).
+
+Venue assets
+  Poly Haven — CC0. Imported assets record polyhaven_id/url/authors/
+    resolution/licence.
+  Poly Pizza — CC0 and CC-BY. CC-BY imports store and display the
+    polypizza_attribution line.
+  Sketchfab — per-model licence, recorded on import; no-licence models refused.
+  Import is local only: MetalVJ has no HTTP client in the tree and does not
+  fetch from these services at runtime. An asset is downloaded by the operator
+  and imported from disk with its licence, author and URL recorded.

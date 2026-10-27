@@ -30,9 +30,9 @@ touches it.
 | What | Where | Authoritative? |
 | --- | --- | --- |
 | The 13 signal floats, in order | `crates/metal-schema/src/lib.rs:2030` `SIGNAL_FLOATS` | **yes** |
-| Base/saved rows, located from the end | `read_signal` (`lib.rs:2290`) — `len() - EFFECTS_WIDTH - SIGNAL_WIDTH` | derived |
+| Base/saved rows, located from the end | `read_signal` (`lib.rs:2308`) — `len() - EFFECTS_WIDTH - SIGNAL_WIDTH` | derived |
 | Profiles | `data/fixtures/*.toml` | **yes** |
-| The reader/validator of a profile | `crates/metal-perform/src/fixture.rs` (`parse` at 655, `load` at 728) | — |
+| The reader/validator of a profile | `crates/metal-perform/src/fixture.rs` (`parse` at 688, `load` at 764, `load_with` at 781, `extra_dirs` at 825) | — |
 | The patch (which light sits at which address) | `data/agent/venues/<room>.toml` (`[[fixture]]`) | **yes** |
 | The float manifest | `data/schema.json` — **generated** | derived |
 | Sync allowlist | `crates/metal-config/src/lib.rs` `allowseed_default` | **yes** |
@@ -56,7 +56,7 @@ touches it.
 ```
 
 `Selector` (`fixture.rs:35`) can read all 13 by name (`sig_` prefix optional).
-`selectors()` (`fixture.rs:588`) reports, in canonical order, the ones a profile
+`selectors()` (`fixture.rs:590`) reports, in canonical order, the ones a profile
 actually declares — that list is what the fixture page lays out.
 
 ## 2. Write the profile — `data/fixtures/<model>.toml`
@@ -96,7 +96,7 @@ fine = 1                        # optional: 16-bit channel
 physical = [0.0, 65535.0]       # raw slot range; default 0..255 / 0..65535 with `fine`
 ```
 
-Rules enforced by `parse` (`fixture.rs:655`) — a file that breaks one is
+Rules enforced by `parse` (`fixture.rs:688`) — a file that breaks one is
 **skipped with a line on stderr**, never a crash, and therefore silently drives
 nothing:
 
@@ -137,7 +137,7 @@ for things no shared list should claim to name.
 | R/G/B, a colour wheel, amber/UV | `hue` + `sat` (+ `level`) | colour arrives as HSV; `a`/`b` for warm/cool white |
 | separate dimmer | `level` | a par with no dimmer slot folds level into its colour channels — say so in the header comment |
 | temperature | `cct` | always declare the lamp's own `range`, not the float's |
-| zoom / focus / iris / frost | the float of the same name | these four are `patch_owned` (`fixture.rs:165`): `PatchMode::Colour` holds them, `PatchMode::Patch` drives them |
+| zoom / focus / iris / frost | the float of the same name | these four are `patch_owned` (`fixture.rs:167`): `PatchMode::Colour` holds them, `PatchMode::Patch` drives them |
 | gobo, prism, rotation, mode, colour macro | `a` or `b` | one per head; reuse `rotation`/`zoom` in `[limits]` only for geometry |
 | a smoke/fog machine | `level` only | the venue has no haze float; see `hurricane-1600` |
 | a 2-D LED matrix | — | not a profile concept: `kind = "matrix"` + `[fixture.matrix]` in the room row |
@@ -180,6 +180,17 @@ notes = "..."                   # where it came from, desk survey, quirks
   `wire = "dmx"`, `drive = "fixed"`. If your new row changes either, that is a
   show decision, not a fixture one — note it in the row's `notes`.
 
+### Rig-owned profiles: `patch/fixtures/`
+
+A rig's own lights live in `patch/fixtures/*.toml`, beside `data/`, not in
+`data/fixtures/`. `fixture::load`/`get` read both (`extra_dirs`, `load_with`),
+and **`patch/` shadows `data/`** on a model-id clash, so a profile of the same
+name there is the live one. Put a rig-specific head (`cabeza-7r-230`,
+`hurricane-1600`, …) in `patch/fixtures/`, a shipped example in `data/fixtures/`;
+the room rows go in `patch/venues/`. `data/` is upstream's and a tree update can
+replace it; `patch/` is never touched by one. Check shadows when a fix to a
+`data/` profile seems to do nothing.
+
 ## 4. The gates (all of them, no exceptions)
 
 ```
@@ -195,9 +206,9 @@ checkout carries one, the rig's own `patch/fixtures/` beside `data/`
 (`Fixture::extra_dirs`), exactly as `get`/`load` do on the live path — and will
 fail in the way a new profile usually fails first:
 
-- `all_four_phase_b_profiles_parse` (`wire.rs`) — every file parses;
+- `all_four_phase_b_profiles_parse` (`wire.rs:2833`) — every file parses;
 - `a_colour_reaches_every_profile_through_its_own_channels`
-  (`fixture.rs:1394`) — a red and a blue colour through **your** channels: a
+  (`fixture.rs:1621`) — a red and a blue colour through **your** channels: a
   level/hue byte must equal what `Channel::raw` says, a `cct` channel must read
   warmer for red than blue, and a warm/cool `a`/`b` pair must split the same
   way. If your profile has a `cct` channel it must reach `light_state`; if it
@@ -227,7 +238,7 @@ Ratings of effort, smallest first:
    `drive` = `colour` | `patch`, plus `spread`/`pick`/`offset`/`hue_lock`
    (`wire.rs:1232`). The node is a pointer: it copies no address or profile.
 3. **A switch/overlay** on it: `add_switch` with `kind = "fixture"` and the row
-   id; blackout reaches it through `out.*`'s `forced` (`fixture.rs:849`).
+   id; blackout reaches it through `out.*`'s `forced` (`fixture.rs:978`).
 
 To aim a head **from the row's `sig_pan`/`sig_tilt`** (the hotel-fiesta rule),
 the node must be `drive = "patch"` (`PatchMode::Patch`, `wire.rs:1258`); with
@@ -263,7 +274,7 @@ Read this twice before doing it. **Everything above is reversible; this is not.*
 A new float is justified only when:
 
 - the thing is *not* a pixel and cannot be read out of the frame (that argument
-  is `SIGNAL_FLOATS`'s own rationale, `lib.rs:2005`);
+  is `SIGNAL_FLOATS`'s own rationale, `lib.rs:2008`);
 - no existing float can carry it without lying (see §2's table);
 - it is a property of **the room**, not of one model or one fixture — a profile
   reads it, it does not define it.
@@ -278,7 +289,7 @@ block sits *before* the effects block, and half the workspace locates the
 effects with `len() - EFFECTS_WIDTH` and the signal with
 `len() - EFFECTS_WIDTH - SIGNAL_WIDTH`. Inserting in the middle keeps every read
 in range and shows the wrong picture; that is the failure this whole list's doc
-comment warns about (`lib.rs:2019`).
+comment warns about (`lib.rs:2022`).
 
 ### 6.3 Make old rows migrate
 
@@ -321,23 +332,23 @@ These all move or need a decision the moment `SIGNAL_WIDTH` changes:
 
 | What | Where | What to do |
 | --- | --- | --- |
-| `read_signal` | `lib.rs:2290` | add the column at its index |
-| `Signal` struct | `lib.rs:2314` | add the field |
-| Every `Signal { .. }` literal on the render/wire path | `metal-perform/src/fixture.rs:476, 787, 896, 1067`; `metal-perform/src/wire.rs:2858`; `metal-dash/src/shell/panels/blackout.rs:238, 290`; `metal-perform/src/gdtf.rs:621`; and the test helpers beside them | add the field; prefer `SIGNAL_FLOATS[i].default` over a magic number |
+| `read_signal` | `lib.rs:2308` | add the column at its index |
+| `Signal` struct | `lib.rs:2332` | add the field |
+| Every `Signal { .. }` literal on the render/wire path | `metal-perform/src/fixture.rs:478, 874, 983, 1154, 1240, 1797`; `metal-perform/src/wire.rs:1423, 2879`; `metal-dash/src/call/blackout.rs:238, 290`; `metal-perform/src/gdtf.rs:621`; and the test helpers beside them | add the field; prefer `SIGNAL_FLOATS[i].default` over a magic number |
 | `Selector` enum + `read`/`*_range`/`name`/`parse` | `fixture.rs:35–128` | append the variant last (the enum is `Serialize`; a saved `"a"` must still round-trip) |
-| `selectors()` canonical order | `fixture.rs:588` | append so the fixture page's column order is stable |
-| `patch_owned()` | `fixture.rs:165` | only if the new float moves/shapes the beam |
-| `Colour`/`Patch` packing | `frame_mode` `fixture.rs:469` | decide what `held` holds for the new channel |
-| Bluetooth state | `light_state` `fixture.rs:548` | only if a lamp reads the float; `metal_ble::LightState` (`metal-ble/src/lib.rs:28`) may need a field and every `metal-ble` writer/test updated |
-| Frame path | `frame_signal` (`wire.rs:747`) → `colour_signal` (`fixture.rs:1063`) | give the new float an authored value, not a borrowed one |
-| Fallback | `fallback_signals` (`fixture.rs:769`) | keep the new float at its schema default (the comment there explains why the signature does not grow) |
-| Renderer tail read | `metal-render/src/model.rs:101` (`camera_track_offset`) uses `SIGNAL_WIDTH` | moves by itself, but re-run the render gate |
-| Timeline "eight floats" doc | `metal-dash/src/author/models/timeline.rs:71` | the prose lags; fix it if you are in there |
+| `selectors()` canonical order | `fixture.rs:590` | append so the fixture page's column order is stable |
+| `patch_owned()` | `fixture.rs:167` | only if the new float moves/shapes the beam |
+| `Colour`/`Patch` packing | `frame_mode` `fixture.rs:471` | decide what `held` holds for the new channel |
+| Bluetooth state | `light_state` `fixture.rs:550` | only if a lamp reads the float; `metal_ble::LightState` (`metal-ble/src/lib.rs:30`) may need a field and every `metal-ble` writer/test updated |
+| Frame path | `frame_signal` (`wire.rs:747`) → `colour_signal` (`fixture.rs:1150`) | give the new float an authored value, not a borrowed one |
+| Fallback | `fallback_signals` (`fixture.rs:856`) | keep the new float at its schema default (the comment there explains why the signature does not grow) |
+| Renderer tail read | `metal-render/src/model.rs:100` (`camera_track_offset`) uses `SIGNAL_WIDTH` | moves by itself, but re-run the render gate |
+| Timeline "eight floats" doc | `metal-dash/src/author/models/timeline.rs:1488` | the prose lags; fix it if you are in there |
 | `data/schema.json` | — | **no change** from a signal append; the block is shared, not per-model |
 | Golden frames | `metal-perform/src/engine.rs` `GOLDEN` | the signal block sits before the effects, so a widening re-composes `empty-1`; re-freeze with `FW_PRINT_GOLDEN=1` and say so in the commit (precedent: BLE Phase B there) |
 
 Also check any consumer that hard-codes a column instead of a name. The known
-ones read names: `metal-graph/src/params.rs:536` filters the shared block by
+ones read names: `metal-graph/src/params.rs:540` filters the shared block by
 name, `metal-perform/tests/templates.rs:34` builds its shared set from
 `SIGNAL_FLOATS`, and `param_aliases.rs` carries no `sig_*` entry (verify rather
 than assume). Everything else that is index-based should become name-based the

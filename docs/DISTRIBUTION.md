@@ -111,13 +111,13 @@ The updater checks sha256 before running anything. To do it by hand:
 PowerShell:
 
 ```powershell
-Get-FileHash .\MetalVJ-0.1.0-windows-x86_64.exe -Algorithm SHA256
+Get-FileHash .\MetalVJ-0.0.1-windows-x86_64.exe -Algorithm SHA256
 ```
 
 Linux / macOS:
 
 ```bash
-sha256sum MetalVJ-0.1.0-linux-x86_64.AppImage
+sha256sum MetalVJ-0.0.1-linux-x86_64.AppImage
 ```
 
 Compare against the `SHA256` line in the build log for that release (CI prints

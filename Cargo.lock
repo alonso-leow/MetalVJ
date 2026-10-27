@@ -3964,7 +3964,7 @@ dependencies = [
 
 [[package]]
 name = "metal-agent"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-config",
  "metal-forge",
@@ -3981,7 +3981,7 @@ dependencies = [
 
 [[package]]
 name = "metal-ble"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "aes",
  "btleplug",
@@ -4002,7 +4002,7 @@ dependencies = [
 
 [[package]]
 name = "metal-config"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-schema",
  "metal-vfs",
@@ -4014,7 +4014,7 @@ dependencies = [
 
 [[package]]
 name = "metal-dash"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "clap",
@@ -4072,7 +4072,7 @@ dependencies = [
 
 [[package]]
 name = "metal-face"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "glam",
  "serde",
@@ -4081,7 +4081,7 @@ dependencies = [
 
 [[package]]
 name = "metal-forge"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "bytemuck",
  "metal-schema",
@@ -4094,7 +4094,7 @@ dependencies = [
 
 [[package]]
 name = "metal-geom"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "glam",
  "gltf",
@@ -4105,7 +4105,7 @@ dependencies = [
 
 [[package]]
 name = "metal-graph"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-schema",
  "metal-vfs",
@@ -4116,7 +4116,7 @@ dependencies = [
 
 [[package]]
 name = "metal-ingest"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "clap",
  "metal-rig",
@@ -4131,7 +4131,7 @@ dependencies = [
 
 [[package]]
 name = "metal-listen"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "cpal",
  "libc",
@@ -4148,7 +4148,7 @@ dependencies = [
 
 [[package]]
 name = "metal-logic"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-schema",
  "web-time",
@@ -4156,7 +4156,7 @@ dependencies = [
 
 [[package]]
 name = "metal-mcp"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-agent",
  "serde_json",
@@ -4164,7 +4164,7 @@ dependencies = [
 
 [[package]]
 name = "metal-ml"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "ort",
  "serde",
@@ -4176,14 +4176,14 @@ dependencies = [
 
 [[package]]
 name = "metal-notation"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-rig",
 ]
 
 [[package]]
 name = "metal-perform"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "cosmic-text",
  "flate2",
@@ -4217,7 +4217,7 @@ dependencies = [
 
 [[package]]
 name = "metal-reel"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "jpeg-encoder",
  "metal-ingest",
@@ -4234,7 +4234,7 @@ dependencies = [
 
 [[package]]
 name = "metal-render"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "bytemuck",
  "egui",
@@ -4262,7 +4262,7 @@ dependencies = [
 
 [[package]]
 name = "metal-rig"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "glam",
  "metal-logic",
@@ -4274,7 +4274,7 @@ dependencies = [
 
 [[package]]
 name = "metal-router"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-schema",
  "metal-vfs",
@@ -4284,7 +4284,7 @@ dependencies = [
 
 [[package]]
 name = "metal-schema"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-face",
  "metal-vfs",
@@ -4294,7 +4294,7 @@ dependencies = [
 
 [[package]]
 name = "metal-sense"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-config",
  "ort",
@@ -4304,7 +4304,7 @@ dependencies = [
 
 [[package]]
 name = "metal-shot"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-vfs",
  "serde",
@@ -4314,7 +4314,7 @@ dependencies = [
 
 [[package]]
 name = "metal-sync"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "blake3",
@@ -4341,7 +4341,7 @@ dependencies = [
 
 [[package]]
 name = "metal-update"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "metal-config",
  "metal-vfs",
@@ -4356,14 +4356,14 @@ dependencies = [
 
 [[package]]
 name = "metal-vfs"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "web-time",
 ]
 
 [[package]]
 name = "metal-videoio"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "libc",
  "libloading 0.8.9",
@@ -4373,7 +4373,7 @@ dependencies = [
 
 [[package]]
 name = "metal-web"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "serde_json",
 ]

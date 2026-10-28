@@ -3054,7 +3054,7 @@ fn page_bar(
 fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState) {
     let small = |t: String| RichText::new(t).font(theme.font_small.clone());
     let current = state.layout.device.as_deref().and_then(metal_midi::devices::device);
-    let label = current.as_ref().map_or_else(|| tr("free grid").to_string(), |d| d.name.to_string());
+    let label = current.as_ref().map_or_else(|| tr("free grid").to_string(), |d| tr_dyn(d.name).to_string());
     let ports = crate::input::midi_ports();
     let (response, _) = plain_menu(ui, theme, RichText::new(format!("{label} ▾")), |ui| {
         if ui.selectable_label(current.is_none(), small(tr("free grid").into())).clicked() {
@@ -3063,11 +3063,19 @@ fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
             save_layout(door, state);
             ui.close();
         }
+        let mut maker = "";
         for d in metal_midi::devices::catalogue() {
+            // A heading per maker, the generic layouts last.
+            if d.maker != maker {
+                maker = d.maker;
+                ui.separator();
+                ui.label(RichText::new(tr_dyn(maker)).font(theme.font_small.clone()).color(theme.ink_weak));
+            }
+            let shown = tr_dyn(d.name).to_string();
             let name = if ports.iter().any(|p| d.is_port(p)) {
-                trf("{name} · connected", &[("name", &d.name)])
+                trf("{name} · connected", &[("name", &shown)])
             } else {
-                d.name.to_string()
+                shown
             };
             let picked = state.layout.device.as_deref() == Some(d.id);
             if ui.selectable_label(picked, small(name)).on_hover_text(tr_dyn(d.note)).clicked() {
@@ -3420,10 +3428,10 @@ fn run_outs(
                 }
             }
             Out::Octave(step) => {
-                let top = 127 - (crate::surface::PIANO_KEYS as i32 - 1);
                 for role in state.layout.roles.values_mut() {
-                    if let crate::surface::Role::Piano { base } = role {
-                        *base = (*base as i32 + 12 * step).clamp(0, top) as u8;
+                    if let crate::surface::Role::Piano { base, keys } = role {
+                        let top = 127 - (*keys as i32 - 1);
+                        *base = (*base as i32 + 12 * step).clamp(0, top.max(0)) as u8;
                         state.grid_note = Some(trf("piano from {note}", &[("note", &metal_midi::note_name(*base))]));
                         save = true;
                     }
@@ -3698,11 +3706,11 @@ fn paint_cell(
     let editing = state.grid_edit && !cell.is_fixed();
     let response = match &cell.kind {
         CellKind::Controller { key } => paint_controller_cell(ui, theme, door, state, key, rect),
-        CellKind::Role { role: Role::Piano { base } } => {
+        CellKind::Role { role: Role::Piano { base, keys } } => {
             let lit = |n: u8| state.surface.notes.contains(&n);
             let mut held = state.piano_held.get(&cell.key).copied().flatten();
             let id = Id::new(("shell/region/lanes/piano", &cell.key));
-            let (response, edges) = super::pads::piano(ui, theme, id, rect, *base, &lit, &mut held);
+            let (response, edges) = super::pads::piano(ui, theme, id, rect, *base, *keys, &lit, &mut held);
             state.piano_held.insert(cell.key.clone(), held);
             for e in edges {
                 let (n, edge) = match e {
@@ -3715,7 +3723,8 @@ fn paint_cell(
         }
         CellKind::Role { role } if role.is_dial() => {
             let (value, frac) = dial_face(state, &cell.key, role);
-            let lit = hw_pressed(state, &cell.key);
+            // A knob turned past half is not a knob pressed.
+            let lit = false;
             let mut acc = state.dial_acc.get(&cell.key).copied().unwrap_or(0.0);
             let id = Id::new(("shell/region/lanes/dial", &cell.key));
             let (response, steps) = super::pads::dial(ui, theme, id, rect, &cell.label, &value, frac, lit, &mut acc);
@@ -4562,24 +4571,24 @@ fn cell_editor_popup(
                         }
                     });
                 }
-                Some(Role::Piano { base }) => {
+                Some(Role::Piano { base, keys }) => {
                     ui.separator();
                     ui.horizontal(|ui| {
                         ui.label(small(tr("octave").into()));
                         if ui.add_enabled(*base >= 12, egui::Button::new(small("−".into()))).clicked() {
-                            state.layout.roles.insert(key.clone(), Role::Piano { base: base - 12 });
+                            state.layout.roles.insert(key.clone(), Role::Piano { base: base - 12, keys: *keys });
                             changed = true;
                         }
                         ui.label(small(format!(
                             "{}–{}",
                             metal_midi::note_name(*base),
-                            metal_midi::note_name(base.saturating_add(crate::surface::PIANO_KEYS - 1))
+                            metal_midi::note_name(base.saturating_add(keys.saturating_sub(1)))
                         )));
                         if ui
-                            .add_enabled(*base <= 127 - crate::surface::PIANO_KEYS - 11, egui::Button::new(small("+".into())))
+                            .add_enabled((*base as i32) + (*keys as i32) + 11 <= 127, egui::Button::new(small("+".into())))
                             .clicked()
                         {
-                            state.layout.roles.insert(key.clone(), Role::Piano { base: base + 12 });
+                            state.layout.roles.insert(key.clone(), Role::Piano { base: base + 12, keys: *keys });
                             changed = true;
                         }
                     });

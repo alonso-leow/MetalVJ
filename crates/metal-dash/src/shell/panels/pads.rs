@@ -9,7 +9,7 @@
 use egui::{Align2, Id, Pos2, Rect, Response, Sense, Ui};
 
 use crate::shell::classes::Theme;
-use crate::surface::{LibraryIntent, PIANO_KEYS};
+use crate::surface::LibraryIntent;
 
 /// What the pointer did on a piano this frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,14 +18,14 @@ pub enum KeyEdge {
     Release(u8),
 }
 
-/// Which note sits under `p` on a piano of `PIANO_KEYS` keys from `base`
-/// painted in `rect`: black keys (the upper part) win over the white ones
-/// beneath them.
-pub fn note_at(rect: Rect, base: u8, black_depth: f32, p: Pos2) -> Option<u8> {
+/// Which note sits under `p` on a piano of `keys` keys from `base` painted
+/// in `rect`: black keys (the upper part) win over the white ones beneath
+/// them.
+pub fn note_at(rect: Rect, base: u8, keys: u8, black_depth: f32, p: Pos2) -> Option<u8> {
     if !rect.contains(p) {
         return None;
     }
-    let notes: Vec<u8> = (0..PIANO_KEYS).map(|i| base.saturating_add(i)).collect();
+    let notes: Vec<u8> = (0..keys).map(|i| base.saturating_add(i)).collect();
     let whites: Vec<u8> = notes.iter().copied().filter(|n| !metal_midi::is_black(*n)).collect();
     let key_w = rect.width() / whites.len().max(1) as f32;
     if p.y <= rect.top() + rect.height() * black_depth {
@@ -50,7 +50,7 @@ fn black_rect(rect: Rect, whites: &[u8], n: u8, key_w: f32, depth: f32) -> Optio
     ))
 }
 
-/// Paints a piano in `rect` — lit keys in phosphor, `C` keys named — and
+/// Paints a piano of `keys` keys in `rect` — lit keys in phosphor, `C` keys named — and
 /// answers the press/release the pointer made on it (`held` is the note the
 /// pointer is down on, kept by the caller between frames).
 pub fn piano(
@@ -59,13 +59,14 @@ pub fn piano(
     id: Id,
     rect: Rect,
     base: u8,
+    keys: u8,
     lit: &dyn Fn(u8) -> bool,
     held: &mut Option<u8>,
 ) -> (Response, Vec<KeyEdge>) {
     let response = ui.interact(rect, id, Sense::click_and_drag());
     let painter = ui.painter_at(rect);
     let depth = theme.piano_black_depth;
-    let notes: Vec<u8> = (0..PIANO_KEYS).map(|i| base.saturating_add(i)).collect();
+    let notes: Vec<u8> = (0..keys).map(|i| base.saturating_add(i)).collect();
     let whites: Vec<u8> = notes.iter().copied().filter(|n| !metal_midi::is_black(*n)).collect();
     let key_w = rect.width() / whites.len().max(1) as f32;
     for (i, &n) in whites.iter().enumerate() {
@@ -95,7 +96,7 @@ pub fn piano(
     let mut edges = Vec::new();
     let pointer = ui.input(|i| i.pointer.interact_pos());
     let down = response.is_pointer_button_down_on();
-    let under = pointer.and_then(|p| note_at(rect, base, depth, p));
+    let under = pointer.and_then(|p| note_at(rect, base, keys, depth, p));
     let now = if down { under } else { None };
     if now != *held {
         if let Some(n) = held.take() {
@@ -232,11 +233,11 @@ mod tests {
     #[test]
     fn white_keys_split_the_width_and_black_keys_sit_on_top() {
         let r = rect();
-        assert_eq!(note_at(r, 48, 0.6, Pos2::new(5.0, 90.0)), Some(48), "the first white is C");
-        assert_eq!(note_at(r, 48, 0.6, Pos2::new(15.0, 90.0)), Some(50), "the second white is D");
-        assert_eq!(note_at(r, 48, 0.6, Pos2::new(10.0, 20.0)), Some(49), "C# straddles C|D");
-        assert_eq!(note_at(r, 48, 0.6, Pos2::new(145.0, 90.0)), Some(72), "the 25th key is the top C");
-        assert_eq!(note_at(r, 48, 0.6, Pos2::new(29.0, 20.0)), Some(52), "no black key between E and F");
-        assert_eq!(note_at(r, 48, 0.6, Pos2::new(200.0, 20.0)), None);
+        assert_eq!(note_at(r, 48, 25, 0.6, Pos2::new(5.0, 90.0)), Some(48), "the first white is C");
+        assert_eq!(note_at(r, 48, 25, 0.6, Pos2::new(15.0, 90.0)), Some(50), "the second white is D");
+        assert_eq!(note_at(r, 48, 25, 0.6, Pos2::new(10.0, 20.0)), Some(49), "C# straddles C|D");
+        assert_eq!(note_at(r, 48, 25, 0.6, Pos2::new(145.0, 90.0)), Some(72), "the 25th key is the top C");
+        assert_eq!(note_at(r, 48, 25, 0.6, Pos2::new(29.0, 20.0)), Some(52), "no black key between E and F");
+        assert_eq!(note_at(r, 48, 25, 0.6, Pos2::new(200.0, 20.0)), None);
     }
 }

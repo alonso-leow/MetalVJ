@@ -63,3 +63,18 @@
 "Factory CC mode (not a DAW mode): hold SET MARKER + CYCLE while plugging in to return to it." = "Modo CC de fábrica (no un modo DAW): mantén SET MARKER + CYCLE al conectarlo para volver a él."
 "Factory Note mode, channel 1." = "Modo Note de fábrica, canal 1."
 "Programmer mode: hold Session, press the orange pad, release Session." = "Modo Programmer: mantén Session, pulsa el pad naranja, suelta Session."
+
+# 2026-10-28: the controller list's makers and generic layouts (`metal_midi::devices`).
+"Generic" = "Genérico"
+"8 faders" = "8 faders"
+"8 knobs + 8 faders" = "8 perillas + 8 faders"
+"16 pads (4×4)" = "16 pads (4×4)"
+"16 pads + 8 knobs" = "16 pads + 8 perillas"
+"8×8 pad grid" = "cuadrícula de pads 8×8"
+"25 keys + 8 pads + 8 knobs" = "25 teclas + 8 pads + 8 perillas"
+"49 keys + 9 faders + 8 knobs" = "49 teclas + 9 faders + 8 perillas"
+"61 keys + 8 knobs" = "61 teclas + 8 perillas"
+"Factory template 1 (the box's default)." = "Plantilla de fábrica 1 (la predeterminada)."
+"Program 1, pad bank A. Its buttons act inside the keyboard and send no MIDI: they work from the screen." = "Programa 1, banco de pads A. Sus botones actúan dentro del teclado y no envían MIDI: funcionan desde la pantalla."
+"The box's default mapping (Mute mode)." = "El mapeo predeterminado (modo Mute)."
+"A common layout: set your controller to these numbers (knobs CC 21–28, faders CC 41–48, pads notes from 36, ◀ ▶ CC 102/103, play CC 115, record CC 117), or learn each control." = "Una disposición común: configura tu controlador con estos números (perillas CC 21–28, faders CC 41–48, pads notas desde 36, ◀ ▶ CC 102/103, reproducir CC 115, grabar CC 117), o aprende cada control."

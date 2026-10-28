@@ -109,11 +109,14 @@ pub enum Role {
     },
     /// Steps the page, one per step.
     FnDial,
-    /// 25 keys from `base` (MIDI note number) — each key is the same input a
-    /// hardware key of that note is, so it fires what that note is bound to.
+    /// `keys` keys (25 unless a box has more) from `base` (MIDI note number)
+    /// — each key is the same input a hardware key of that note is, so it
+    /// fires what that note is bound to.
     Piano {
         #[serde(default = "default_piano_base")]
         base: u8,
+        #[serde(default = "default_piano_keys", skip_serializing_if = "is_default_keys")]
+        keys: u8,
     },
     /// Steps the page by `step` (`-1` back, `1` on) per press.
     Page { step: i32 },
@@ -132,14 +135,22 @@ fn default_piano_base() -> u8 {
     48
 }
 
-/// How many keys a [`Role::Piano`] has.
+fn default_piano_keys() -> u8 {
+    PIANO_KEYS
+}
+
+fn is_default_keys(k: &u8) -> bool {
+    *k == PIANO_KEYS
+}
+
+/// How many keys a [`Role::Piano`] has unless a box says otherwise.
 pub const PIANO_KEYS: u8 = 25;
 
 impl Role {
     /// Every kind the `+` menu offers, in its order.
     pub fn catalogue() -> Vec<Role> {
         vec![
-            Role::Piano { base: default_piano_base() },
+            Role::Piano { base: default_piano_base(), keys: PIANO_KEYS },
             Role::Rec,
             Role::DropRec,
             Role::SpeedDial,
@@ -527,7 +538,7 @@ impl Layout {
             let slot = |kind| Slot { rect: c.rect, kind, input: c.input.clone(), label: c.label.clone() };
             let role = match (c.part, c.role.as_deref()) {
                 (Part::Logo, _) => continue,
-                (Part::Keys { base, .. }, _) => Role::Piano { base },
+                (Part::Keys { base, count }, _) => Role::Piano { base, keys: count.clamp(1, 88) },
                 (_, Some(hint)) => match Role::from_hint(hint, &c.label) {
                     Some(r) => r,
                     None => continue,
@@ -1153,7 +1164,7 @@ mod tests {
     fn the_layout_round_trips_and_bad_dims_are_refused() {
         let mut l = Layout::default();
         l.roles.insert("fn-1".into(), Role::Fn { page: Some(1) });
-        l.roles.insert("piano-1".into(), Role::Piano { base: 48 });
+        l.roles.insert("piano-1".into(), Role::Piano { base: 48, keys: PIANO_KEYS });
         let v = l.to_value();
         assert_eq!(v["roles"]["fn-1"], serde_json::json!({ "kind": "fn", "page": 1 }));
         assert_eq!(Layout::from_value(&v), l);
@@ -1274,7 +1285,7 @@ mod tests {
         l.apply_device(&flkey);
         assert_eq!((l.cols, l.rows, l.device.as_deref()), (13, 5, Some("flkey-mini")));
         assert_eq!(l.roles.get("hw:record"), Some(&Role::Rec));
-        assert_eq!(l.roles.get("hw:keys"), Some(&Role::Piano { base: 48 }));
+        assert_eq!(l.roles.get("hw:keys"), Some(&Role::Piano { base: 48, keys: 25 }));
         assert_eq!(l.roles.get("hw:octave-up"), Some(&Role::Octave { step: 1 }));
         assert_eq!(l.places.get("hw:octave-down"), Some(&[6, 15, 6, 3]));
         assert_eq!(l.bound("cc:117@1", 3).unwrap().cell, "hw:record");

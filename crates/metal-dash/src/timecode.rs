@@ -28,6 +28,8 @@ use serde_json::{json, Value};
 use metal_perform::timecode::{
     Chase, Fps, LtcDecoder, LtcGen, MtcAssembler, Timecode, TimecodeConfig, TimecodeMode, TIMECODE_KIND,
 };
+#[cfg(feature = "midi")]
+use metal_perform::timecode::MtcGen;
 
 use crate::call::{CallError, Ctx, Params};
 

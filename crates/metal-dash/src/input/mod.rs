@@ -31,6 +31,80 @@ pub fn learn() -> &'static Mutex<Option<LearnArm>> {
     &ARM
 }
 
+/// One message a controller sent, as the control surface reads it: the port
+/// it came in on, the channel-free control id (`note:60`, `cc:21`) and what
+/// it did.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SurfaceEvent {
+    pub port: String,
+    pub input: String,
+    pub edge: metal_midi::Edge,
+}
+
+/// The most events kept while nothing drains them (the grid not painted): a
+/// knob swept for minutes must not grow the queue without limit.
+const SURFACE_QUEUE: usize = 512;
+
+fn surface_queue() -> &'static Mutex<std::collections::VecDeque<SurfaceEvent>> {
+    static Q: LazyLock<Mutex<std::collections::VecDeque<SurfaceEvent>>> = LazyLock::new(Default::default);
+    &Q
+}
+
+type Waker = Box<dyn Fn() + Send + Sync>;
+
+fn waker() -> &'static Mutex<Option<Waker>> {
+    static W: LazyLock<Mutex<Option<Waker>>> = LazyLock::new(|| Mutex::new(None));
+    &W
+}
+
+/// Queues one event for the surface and wakes the window, so a key pressed on
+/// an idle app paints at once.
+pub fn push_surface(event: SurfaceEvent) {
+    if let Ok(mut q) = surface_queue().lock() {
+        if q.len() >= SURFACE_QUEUE {
+            q.pop_front();
+        }
+        q.push_back(event);
+    }
+    if let Some(wake) = waker().lock().ok().as_ref().and_then(|w| w.as_ref()) {
+        wake();
+    }
+}
+
+/// Everything queued since the last call, oldest first.
+pub fn drain_surface() -> Vec<SurfaceEvent> {
+    surface_queue().lock().map(|mut q| q.drain(..).collect()).unwrap_or_default()
+}
+
+/// How the window asks to be repainted; the shell sets it once.
+pub fn set_surface_waker(wake: impl Fn() + Send + Sync + 'static) {
+    if let Ok(mut w) = waker().lock() {
+        *w = Some(Box::new(wake));
+    }
+}
+
+fn ports_list() -> &'static Mutex<Vec<String>> {
+    static P: LazyLock<Mutex<Vec<String>>> = LazyLock::new(Default::default);
+    &P
+}
+
+/// The MIDI ports the reader has open (empty without the `midi` feature).
+pub fn midi_ports() -> Vec<String> {
+    ports_list().lock().map(|p| p.clone()).unwrap_or_default()
+}
+
+/// `true` when this build can read MIDI at all.
+pub fn midi_built() -> bool {
+    cfg!(feature = "midi")
+}
+
+#[cfg_attr(not(feature = "midi"), allow(dead_code))]
+fn set_midi_ports(names: Vec<String>) {
+    if let Ok(mut p) = ports_list().lock() {
+        *p = names;
+    }
+}
+
 /// Minimal loopback HTTP/1.1 `POST` of a JSON body to
 /// `127.0.0.1:<port>/trigger/<id>`.
 ///
@@ -114,19 +188,6 @@ pub mod osc;
 /// thread itself is what [`midi::run`] does.
 #[cfg(feature = "midi")]
 pub mod midi;
-
-/// Spawns the MIDI reader thread. Same shape as [`spawn_osc_reader`]: a
-/// sequencer that cannot open or no matching port logs and leaves the rest of
-/// the app running — the reader is a convenience, not a precondition.
-#[cfg(feature = "midi")]
-pub fn spawn_midi_reader(
-    shared: Arc<Mutex<crate::Shared>>,
-    host: String,
-    http_port: u16,
-    port_filter: Option<String>,
-) {
-    midi::spawn(shared, host, http_port, port_filter);
-}
 
 /// The pure half of the OSC reader: given a heard address and the app's
 /// current state, whose triggers should it fire?

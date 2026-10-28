@@ -57,6 +57,7 @@ use serde_json::{json, Value};
 use crate::call::{Call, Params};
 
 use crate::shell::classes::Theme;
+use crate::surface::LibraryIntent;
 use crate::shell::components::{
     icon_toggle, paint_icon, paint_icon_stroked, panel_frame, header_edit, panel_head, search_field, section_heading, segmented,
     Icon,
@@ -153,6 +154,17 @@ pub struct PanelState {
     /// `(clip key, the input time that clip began)` — a video seeks from its
     /// span's start off this clock; a new pick resets it.
     preview_clock: Option<(String, f64)>,
+
+    /// The control surface's search dial (2026-10-28): `true` while it walks
+    /// the folders column, `false` the files. Steps and a `load` wait here
+    /// until the column they belong to paints.
+    dial_folders: bool,
+    dial_step: i32,
+    dial_load: bool,
+    /// The folder the dial rests on (`..` is the parent).
+    dial_dir: Option<String>,
+    /// The dial just moved: the row it rests on scrolls into view.
+    dial_scroll: bool,
 }
 
 impl Default for PanelState {
@@ -184,6 +196,11 @@ impl Default for PanelState {
             sequence_open: false,
             preview: crate::shell::preview::FloatingPreview::default(),
             preview_clock: None,
+            dial_folders: false,
+            dial_step: 0,
+            dial_load: false,
+            dial_dir: None,
+            dial_scroll: false,
         }
     }
 }
@@ -316,6 +333,16 @@ pub fn paint(
     focused: bool,
 ) -> Response {
     let _span = crate::perf::Span::new("library");
+    for intent in super::pads::take_library_intents(ui.ctx()) {
+        match intent {
+            LibraryIntent::Step(n) => state.dial_step += n,
+            LibraryIntent::ToggleFolders => {
+                state.dial_folders = !state.dial_folders;
+                state.dial_step = 0;
+            }
+            LibraryIntent::Load => state.dial_load = true,
+        }
+    }
     ui.push_id(Id::new(super::Region::Library.id()), |ui| {
         // One outline, chosen once: the panel's own hairline rule at rest, the
         // accent when this region has the focus. `panel_frame` bakes its rule
@@ -563,6 +590,44 @@ fn dirs_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
         .iter()
         .filter(|n| open_name.as_deref() != Some(n.as_str()))
         .collect();
+    // The search dial, while it walks folders: `..` then the rows in the
+    // order they paint; `load` walks into the one it rests on.
+    if state.dial_folders {
+        let mut entries: Vec<String> = Vec::new();
+        if state.cwd.parent().is_some() {
+            entries.push("..".to_string());
+        }
+        entries.extend(in_use.iter().chain(&others).map(|n| n.to_string()));
+        if let Some(to) = dial_move(&entries, state.dial_dir.as_deref(), std::mem::take(&mut state.dial_step)) {
+            state.dial_dir = Some(to);
+            state.dial_scroll = true;
+        }
+        if std::mem::take(&mut state.dial_load) {
+            match state.dial_dir.take().as_deref() {
+                Some("..") => {
+                    if let Some(up) = state.cwd.parent().map(|p| p.to_path_buf()) {
+                        state.cwd = up;
+                    }
+                }
+                Some(name) => state.cwd = state.cwd.join(name),
+                None => {}
+            }
+            state.fs = None;
+            state.files_note = None;
+        }
+        if state.cwd.parent().is_some() {
+            let dialled = state.dial_dir.as_deref() == Some("..");
+            let (response, rect) = file_like_row(ui, theme, Icon::ArrowUp, "..", None, false, None);
+            dial_mark(ui, theme, state, &response, rect, dialled);
+            if response.clicked() {
+                if let Some(up) = state.cwd.parent().map(|p| p.to_path_buf()) {
+                    state.cwd = up;
+                    state.fs = None;
+                    state.files_note = None;
+                }
+            }
+        }
+    }
     if !in_use.is_empty() {
         section_heading(ui, theme, "in use");
         for name in &in_use {
@@ -645,6 +710,8 @@ fn dir_row(
     let tag = row_tag(door, &path);
     let (response, rect) =
         file_like_row(ui, theme, Icon::Folder, name, subtitle.as_deref(), false, tag);
+    let dialled = state.dial_folders && state.dial_dir.as_deref() == Some(name);
+    dial_mark(ui, theme, state, &response, rect, dialled);
     // A folder drags too: dropped on the canvas it becomes a `reel.batch`
     // over what it holds.
     response.dnd_set_drag_payload(crate::shell::panels::FileDrag {
@@ -1150,6 +1217,42 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
         );
     }
 
+    // The search dial, while it walks files: it moves the pick (the same one a
+    // click makes), and `load` hands the pick to the overlays grid.
+    if !state.dial_folders {
+        let entries: Vec<String> = shown
+            .iter()
+            .map(|f| state.cwd.join(f["file"].as_str().unwrap_or_default()).to_string_lossy().to_string())
+            .collect();
+        if let Some(to) = dial_move(&entries, state.selected_path.as_deref(), std::mem::take(&mut state.dial_step)) {
+            if let Some(f) = shown.iter().find(|f| state.cwd.join(f["file"].as_str().unwrap_or_default()).to_string_lossy() == to) {
+                let name = f["file"].as_str().unwrap_or_default().to_string();
+                let kind = f["kind"].as_str().unwrap_or("other").to_string();
+                state.picked_file = Some(crate::shell::panels::FileRef { name, path: to.clone(), kind });
+            }
+            state.selected_path = Some(to);
+            state.dial_scroll = true;
+        }
+        if std::mem::take(&mut state.dial_load) {
+            let picked = state.selected_path.clone();
+            if let Some(f) = shown.iter().find(|f| {
+                Some(state.cwd.join(f["file"].as_str().unwrap_or_default()).to_string_lossy().to_string()) == picked
+            }) {
+                let name = f["file"].as_str().unwrap_or_default().to_string();
+                super::pads::set_loaded(
+                    ui.ctx(),
+                    crate::shell::panels::FileDrag {
+                        path: state.cwd.join(&name).to_string_lossy().to_string(),
+                        name,
+                        kind: f["kind"].as_str().unwrap_or("other").to_string(),
+                        seconds: f["seconds"].as_f64(),
+                        scene: None,
+                    },
+                );
+            }
+        }
+    }
+
     // The files: one [`file_card`] row each, in a single list (2026-10-10:
     // the grid view is gone).
     ui.scope(|ui| {
@@ -1259,6 +1362,9 @@ fn file_card(
     drag_ghost_row(ui, theme, &response, rect, icon, file, status.as_deref(), tag);
     let open = song.is_some_and(|s| s["open"].as_bool() == Some(true));
     let picked = state.selected_path.as_deref() == Some(path.as_str());
+    if picked && !state.dial_folders && std::mem::take(&mut state.dial_scroll) {
+        response.scroll_to_me(None);
+    }
     if response.clicked() {
         state.selected_path = Some(path.clone());
         state.picked_file = Some(crate::shell::panels::FileRef {
@@ -1487,6 +1593,30 @@ fn train_curator(door: &dyn Call, library: &str) -> String {
 // (no JSON body), POST with a raw byte body plus a query
 // ---------------------------------------------------------------------------
 
+/// Where the search dial lands: `steps` entries on from `at` (a dial with no
+/// resting place starts before the first), clamped to the list. `None` when
+/// it did not move.
+fn dial_move(entries: &[String], at: Option<&str>, steps: i32) -> Option<String> {
+    if steps == 0 || entries.is_empty() {
+        return None;
+    }
+    let from = at.and_then(|a| entries.iter().position(|e| e == a)).map_or(-1, |i| i as i64);
+    let to = if from < 0 && steps > 0 { steps as i64 - 1 } else { from + steps as i64 };
+    entries.get(to.clamp(0, entries.len() as i64 - 1) as usize).cloned()
+}
+
+/// The search dial's outline on the folder it rests on, scrolled into view
+/// the frame it moved there.
+fn dial_mark(ui: &Ui, theme: &Theme, state: &mut PanelState, response: &Response, rect: Rect, dialled: bool) {
+    if !dialled {
+        return;
+    }
+    ui.painter().rect_stroke(rect, theme.library_card_corner(), theme.card_picked_stroke(), egui::StrokeKind::Inside);
+    if std::mem::take(&mut state.dial_scroll) {
+        response.scroll_to_me(None);
+    }
+}
+
 fn get(door: &dyn Call, method: &str, path: &str, query: &[(&str, String)]) -> Option<Value> {
     let mut q = HashMap::new();
     for (k, v) in query {
@@ -1534,6 +1664,21 @@ fn post_bytes(
 
 #[cfg(test)]
 mod tests {
+
+    /// The search dial walks a list: a dial with no resting place starts at
+    /// the first entry, then moves by its steps, clamped at both ends.
+    #[test]
+    fn the_search_dial_steps_through_the_list_and_stops_at_its_ends() {
+        let e: Vec<String> = ["a", "b", "c"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(super::dial_move(&e, None, 1).as_deref(), Some("a"));
+        assert_eq!(super::dial_move(&e, Some("a"), 1).as_deref(), Some("b"));
+        assert_eq!(super::dial_move(&e, Some("b"), 5).as_deref(), Some("c"));
+        assert_eq!(super::dial_move(&e, Some("b"), -9).as_deref(), Some("a"));
+        assert_eq!(super::dial_move(&e, Some("gone"), -1).as_deref(), Some("a"));
+        assert_eq!(super::dial_move(&e, Some("a"), 0), None);
+        assert_eq!(super::dial_move(&[], None, 1), None);
+    }
+
     use super::*;
     use crate::shell::FakeDoor;
     use crate::shell::Shell;

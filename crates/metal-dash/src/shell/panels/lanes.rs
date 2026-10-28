@@ -198,10 +198,38 @@ pub struct PanelState {
     /// (or mask) a dropped video should be triggered on. `None` when the
     /// popover is closed.
     pub(crate) new_video: Option<NewVideo>,
-    /// Each button's size, `(w, h)` in cells, keyed as [`Cell::key`]. Read
-    /// once from `GET /settings` and replaced by each `POST`'s reply; a key
-    /// with no entry is 1×1.
-    pub(crate) grid_spans: BTreeMap<String, (u8, u8)>,
+    /// Each button's size, `(w, h)` in cells (one of `surface::SPANS`),
+    /// keyed as [`Cell::key`]. Read once from `GET /settings` and replaced by
+    /// each `POST`'s reply; a key with no entry is 1×1.
+    pub(crate) grid_spans: BTreeMap<String, (f32, f32)>,
+    /// The control surface's stored half (`grid_surface`): fixed cols × rows,
+    /// order, pages, control cells, MIDI bindings, recorded loops.
+    pub(crate) layout: crate::surface::Layout,
+    /// Its live half: held, frozen, recording, playing.
+    pub(crate) surface: crate::surface::Surface,
+    /// What this frame's gestures asked the grid to do, run once the cells
+    /// are painted.
+    grid_outs: Vec<crate::surface::Out>,
+    /// Piano keys pressed with the pointer, fed through the same path a
+    /// hardware key takes.
+    pad_inputs: Vec<(String, metal_midi::Edge)>,
+    /// The grid's edit mode: a click selects a cell instead of firing it.
+    pub(crate) grid_edit: bool,
+    /// The cell the edit mode selected.
+    pub(crate) grid_selected: Option<String>,
+    /// A cell waiting for the next MIDI control (or piano key) to bind.
+    pub(crate) grid_learn: Option<String>,
+    /// The last thing the surface wants the operator to read.
+    grid_note: Option<String>,
+    /// A dial's part-step, by cell key, between frames.
+    dial_acc: HashMap<String, f32>,
+    /// The note each piano cell's pointer is down on.
+    piano_held: HashMap<String, Option<u8>>,
+    /// CC-mode pads above half, by input id: a CC pad's level becomes edges.
+    cc_down: BTreeSet<String>,
+    /// A fader moved by MIDI waits this long without moving before its
+    /// value is saved.
+    controllers_dirty: Option<f64>,
     /// The saved node controllers, read once from `GET /settings`'s
     /// `grid_controllers` (rule 5, the same trade `grid_spans` makes) and
     /// replaced by each `POST`'s reply. Keyed by an arbitrary string; each
@@ -326,6 +354,18 @@ impl Default for PanelState {
             sequence_dropped: None,
             new_video: None,
             grid_spans: BTreeMap::new(),
+            layout: crate::surface::Layout::default(),
+            surface: crate::surface::Surface::default(),
+            grid_outs: Vec::new(),
+            pad_inputs: Vec::new(),
+            grid_edit: false,
+            grid_selected: None,
+            grid_learn: None,
+            grid_note: None,
+            dial_acc: HashMap::new(),
+            piano_held: HashMap::new(),
+            cc_down: BTreeSet::new(),
+            controllers_dirty: None,
             controllers: BTreeMap::new(),
             expanded_nodes: BTreeSet::new(),
             builtin_hsb: [0.0, 1.0, 1.0],
@@ -354,6 +394,7 @@ impl PanelState {
         if let Ok(reply) = door.json("GET", "/settings", None) {
             self.grid_spans = parse_spans(&reply["grid_spans"]);
             self.controllers = parse_controllers(&reply["grid_controllers"]);
+            self.layout = crate::surface::Layout::from_value(&reply["grid_surface"]);
         }
     }
 
@@ -2489,7 +2530,7 @@ struct Cell {
     key: String,
     /// Size in cells, `(w, h)` — the fixed row stays 1×1. Filled from
     /// [`PanelState::grid_spans`] by [`overlays_grid`] before the grid is laid out.
-    span: (u8, u8),
+    span: (f32, f32),
     /// The button's text — the icon `O.28` point 4 distinguishes a kind by
     /// rides here the day one is picked.
     label: String,
@@ -2508,7 +2549,7 @@ impl Cell {
         Cell {
             kind: CellKind::Add,
             key: "fixed:add".into(),
-            span: (1, 1),
+            span: (1.0, 1.0),
             label: "+".into(),
             on: false,
             running: false,
@@ -2521,7 +2562,7 @@ impl Cell {
         Cell {
             kind: CellKind::PageTo(to),
             key: format!("fixed:page-{to}"),
-            span: (1, 1),
+            span: (1.0, 1.0),
             label,
             on: false,
             running: false,
@@ -2590,6 +2631,12 @@ enum CellKind {
     /// the cell posts every target's stored state at once. Its `⚙` and its
     /// right-click open [`controller_editor`].
     Controller { key: String },
+    /// A control cell (`surface::Role`): `rec`, `drop rec`, the dials, `fn`,
+    /// `load`, `folders`, the piano. Its gestures go to the surface, not the
+    /// door.
+    Role { role: crate::surface::Role },
+    /// A recorded loop (`surface::Loop`): a press plays or stops it.
+    Loop,
 }
 
 /// The overlays (performance) state: one grid, `O.28` point 4's *"it is a
@@ -2615,6 +2662,119 @@ fn overlays_grid(
     state_val: &Value,
     open_graph: Option<&str>,
 ) {
+    let cells = grid_cells(door, state, state_val);
+
+    // Fixed columns × rows (`grid_surface`), in sub-cells so the halves and
+    // thirds pack beside whole cells. Pinned cells land on their page first;
+    // the rest flow in the stored order.
+    let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
+    let spans: Vec<(usize, usize)> = cells
+        .iter()
+        .map(|c| (crate::surface::units(c.span.0), crate::surface::units(c.span.1)))
+        .collect();
+    // Control cells hold one place on every page, like the hardware buttons
+    // they stand for — a `fn` that turns the page is still there to release.
+    let pins: Vec<crate::surface::Pin> = cells
+        .iter()
+        .map(|c| match (&c.kind, state.layout.pages.get(&c.key)) {
+            (CellKind::Role { .. }, _) => crate::surface::Pin::Every,
+            (_, Some(&p)) => crate::surface::Pin::Page(p),
+            _ => crate::surface::Pin::Flow,
+        })
+        .collect();
+    let placed = crate::surface::pack(&spans, &pins, cols * crate::surface::UNITS, rows * crate::surface::UNITS);
+    let pages = placed
+        .iter()
+        .map(|p| p.page + 1)
+        .max()
+        .unwrap_or(1)
+        .max(state.layout.page_count)
+        .max(1);
+    // The stored page, clamped to the pages this layout holds: a removed
+    // button or a trigger stepping past an end cannot strand it. The clamped
+    // value is written back so the stored and shown page agree.
+    let stored = stored_page(door);
+    let page = stored.clamp(0, pages as i64 - 1) as usize;
+    if stored != page as i64 {
+        set_stored_page(door, page);
+    }
+
+    // The hardware first: what the controller sent since the last frame, and
+    // the loops' playback, fire before this frame paints what they changed.
+    drive_surface(ui, door, state, &cells, page, pages);
+    if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
+        apply_overlay_drop(door, state, &drag);
+    }
+
+    // The cells stretch to the area: the columns share the width, the rows
+    // the height above the page bar, never taller than wide.
+    let origin = ui.cursor().min;
+    let gap = theme.item_gap;
+    let width = ui.available_width();
+    let visible = (ui.clip_rect().bottom() - origin.y).max(0.0);
+    let bar_h = theme.pager_height.max(ui.spacing().interact_size.y);
+    let cell_w = ((width - gap.x * (cols as f32 - 1.0)) / cols as f32).max(theme.gear_size);
+    let cell_h = ((visible - bar_h - gap.y * rows as f32) / rows as f32)
+        .clamp(theme.gear_size, cell_w.max(theme.gear_size));
+    let cell = Vec2::new(cell_w, cell_h);
+    let grid_h = rows as f32 * cell_h + (rows as f32 - 1.0) * gap.y;
+
+    let block = Rect::from_min_size(origin, Vec2::new(width, grid_h + gap.y + bar_h));
+    ui.scope_builder(UiBuilder::new().max_rect(block), |ui| {
+        ui.allocate_exact_size(block.size(), Sense::hover());
+        let (cu, ru) = (cols * crate::surface::UNITS, rows * crate::surface::UNITS);
+        let mut occupied = vec![false; cu * ru];
+        for ((c, p), pin) in cells.iter().zip(&placed).zip(&pins) {
+            if p.page != page && *pin != crate::surface::Pin::Every {
+                continue;
+            }
+            for y in p.y..p.y + p.h {
+                for x in p.x..p.x + p.w {
+                    occupied[y * cu + x] = true;
+                }
+            }
+            let rect = unit_rect(origin, cell, gap, p.x, p.y, p.w, p.h);
+            paint_cell(ui, theme, door, state, c, rect, open_graph);
+        }
+        // A whole cell nothing covers is a phantom: an empty square that
+        // takes a dropped library card.
+        let u = crate::surface::UNITS;
+        for row in 0..rows {
+            for col in 0..cols {
+                let free = (row * u..(row + 1) * u).all(|y| (col * u..(col + 1) * u).all(|x| !occupied[y * cu + x]));
+                if free {
+                    let rect = unit_rect(origin, cell, gap, col * u, row * u, u, u);
+                    paint_phantom_cell(ui, theme, door, state, row * cols + col, rect);
+                }
+            }
+        }
+        let bar = Rect::from_min_size(
+            Pos2::new(origin.x, origin.y + grid_h + gap.y),
+            Vec2::new(width, bar_h),
+        );
+        page_bar(ui, theme, door, state, bar, page, pages, open_graph);
+    });
+
+    // The gestures this frame's paint raised, now that every cell is known.
+    let outs = std::mem::take(&mut state.grid_outs);
+    run_outs(ui, door, state, &cells, outs, page, pages);
+
+    // The `video`-drop destination popover, if one is open. It needs no
+    // anchor of its own: it is a small window over the grid, and the output
+    // (or mask) combo it holds is the same `GET /state` listing the grid
+    // already resolved.
+    create_video_popover(ui, theme, door, state, state_val, open_graph);
+    // A scene cell's `⚙` or right-click opens the one controller editor as a
+    // popup anchored near that cell.
+    controller_editor_popup(ui, theme, door, state);
+    // The edit mode's inspector for the selected cell.
+    cell_editor_popup(ui, theme, door, state, &cells, page, pages);
+}
+
+/// Every cell the grid holds, in the stored order, sized: the movement
+/// library, the saved sequences, the switches, the controllers, then the
+/// control cells and the recorded loops.
+fn grid_cells(door: &dyn Call, state: &PanelState, state_val: &Value) -> Vec<Cell> {
     // The targets, off `/state` (rule 5): outputs, and the routed layers of
     // the first one. The `play` route re-resolves the layer itself and
     // refuses a bad name.
@@ -2644,99 +2804,493 @@ fn overlays_grid(
     // No built-in cells: blackout, identify, stop all, the HSB faders, the
     // palettes and RGB are all buttons made through the creation pipeline now.
     let mut cells: Vec<Cell> = Vec::new();
-    let movements = movement_cells(door, state_val, device.as_deref(), layer.as_deref());
-    cells.extend(movements);
+    cells.extend(movement_cells(door, state_val, device.as_deref(), layer.as_deref()));
     cells.extend(sequences_cells(door, device.as_deref()));
     cells.extend(switches_cells(door));
     cells.extend(controller_cells(state));
+    cells.extend(surface_cells(state));
 
     for cell in &mut cells {
         cell.span = if cell.is_fixed() {
-            (1, 1)
+            (1.0, 1.0)
         } else {
-            state.grid_spans.get(&cell.key).copied().unwrap_or((1, 1))
+            state.grid_spans.get(&cell.key).copied().unwrap_or(cell.span)
         };
     }
+    let keys: Vec<String> = cells.iter().map(|c| c.key.clone()).collect();
+    let mut slots: Vec<Option<Cell>> = cells.into_iter().map(Some).collect();
+    state
+        .layout
+        .ordered(&keys)
+        .into_iter()
+        .filter_map(|i| slots[i].take())
+        .collect()
+}
 
-    // The grid is always *built*, empty or not: with nothing saved it still
-    // fills the free slots of its page with phantom squares (no click, but a
-    // drop target for an `files` card), so the button grid reads as one the
-    // moment a graph is open. The rows are what the visible height holds
-    // above the pager row. The clip rect's bottom is the visible edge: inside
-    // the panel's `ScrollArea` `available_height` is unbounded.
-    let origin = ui.cursor().min;
-    let gap = theme.item_gap;
-    let columns = grid_columns(ui.available_width(), theme);
-    let visible = (ui.clip_rect().bottom() - origin.y).max(0.0);
-    // The last row is the page row (`‹ n/m ›` at its two ends, on every
-    // page), so the grid always has at least one content row above it, and
-    // three columns for the `‹` / `+` / `›` page row (the `+` sits one column
-    // left of the next-page button).
-    let columns = columns.max(3);
-    let rows = ((visible + gap.y) / (theme.overlay_cell.y + gap.y)).floor().max(2.0) as usize;
-    let content_rows = rows - 1;
-    let page_row = content_rows;
+/// The control cells and the recorded loops, off the stored layout.
+fn surface_cells(state: &PanelState) -> Vec<Cell> {
+    let roles = state.layout.roles.iter().map(|(key, role)| Cell {
+        kind: CellKind::Role { role: role.clone() },
+        key: key.clone(),
+        span: role.default_span(),
+        label: tr_dyn(&role.label()),
+        on: false,
+        running: false,
+        progress: None,
+    });
+    let loops = state.layout.loops.iter().map(|(key, lp)| Cell {
+        kind: CellKind::Loop,
+        key: key.clone(),
+        span: (1.0, 1.0),
+        label: trf("{name} · {n} ticks", &[("name", &lp.name), ("n", &lp.ticks)]),
+        on: lp.playing,
+        running: lp.playing,
+        progress: state.surface.loop_phase(key, lp),
+    });
+    roles.chain(loops).collect()
+}
 
-    let spans: Vec<(u8, u8)> = cells.iter().map(|c| c.span).collect();
-    let placed = pack(&spans, columns, content_rows);
-    let pages = placed.iter().map(|&(page, _, _)| page + 1).max().unwrap_or(1);
-    // The stored page, clamped to the pages this layout holds: a shrinking
-    // window, a removed button, or a trigger stepping past an end cannot
-    // strand it. The clamped value is written back so the stored and shown
-    // page agree.
-    let stored = stored_page(door);
-    let page = stored.clamp(0, pages as i64 - 1) as usize;
-    if stored != page as i64 {
-        set_stored_page(door, page);
+/// The rect of a block of sub-cells: whole cells plus the gaps between them,
+/// so two halves side by side keep one gap between them.
+fn unit_rect(origin: Pos2, cell: Vec2, gap: Vec2, x: usize, y: usize, w: usize, h: usize) -> Rect {
+    let u = crate::surface::UNITS as f32;
+    let step = cell + gap;
+    Rect::from_min_size(
+        origin + Vec2::new(x as f32 / u * step.x, y as f32 / u * step.y),
+        Vec2::new(w as f32 / u * step.x - gap.x, h as f32 / u * step.y - gap.y),
+    )
+}
+
+/// The row under the grid: `‹ n/m` flush left, then the edit toggle and the
+/// surface's status (MIDI ports, recording, frozen buttons, a pending bind),
+/// the grid's columns × rows and page count in edit mode, and `+` beside
+/// `n/m ›` flush right.
+#[allow(clippy::too_many_arguments)]
+fn page_bar(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    bar: Rect,
+    page: usize,
+    pages: usize,
+    open_graph: Option<&str>,
+) {
+    let side = bar.height().max(theme.overlay_cell.x.min(bar.width() / 4.0));
+    let prev = Rect::from_min_size(bar.min, Vec2::new(side, bar.height()));
+    let next = Rect::from_min_size(Pos2::new(bar.right() - side, bar.top()), Vec2::new(side, bar.height()));
+    let add = Rect::from_min_size(
+        Pos2::new(next.left() - theme.item_gap.x - bar.height(), bar.top()),
+        Vec2::splat(bar.height()),
+    );
+    for (rect, cell) in [
+        (prev, Cell::page(format!("‹ {}/{pages}", page + 1), page.saturating_sub(1))),
+        (add, Cell::add()),
+        (next, Cell::page(format!("{}/{pages} ›", page + 1), (page + 1).min(pages - 1))),
+    ] {
+        paint_cell(ui, theme, door, state, &cell, rect, open_graph);
     }
-    // The page row: `‹` flush left, `›` flush right, and the `+` that grows
-    // the grid one column left of `›`.
-    let add_col = columns - 2;
-    let mut page_cells: Vec<(usize, Cell)> = vec![
-        (0, Cell::page(format!("‹ {}/{pages}", page + 1), page.saturating_sub(1))),
-        (add_col, Cell::add()),
-        (columns - 1, Cell::page(format!("{}/{pages} ›", page + 1), (page + 1).min(pages - 1))),
-    ];
-
-    // The block claims the grid's rows in the panel's flow, and the cells
-    // are placed by absolute rect inside it.
-    let grid_h = rows as f32 * theme.overlay_cell.y + (rows as f32 - 1.0) * gap.y;
-    let block = Rect::from_min_size(origin, Vec2::new(ui.available_width(), grid_h));
-    ui.scope_builder(UiBuilder::new().max_rect(block), |ui| {
-        ui.allocate_exact_size(block.size(), Sense::hover());
-        let mut occupied = vec![false; columns * rows];
-        for (cell, &(at_page, col, row)) in cells.iter().zip(&placed) {
-            if at_page != page {
-                continue;
+    let middle = Rect::from_min_max(
+        Pos2::new(prev.right() + theme.item_gap.x, bar.top()),
+        Pos2::new(add.left() - theme.item_gap.x, bar.bottom()),
+    );
+    ui.scope_builder(UiBuilder::new().max_rect(middle).layout(Layout::left_to_right(Align::Center)), |ui| {
+        let edit = ui.selectable_label(state.grid_edit, RichText::new(tr("edit grid")).font(theme.font_small.clone()));
+        if edit.clicked() {
+            state.grid_edit = !state.grid_edit;
+            state.grid_learn = None;
+            if !state.grid_edit {
+                state.grid_selected = None;
             }
-            let (w, h) = fit(cell.span, columns, content_rows);
-            for r in row..row + h {
-                for c in col..col + w {
-                    occupied[r * columns + c] = true;
+        }
+        if state.grid_edit {
+            grid_dims_row(ui, theme, door, state, pages);
+        }
+        surface_status(ui, theme, state);
+    });
+}
+
+/// Edit mode's grid-wide controls: columns, rows and the pages kept.
+fn grid_dims_row(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, pages: usize) {
+    let mut changed = false;
+    let small = |t: &str| RichText::new(t.to_string()).font(theme.font_small.clone());
+    let stepper = |ui: &mut Ui, label: String, value: usize, lo: usize, hi: usize| -> Option<usize> {
+        let mut out = None;
+        if ui.add_enabled(value > lo, egui::Button::new(small("−"))).clicked() {
+            out = Some(value - 1);
+        }
+        ui.label(small(&label));
+        if ui.add_enabled(value < hi, egui::Button::new(small("+"))).clicked() {
+            out = Some(value + 1);
+        }
+        out
+    };
+    let (lo, hi) = (crate::surface::MIN_DIM as usize, crate::surface::MAX_DIM as usize);
+    if let Some(v) = stepper(ui, trf("{n} cols", &[("n", &state.layout.cols)]), state.layout.cols as usize, lo, hi) {
+        state.layout.cols = v as u8;
+        changed = true;
+    }
+    if let Some(v) = stepper(ui, trf("{n} rows", &[("n", &state.layout.rows)]), state.layout.rows as usize, lo, hi) {
+        state.layout.rows = v as u8;
+        changed = true;
+    }
+    if let Some(v) = stepper(ui, trf("{n} pages", &[("n", &pages)]), pages, 1, 64) {
+        state.layout.page_count = v;
+        changed = true;
+    }
+    if changed {
+        save_layout(door, state);
+    }
+}
+
+/// What the surface is doing, in a word each: the MIDI ports open, the take
+/// being recorded, how many buttons are frozen, a bind waiting for a control.
+fn surface_status(ui: &mut Ui, theme: &Theme, state: &PanelState) {
+    let small = |t: String, c| RichText::new(t).font(theme.font_small.clone()).color(c);
+    let ports = crate::input::midi_ports();
+    let midi = if !crate::input::midi_built() {
+        tr("midi: not in this build").to_string()
+    } else if ports.is_empty() {
+        tr("midi: no controller").to_string()
+    } else {
+        let names: Vec<String> = ports
+            .iter()
+            .map(|p| metal_midi::profile(p).map(str::to_string).unwrap_or_else(|| p.clone()))
+            .collect();
+        trf("midi: {ports}", &[("ports", &names.join(", "))])
+    };
+    ui.label(small(midi, theme.ink_weak));
+    if state.surface.is_recording() {
+        ui.label(small(tr("● rec").to_string(), theme.phosphor));
+    }
+    let frozen = state.surface.frozen_count();
+    if frozen > 0 {
+        ui.label(small(trf("{n} frozen", &[("n", &frozen)]), theme.phosphor));
+    }
+    if state.grid_learn.is_some() {
+        ui.label(small(tr("press a key, pad or knob…").to_string(), theme.phosphor));
+    } else if let Some(note) = &state.grid_note {
+        ui.label(small(note.clone(), theme.ink_weak));
+    }
+}
+
+/// Seconds per tick: the base level the loops are counted in.
+fn seconds_per_tick() -> f64 {
+    metal_schema::TickRate::Base.seconds_per_tick()
+}
+
+/// Feeds the surface what the hardware (and the on-screen piano) sent since
+/// the last frame, ticks the loops, and keeps painting while either moves.
+fn drive_surface(ui: &Ui, door: &dyn Call, state: &mut PanelState, cells: &[Cell], page: usize, pages: usize) {
+    let now = ui.input(|i| i.time);
+    let mut inputs: Vec<(String, metal_midi::Edge)> =
+        crate::input::drain_surface().into_iter().map(|e| (e.input, e.edge)).collect();
+    inputs.append(&mut state.pad_inputs);
+    for (input, edge) in inputs {
+        let outs = surface_input(door, state, cells, &input, edge, now, page);
+        state.grid_outs.extend(outs);
+    }
+    let outs = state.surface.tick(&state.layout, now, seconds_per_tick());
+    state.grid_outs.extend(outs);
+    let outs = std::mem::take(&mut state.grid_outs);
+    run_outs(ui, door, state, cells, outs, page, pages);
+    if let Some(at) = state.controllers_dirty {
+        if now - at > 0.3 {
+            state.controllers_dirty = None;
+            save_controllers(door, state);
+        }
+    }
+    let playing = state.layout.loops.values().any(|l| l.playing);
+    if playing || state.surface.is_recording() || state.controllers_dirty.is_some() {
+        crate::shell::frames::repaint_after(ui.ctx(), std::time::Duration::from_millis(16));
+    }
+}
+
+/// One control heard: bound while a bind waits, else fired through its
+/// binding on this page.
+#[allow(clippy::too_many_arguments)]
+fn surface_input(
+    door: &dyn Call,
+    state: &mut PanelState,
+    cells: &[Cell],
+    input: &str,
+    edge: metal_midi::Edge,
+    now: f64,
+    page: usize,
+) -> Vec<crate::surface::Out> {
+    use crate::surface::Gesture;
+    use metal_midi::Edge;
+    if let Some(n) = metal_midi::input_note(input) {
+        match edge {
+            Edge::Press { .. } => {
+                state.surface.notes.insert(n);
+            }
+            Edge::Release => {
+                state.surface.notes.remove(&n);
+            }
+            Edge::Value { .. } => {}
+        }
+    }
+    // A CC pad's level, turned into edges.
+    let level = match edge {
+        Edge::Value { value, .. } => {
+            let was = state.cc_down.contains(input);
+            match (value > 0.5, was) {
+                (true, false) => {
+                    state.cc_down.insert(input.to_string());
+                    Some(true)
+                }
+                (false, true) => {
+                    state.cc_down.remove(input);
+                    Some(false)
+                }
+                _ => None,
+            }
+        }
+        Edge::Press { .. } => Some(true),
+        Edge::Release => Some(false),
+    };
+
+    if let Some(cell) = state.grid_learn.clone() {
+        if matches!(edge, Edge::Release) {
+            return Vec::new();
+        }
+        // A control cell answers on every page; a content cell only on the
+        // page it was bound from.
+        let on = (!state.layout.roles.contains_key(&cell)).then_some(page);
+        state.layout.bind(input, on, &cell);
+        state.grid_learn = None;
+        state.grid_note = Some(trf("{input} → {cell}", &[("input", &input), ("cell", &cell)]));
+        save_layout(door, state);
+        return Vec::new();
+    }
+    let Some(bind) = state.layout.bound(input, page).cloned() else {
+        return Vec::new();
+    };
+    if let Some(role) = state.layout.roles.get(&bind.cell).cloned() {
+        let gesture = if role.is_dial() {
+            match edge {
+                Edge::Value { raw, .. } => match state.surface.dial_steps(input, bind.dial, raw) {
+                    0 => None,
+                    n => Some(Gesture::Steps(n)),
+                },
+                _ => None,
+            }
+        } else {
+            level.map(|down| if down { Gesture::Down } else { Gesture::Up })
+        };
+        return match gesture {
+            Some(g) => state.surface.role(&state.layout, &bind.cell, &role, g, now, page),
+            None => Vec::new(),
+        };
+    }
+    if state.layout.loops.contains_key(&bind.cell) {
+        return if level == Some(true) { state.surface.loop_pressed(&bind.cell) } else { Vec::new() };
+    }
+    let Some(cell) = cells.iter().find(|c| c.key == bind.cell) else {
+        return Vec::new();
+    };
+    // A fader takes a knob's position; everything else takes the press.
+    let fader = matches!(&cell.kind, CellKind::Controller { key } if controller_is_fader(state, key));
+    let gesture = match (edge, fader) {
+        (Edge::Value { value, .. }, true) => Some(Gesture::Value(value)),
+        _ => match (level, holds(state, cell)) {
+            (Some(true), true) => Some(Gesture::Down),
+            (Some(false), true) => Some(Gesture::Up),
+            (Some(true), false) => Some(Gesture::Click),
+            _ => None,
+        },
+    };
+    let _ = door;
+    match gesture {
+        Some(g) => state.surface.content(&cell.key, g, now, seconds_per_tick()),
+        None => Vec::new(),
+    }
+}
+
+/// Runs what the surface answered: fires cells, turns pages, nudges the
+/// library, stores loops.
+fn run_outs(
+    ui: &Ui,
+    door: &dyn Call,
+    state: &mut PanelState,
+    cells: &[Cell],
+    outs: Vec<crate::surface::Out>,
+    page: usize,
+    pages: usize,
+) {
+    use crate::surface::Out;
+    let mut save = false;
+    for out in outs {
+        match out {
+            Out::Fire { cell, gesture } => {
+                if state.layout.loops.contains_key(&cell) {
+                    continue;
+                }
+                if let Some(c) = cells.iter().find(|c| c.key == cell) {
+                    fire_cell(ui.input(|i| i.time), door, state, c, gesture);
                 }
             }
-            let rect = cell_rect(origin, theme, col, row, w, h);
-            paint_cell(ui, theme, door, state, cell, rect, open_graph);
+            Out::Page(p) => set_stored_page(door, p.min(pages.saturating_sub(1))),
+            Out::PageStep(d) => {
+                let to = (page as i64 + d as i64).clamp(0, pages as i64 - 1) as usize;
+                set_stored_page(door, to);
+            }
+            Out::Library(intent) => super::pads::push_library_intent(ui.ctx(), intent),
+            Out::LoopTicks { key, ticks } => {
+                match key.and_then(|k| state.layout.loops.get_mut(&k)) {
+                    Some(lp) => lp.ticks = ticks,
+                    None => state.layout.loop_ticks = ticks,
+                }
+                state.grid_note = Some(trf("loop length · {n} ticks", &[("n", &ticks)]));
+                save = true;
+            }
+            Out::RecStart => state.grid_note = Some(tr("recording a loop…").to_string()),
+            Out::RecStop(lp) => {
+                let key = state.layout.fresh_key("loop");
+                state.grid_note = Some(trf("{name} recorded · {n} presses", &[("name", &lp.name), ("n", &lp.events.len())]));
+                state.surface.focus_loop = Some(key.clone());
+                state.layout.loops.insert(key, lp);
+                save = true;
+            }
+            Out::LoopToggle(key) => {
+                if let Some(lp) = state.layout.loops.get_mut(&key) {
+                    lp.playing = !lp.playing;
+                    save = true;
+                }
+            }
         }
-        for (col, cell) in page_cells.iter_mut() {
-            occupied[page_row * columns + *col] = true;
-            let rect = cell_rect(origin, theme, *col, page_row, 1, 1);
-            paint_cell(ui, theme, door, state, cell, rect, open_graph);
-        }
-        for (slot, _) in occupied.iter().enumerate().filter(|(_, taken)| !**taken) {
-            let rect = cell_rect(origin, theme, slot % columns, slot / columns, 1, 1);
-            paint_phantom_cell(ui, theme, door, state, slot, rect);
-        }
-    });
+    }
+    if save {
+        save_layout(door, state);
+    }
+}
 
-    // The `video`-drop destination popover, if one is open. It needs no
-    // anchor of its own: it is a small window over the grid, and the output
-    // (or mask) combo it holds is the same `GET /state` listing the grid
-    // already resolved.
-    create_video_popover(ui, theme, door, state, state_val, open_graph);
-    // A scene cell's `⚙` or right-click opens the one controller editor as a
-    // popup anchored near that cell.
-    controller_editor_popup(ui, theme, door, state);
+/// Posts the whole surface layout (`POST /settings {grid_surface}`), adopting
+/// the reply's, the same contract [`set_grid_span`] keeps.
+fn save_layout(door: &dyn Call, state: &mut PanelState) {
+    let body = json!({ "grid_surface": state.layout.to_value() });
+    if let Ok(reply) = door.json("POST", "/settings", Some(body)) {
+        if reply["grid_surface"].is_object() {
+            state.layout = crate::surface::Layout::from_value(&reply["grid_surface"]);
+        }
+    }
+}
+
+/// Whether a cell fires on its press/release edges (a `hold` button) rather
+/// than once per press.
+fn holds(state: &PanelState, cell: &Cell) -> bool {
+    match &cell.kind {
+        CellKind::Switch { kind, .. } => kind == "hold",
+        CellKind::Fixture { hold, .. } | CellKind::Rig { hold, .. } => *hold,
+        CellKind::Controller { key } => controller_mode(state, key) == "hold",
+        _ => false,
+    }
+}
+
+/// Whether a controller cell paints as a fader (it has a parameter target).
+fn controller_is_fader(state: &PanelState, key: &str) -> bool {
+    state
+        .controllers
+        .get(key)
+        .and_then(|c| c["targets"].as_array())
+        .is_some_and(|ts| ts.iter().any(|t| t["param"].is_string()))
+}
+
+/// Runs one gesture on a content cell — the one place a click, a hardware
+/// key and a replayed loop event all end.
+fn fire_cell(now: f64, door: &dyn Call, state: &mut PanelState, cell: &Cell, g: crate::surface::Gesture) {
+    use crate::surface::Gesture;
+    let press = matches!(g, Gesture::Down | Gesture::Click);
+    match &cell.kind {
+        CellKind::Movement { name, device, layer, looping } => {
+            if !press {
+                return;
+            }
+            state.focused_overlay = Some(name.clone());
+            let body = if cell.running {
+                json!({ "op": "stop", "device": device, "layer": layer })
+            } else {
+                json!({ "op": "play", "device": device, "layer": layer, "movement": name, "loop": looping })
+            };
+            let _ = door.json("POST", "/overlay", Some(body));
+        }
+        CellKind::Sequence { id, device } => {
+            if !press {
+                return;
+            }
+            let body = if cell.running {
+                json!({ "op": "stop", "device": device })
+            } else {
+                json!({ "op": "run", "id": id, "device": device })
+            };
+            let _ = door.json("POST", "/sequences", Some(body));
+        }
+        // G1: a fixture/rig button fires the same `POST /switch {op}` a
+        // `toggle` switch does; G3: a `hold` one fires on the press/release
+        // edge — the value applies only while pressed.
+        CellKind::Switch { id, kind } => fire_switch(door, id, kind == "hold", cell.on, g),
+        CellKind::Fixture { id, hold } | CellKind::Rig { id, hold } => fire_switch(door, id, *hold, cell.on, g),
+        CellKind::Controller { key } => match g {
+            Gesture::Value(v) => {
+                if let ControllerFace::Fader { node, param, min, max, .. } = controller_face(door, state, key) {
+                    let value = min + v.clamp(0.0, 1.0) * (max - min).max(0.0);
+                    let graph = state.controllers.get(key).and_then(|c| c["graph"].as_str()).unwrap_or(key).to_string();
+                    let _ = door.json(
+                        "POST",
+                        "/graph/node",
+                        Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": value })),
+                    );
+                    let target = json!({ "node": node, "param": param, "value": value });
+                    set_controller_target_value(state, key, &target, value);
+                    state.controllers_dirty = Some(now);
+                }
+            }
+            Gesture::Down | Gesture::Click => apply_scene(door, state, key, false),
+            Gesture::Up => {
+                if controller_mode(state, key) == "hold" {
+                    apply_scene(door, state, key, true);
+                }
+            }
+            Gesture::Steps(_) => {}
+        },
+        CellKind::Blackout => {
+            if press {
+                let _ = door.json("POST", "/overlay/blackout", Some(json!({ "on": !cell.on })));
+            }
+        }
+        CellKind::Identify => {
+            if press {
+                // M6.3: the last projected venue's fixtures, flashed.
+                let _ = door.json("POST", "/venue", Some(json!({ "op": "identify", "id": "last" })));
+            }
+        }
+        CellKind::StopAll => {
+            if press {
+                let _ = door.json("POST", "/overlay", Some(json!({ "op": "stop-all" })));
+            }
+        }
+        CellKind::Add | CellKind::PageTo(_) | CellKind::Role { .. } | CellKind::Loop => {}
+    }
+}
+
+/// `POST /switch` for one gesture: a hold switch follows the edges, a toggle
+/// flips on each press.
+fn fire_switch(door: &dyn Call, id: &str, hold: bool, on: bool, g: crate::surface::Gesture) {
+    use crate::surface::Gesture;
+    let op = match (hold, g) {
+        (true, Gesture::Down) => "on",
+        (true, Gesture::Up) => "off",
+        (_, Gesture::Click) | (false, Gesture::Down) => {
+            if on {
+                "off"
+            } else {
+                "on"
+            }
+        }
+        _ => return,
+    };
+    let _ = door.json("POST", "/switch", Some(json!({ "op": op, "id": id })));
 }
 
 /// The controller editor as a window over the grid, opened by the `+` menu's
@@ -2855,19 +3409,11 @@ fn apply_overlay_drop(door: &dyn Call, state: &mut PanelState, drag: &crate::she
     }
 }
 
-/// How many `theme.overlay_cell`s fit across `available` — the grid's
-/// columns "according to the width" (`R22.3` decision 2). `theme.item_gap` is what
-/// [`Theme::apply`] writes as the context's `item_spacing`, so `n` cells and
-/// their `n - 1` gaps are exactly one row.
-fn grid_columns(available: f32, theme: &Theme) -> usize {
-    let step = theme.overlay_cell.x + theme.item_gap.x;
-    ((available + theme.item_gap.x) / step).floor().max(1.0) as usize
-}
-
-/// Paints one cell and, on the gesture its kind takes, reaches the door.
-/// The three states the old rows each painted themselves live here once: a
-/// `phosphor` fill (`on`), the accent stroke (`running`) and a movement's
-/// playhead bar (`progress`).
+/// Paints one cell and turns what the pointer did into a gesture. The three
+/// states the old rows each painted themselves live here once: a `phosphor`
+/// fill (`on`), the accent stroke (`running`) and a movement's playhead bar
+/// (`progress`). A content cell's gesture goes through the surface (freeze,
+/// recording) before it fires; in edit mode a click selects the cell instead.
 fn paint_cell(
     ui: &mut Ui,
     theme: &Theme,
@@ -2877,14 +3423,48 @@ fn paint_cell(
     rect: Rect,
     open_graph: Option<&str>,
 ) {
+    use crate::surface::{Gesture, Role};
+    let now = ui.input(|i| i.time);
+    let editing = state.grid_edit && !cell.is_fixed();
     let response = match &cell.kind {
         CellKind::Controller { key } => paint_controller_cell(ui, theme, door, state, key, rect),
+        CellKind::Role { role: Role::Piano { base } } => {
+            let lit = |n: u8| state.surface.notes.contains(&n);
+            let mut held = state.piano_held.get(&cell.key).copied().flatten();
+            let id = Id::new(("shell/region/lanes/piano", &cell.key));
+            let (response, edges) = super::pads::piano(ui, theme, id, rect, *base, &lit, &mut held);
+            state.piano_held.insert(cell.key.clone(), held);
+            for e in edges {
+                let (n, edge) = match e {
+                    super::pads::KeyEdge::Press(n) => (n, metal_midi::Edge::Press { velocity: 1.0 }),
+                    super::pads::KeyEdge::Release(n) => (n, metal_midi::Edge::Release),
+                };
+                state.pad_inputs.push((metal_midi::note_input(n), edge));
+            }
+            response
+        }
+        CellKind::Role { role } if role.is_dial() => {
+            let (value, frac) = dial_face(state, role);
+            let mut acc = state.dial_acc.get(&cell.key).copied().unwrap_or(0.0);
+            let id = Id::new(("shell/region/lanes/dial", &cell.key));
+            let (response, steps) = super::pads::dial(ui, theme, id, rect, &cell.label, &value, frac, false, &mut acc);
+            state.dial_acc.insert(cell.key.clone(), acc);
+            if steps != 0 && !editing {
+                let out = state.surface.role(&state.layout, &cell.key, role, Gesture::Steps(steps), now, stored_page(door).max(0) as usize);
+                state.grid_outs.extend(out);
+            }
+            response
+        }
         _ => {
+            let lit = match &cell.kind {
+                CellKind::Role { role } => state.surface.role_lit(&cell.key, role),
+                _ => cell.on,
+            };
             // Filled buttons are darker than the gray empty slots.
             let mut button = egui::Button::new(RichText::new(&cell.label).font(theme.font_small.clone()))
                 .min_size(rect.size())
                 .fill(theme.inset);
-            if cell.on {
+            if lit {
                 button = button.fill(theme.accent_vivid);
             }
             if cell.running {
@@ -2896,42 +3476,62 @@ fn paint_cell(
             ui.push_id(("shell/region/lanes/cell", &cell.key), |ui| ui.put(rect, button)).inner
         }
     };
+    if state.surface.is_frozen(&cell.key) {
+        let lock = Rect::from_min_size(rect.left_top(), Vec2::splat(theme.gear_size));
+        ui.put(lock, egui::Label::new(lucide(Icon::Lock, theme.font_small.size).color(theme.phosphor)));
+    }
+    if state.grid_selected.as_deref() == Some(cell.key.as_str()) && state.grid_edit {
+        ui.painter().rect_stroke(rect, theme.corner_radius(), theme.card_picked_stroke(), egui::StrokeKind::Inside);
+    }
+    if let Some(frac) = cell.progress {
+        let bar = egui::Rect::from_min_size(
+            egui::pos2(response.rect.left(), response.rect.bottom() - theme.hairline),
+            egui::vec2(response.rect.width() * frac, theme.hairline),
+        );
+        ui.painter().rect_filled(bar, theme.corner_radius(), theme.phosphor);
+    }
+    // Edit mode: a click (or right click) selects; nothing fires.
+    if editing {
+        if response.clicked() || response.secondary_clicked() || response.drag_started() {
+            state.grid_selected = Some(cell.key.clone());
+        }
+        return;
+    }
     // A scene cell opens its shared editor on a right-click (the size menu
     // and delete live in [`controller_editor`]); every other sized cell keeps
     // the size/remove menu.
     if !cell.is_fixed() && !matches!(cell.kind, CellKind::Controller { .. }) {
         response.context_menu(|ui| grid_cell_menu(ui, theme, door, state, cell));
     }
-    if let Some(frac) = cell.progress {
-        let bar = egui::Rect::from_min_size(
-            egui::pos2(
-                response.rect.left(),
-                response.rect.bottom() - theme.hairline,
-            ),
-            egui::vec2(response.rect.width() * frac, theme.hairline),
-        );
-        ui.painter()
-            .rect_filled(bar, theme.corner_radius(), theme.phosphor);
-    }
+
+    // The pointer's gesture: a hold button (and `rec`, `drop rec`, `fn`) on
+    // its press/release edges, everything else once per click.
+    let edges = match &cell.kind {
+        CellKind::Role { role } => matches!(role, Role::Rec | Role::DropRec | Role::Fn { .. }),
+        _ => holds(state, cell),
+    };
+    let gesture = if edges {
+        let down_now = response.is_pointer_button_down_on();
+        let was_down = state.held_switches.contains(&cell.key);
+        if down_now && !was_down {
+            state.held_switches.insert(cell.key.clone());
+            Some(Gesture::Down)
+        } else if !down_now && was_down {
+            state.held_switches.remove(&cell.key);
+            Some(Gesture::Up)
+        } else {
+            None
+        }
+    } else if response.clicked() {
+        Some(Gesture::Click)
+    } else {
+        None
+    };
+
     match &cell.kind {
-        // The scene's own gesture ran in `paint_controller_cell`.
-        CellKind::Controller { .. } => {}
         CellKind::PageTo(to) => {
             if response.clicked() {
                 set_stored_page(door, *to);
-            }
-        }
-        CellKind::Blackout => {
-            if response.clicked() {
-                let _ = door.json("POST", "/overlay/blackout", Some(json!({ "on": !cell.on })));
-            }
-        }
-        CellKind::Identify => {
-            if response.clicked() {
-                // M6.3: the last projected venue's fixtures, flashed. The
-                // reply is the footprint of each, never a real fixture from a
-                // test.
-                let _ = door.json("POST", "/venue", Some(json!({ "op": "identify", "id": "last" })));
             }
         }
         CellKind::Add => {
@@ -2945,83 +3545,49 @@ fn paint_cell(
                 .frame(frame)
                 .show(|ui| {
                     ui.set_min_width(theme.text_input_width * 2.0);
-                    add_menu(ui, theme, state, open_graph);
+                    add_menu(ui, theme, door, state, open_graph);
                 });
         }
-        CellKind::StopAll => {
-            if response.clicked() {
-                let _ = door.json("POST", "/overlay", Some(json!({ "op": "stop-all" })));
+        CellKind::Role { role } => {
+            if let Some(g) = gesture {
+                let page = stored_page(door).max(0) as usize;
+                let out = state.surface.role(&state.layout, &cell.key, role, g, now, page);
+                state.grid_outs.extend(out);
             }
         }
-        CellKind::Movement {
-            name,
-            device,
-            layer,
-            looping,
-        } => {
-            if response.clicked() {
-                state.focused_overlay = Some(name.clone());
-                let body = if cell.running {
-                    json!({ "op": "stop", "device": device, "layer": layer })
-                } else {
-                    json!({
-                        "op": "play",
-                        "device": device,
-                        "layer": layer,
-                        "movement": name,
-                        "loop": looping,
-                    })
-                };
-                let _ = door.json("POST", "/overlay", Some(body));
+        CellKind::Loop => {
+            if gesture.is_some() {
+                let out = state.surface.loop_pressed(&cell.key);
+                state.grid_outs.extend(out);
             }
         }
-        CellKind::Sequence { id, device } => {
-            if response.clicked() {
-                let body = if cell.running {
-                    json!({ "op": "stop", "device": device })
-                } else {
-                    json!({ "op": "run", "id": id, "device": device })
-                };
-                let _ = door.json("POST", "/sequences", Some(body));
+        // A fader writes on its own drag (in `paint_controller_cell`).
+        CellKind::Controller { key } if controller_is_fader(state, key) => {}
+        _ => {
+            if let Some(g) = gesture {
+                let out = state.surface.content(&cell.key, g, now, seconds_per_tick());
+                state.grid_outs.extend(out);
             }
         }
-        CellKind::Switch { id, kind } => {
-            if kind == "hold" {
-                let down_now = response.is_pointer_button_down_on();
-                let was_down = state.held_switches.contains(id);
-                if down_now && !was_down {
-                    state.held_switches.insert(id.clone());
-                    let _ = door.json("POST", "/switch", Some(json!({ "op": "on", "id": id })));
-                } else if !down_now && was_down {
-                    state.held_switches.remove(id);
-                    let _ = door.json("POST", "/switch", Some(json!({ "op": "off", "id": id })));
-                }
-            } else if response.clicked() {
-                let op = if cell.on { "off" } else { "on" };
-                let _ = door.json("POST", "/switch", Some(json!({ "op": op, "id": id })));
-            }
+    }
+}
+
+/// A dial's centre text and arc: the loop length for `speed`, the page for
+/// the `fn` dial, the column being searched for `search`.
+fn dial_face(state: &PanelState, role: &crate::surface::Role) -> (String, Option<f32>) {
+    use crate::surface::{Role, LOOP_TICKS};
+    match role {
+        Role::SpeedDial => {
+            let ticks = state
+                .surface
+                .focus_loop
+                .as_ref()
+                .and_then(|k| state.layout.loops.get(k))
+                .map_or(state.layout.loop_ticks, |l| l.ticks);
+            let at = LOOP_TICKS.iter().position(|&t| t >= ticks).unwrap_or(LOOP_TICKS.len() - 1);
+            (format!("{ticks}"), Some(at as f32 / (LOOP_TICKS.len() - 1) as f32))
         }
-        // G1: a fixture/rig button fires the same `POST /switch {op}` a
-        // `toggle` switch does; only the label (the venue fixture) and the
-        // options that built it differ. G3: a `hold` button fires on the
-        // press/release edge, like a `hold` node switch — the value applies
-        // only while pressed.
-        CellKind::Fixture { id, hold } | CellKind::Rig { id, hold } => {
-            if *hold {
-                let down_now = response.is_pointer_button_down_on();
-                let was_down = state.held_switches.contains(id);
-                if down_now && !was_down {
-                    state.held_switches.insert(id.clone());
-                    let _ = door.json("POST", "/switch", Some(json!({ "op": "on", "id": id })));
-                } else if !down_now && was_down {
-                    state.held_switches.remove(id);
-                    let _ = door.json("POST", "/switch", Some(json!({ "op": "off", "id": id })));
-                }
-            } else if response.clicked() {
-                let op = if cell.on { "off" } else { "on" };
-                let _ = door.json("POST", "/switch", Some(json!({ "op": op, "id": id })));
-            }
-        }
+        _ => (String::new(), None),
     }
 }
 
@@ -3127,9 +3693,7 @@ fn paint_controller_cell(
         );
     }
     let label = controller_label(state, key);
-    let mode = controller_mode(state, key);
     let face = controller_face(door, state, key);
-    let is_fader = matches!(face, ControllerFace::Fader { .. });
     let response = match face {
         ControllerFace::Fader { node, param, min, max, value } => {
             let range = (max - min).max(0.0);
@@ -3194,24 +3758,9 @@ fn paint_controller_cell(
         state.controller_edit_pos = Some(rect.min);
     }
 
-    // A fader writes on its own drag; every other face applies the scene on
-    // the click (or the hold edges).
-    if !is_fader {
-        let id = format!("ctrl:{key}");
-        if mode == "hold" {
-            let down_now = response.is_pointer_button_down_on();
-            let was_down = state.held_switches.contains(&id);
-            if down_now && !was_down {
-                state.held_switches.insert(id.clone());
-                apply_scene(door, state, key, false);
-            } else if !down_now && was_down {
-                state.held_switches.remove(&id);
-                apply_scene(door, state, key, true);
-            }
-        } else if response.clicked() {
-            apply_scene(door, state, key, false);
-        }
-    }
+    // A fader writes on its own drag; every other face applies the scene
+    // through `paint_cell`'s gesture (the click, or the hold edges), so the
+    // surface can freeze and record it like any other button.
     response
 }
 
@@ -3269,22 +3818,24 @@ fn apply_scene(door: &dyn Call, state: &PanelState, key: &str, inverse: bool) {
     }
 }
 
-/// The four spans a sized cell offers (`1×1`, `2×1`, `1×2`, `2×2`), the
-/// current one checked. Returns the freshly picked span, if any — the one
-/// place both a cell's right-click menu and the controller editor's size row
-/// keep the same set.
-fn size_choices(ui: &mut Ui, theme: &Theme, current: (u8, u8)) -> Option<(u8, u8)> {
+/// The sizes a cell offers (`surface::SPANS`: whole cells, the halves and
+/// thirds, the wide strips), the current one checked. Returns the freshly
+/// picked span, if any — the one place both a cell's right-click menu and the
+/// controller editor's size row keep the same set.
+fn size_choices(ui: &mut Ui, theme: &Theme, current: (f32, f32)) -> Option<(f32, f32)> {
     ui.label(RichText::new(tr("size")).font(theme.font_small.clone()));
     let mut picked = None;
-    for span in [(1u8, 1u8), (2, 1), (1, 2), (2, 2)] {
-        let label = format!("{}×{}", span.0, span.1);
-        if ui
-            .radio(current == span, RichText::new(label).font(theme.font_small.clone()))
-            .clicked()
-        {
-            picked = Some(span);
+    ui.horizontal_wrapped(|ui| {
+        for span in crate::surface::SPANS {
+            let label = crate::surface::span_label(span);
+            if ui
+                .radio(current == span, RichText::new(label).font(theme.font_small.clone()))
+                .clicked()
+            {
+                picked = Some(span);
+            }
         }
-    }
+    });
     picked
 }
 
@@ -3315,7 +3866,7 @@ fn grid_cell_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Panel
 /// Stores one cell's size and posts the whole map (`POST /settings
 /// {grid_spans}`). The reply's map is adopted when it carries one, so the
 /// route stays the place that knows what landed.
-fn set_grid_span(door: &dyn Call, state: &mut PanelState, key: &str, span: (u8, u8)) {
+fn set_grid_span(door: &dyn Call, state: &mut PanelState, key: &str, span: (f32, f32)) {
     state.grid_spans.insert(key.to_string(), span);
     let body = json!({ "grid_spans": spans_json(&state.grid_spans) });
     if let Ok(reply) = door.json("POST", "/settings", Some(body)) {
@@ -3326,28 +3877,31 @@ fn set_grid_span(door: &dyn Call, state: &mut PanelState, key: &str, span: (u8, 
 }
 
 /// The `grid_spans` object a settings reply carries, read leniently: an entry
-/// that is not a `[w,h]` pair in 1..=2 is dropped rather than painted.
-fn parse_spans(v: &Value) -> BTreeMap<String, (u8, u8)> {
+/// that is not a `[w,h]` pair off `surface::SPANS` is dropped rather than
+/// painted.
+fn parse_spans(v: &Value) -> BTreeMap<String, (f32, f32)> {
     v.as_object()
         .map(|obj| {
             obj.iter()
                 .filter_map(|(key, pair)| {
                     let a = pair.as_array()?;
-                    let w = a.first()?.as_u64()?;
-                    let h = a.get(1)?.as_u64()?;
-                    ((1..=2).contains(&w) && (1..=2).contains(&h))
-                        .then(|| (key.clone(), (w as u8, h as u8)))
+                    let w = a.first()?.as_f64()?;
+                    let h = a.get(1)?.as_f64()?;
+                    crate::surface::valid_span(w, h).then(|| (key.clone(), (w as f32, h as f32)))
                 })
                 .collect()
         })
         .unwrap_or_default()
 }
 
-fn spans_json(spans: &BTreeMap<String, (u8, u8)>) -> Value {
+/// A span as JSON: whole cells as integers (`[2, 1]`), fractions as the
+/// one-decimal number they are picked as (`[1, 0.3]`).
+fn spans_json(spans: &BTreeMap<String, (f32, f32)>) -> Value {
+    let n = |v: f32| if v.fract() == 0.0 { json!(v as u64) } else { json!((v as f64 * 10.0).round() / 10.0) };
     Value::Object(
         spans
             .iter()
-            .map(|(key, &(w, h))| (key.clone(), json!([w, h])))
+            .map(|(key, &(w, h))| (key.clone(), json!([n(w), n(h)])))
             .collect(),
     )
 }
@@ -3534,70 +4088,6 @@ fn set_controller_mode(door: &dyn Call, state: &mut PanelState, graph: &str, hol
     save_controllers(door, state);
 }
 
-/// Clamps a span to what a `columns × rows` page can hold: a 2-wide cell in a
-/// one-column grid is painted 1-wide rather than overhanging the page.
-fn fit(span: (u8, u8), columns: usize, rows: usize) -> (usize, usize) {
-    (
-        (span.0 as usize).clamp(1, columns.max(1)),
-        (span.1 as usize).clamp(1, rows.max(1)),
-    )
-}
-
-/// The first `(col, row)` in reading order where a `w × h` block is free.
-fn first_fit(occupied: &[bool], columns: usize, rows: usize, w: usize, h: usize) -> Option<(usize, usize)> {
-    (0..=rows - h).find_map(|row| {
-        (0..=columns - w)
-            .find(|&col| {
-                (row..row + h).all(|r| (col..col + w).all(|c| !occupied[r * columns + c]))
-            })
-            .map(|col| (col, row))
-    })
-}
-
-/// Places spans in order, first-fit, on `columns × rows` pages: a cell that
-/// does not fit on the current page starts the next one (earlier pages are
-/// not back-filled, so the order the operator sees is the order saved).
-/// Returns `(page, col, row)` per span, the span clamped by [`fit`].
-pub(crate) fn pack(spans: &[(u8, u8)], columns: usize, rows: usize) -> Vec<(usize, usize, usize)> {
-    let (columns, rows) = (columns.max(1), rows.max(1));
-    let mut occupied = vec![false; columns * rows];
-    let mut page = 0;
-    let mut placed = Vec::with_capacity(spans.len());
-    for &span in spans {
-        let (w, h) = fit(span, columns, rows);
-        let (col, row) = match first_fit(&occupied, columns, rows, w, h) {
-            Some(at) => at,
-            None => {
-                page += 1;
-                occupied.iter_mut().for_each(|o| *o = false);
-                first_fit(&occupied, columns, rows, w, h).expect("a clamped span fits an empty page")
-            }
-        };
-        for r in row..row + h {
-            for c in col..col + w {
-                occupied[r * columns + c] = true;
-            }
-        }
-        placed.push((page, col, row));
-    }
-    placed
-}
-
-/// The rect of a `w × h` block at `(col, row)`: whole cells plus the gaps
-/// between them, offset from the grid's origin.
-fn cell_rect(origin: Pos2, theme: &Theme, col: usize, row: usize, w: usize, h: usize) -> Rect {
-    let gap = theme.item_gap;
-    let step = theme.overlay_cell + gap;
-    let size = Vec2::new(
-        w as f32 * theme.overlay_cell.x + (w as f32 - 1.0) * gap.x,
-        h as f32 * theme.overlay_cell.y + (h as f32 - 1.0) * gap.y,
-    );
-    Rect::from_min_size(
-        origin + Vec2::new(col as f32 * step.x, row as f32 * step.y),
-        size,
-    )
-}
-
 /// The overlays grid's stored page (`grid_page` in settings, unclamped: a
 /// trigger may have stepped it past an end). Unreadable settings read as the
 /// first page.
@@ -3612,6 +4102,227 @@ fn set_stored_page(door: &dyn Call, page: usize) {
     let _ = door.json("POST", "/settings", Some(json!({ "grid_page": page })));
 }
 
+
+/// Edit mode's inspector for the selected cell: its size, its page and place
+/// in the order, the MIDI controls bound to it (with `learn`), its own
+/// settings (a `fn`'s page, a piano's octave, a loop's length) and `remove`
+/// where the cell can go.
+fn cell_editor_popup(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    cells: &[Cell],
+    page: usize,
+    pages: usize,
+) {
+    use crate::surface::{DialMode, Role};
+    if !state.grid_edit {
+        return;
+    }
+    let Some(key) = state.grid_selected.clone() else {
+        return;
+    };
+    let Some(cell) = cells.iter().find(|c| c.key == key) else {
+        state.grid_selected = None;
+        return;
+    };
+    let keys: Vec<String> = cells.iter().map(|c| c.key.clone()).collect();
+    let role = state.layout.roles.get(&key).cloned();
+    let mut changed = false;
+    let mut open = true;
+    crate::shell::gallery::overlay_window("shell/region/lanes/cell-editor", cell.label.clone())
+        .open(&mut open)
+        .show(ui.ctx(), |ui| {
+            ui.set_min_width(theme.text_input_width * 2.0);
+            let small = |t: String| RichText::new(t).font(theme.font_small.clone());
+
+            if let Some(span) = size_choices(ui, theme, cell.span) {
+                set_grid_span(door, state, &key, span);
+            }
+            ui.separator();
+
+            // Its page: pinned cells stay on theirs; the rest follow the order.
+            // A control cell is on every page.
+            if role.is_some() {
+                ui.label(small(tr("every page").into()));
+            }
+            if role.is_none() {
+            ui.horizontal(|ui| {
+                let pinned = state.layout.pages.get(&key).copied();
+                let at = pinned.unwrap_or(page);
+                if ui.button(small("‹".into())).clicked() {
+                    state.layout.pages.insert(key.clone(), at.saturating_sub(1));
+                    changed = true;
+                }
+                ui.label(small(match pinned {
+                    Some(p) => trf("page {n}", &[("n", &(p + 1))]),
+                    None => tr("page: follows the order").to_string(),
+                }));
+                if ui.button(small("›".into())).clicked() {
+                    state.layout.pages.insert(key.clone(), at + 1);
+                    state.layout.page_count = state.layout.page_count.max(at + 2).max(pages);
+                    changed = true;
+                }
+                if pinned.is_some() && ui.button(small(tr("unpin").into())).clicked() {
+                    state.layout.pages.remove(&key);
+                    changed = true;
+                }
+            });
+            }
+            ui.horizontal(|ui| {
+                ui.label(small(tr("order").into()));
+                if ui.button(small(tr("earlier").into())).clicked() {
+                    state.layout.shift(&keys, &key, -1);
+                    changed = true;
+                }
+                if ui.button(small(tr("later").into())).clicked() {
+                    state.layout.shift(&keys, &key, 1);
+                    changed = true;
+                }
+            });
+            ui.separator();
+
+            // The controls bound to it, per page (a control cell answers on
+            // every page).
+            ui.label(small(tr("midi").into()));
+            let binds: Vec<crate::surface::Bind> = state.layout.binds_of(&key).cloned().collect();
+            for b in &binds {
+                ui.horizontal_wrapped(|ui| {
+                    let on = match b.page {
+                        Some(p) => trf("page {n}", &[("n", &(p + 1))]),
+                        None => tr("every page").to_string(),
+                    };
+                    ui.label(small(format!("{} · {on}", b.input)));
+                    if role.as_ref().is_some_and(Role::is_dial) {
+                        for mode in DialMode::ALL {
+                            if ui.selectable_label(b.dial == mode, small(tr_dyn(mode.label()))).clicked() {
+                                if let Some(x) = state.layout.binds.iter_mut().find(|x| *x == b) {
+                                    x.dial = mode;
+                                }
+                                changed = true;
+                            }
+                        }
+                    }
+                    if ui.button(lucide(Icon::Close, theme.font_small.size)).on_hover_text(tr("unbind")).clicked() {
+                        state.layout.binds.retain(|x| x != b);
+                        changed = true;
+                    }
+                });
+            }
+            let learning = state.grid_learn.as_deref() == Some(key.as_str());
+            if ui.selectable_label(learning, small(tr("learn: press a key, pad or knob").into())).clicked() {
+                state.grid_learn = if learning { None } else { Some(key.clone()) };
+            }
+
+            // Its own settings.
+            match &role {
+                Some(Role::Fn { page: to }) => {
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label(small(tr("goes to").into()));
+                        let target = to.unwrap_or(0);
+                        if ui.button(small("‹".into())).clicked() {
+                            state.layout.roles.insert(key.clone(), Role::Fn { page: Some(target.saturating_sub(1)) });
+                            changed = true;
+                        }
+                        ui.label(small(match to {
+                            Some(p) => trf("page {n}", &[("n", &(p + 1))]),
+                            None => tr("the next page").to_string(),
+                        }));
+                        if ui.button(small("›".into())).clicked() {
+                            let next = to.map_or(0, |p| p + 1);
+                            state.layout.roles.insert(key.clone(), Role::Fn { page: Some(next) });
+                            state.layout.page_count = state.layout.page_count.max(next + 1);
+                            changed = true;
+                        }
+                        if to.is_some() && ui.button(small(tr("next page").into())).clicked() {
+                            state.layout.roles.insert(key.clone(), Role::Fn { page: None });
+                            changed = true;
+                        }
+                    });
+                }
+                Some(Role::Piano { base }) => {
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label(small(tr("octave").into()));
+                        if ui.add_enabled(*base >= 12, egui::Button::new(small("−".into()))).clicked() {
+                            state.layout.roles.insert(key.clone(), Role::Piano { base: base - 12 });
+                            changed = true;
+                        }
+                        ui.label(small(format!(
+                            "{}–{}",
+                            metal_midi::note_name(*base),
+                            metal_midi::note_name(base.saturating_add(crate::surface::PIANO_KEYS - 1))
+                        )));
+                        if ui
+                            .add_enabled(*base <= 127 - crate::surface::PIANO_KEYS - 11, egui::Button::new(small("+".into())))
+                            .clicked()
+                        {
+                            state.layout.roles.insert(key.clone(), Role::Piano { base: base + 12 });
+                            changed = true;
+                        }
+                    });
+                }
+                _ => {}
+            }
+            if let Some(lp) = state.layout.loops.get(&key).cloned() {
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label(small(tr("length").into()));
+                    if ui.button(small("−".into())).clicked() {
+                        state.layout.loops.get_mut(&key).expect("checked").ticks = crate::surface::step_ticks(lp.ticks, -1);
+                        changed = true;
+                    }
+                    ui.label(small(trf("{n} ticks", &[("n", &lp.ticks)])));
+                    if ui.button(small("+".into())).clicked() {
+                        state.layout.loops.get_mut(&key).expect("checked").ticks = crate::surface::step_ticks(lp.ticks, 1);
+                        changed = true;
+                    }
+                });
+                ui.label(small(trf("{n} presses", &[("n", &lp.events.len())])));
+            }
+
+            // Remove: a control cell or a loop leaves the layout; a switch
+            // goes through its own route.
+            let switch_id = match &cell.kind {
+                CellKind::Switch { id, .. } | CellKind::Fixture { id, .. } | CellKind::Rig { id, .. } => Some(id.clone()),
+                _ => None,
+            };
+            let removable = role.is_some() || state.layout.loops.contains_key(&key) || switch_id.is_some();
+            if removable {
+                ui.separator();
+                if ui.button(small(tr("remove").into())).clicked() {
+                    if let Some(id) = &switch_id {
+                        let _ = door.json("POST", "/switch", Some(json!({ "op": "remove", "id": id })));
+                    }
+                    state.layout.forget(&key);
+                    state.grid_spans.remove(&key);
+                    state.grid_selected = None;
+                    changed = true;
+                }
+            }
+        });
+    if !open {
+        state.grid_selected = None;
+        state.grid_learn = None;
+    }
+    if changed {
+        save_layout(door, state);
+    }
+}
+
+/// Adds one control cell to the layout, beside the cells already there.
+fn add_role(door: &dyn Call, state: &mut PanelState, role: crate::surface::Role) {
+    let key = state.layout.fresh_key(role.tag());
+    let span = role.default_span();
+    state.layout.roles.insert(key.clone(), role);
+    save_layout(door, state);
+    if span != (1.0, 1.0) {
+        set_grid_span(door, state, &key, span);
+    }
+    state.grid_note = Some(trf("added {cell}", &[("cell", &key)]));
+}
 
 /// A nested dropdown entry of the `+` menu: the bare label, its list opening
 /// beside it. Inside a menu it is a submenu, else a menu button. The menu's
@@ -3644,7 +4355,7 @@ fn plain_item(ui: &mut Ui, theme: &Theme, label: RichText) -> Response {
 /// The whole `+` menu: `create sequence`, `controller button` (which opens the
 /// one editor window), and `add loop`. Every entry reads on the dark theme —
 /// its resting fill the popup's own, its hover the theme's dim phosphor wash.
-fn add_menu(ui: &mut Ui, theme: &Theme, state: &mut PanelState, open_graph: Option<&str>) {
+fn add_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, open_graph: Option<&str>) {
     // Hover/resting widget fills from theme tokens only: a frame-less button
     // would never show a hover, and the theme's own inactive fill is a box the
     // popup already carries.
@@ -3691,6 +4402,17 @@ fn add_menu(ui: &mut Ui, theme: &Theme, state: &mut PanelState, open_graph: Opti
                 state.mode_override = Some(crate::shell::lanes::Mode::Lanes);
                 state.new_loop = Some(ticks);
                         ui.close();
+            }
+        }
+    });
+    // `controls` — the hardware's own buttons as grid cells: the piano, rec
+    // and drop rec, the dials, fn, and the library's search/load/folders.
+    let _ = plain_menu(ui, theme, RichText::new(tr("controls")), |ui| {
+        for role in crate::surface::Role::catalogue() {
+            let label = tr_dyn(&role.label());
+            if ui.selectable_label(false, RichText::new(label).font(theme.font_small.clone())).clicked() {
+                add_role(door, state, role);
+                ui.close();
             }
         }
     });
@@ -3773,7 +4495,7 @@ fn controller_editor(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
     controller_name_field(ui, theme, door, state, graph);
     controller_mode_header(ui, theme, door, state, graph);
     let span_key = format!("ctrl:{graph}");
-    let current = state.grid_spans.get(&span_key).copied().unwrap_or((1, 1));
+    let current = state.grid_spans.get(&span_key).copied().unwrap_or((1.0, 1.0));
     if let Some(span) = size_choices(ui, theme, current) {
         set_grid_span(door, state, &span_key, span);
     }
@@ -4409,7 +5131,7 @@ fn movement_cells(
                     looping,
                 },
                 key: format!("mv:{name}"),
-                span: (1, 1),
+                span: (1.0, 1.0),
                 label: format!("{name}{star}"),
                 on: false,
                 running: running_tick.is_some(),
@@ -4445,7 +5167,7 @@ fn sequences_cells(door: &dyn Call, device: Option<&str>) -> Vec<Cell> {
                     device: device.unwrap_or_default().to_string(),
                 },
                 key: format!("seq:{id}"),
-                span: (1, 1),
+                span: (1.0, 1.0),
                 label: name.to_string(),
                 on: false,
                 running: is_running,
@@ -4498,7 +5220,7 @@ fn switches_cells(door: &dyn Call) -> Vec<Cell> {
             Some(Cell {
                 kind: cell_kind,
                 key: format!("sw:{id}"),
-                span: (1, 1),
+                span: (1.0, 1.0),
                 label,
                 on: sw["on"].as_bool().unwrap_or(false),
                 running: false,
@@ -4519,7 +5241,7 @@ fn controller_cells(state: &PanelState) -> Vec<Cell> {
         .map(|(key, _)| Cell {
             kind: CellKind::Controller { key: key.clone() },
             key: format!("ctrl:{key}"),
-            span: (1, 1),
+            span: (1.0, 1.0),
             label: controller_label(state, key),
             on: false,
             running: false,
@@ -6164,15 +6886,13 @@ fn without_an_open_graph_create_button_says_so() {
     /// The `+` cell in the overlays grid. `menu_button` draws its `⏵`
     /// affordance as a child accesskit node that inherits the button's own
     /// label, so an exact-label query finds it twice (the cell and the
-    /// affordance); the real button is the one as big as an overlay cell.
+    /// affordance); the real button is the bigger of the two.
     fn the_overlays_plus<'a>(
         harness: &'a egui_kittest::Harness<'static, Shell>,
     ) -> egui_kittest::Node<'a> {
-        let theme = Theme::phosphor();
         harness
             .query_all_by_label("+")
-            .filter(|n| (n.rect().width() - theme.overlay_cell.x).abs() < 1.0)
-            .next()
+            .max_by(|a, b| a.rect().area().total_cmp(&b.rect().area()))
             .expect("the overlays grid should paint its + cell")
     }
 
@@ -6399,7 +7119,8 @@ fn without_an_open_graph_create_button_says_so() {
     /// The running sequence's button is accented and carries its playhead
     /// tick as a bar at the foot — read straight off `/state.overlays[].tick`
     /// (rule 5). Inspects the frame's rect shapes: the button's accent
-    /// stroke is `theme.phosphor` on a `theme.overlay_cell`-sized rect, and
+    /// stroke is `theme.phosphor` on a cell-sized rect (the grid's fixed
+    /// columns share the width, so a cell is narrower than the panel), and
     /// the bar is a phosphor fill one hairline tall.
     #[test]
     fn a_running_sequence_button_is_accented_and_shows_its_tick() {
@@ -6439,8 +7160,8 @@ fn without_an_open_graph_create_button_says_so() {
         let accented = rects
             .iter()
             .filter(|r| {
-                (r.rect.width() - theme.overlay_cell.x).abs() < 2.0
-                    && (r.rect.height() - theme.overlay_cell.y).abs() < 2.0
+                r.rect.width() > theme.gear_size
+                    && r.rect.width() * 4.0 < harness.ctx.content_rect().width()
                     && r.stroke.color == theme.phosphor
             })
             .count();
@@ -6567,46 +7288,25 @@ fn without_an_open_graph_create_button_says_so() {
     }
     // -- grid layout: the packer, the pages, the sizes ----------------------
 
-    /// First-fit on the current page, in order: a 2-wide cell takes the top
-    /// row's left pair, a tall one needs two free rows and does not fit the
-    /// rest of page 0, so it opens page 1 (no back-filling page 0).
-    #[test]
-    fn pack_places_mixed_spans_first_fit_and_opens_a_page_when_one_does_not_fit() {
-        let placed = pack(&[(2, 1), (1, 1), (1, 2), (1, 1)], 3, 2);
-        assert_eq!(placed, vec![(0, 0, 0), (0, 2, 0), (1, 0, 0), (1, 1, 0)]);
-    }
-
-    /// Two columns, one row: the third single overflows to page 1 at the
-    /// origin, and the page count follows from the last placement.
-    #[test]
-    fn pack_overflows_to_a_second_page_when_the_first_is_full() {
-        let placed = pack(&[(1, 1), (1, 1), (1, 1)], 2, 1);
-        assert_eq!(placed, vec![(0, 0, 0), (0, 1, 0), (1, 0, 0)]);
-    }
-
-    /// A 2-wide cell in a one-column grid is clamped to 1 wide (and a 2-tall
-    /// one to the row count): it is placed, never dropped or overhung.
-    #[test]
-    fn pack_clamps_a_span_wider_than_the_grid_to_its_columns() {
-        assert_eq!(fit((2, 2), 1, 2), (1, 2));
-        let placed = pack(&[(2, 2), (2, 1)], 1, 2);
-        assert_eq!(placed, vec![(0, 0, 0), (1, 0, 0)]);
-        assert!(pack(&[], 3, 3).is_empty());
-    }
-
-    /// The saved map is read leniently: a `[w,h]` outside 1..=2 or a shape
-    /// that is not a pair is dropped, the good entries kept.
+    /// The saved map is read leniently: a `[w,h]` off `surface::SPANS` or a
+    /// shape that is not a pair is dropped, the good entries kept — the
+    /// halves and thirds among them.
     #[test]
     fn parse_spans_keeps_only_the_sizes_the_grid_can_paint() {
         let spans = parse_spans(&json!({
             "mv:drop": [2, 1],
             "sw:bad": [3, 1],
             "seq:short": [1],
-            "sw:mood-1": [1, 2]
+            "sw:mood-1": [1, 2],
+            "sw:thin": [1, 0.3],
+            "sw:half": [0.5, 1]
         }));
-        assert_eq!(spans.len(), 2);
-        assert_eq!(spans["mv:drop"], (2, 1));
-        assert_eq!(spans["sw:mood-1"], (1, 2));
+        assert_eq!(spans.len(), 4);
+        assert_eq!(spans["mv:drop"], (2.0, 1.0));
+        assert_eq!(spans["sw:mood-1"], (1.0, 2.0));
+        assert_eq!(spans["sw:thin"], (1.0, 0.3));
+        assert_eq!(spans_json(&spans)["sw:thin"], json!([1, 0.3]));
+        assert_eq!(spans_json(&spans)["mv:drop"], json!([2, 1]));
         assert!(parse_spans(&json!({})).is_empty());
     }
 
@@ -6640,19 +7340,19 @@ fn without_an_open_graph_create_button_says_so() {
         assert_eq!(posted["grid_spans"], json!({ "sw:mood-1": [2, 1] }));
     }
 
-    /// Thirty switches in a short panel cannot all fit: the grid pages, and
+    /// Forty switches cannot fit the fixed 8 × 4 grid: it pages, and
     /// the `‹`/`›` cells in its last row turn the page. The stored page is
     /// the one thing a click changes, so each page is scripted through
     /// `GET /settings`: a page holds switches, no two pages share one, a
     /// click on `›` stores the next page, and a stored page past the last
     /// one is clamped back to it (and written back).
     #[test]
-    fn thirty_switches_in_a_short_panel_page_and_the_page_buttons_turn_it() {
+    fn forty_switches_page_the_fixed_grid_and_the_page_buttons_turn_it() {
         let recorder = std::rc::Rc::new(FakeDoor::new());
         recorder.respond("GET", "/state", json!({ "outputs": [] }));
         recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
         recorder.respond("GET", "/settings", json!({ "grid_page": 0 }));
-        let switches: Vec<Value> = (0..30)
+        let switches: Vec<Value> = (0..40)
             .map(|i| json!({ "id": format!("w{i}"), "name": format!("s{i:02}"), "kind": "toggle", "on": false }))
             .collect();
         recorder.respond("GET", "/switch", json!({ "switches": switches }));
@@ -6663,7 +7363,7 @@ fn without_an_open_graph_create_button_says_so() {
 
         // The switches a page paints, by number.
         let painted = |h: &egui_kittest::Harness<'static, Shell>| -> Vec<usize> {
-            (0..30).filter(|i| h.query_by_label(&format!("s{i:02}")).is_some()).collect()
+            (0..40).filter(|i| h.query_by_label(&format!("s{i:02}")).is_some()).collect()
         };
 
         // Store each page in turn and collect what it paints, until the walk
@@ -6689,7 +7389,7 @@ fn without_an_open_graph_create_button_says_so() {
             seen.extend(&here);
             last_page_with_switches = page;
         }
-        assert_eq!(seen.len(), 30, "every switch lands on some page: {seen:?}");
+        assert_eq!(seen.len(), 40, "every switch lands on some page: {seen:?}");
 
         // `›` on the first page stores page 1.
         recorder.respond("GET", "/settings", json!({ "grid_page": 0 }));

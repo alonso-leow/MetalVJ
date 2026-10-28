@@ -4039,6 +4039,7 @@ dependencies = [
  "metal-graph",
  "metal-ingest",
  "metal-listen",
+ "metal-midi",
  "metal-notation",
  "metal-perform",
  "metal-reel",
@@ -4160,6 +4161,13 @@ version = "0.0.1"
 dependencies = [
  "metal-agent",
  "serde_json",
+]
+
+[[package]]
+name = "metal-midi"
+version = "0.0.1"
+dependencies = [
+ "midir",
 ]
 
 [[package]]

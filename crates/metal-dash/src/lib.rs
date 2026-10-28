@@ -129,6 +129,9 @@ mod shell_mode;
 // the system ALSA sequencer, so the default build must not need ALSA headers
 // — see `crates/metal-dash/Cargo.toml`).
 mod input;
+// The control surface (grid layout, MIDI bindings, freeze/rec/loops, fn
+// pages): pure, so `call::settings` validates it and the shell paints it.
+pub mod surface;
 // O.12 / S.U5: the native egui shell (dash.html/page/dash.html were deleted
 // 15-sept-2026, S.U18 — this window is the only client).
 // The three layers (`shell`, `components`, `classes`), the gates that keep

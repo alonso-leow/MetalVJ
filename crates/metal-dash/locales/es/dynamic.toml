@@ -41,3 +41,15 @@
 "Spectral Ridges" = "Crestas espectrales"
 "Orbit Swarm" = "Enjambre orbital"
 "Deep Tunnel" = "Túnel profundo"
+
+# 2026-10-28: the control surface's cells and dial modes (`surface::Role`).
+"rec" = "grabar"
+"drop rec" = "soltar"
+"load" = "cargar"
+"folders" = "carpetas"
+"fn" = "fn"
+"fn dial" = "perilla fn"
+"piano" = "piano"
+"knob" = "perilla"
+"encoder" = "codificador"
+"encoder (offset)" = "codificador (desplazado)"

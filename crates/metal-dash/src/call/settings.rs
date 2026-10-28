@@ -22,10 +22,10 @@ use crate::call::{CallError, Ctx, Params};
 /// The keys this layer owns. A new key means a new preference that grew this
 /// slice (`O.16`'s naming/token sections, …) and added its own key *and* its
 /// own tests here — never a second file.
-const KEYS: [&str; 14] = [
+const KEYS: [&str; 15] = [
     "shell_mode", "language", "tick_level", "grid_spans", "grid_page", "grid_controllers",
     "shell_view", "colour_rule", "export_dir", "fps_cap", "file_tags", "ingest_proxy",
-    "ui_scale", "theme",
+    "ui_scale", "theme", "grid_surface",
 ];
 
 pub use crate::frame_cap::{DEFAULT_FPS_CAP, FPS_CAPS};
@@ -150,7 +150,8 @@ fn defaults() -> Map<String, Value> {
     // cannot disagree about what "base" means (the voice design notes § "Two complete
     // levels, one switch").
     m.insert("tick_level".into(), json!(metal_schema::TickRate::Base.wire()));
-    // The overlays grid's cell sizes, `{ "<key>": [w, h] }` (`w`,`h` in 1..=2).
+    // The overlays grid's cell sizes, `{ "<key>": [w, h] }`, one of
+    // `surface::SPANS` (1×1, 2×1, 1×2, 2×2, 1×0.5, 1×0.3, 0.5×1, 0.3×1).
     // No entry means 1×1, so a fresh install has no sizes to store.
     m.insert("grid_spans".into(), json!({}));
     // The overlays grid's page, 0-based. Signed and unclamped on purpose: the
@@ -161,6 +162,10 @@ fn defaults() -> Map<String, Value> {
     // "name", "targets": [{ "node", … }] } }`. A fresh install assigns
     // nothing, so the map is empty; an empty object clears every controller.
     m.insert("grid_controllers".into(), json!({}));
+    // The control surface (`surface::Layout`): the grid's fixed columns ×
+    // rows, the cells' order and pages, the control cells, the MIDI bindings
+    // and the recorded loops. A fresh install is an 8 × 4 grid, nothing bound.
+    m.insert("grid_surface".into(), crate::surface::Layout::default().to_value());
     // The header's Edit|Show toggle; a fresh install opens on the editor.
     m.insert("shell_view".into(), json!("edit"));
     // Where the overlays grid's colour built-ins paint: a group name
@@ -217,7 +222,10 @@ fn valid_colour_rule(v: &Value) -> bool {
 /// each 1 or 2 (a 2-wide cell is the widest the grid's own clamp allows).
 fn valid_span(v: &Value) -> bool {
     match v.as_array().map(Vec::as_slice) {
-        Some([w, h]) => [w, h].iter().all(|n| matches!(n.as_u64(), Some(1..=2))),
+        Some([w, h]) => match (w.as_f64(), h.as_f64()) {
+            (Some(w), Some(h)) => crate::surface::valid_span(w, h),
+            _ => false,
+        },
         _ => false,
     }
 }
@@ -341,9 +349,18 @@ fn post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<Value, Str
             .as_object()
             .ok_or_else(|| "grid_spans must be an object".to_string())?;
         if let Some((key, bad)) = obj.iter().find(|(_, v)| !valid_span(v)) {
-            return Err(format!("grid_spans[{key}] must be [w,h] with w,h in 1..=2, got {bad}"));
+            return Err(format!("grid_spans[{key}] must be [w,h], one of 1×1 2×1 1×2 2×2 1×0.5 1×0.3 0.5×1 0.3×1, got {bad}"));
         }
         next.insert("grid_spans".into(), spans.clone());
+        changed = true;
+    }
+    if let Some(surface) = body.get("grid_surface") {
+        // The whole layout, replaced, the same contract as `grid_spans`.
+        crate::surface::Layout::check(surface).map_err(|e| format!("grid_surface: {e}"))?;
+        next.insert(
+            "grid_surface".into(),
+            crate::surface::Layout::from_value(surface).to_value(),
+        );
         changed = true;
     }
     if let Some(ctrls) = body.get("grid_controllers") {
@@ -566,9 +583,30 @@ mod tests {
         assert_eq!(reply_at(&p).expect("still")["grid_page"], json!(-4));
     }
 
+    /// The control surface: a fresh install is 8 × 4 with nothing bound, a
+    /// whole layout round-trips, and bad dims or an unknown control kind are
+    /// refused with nothing written.
+    #[test]
+    fn grid_surface_round_trips_and_refuses_bad_dims() {
+        let p = tmp_named("grid-surface");
+        assert_eq!(reply_at(&p).expect("fresh")["grid_surface"]["cols"], json!(8));
+        let saved = post_at(
+            &p,
+            &json!({ "grid_surface": { "cols": 4, "rows": 2, "roles": { "rec-1": { "kind": "rec" } },
+                "binds": [{ "input": "note:60", "page": 1, "cell": "rec-1" }] } }),
+        )
+        .expect("save");
+        assert_eq!(saved["grid_surface"]["cols"], json!(4));
+        assert_eq!(saved["grid_surface"]["roles"]["rec-1"]["kind"], json!("rec"));
+        assert_eq!(saved["grid_surface"]["binds"][0]["page"], json!(1));
+        assert!(post_at(&p, &json!({ "grid_surface": { "cols": 0 } })).is_err());
+        assert!(post_at(&p, &json!({ "grid_surface": { "roles": { "x": { "kind": "nope" } } } })).is_err());
+        assert_eq!(reply_at(&p).expect("re-read")["grid_surface"]["rows"], json!(2));
+    }
+
     /// The overlays grid's cell sizes: a fresh install has none, a full map
-    /// round-trips through the route, and a span outside 1..=2 (or a shape
-    /// that is not `[w,h]`) is refused with nothing written.
+    /// round-trips through the route, and a size off `surface::SPANS` (or a
+    /// shape that is not `[w,h]`) is refused with nothing written.
     #[test]
     fn grid_spans_round_trip_and_refuse_bad_spans() {
         let p = tmp_named("grid-spans");
@@ -582,11 +620,14 @@ mod tests {
         assert_eq!(saved["grid_spans"]["sw:mood-1"], json!([1, 2]));
         assert_eq!(saved["shell_mode"], json!("auto"), "the other keys keep their defaults");
         // A POST carries the whole map, so a key it leaves out is reset.
+        let thin = post_at(&p, &json!({ "grid_spans": { "mv:a": [1, 0.3], "mv:b": [0.5, 1] } })).expect("fractions");
+        assert_eq!(thin["grid_spans"]["mv:a"], json!([1, 0.3]));
         let reset = post_at(&p, &json!({ "grid_spans": { "sw:mood-1": [1, 2] } })).expect("save");
         assert!(reset["grid_spans"].get("mv:drop").is_none());
 
         for bad in [
             json!({ "grid_spans": { "mv:drop": [3, 1] } }),
+            json!({ "grid_spans": { "mv:drop": [0.3, 0.3] } }),
             json!({ "grid_spans": { "mv:drop": [0, 1] } }),
             json!({ "grid_spans": { "mv:drop": [1] } }),
             json!({ "grid_spans": { "mv:drop": "2x2" } }),

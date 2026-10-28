@@ -943,6 +943,13 @@ impl Shell {
     /// provides.
     pub fn ui(&mut self, ui: &mut Ui) {
         let theme = self.theme.clone();
+        // A controller key pressed while the window idles must paint at once:
+        // the MIDI thread wakes this context through the surface's waker.
+        static WAKER: std::sync::Once = std::sync::Once::new();
+        WAKER.call_once(|| {
+            let ctx = ui.ctx().clone();
+            crate::input::set_surface_waker(move || ctx.request_repaint());
+        });
         perf_hud::paint(ui, &theme);
 
         // The viewport `classes::arrangement` decides against — the whole

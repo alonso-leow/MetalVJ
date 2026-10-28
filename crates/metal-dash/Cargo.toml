@@ -40,7 +40,7 @@ default = ["desktop", "gpu", "glow"]
 # spawns (`ffmpeg`, `ffplay`, `pactl`, `niri`, `python3`, `node`) are not gated
 # here: they compile on Android and fail at run time with an OS error, which
 # the callers already handle. See `the build reference` (Android).
-desktop = ["listen", "metal-listen/tone", "dep:softbuffer", "agent", "metal-perform/videoio", "dep:metal-videoio"]
+desktop = ["listen", "midi", "metal-listen/tone", "dep:softbuffer", "agent", "metal-perform/videoio", "dep:metal-videoio"]
 # P-C: Spout (Windows) and Syphon (macOS) senders, each off unless its feature
 # is on and the target matches (see crates/metal-videoio).
 spout = ["desktop", "metal-videoio/spout"]
@@ -129,20 +129,16 @@ native-audio = ["dep:cpal", "metal-listen/decode"]
 #   cargo build -p metal-dash --no-default-features -F listen  # capture, no GPU
 listen = ["metal-perform/listen"]
 
-# O.10b: the MIDI input reader (`src/input/midi.rs`). **Deliberately not in
-# `default`.** `midir` links the system ALSA sequencer through `alsa-sys`,
-# which needs ALSA headers and `pkg-config` — present on the dev host and on
-# the Pi (native build with `libasound2-dev`), but not cross-compilable from a
-# machine without them, and absent from `--no-default-features`. So the Pi
-# build is explicit:
+# O.10b: the MIDI input reader (`src/input/midi.rs`) and MTC. `midir` links
+# the system ALSA sequencer through `alsa-sys`, which needs ALSA headers and
+# `pkg-config`. `desktop` turns it on — the desktop build already links ALSA
+# for capture (`listen`), and a controller plugged into the desktop app must
+# just work. `--no-default-features` (the browser, the Pi cross build) has no
+# `midir` in its tree:
 #
-#   cargo build -p metal-dash --features midi        # ALSA headers required
+#   cargo build -p metal-dash                        # desktop: MIDI on
 #   cargo build -p metal-dash --no-default-features  # no midir in this tree
-#
-# `listen` already pulls ALSA on the dev host for capture; naming this
-# feature makes the sequencer a separate, explicit opt-in rather than a side
-# effect of the default build.
-midi = ["dep:midir"]
+midi = ["dep:midir", "metal-midi/ports"]
 
 [dependencies]
 # `std::time::Instant` panics on wasm32-unknown-unknown; `web-time` is std on native.
@@ -152,6 +148,8 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
 metal-vfs = { path = "../metal-vfs" }
 metal-schema = { path = "../metal-schema" }
+# The MIDI wire, decoded (pure; the port side is the `midi` feature).
+metal-midi = { path = "../metal-midi" }
 # The song digester (decode + the sixteen columns), in Rust — no librosa.
 # `default-features = false`: the tone block (ONNX via `metal-ml`) is a desktop
 # feature, enabled by `desktop` above, so the browser build does not link ONNX.

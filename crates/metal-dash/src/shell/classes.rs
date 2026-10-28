@@ -230,6 +230,9 @@ pub struct Theme {
     /// (`panels/lanes.rs`'s `overlays_grid`) — a sequence's play/stop toggle,
     /// so the grid's cells are all the same shape regardless of name length.
     pub overlay_cell: Vec2,
+    /// How far down a piano cell its black keys reach, as a share of its
+    /// height.
+    pub piano_black_depth: f32,
     /// Height, in points, of the overlays grid's pager row (`‹ ● ●  ›`) under
     /// the cells. Reserved even when there is one page, so the grid's row
     /// count is the same on every page and the panel does not jump.
@@ -665,6 +668,7 @@ impl Theme {
             code_rows: 16,
             mask_canvas_width: 160.0,
             overlay_cell: Vec2::new(96.0, 96.0),
+            piano_black_depth: 0.6,
             pager_height: 22.0,
             pager_dot: 3.0,
             colour_presets: [
@@ -881,6 +885,7 @@ impl Theme {
             code_rows: 16,
             mask_canvas_width: 160.0,
             overlay_cell: Vec2::new(96.0, 96.0),
+            piano_black_depth: 0.6,
             pager_height: 22.0,
             pager_dot: 3.0,
             colour_presets: [
@@ -1173,6 +1178,7 @@ impl Theme {
             code_rows: 16,
             mask_canvas_width: 220.0,
             overlay_cell: Vec2::new(140.0, 140.0),
+            piano_black_depth: 0.6,
             pager_height: 28.0,
             pager_dot: 4.0,
             colour_presets: [

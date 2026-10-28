@@ -53,3 +53,13 @@
 "knob" = "perilla"
 "encoder" = "codificador"
 "encoder (offset)" = "codificador (desplazado)"
+
+# 2026-10-28: a box's controls on the grid (`surface::Role`, `metal_midi::devices`).
+"page ‹" = "página ‹"
+"page ›" = "página ›"
+"octave −" = "octava −"
+"octave +" = "octava +"
+"Pads in Custom pad mode, pots in Custom pot mode (Shift + the Custom pads). Shift, Transpose, Octave, Scale and Note Repeat act inside the keyboard and send no MIDI on their own: they work from the screen, or learn them if Components sets them to send." = "Pads en el modo Custom de pads, perillas en el modo Custom de perillas (Shift + los pads Custom). Shift, Transpose, Octave, Scale y Note Repeat actúan dentro del teclado y no envían MIDI por sí solos: funcionan desde la pantalla, o apréndelos si Components los configura para enviar."
+"Factory CC mode (not a DAW mode): hold SET MARKER + CYCLE while plugging in to return to it." = "Modo CC de fábrica (no un modo DAW): mantén SET MARKER + CYCLE al conectarlo para volver a él."
+"Factory Note mode, channel 1." = "Modo Note de fábrica, canal 1."
+"Programmer mode: hold Session, press the orange pad, release Session." = "Modo Programmer: mantén Session, pulsa el pad naranja, suelta Session."

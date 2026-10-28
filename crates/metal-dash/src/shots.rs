@@ -390,3 +390,30 @@ fn shots_shell_ui_pass() {
     }
     shot(&mut hs, &dir, "shellui-07-sequence");
 }
+
+/// 2026-10-28: the grid as each known controller's face, a few of the box's
+/// controls held and turned.
+#[test]
+fn shots_controller_faces() {
+    let Some(dir) = out_dir() else { return };
+    let door = realistic_door();
+    let w = crate::shell::DESKTOP_VIEWPORT.0 as f32 * 1.6;
+    let mut hs = harness(Box::new(Rc::clone(&door)), w, 1400.0);
+    hs.run_steps(4);
+    for device in metal_midi::devices::catalogue() {
+        let mut layout = crate::surface::Layout::default();
+        layout.apply_device(&device);
+        let held: Vec<String> = layout.slots.iter().filter_map(|s| s.input.clone()).take(3).collect();
+        hs.state_mut().lanes_state_mut().layout = layout;
+        crate::input::drain_surface();
+        for (i, input) in held.iter().enumerate() {
+            let edge = if input.starts_with("note:") {
+                metal_midi::Edge::Press { velocity: 1.0 }
+            } else {
+                metal_midi::Edge::Value { value: 0.3 * (i + 1) as f32, raw: 40 * (i as u8 + 1) }
+            };
+            crate::input::push_surface(crate::input::SurfaceEvent { port: device.name.into(), input: input.clone(), edge });
+        }
+        shot(&mut hs, &dir, &format!("controller-{}", device.id));
+    }
+}

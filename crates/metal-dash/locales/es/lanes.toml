@@ -89,3 +89,12 @@
 "{n} pages" = "{n} páginas"
 "{n} presses" = "{n} pulsaciones"
 "● rec" = "● grabando"
+
+# 2026-10-28: the grid takes the face of a known controller.
+"the controller the grid takes the shape of" = "el controlador cuya forma toma la cuadrícula"
+"does" = "hace"
+"free grid" = "cuadrícula libre"
+"piano from {note}" = "piano desde {note}"
+"the grid is a {name}" = "la cuadrícula es un {name}"
+"the grid is free again" = "la cuadrícula vuelve a ser libre"
+"{name} · connected" = "{name} · conectado"

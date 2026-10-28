@@ -10,6 +10,8 @@
 //! - [`Dial`]: turns a knob's value into steps, for an absolute pot (0..127,
 //!   the FLkey's knobs) or a relative encoder (two's complement or binary
 //!   offset), so a "search dial" or "speed dial" moves one notch per detent.
+//! - [`devices`]: known controllers' faces — every key, pad, knob and button
+//!   where it sits and what it sends — for the grid to take the shape of.
 //! - [`ports`] (feature `ports`): the `midir` connection — list the inputs and
 //!   open every one whose name matches, each message handed to a callback.
 
@@ -69,6 +71,22 @@ impl Msg {
         }
     }
 
+    /// 0..=15.
+    pub fn channel(&self) -> u8 {
+        match *self {
+            Msg::NoteOn { channel, .. }
+            | Msg::NoteOff { channel, .. }
+            | Msg::Cc { channel, .. }
+            | Msg::PitchBend { channel, .. } => channel,
+        }
+    }
+
+    /// The input id with its channel (1-based): `note:36@10` — what tells a
+    /// pad on channel 10 from the key of the same note on channel 1.
+    pub fn input_on_channel(&self) -> String {
+        format!("{}@{}", self.input(), self.channel() + 1)
+    }
+
     /// What the control did. A CC is always a value: a pad in CC mode sends
     /// 127/0, and the surface reads `> 0.5` as down where it wants a button.
     pub fn edge(&self) -> Edge {
@@ -90,9 +108,23 @@ pub fn note_input(n: u8) -> String {
     format!("note:{n}")
 }
 
-/// The note number an input id names, if it is a note.
+/// The note number an input id names, if it is a note (with or without its
+/// channel).
 pub fn input_note(input: &str) -> Option<u8> {
-    input.strip_prefix("note:")?.parse().ok()
+    plain_input(input).strip_prefix("note:")?.parse().ok()
+}
+
+/// An input id without its channel: `note:36@10` → `note:36`.
+pub fn plain_input(input: &str) -> &str {
+    input.split_once('@').map_or(input, |(p, _)| p)
+}
+
+/// Whether a bound input and a heard one are the same control: equal, or
+/// one of them names no channel and the rest agrees (`cc:21` answers
+/// `cc:21@1`; `note:36@10` does not answer `note:36@1`).
+pub fn same_control(bound: &str, heard: &str) -> bool {
+    bound == heard
+        || ((!bound.contains('@') || !heard.contains('@')) && plain_input(bound) == plain_input(heard))
 }
 
 /// `C4`-style name of a note (MIDI 60 is `C4`).
@@ -187,10 +219,14 @@ pub fn profile(port_name: &str) -> Option<&'static str> {
         Some("Akai APC")
     } else if lower.contains("mpk") {
         Some("Akai MPK")
+    } else if lower.contains("nanokontrol") {
+        Some("Korg nanoKONTROL")
     } else {
         None
     }
 }
+
+pub mod devices;
 
 #[cfg(feature = "ports")]
 pub mod ports;
@@ -225,6 +261,19 @@ mod tests {
         assert_eq!(decode(&[0xB5, 7, 0]).unwrap().input(), "cc:7");
         assert_eq!(input_note("note:60"), Some(60));
         assert_eq!(input_note("cc:60"), None);
+        assert_eq!(a.input_on_channel(), "note:60@1");
+        assert_eq!(b.input_on_channel(), "note:60@4");
+        assert_eq!(input_note("note:36@10"), Some(36));
+    }
+
+    #[test]
+    fn a_channel_tells_a_pad_from_a_key_but_a_bare_id_answers_any() {
+        assert!(same_control("note:36@10", "note:36@10"));
+        assert!(!same_control("note:36@10", "note:36@1"));
+        assert!(same_control("cc:21", "cc:21@1"));
+        assert!(same_control("note:60@1", "note:60"), "the on-screen piano is channel-free");
+        assert!(!same_control("cc:21", "cc:22@1"));
+        assert_eq!(plain_input("bend@1"), "bend");
     }
 
     #[test]

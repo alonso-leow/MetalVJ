@@ -32,7 +32,8 @@ pub fn learn() -> &'static Mutex<Option<LearnArm>> {
 }
 
 /// One message a controller sent, as the control surface reads it: the port
-/// it came in on, the channel-free control id (`note:60`, `cc:21`) and what
+/// it came in on, the control id with its channel (`note:60@1`, `cc:21@1` —
+/// [`metal_midi::same_control`] matches it against a bare binding) and what
 /// it did.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SurfaceEvent {

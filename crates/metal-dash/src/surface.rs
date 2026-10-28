@@ -19,6 +19,12 @@
 //!   frozen, the loop being recorded, the loops playing.
 //! - **Sizes** are whole cells or the fractions `0.5` and `0.3` (a third) of
 //!   one; the packer works in [`UNITS`] sub-cells per cell so both fit.
+//! - **A box's face.** [`Layout::apply_device`] gives the grid the exact shape
+//!   of a known controller ([`metal_midi::devices`]): its buttons and knobs
+//!   become control cells held where they sit on the panel, its keys the
+//!   piano, and its pads, faders and free knobs [`Slot`]s the grid's own
+//!   buttons fill page by page ([`pack_device`]) — each answering the
+//!   control under it.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -72,7 +78,7 @@ pub const DEFAULT_LOOP_TICKS: usize = 16;
 pub const FN_HOLD_SECS: f64 = 0.35;
 
 pub const MIN_DIM: u8 = 1;
-pub const MAX_DIM: u8 = 16;
+pub const MAX_DIM: u8 = 24;
 
 /// A control cell — the hardware's non-content buttons, given a place in the
 /// grid so the mouse reaches them too and MIDI can be bound to them.
@@ -109,6 +115,17 @@ pub enum Role {
         #[serde(default = "default_piano_base")]
         base: u8,
     },
+    /// Steps the page by `step` (`-1` back, `1` on) per press.
+    Page { step: i32 },
+    /// Moves every piano `step` octaves.
+    Octave { step: i32 },
+    /// Plays or stops the focused loop (the first one when none is).
+    Play,
+    /// A box's button with nothing to do yet: it lights while pressed, and
+    /// the editor gives it a job.
+    Button { label: String },
+    /// A box's knob with nothing to do yet.
+    Knob { label: String },
 }
 
 fn default_piano_base() -> u8 {
@@ -131,7 +148,39 @@ impl Role {
             Role::SearchDial,
             Role::Load,
             Role::Folder,
+            Role::Page { step: -1 },
+            Role::Page { step: 1 },
+            Role::Octave { step: -1 },
+            Role::Octave { step: 1 },
+            Role::Play,
         ]
+    }
+
+    /// The role a box's control plays (its `role` tag, [`Role::tag`] plus
+    /// `fn-<n>` for a page, `page-prev`/`-next`, `octave-down`/`-up`);
+    /// `label` names the bare `button`/`knob` ones.
+    pub fn from_hint(hint: &str, label: &str) -> Option<Role> {
+        Some(match hint {
+            "rec" => Role::Rec,
+            "drop-rec" => Role::DropRec,
+            "speed-dial" => Role::SpeedDial,
+            "search-dial" => Role::SearchDial,
+            "load" => Role::Load,
+            "folder" => Role::Folder,
+            "fn" => Role::Fn { page: None },
+            "fn-dial" => Role::FnDial,
+            "page-prev" => Role::Page { step: -1 },
+            "page-next" => Role::Page { step: 1 },
+            "octave-down" => Role::Octave { step: -1 },
+            "octave-up" => Role::Octave { step: 1 },
+            "play" => Role::Play,
+            "button" => Role::Button { label: label.to_string() },
+            "knob" => Role::Knob { label: label.to_string() },
+            _ => {
+                let n: usize = hint.strip_prefix("fn-")?.parse().ok()?;
+                Role::Fn { page: Some(n.checked_sub(1)?) }
+            }
+        })
     }
 
     /// The wire tag (`speed-dial`, `piano`, …), also the stem of a new key.
@@ -146,6 +195,11 @@ impl Role {
             Role::Fn { .. } => "fn",
             Role::FnDial => "fn-dial",
             Role::Piano { .. } => "piano",
+            Role::Page { .. } => "page",
+            Role::Octave { .. } => "octave",
+            Role::Play => "play",
+            Role::Button { .. } => "button",
+            Role::Knob { .. } => "knob",
         }
     }
 
@@ -162,12 +216,23 @@ impl Role {
             Role::Fn { page: None } => "fn".into(),
             Role::FnDial => "fn dial".into(),
             Role::Piano { .. } => "piano".into(),
+            Role::Page { step } if *step < 0 => "page ‹".into(),
+            Role::Page { .. } => "page ›".into(),
+            Role::Octave { step } if *step < 0 => "octave −".into(),
+            Role::Octave { .. } => "octave +".into(),
+            Role::Play => "play".into(),
+            Role::Button { label } | Role::Knob { label } => label.clone(),
         }
+    }
+
+    /// Whether it is a box's control waiting for a job.
+    pub fn is_spare(&self) -> bool {
+        matches!(self, Role::Button { .. } | Role::Knob { .. })
     }
 
     /// Knobs: a value turns into steps rather than a press.
     pub fn is_dial(&self) -> bool {
-        matches!(self, Role::SpeedDial | Role::SearchDial | Role::FnDial)
+        matches!(self, Role::SpeedDial | Role::SearchDial | Role::FnDial | Role::Knob { .. })
     }
 
     /// The size a fresh one takes.
@@ -289,6 +354,47 @@ pub struct Layout {
     /// The next recording's length, in ticks.
     #[serde(default = "default_loop_ticks")]
     pub loop_ticks: usize,
+    /// The box whose face the grid has ([`metal_midi::devices::Device::id`]);
+    /// `None` is the free grid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device: Option<String>,
+    /// Cells held at a fixed place on every page, `[x, y, w, h]` in
+    /// sub-cells: a box's buttons and knobs where the panel has them.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub places: BTreeMap<String, [u16; 4]>,
+    /// The places the grid's own buttons fill, page by page.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub slots: Vec<Slot>,
+}
+
+/// A place on a box's face the grid's own buttons fill: a pad takes a
+/// button, a fader, knob or strip takes a fader. On every page the cell in
+/// it answers the control under it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Slot {
+    /// `[x, y, w, h]` in sub-cells.
+    pub rect: [u16; 4],
+    pub kind: SlotKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<String>,
+    #[serde(default)]
+    pub label: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SlotKind {
+    Pad,
+    Knob,
+    Fader,
+    Strip,
+}
+
+impl SlotKind {
+    /// Whether it takes a value (a fader) rather than a press.
+    pub fn takes_value(self) -> bool {
+        !matches!(self, SlotKind::Pad)
+    }
 }
 
 fn default_cols() -> u8 {
@@ -313,6 +419,9 @@ impl Default for Layout {
             binds: Vec::new(),
             loops: BTreeMap::new(),
             loop_ticks: DEFAULT_LOOP_TICKS,
+            device: None,
+            places: BTreeMap::new(),
+            slots: Vec::new(),
         }
     }
 }
@@ -358,12 +467,22 @@ impl Layout {
     }
 
     /// The cell `input` fires on `page`: a binding on that page wins over one
-    /// on every page.
+    /// on every page, and an exact one (the same channel) over one that only
+    /// names the control ([`metal_midi::same_control`]).
     pub fn bound(&self, input: &str, page: usize) -> Option<&Bind> {
         self.binds
             .iter()
-            .find(|b| b.input == input && b.page == Some(page))
-            .or_else(|| self.binds.iter().find(|b| b.input == input && b.page.is_none()))
+            .filter(|b| metal_midi::same_control(&b.input, input))
+            .filter_map(|b| {
+                let here = match b.page {
+                    Some(p) if p == page => 0,
+                    None => 2,
+                    Some(_) => return None,
+                };
+                Some((here + usize::from(b.input != input), b))
+            })
+            .min_by_key(|(rank, _)| *rank)
+            .map(|(_, b)| b)
     }
 
     /// Binds `input` to `cell`, on `page` (or every page), replacing whatever
@@ -390,6 +509,70 @@ impl Layout {
         self.binds.retain(|b| b.cell != cell);
         self.order.retain(|k| k != cell);
         self.pages.remove(cell);
+        self.places.remove(cell);
+    }
+
+    /// Gives the grid `d`'s face: its columns × rows; its buttons and knobs
+    /// as control cells at their place on the panel (`hw:<control>`), bound
+    /// to what they send; its keys as the piano; its pads, faders and free
+    /// knobs as slots. A face already there goes first; the grid's own
+    /// buttons, their pages and their bindings stay.
+    pub fn apply_device(&mut self, d: &metal_midi::devices::Device) {
+        use metal_midi::devices::Part;
+        self.clear_device();
+        self.device = Some(d.id.to_string());
+        self.cols = d.cols.clamp(MIN_DIM, MAX_DIM);
+        self.rows = d.rows.clamp(MIN_DIM, MAX_DIM);
+        for c in &d.controls {
+            let slot = |kind| Slot { rect: c.rect, kind, input: c.input.clone(), label: c.label.clone() };
+            let role = match (c.part, c.role.as_deref()) {
+                (Part::Logo, _) => continue,
+                (Part::Keys { base, .. }, _) => Role::Piano { base },
+                (_, Some(hint)) => match Role::from_hint(hint, &c.label) {
+                    Some(r) => r,
+                    None => continue,
+                },
+                (Part::Button, None) => Role::Button { label: c.label.clone() },
+                (Part::Pad, None) => {
+                    self.slots.push(slot(SlotKind::Pad));
+                    continue;
+                }
+                (Part::Knob | Part::Encoder, None) => {
+                    self.slots.push(slot(SlotKind::Knob));
+                    continue;
+                }
+                (Part::Fader, None) => {
+                    self.slots.push(slot(SlotKind::Fader));
+                    continue;
+                }
+                (Part::Strip, None) => {
+                    self.slots.push(slot(SlotKind::Strip));
+                    continue;
+                }
+            };
+            let key = format!("hw:{}", c.id);
+            self.roles.insert(key.clone(), role);
+            self.places.insert(key.clone(), c.rect);
+            if let Some(input) = &c.input {
+                self.bind(input, None, &key);
+                if c.part == Part::Encoder {
+                    if let Some(b) = self.binds.last_mut() {
+                        b.dial = DialMode::Relative;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Back to the free grid: the face's cells and slots go, the columns ×
+    /// rows and the grid's own buttons stay.
+    pub fn clear_device(&mut self) {
+        let keys: Vec<String> = self.places.keys().cloned().collect();
+        for k in keys {
+            self.forget(&k);
+        }
+        self.slots.clear();
+        self.device = None;
     }
 
     /// `keys` in the stored order: the named ones first as the operator
@@ -523,6 +706,55 @@ pub fn pack(spans: &[(usize, usize)], pins: &[Pin], cols: usize, rows: usize) ->
     placed.into_iter().map(|p| p.expect("every span is placed")).collect()
 }
 
+/// Lays cells out on a box's face. A cell with a `place` holds it on every
+/// page; the rest fill the slots in order, page by page — a fader
+/// (`value`) the knob/fader/strip slots, everything else the pads (each
+/// kind falls back to the other's slots when the box has none of its own) —
+/// a page pin first taking a free slot on its page. Each answer names the
+/// slot the cell landed in.
+pub fn pack_device(places: &[Option<[u16; 4]>], value: &[bool], pins: &[Pin], slots: &[Slot]) -> Vec<(Placed, Option<usize>)> {
+    let pads: Vec<usize> = (0..slots.len()).filter(|&i| !slots[i].kind.takes_value()).collect();
+    let knobs: Vec<usize> = (0..slots.len()).filter(|&i| slots[i].kind.takes_value()).collect();
+    let pool = |v: bool| -> &[usize] {
+        match (v, pads.is_empty(), knobs.is_empty()) {
+            (true, _, false) | (false, true, false) => &knobs,
+            _ => &pads,
+        }
+    };
+    let at = |page: usize, r: [u16; 4]| Placed {
+        page,
+        x: r[0] as usize,
+        y: r[1] as usize,
+        w: r[2].max(1) as usize,
+        h: r[3].max(1) as usize,
+    };
+    let mut used: BTreeSet<(usize, usize)> = BTreeSet::new();
+    let mut out: Vec<Option<(Placed, Option<usize>)>> = places.iter().map(|p| p.map(|r| (at(0, r), None))).collect();
+    let take = |page: usize, pool: &[usize], used: &mut BTreeSet<(usize, usize)>| -> Option<(Placed, Option<usize>)> {
+        let s = *pool.iter().find(|&&s| !used.contains(&(page, s)))?;
+        used.insert((page, s));
+        Some((at(page, slots[s].rect), Some(s)))
+    };
+    for i in 0..out.len() {
+        if let (None, Pin::Page(p)) = (&out[i], pins[i]) {
+            out[i] = take(p, pool(value[i]), &mut used);
+        }
+    }
+    for i in 0..out.len() {
+        if out[i].is_some() {
+            continue;
+        }
+        let pool = pool(value[i]);
+        if pool.is_empty() {
+            // A face with no slots at all: the cell sits over the corner.
+            out[i] = Some((Placed { page: 0, x: 0, y: 0, w: UNITS, h: UNITS }, None));
+            continue;
+        }
+        out[i] = (0..).find_map(|page| take(page, pool, &mut used));
+    }
+    out.into_iter().map(|p| p.expect("every cell is placed")).collect()
+}
+
 /// What the library should do, raised by a control cell and drained by the
 /// library panel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -550,6 +782,8 @@ pub enum Out {
     RecStop(Loop),
     /// Flip whether a loop plays.
     LoopToggle(String),
+    /// Move every piano this many octaves.
+    Octave(i32),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -683,6 +917,18 @@ impl Surface {
             }
             (Role::Fn { page: to }, Gesture::Click) => out.push(Out::Page(to.unwrap_or(page + 1))),
             (Role::FnDial, Gesture::Steps(n)) => out.push(Out::PageStep(n)),
+            (Role::Page { step }, Gesture::Down | Gesture::Click) => out.push(Out::PageStep(*step)),
+            (Role::Octave { step }, Gesture::Down | Gesture::Click) => out.push(Out::Octave(*step)),
+            (Role::Play, Gesture::Down | Gesture::Click) => {
+                let key = self
+                    .focus_loop
+                    .clone()
+                    .filter(|k| layout.loops.contains_key(k))
+                    .or_else(|| layout.loops.keys().next().cloned());
+                if let Some(k) = key {
+                    out.extend(self.loop_pressed(&k));
+                }
+            }
             _ => {}
         }
         out
@@ -1018,6 +1264,79 @@ mod tests {
             s.role(&l, "f2", &Role::Fn { page: None }, Gesture::Click, 0.0, 4),
             vec![Out::Page(5)]
         );
+    }
+
+    #[test]
+    fn a_box_face_places_its_buttons_binds_them_and_slots_its_pads() {
+        let flkey = metal_midi::devices::device("flkey-mini").unwrap();
+        let mut l = Layout::default();
+        l.bind("note:60", Some(0), "sw:mine");
+        l.apply_device(&flkey);
+        assert_eq!((l.cols, l.rows, l.device.as_deref()), (13, 5, Some("flkey-mini")));
+        assert_eq!(l.roles.get("hw:record"), Some(&Role::Rec));
+        assert_eq!(l.roles.get("hw:keys"), Some(&Role::Piano { base: 48 }));
+        assert_eq!(l.roles.get("hw:octave-up"), Some(&Role::Octave { step: 1 }));
+        assert_eq!(l.places.get("hw:octave-down"), Some(&[6, 15, 6, 3]));
+        assert_eq!(l.bound("cc:117@1", 3).unwrap().cell, "hw:record");
+        assert_eq!(l.bound("cc:21@1", 0).unwrap().cell, "hw:pot-1");
+        // 16 pads, 5 free pots and 2 strips are slots.
+        assert_eq!(l.slots.iter().filter(|s| s.kind == SlotKind::Pad).count(), 16);
+        assert_eq!(l.slots.iter().filter(|s| s.kind.takes_value()).count(), 7);
+        assert_eq!(l.slots.iter().find(|s| s.kind == SlotKind::Pad).unwrap().input.as_deref(), Some("note:40@10"));
+        // Another face replaces this one; the grid's own binding stays.
+        l.apply_device(&metal_midi::devices::device("apc-mini-mk2").unwrap());
+        assert!(!l.roles.contains_key("hw:keys") && l.roles.contains_key("hw:scene-1"));
+        assert_eq!(l.roles.get("hw:scene-3"), Some(&Role::Fn { page: Some(2) }));
+        assert_eq!(l.slots.iter().filter(|s| s.kind == SlotKind::Pad).count(), 64);
+        assert!(l.bound("note:60", 0).is_some_and(|b| b.cell == "sw:mine"));
+        l.clear_device();
+        assert!(l.roles.is_empty() && l.slots.is_empty() && l.places.is_empty() && l.device.is_none());
+        let v = l.to_value();
+        assert!(v.get("slots").is_none() && v.get("device").is_none(), "a free grid stores as before");
+    }
+
+    #[test]
+    fn a_pad_on_channel_ten_is_not_the_key_of_the_same_note() {
+        let mut l = Layout::default();
+        l.bind("note:48@10", Some(0), "sw:pad");
+        l.bind("note:48", None, "rec-1");
+        assert_eq!(l.bound("note:48@10", 0).unwrap().cell, "sw:pad");
+        assert_eq!(l.bound("note:48@1", 0).unwrap().cell, "rec-1");
+        assert_eq!(l.bound("note:48", 0).unwrap().cell, "sw:pad", "the screen's piano names no channel");
+    }
+
+    #[test]
+    fn the_face_fills_its_pads_page_by_page_and_faders_take_the_knobs() {
+        let slot = |x: u16, kind| Slot { rect: [x, 0, 6, 6], kind, input: None, label: String::new() };
+        let slots = [slot(0, SlotKind::Pad), slot(6, SlotKind::Pad), slot(12, SlotKind::Knob)];
+        let places = [Some([18, 0, 6, 6]), None, None, None, None, None];
+        let value = [false, false, true, false, false, true];
+        let pins = [Pin::Every, Pin::Flow, Pin::Flow, Pin::Page(1), Pin::Flow, Pin::Flow];
+        let out = pack_device(&places, &value, &pins, &slots);
+        let at = |i: usize| (out[i].0.page, out[i].1);
+        assert_eq!((out[0].0.x, out[0].1), (18, None), "a placed cell keeps its place");
+        assert_eq!(at(3), (1, Some(0)), "the page pin lands first");
+        assert_eq!(at(1), (0, Some(0)));
+        assert_eq!(at(4), (0, Some(1)));
+        assert_eq!(at(2), (0, Some(2)), "a fader takes the knob");
+        assert_eq!(at(5), (1, Some(2)), "the next fader the knob a page on");
+        // No knob slots: a fader takes a pad.
+        let out = pack_device(&[None], &[true], &[Pin::Flow], &slots[..1]);
+        assert_eq!(out[0].1, Some(0));
+    }
+
+    #[test]
+    fn the_box_buttons_turn_pages_move_the_piano_and_play_the_loop() {
+        let mut l = Layout::default();
+        let mut s = Surface::default();
+        assert_eq!(s.role(&l, "p", &Role::Page { step: -1 }, Gesture::Down, 0.0, 2), vec![Out::PageStep(-1)]);
+        assert_eq!(s.role(&l, "o", &Role::Octave { step: 1 }, Gesture::Click, 0.0, 0), vec![Out::Octave(1)]);
+        assert!(s.role(&l, "x", &Role::Play, Gesture::Down, 0.0, 0).is_empty(), "no loop to play");
+        l.loops.insert("loop-1".into(), Loop { name: "loop 1".into(), ticks: 8, events: vec![], playing: false });
+        assert_eq!(s.role(&l, "x", &Role::Play, Gesture::Down, 0.0, 0), vec![Out::LoopToggle("loop-1".into())]);
+        assert!(s.role(&l, "b", &Role::Button { label: "◀◀".into() }, Gesture::Down, 0.0, 0).is_empty());
+        assert_eq!(Role::from_hint("fn-3", ""), Some(Role::Fn { page: Some(2) }));
+        assert_eq!(Role::from_hint("fn-0", ""), None);
     }
 
     #[test]

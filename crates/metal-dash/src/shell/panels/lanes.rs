@@ -227,6 +227,11 @@ pub struct PanelState {
     piano_held: HashMap<String, Option<u8>>,
     /// CC-mode pads above half, by input id: a CC pad's level becomes edges.
     cc_down: BTreeSet<String>,
+    /// The box's controls as last heard, by input id: what is pressed, and
+    /// where each knob, fader and strip sits (0..=1) — a box face lights and
+    /// turns with the hardware even where no cell is.
+    hw_down: BTreeSet<String>,
+    hw_levels: HashMap<String, f32>,
     /// A fader moved by MIDI waits this long without moving before its
     /// value is saved.
     controllers_dirty: Option<f64>,
@@ -368,6 +373,8 @@ impl Default for PanelState {
             dial_acc: HashMap::new(),
             piano_held: HashMap::new(),
             cc_down: BTreeSet::new(),
+            hw_down: BTreeSet::new(),
+            hw_levels: HashMap::new(),
             controllers_dirty: None,
             driven_pass: None,
             controllers: BTreeMap::new(),
@@ -2666,13 +2673,13 @@ fn overlays_grid(
     state_val: &Value,
     open_graph: Option<&str>,
 ) {
-    let GridPlan { cells, pins, placed, pages, page } = grid_plan(door, state, state_val);
+    let GridPlan { cells, pins, placed, pages, page, wired, filled } = grid_plan(door, state, state_val);
     let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
     state.driven_pass = Some(ui.ctx().cumulative_pass_nr());
 
     // The hardware first: what the controller sent since the last frame, and
     // the loops' playback, fire before this frame paints what they changed.
-    drive_surface(ui, door, state, &cells, page, pages);
+    drive_surface(ui, door, state, &cells, page, pages, &wired);
     if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
         apply_overlay_drop(door, state, &drag);
     }
@@ -2707,10 +2714,31 @@ fn overlays_grid(
             let rect = unit_rect(origin, cell, gap, p.x, p.y, p.w, p.h);
             paint_cell(ui, theme, door, state, c, rect, open_graph);
         }
+        // A box's face: its empty slots paint as the control they are (a pad
+        // still takes a dropped card), and its mark where the panel has it.
+        if let Some(device) = state.layout.device.as_deref().and_then(metal_midi::devices::device) {
+            for (i, slot) in state.layout.slots.clone().iter().enumerate() {
+                if !filled.get(i).copied().unwrap_or(false) {
+                    let [x, y, w, h] = slot.rect.map(|v| v as usize);
+                    paint_empty_slot(ui, theme, door, state, i, slot, unit_rect(origin, cell, gap, x, y, w, h));
+                }
+            }
+            for logo in device.controls.iter().filter(|c| c.part == metal_midi::devices::Part::Logo) {
+                let [x, y, w, h] = logo.rect.map(|v| v as usize);
+                ui.painter().text(
+                    unit_rect(origin, cell, gap, x, y, w, h).center(),
+                    Align2::CENTER_CENTER,
+                    &logo.label,
+                    theme.font_small.clone(),
+                    theme.ink_weak,
+                );
+            }
+        }
         // A whole cell nothing covers is a phantom: an empty square that
         // takes a dropped library card.
         let u = crate::surface::UNITS;
-        for row in 0..rows {
+        let free_grid = state.layout.device.is_none();
+        for row in (0..rows).filter(|_| free_grid) {
             for col in 0..cols {
                 let free = (row * u..(row + 1) * u).all(|y| (col * u..(col + 1) * u).all(|x| !occupied[y * cu + x]));
                 if free {
@@ -2750,6 +2778,11 @@ struct GridPlan {
     placed: Vec<crate::surface::Placed>,
     pages: usize,
     page: usize,
+    /// On a box's face: each slot input on the shown page and the cell in
+    /// that slot, which the control fires unless a binding says otherwise.
+    wired: Vec<(String, String)>,
+    /// Which of the face's slots hold a cell on the shown page.
+    filled: Vec<bool>,
 }
 
 fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan {
@@ -2763,17 +2796,43 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
         .iter()
         .map(|c| (crate::surface::units(c.span.0), crate::surface::units(c.span.1)))
         .collect();
-    // Control cells hold one place on every page, like the hardware buttons
-    // they stand for — a `fn` that turns the page is still there to release.
-    let pins: Vec<crate::surface::Pin> = cells
-        .iter()
-        .map(|c| match (&c.kind, state.layout.pages.get(&c.key)) {
-            (CellKind::Role { .. }, _) => crate::surface::Pin::Every,
-            (_, Some(&p)) => crate::surface::Pin::Page(p),
-            _ => crate::surface::Pin::Flow,
-        })
-        .collect();
-    let placed = crate::surface::pack(&spans, &pins, cols * crate::surface::UNITS, rows * crate::surface::UNITS);
+    let (pins, placed, slot_of) = if state.layout.device.is_some() {
+        // A box's face: its controls where the panel has them, the grid's
+        // own buttons in its pads (a fader in its knobs and faders).
+        use crate::surface::Pin;
+        let places: Vec<Option<[u16; 4]>> = cells.iter().map(|c| state.layout.places.get(&c.key).copied()).collect();
+        let value: Vec<bool> = cells
+            .iter()
+            .map(|c| matches!(&c.kind, CellKind::Controller { key } if controller_is_fader(state, key)))
+            .collect();
+        let pins: Vec<Pin> = cells
+            .iter()
+            .zip(&places)
+            .map(|(c, at)| match (at, state.layout.pages.get(&c.key)) {
+                (Some(_), _) => Pin::Every,
+                (None, Some(&p)) => Pin::Page(p),
+                _ => Pin::Flow,
+            })
+            .collect();
+        let (placed, slot_of): (Vec<_>, Vec<_>) =
+            crate::surface::pack_device(&places, &value, &pins, &state.layout.slots).into_iter().unzip();
+        (pins, placed, slot_of)
+    } else {
+        // Control cells hold one place on every page, like the hardware
+        // buttons they stand for — a `fn` that turns the page is still there
+        // to release.
+        let pins: Vec<crate::surface::Pin> = cells
+            .iter()
+            .map(|c| match (&c.kind, state.layout.pages.get(&c.key)) {
+                (CellKind::Role { .. }, _) => crate::surface::Pin::Every,
+                (_, Some(&p)) => crate::surface::Pin::Page(p),
+                _ => crate::surface::Pin::Flow,
+            })
+            .collect();
+        let placed = crate::surface::pack(&spans, &pins, cols * crate::surface::UNITS, rows * crate::surface::UNITS);
+        let none = vec![None; placed.len()];
+        (pins, placed, none)
+    };
     let pages = placed
         .iter()
         .map(|p| p.page + 1)
@@ -2790,7 +2849,19 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
         set_stored_page(door, page);
     }
 
-    GridPlan { cells, pins, placed, pages, page }
+    let mut filled = vec![false; state.layout.slots.len()];
+    let mut wired = Vec::new();
+    for ((c, p), s) in cells.iter().zip(&placed).zip(&slot_of) {
+        let Some(s) = *s else { continue };
+        if p.page != page {
+            continue;
+        }
+        filled[s] = true;
+        if let Some(input) = &state.layout.slots[s].input {
+            wired.push((input.clone(), c.key.clone()));
+        }
+    }
+    GridPlan { cells, pins, placed, pages, page, wired, filled }
 }
 
 /// MIDI keeps driving the grid while it is off screen — the sequence editor
@@ -2814,7 +2885,7 @@ pub(crate) fn drive_offscreen(ui: &Ui, door: &dyn Call, state: &mut PanelState) 
     state.refresh(door);
     let state_val = get(door, "GET", "/state", &[]).unwrap_or_else(|| json!({}));
     let plan = grid_plan(door, state, &state_val);
-    drive_surface(ui, door, state, &plan.cells, plan.page, plan.pages);
+    drive_surface(ui, door, state, &plan.cells, plan.page, plan.pages, &plan.wired);
     if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
         apply_overlay_drop(door, state, &drag);
     }
@@ -2878,11 +2949,25 @@ fn grid_cells(door: &dyn Call, state: &PanelState, state_val: &Value) -> Vec<Cel
 
 /// The control cells and the recorded loops, off the stored layout.
 fn surface_cells(state: &PanelState) -> Vec<Cell> {
+    // A box's control reads as its panel prints it, then its job.
+    let device = state.layout.device.as_deref().and_then(metal_midi::devices::device);
+    let printed = |key: &str| {
+        let id = key.strip_prefix("hw:")?;
+        let c = device.as_ref()?.controls.iter().find(|c| c.id == id)?;
+        (!c.label.is_empty()).then(|| c.label.clone())
+    };
     let roles = state.layout.roles.iter().map(|(key, role)| Cell {
         kind: CellKind::Role { role: role.clone() },
         key: key.clone(),
         span: role.default_span(),
-        label: tr_dyn(&role.label()),
+        // A knob shows its job (its value says the rest); a button its print
+        // over its job.
+        label: match printed(key) {
+            Some(_) if role.is_dial() && !role.is_spare() => tr_dyn(&role.label()).to_string(),
+            Some(p) if !role.is_spare() && p != role.label() => format!("{p}\n{}", tr_dyn(&role.label())),
+            Some(p) => p,
+            None => tr_dyn(&role.label()).to_string(),
+        },
         on: false,
         running: false,
         progress: None,
@@ -2944,6 +3029,9 @@ fn page_bar(
         Pos2::new(add.left() - theme.item_gap.x, bar.bottom()),
     );
     ui.scope_builder(UiBuilder::new().max_rect(middle).layout(Layout::left_to_right(Align::Center)), |ui| {
+        // What does not fit is cut, never laid over `+` and `›`.
+        ui.set_clip_rect(middle.intersect(ui.clip_rect()));
+        device_menu(ui, theme, door, state);
         let edit = ui.selectable_label(state.grid_edit, RichText::new(tr("edit grid")).font(theme.font_small.clone()));
         if edit.clicked() {
             state.grid_edit = !state.grid_edit;
@@ -2957,6 +3045,89 @@ fn page_bar(
         }
         surface_status(ui, theme, state);
     });
+}
+
+/// The box the grid takes the shape of: the free grid, or one of the known
+/// controllers (the one plugged in is marked) with every key, pad, knob and
+/// button where its panel has them. Hovering one says what mode the box
+/// must be in for its controls to answer.
+fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState) {
+    let small = |t: String| RichText::new(t).font(theme.font_small.clone());
+    let current = state.layout.device.as_deref().and_then(metal_midi::devices::device);
+    let label = current.as_ref().map_or_else(|| tr("free grid").to_string(), |d| d.name.to_string());
+    let ports = crate::input::midi_ports();
+    let (response, _) = plain_menu(ui, theme, RichText::new(format!("{label} ▾")), |ui| {
+        if ui.selectable_label(current.is_none(), small(tr("free grid").into())).clicked() {
+            state.layout.clear_device();
+            state.grid_note = Some(tr("the grid is free again").to_string());
+            save_layout(door, state);
+            ui.close();
+        }
+        for d in metal_midi::devices::catalogue() {
+            let name = if ports.iter().any(|p| d.is_port(p)) {
+                trf("{name} · connected", &[("name", &d.name)])
+            } else {
+                d.name.to_string()
+            };
+            let picked = state.layout.device.as_deref() == Some(d.id);
+            if ui.selectable_label(picked, small(name)).on_hover_text(tr_dyn(d.note)).clicked() {
+                state.layout.apply_device(&d);
+                state.grid_note = Some(trf("the grid is a {name}", &[("name", &d.name)]));
+                save_layout(door, state);
+                ui.close();
+            }
+        }
+    });
+    response.on_hover_text(tr("the controller the grid takes the shape of"));
+}
+
+/// A box's slot with no cell in it on this page, painted as the control it
+/// is: a pad (that takes a dropped card, like a free grid's empty cell) lit
+/// while pressed, a knob turned and a fader or strip filled to where the
+/// hardware sits.
+fn paint_empty_slot(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    index: usize,
+    slot: &crate::surface::Slot,
+    rect: Rect,
+) {
+    use crate::surface::SlotKind;
+    let input = slot.input.as_deref().unwrap_or_default();
+    let down = !input.is_empty() && state.hw_down.iter().any(|h| metal_midi::same_control(input, h));
+    let level = hw_level(state, input);
+    match slot.kind {
+        SlotKind::Pad => {
+            paint_phantom_cell(ui, theme, door, state, index, rect);
+            if down {
+                ui.painter().rect_filled(rect, theme.corner_radius(), theme.phosphor);
+            }
+            if !slot.label.is_empty() {
+                ui.painter().text(rect.center(), Align2::CENTER_CENTER, &slot.label, theme.font_small.clone(), theme.ink_weak);
+            }
+        }
+        SlotKind::Knob => {
+            let id = Id::new(("shell/region/lanes/slot", index));
+            let mut acc = 0.0;
+            let value = level.map(|v| format!("{:.0}", v * 127.0)).unwrap_or_default();
+            let _ = super::pads::dial(ui, theme, id, rect, &slot.label, &value, level, false, &mut acc);
+        }
+        SlotKind::Fader | SlotKind::Strip => super::pads::strip(ui, theme, rect, &slot.label, level),
+    }
+}
+
+/// Where the box's control on `input` last sat, 0..=1.
+fn hw_level(state: &PanelState, input: &str) -> Option<f32> {
+    if input.is_empty() {
+        return None;
+    }
+    state
+        .hw_levels
+        .iter()
+        .find(|(heard, _)| metal_midi::same_control(input, heard))
+        .map(|(_, v)| *v)
 }
 
 /// Edit mode's grid-wide controls: columns, rows and the pages kept.
@@ -3030,13 +3201,22 @@ fn seconds_per_tick() -> f64 {
 
 /// Feeds the surface what the hardware (and the on-screen piano) sent since
 /// the last frame, ticks the loops, and keeps painting while either moves.
-fn drive_surface(ui: &Ui, door: &dyn Call, state: &mut PanelState, cells: &[Cell], page: usize, pages: usize) {
+fn drive_surface(
+    ui: &Ui,
+    door: &dyn Call,
+    state: &mut PanelState,
+    cells: &[Cell],
+    page: usize,
+    pages: usize,
+    wired: &[(String, String)],
+) {
     let now = ui.input(|i| i.time);
     let mut inputs: Vec<(String, metal_midi::Edge)> =
         crate::input::drain_surface().into_iter().map(|e| (e.input, e.edge)).collect();
     inputs.append(&mut state.pad_inputs);
+    let heard = !inputs.is_empty();
     for (input, edge) in inputs {
-        let outs = surface_input(door, state, cells, &input, edge, now, page);
+        let outs = surface_input(door, state, cells, wired, &input, edge, now, page);
         state.grid_outs.extend(outs);
     }
     let outs = state.surface.tick(&state.layout, now, seconds_per_tick());
@@ -3050,18 +3230,23 @@ fn drive_surface(ui: &Ui, door: &dyn Call, state: &mut PanelState, cells: &[Cell
         }
     }
     let playing = state.layout.loops.values().any(|l| l.playing);
+    if heard {
+        ui.ctx().request_repaint();
+    }
     if playing || state.surface.is_recording() || state.controllers_dirty.is_some() {
         crate::shell::frames::repaint_after(ui.ctx(), std::time::Duration::from_millis(16));
     }
 }
 
 /// One control heard: bound while a bind waits, else fired through its
-/// binding on this page.
+/// binding on this page — or, on a box's face, through the slot it sits
+/// under (`wired`).
 #[allow(clippy::too_many_arguments)]
 fn surface_input(
     door: &dyn Call,
     state: &mut PanelState,
     cells: &[Cell],
+    wired: &[(String, String)],
     input: &str,
     edge: metal_midi::Edge,
     now: f64,
@@ -3069,7 +3254,13 @@ fn surface_input(
 ) -> Vec<crate::surface::Out> {
     use crate::surface::Gesture;
     use metal_midi::Edge;
-    if let Some(n) = metal_midi::input_note(input) {
+    // A pad of the box's own slots is not a piano key, whatever its note.
+    let slot_input = state
+        .layout
+        .slots
+        .iter()
+        .any(|s| s.input.as_deref().is_some_and(|i| metal_midi::same_control(i, input)));
+    if let Some(n) = metal_midi::input_note(input).filter(|_| !slot_input) {
         match edge {
             Edge::Press { .. } => {
                 state.surface.notes.insert(n);
@@ -3099,6 +3290,18 @@ fn surface_input(
         Edge::Press { .. } => Some(true),
         Edge::Release => Some(false),
     };
+    match level {
+        Some(true) => {
+            state.hw_down.insert(input.to_string());
+        }
+        Some(false) => {
+            state.hw_down.remove(input);
+        }
+        None => {}
+    }
+    if let Edge::Value { value, .. } = edge {
+        state.hw_levels.insert(input.to_string(), value);
+    }
 
     if let Some(cell) = state.grid_learn.clone() {
         if matches!(edge, Edge::Release) {
@@ -3113,7 +3316,15 @@ fn surface_input(
         save_layout(door, state);
         return Vec::new();
     }
-    let Some(bind) = state.layout.bound(input, page).cloned() else {
+    let wired_bind = || {
+        wired.iter().find(|(i, _)| metal_midi::same_control(i, input)).map(|(i, cell)| crate::surface::Bind {
+            input: i.clone(),
+            page: Some(page),
+            cell: cell.clone(),
+            dial: crate::surface::DialMode::Absolute,
+        })
+    };
+    let Some(bind) = state.layout.bound(input, page).cloned().or_else(wired_bind) else {
         return Vec::new();
     };
     if let Some(role) = state.layout.roles.get(&bind.cell).cloned() {
@@ -3206,6 +3417,16 @@ fn run_outs(
                 if let Some(lp) = state.layout.loops.get_mut(&key) {
                     lp.playing = !lp.playing;
                     save = true;
+                }
+            }
+            Out::Octave(step) => {
+                let top = 127 - (crate::surface::PIANO_KEYS as i32 - 1);
+                for role in state.layout.roles.values_mut() {
+                    if let crate::surface::Role::Piano { base } = role {
+                        *base = (*base as i32 + 12 * step).clamp(0, top) as u8;
+                        state.grid_note = Some(trf("piano from {note}", &[("note", &metal_midi::note_name(*base))]));
+                        save = true;
+                    }
                 }
             }
         }
@@ -3493,10 +3714,11 @@ fn paint_cell(
             response
         }
         CellKind::Role { role } if role.is_dial() => {
-            let (value, frac) = dial_face(state, role);
+            let (value, frac) = dial_face(state, &cell.key, role);
+            let lit = hw_pressed(state, &cell.key);
             let mut acc = state.dial_acc.get(&cell.key).copied().unwrap_or(0.0);
             let id = Id::new(("shell/region/lanes/dial", &cell.key));
-            let (response, steps) = super::pads::dial(ui, theme, id, rect, &cell.label, &value, frac, false, &mut acc);
+            let (response, steps) = super::pads::dial(ui, theme, id, rect, &cell.label, &value, frac, lit, &mut acc);
             state.dial_acc.insert(cell.key.clone(), acc);
             if steps != 0 && !editing {
                 let out = state.surface.role(&state.layout, &cell.key, role, Gesture::Steps(steps), now, stored_page(door).max(0) as usize);
@@ -3506,13 +3728,26 @@ fn paint_cell(
         }
         _ => {
             let lit = match &cell.kind {
-                CellKind::Role { role } => state.surface.role_lit(&cell.key, role),
+                CellKind::Role { role } => state.surface.role_lit(&cell.key, role) || hw_pressed(state, &cell.key),
                 _ => cell.on,
             };
             // Filled buttons are darker than the gray empty slots.
-            let mut button = egui::Button::new(RichText::new(&cell.label).font(theme.font_small.clone()))
-                .min_size(rect.size())
-                .fill(theme.inset);
+            let text = RichText::new(&cell.label).font(theme.font_small.clone());
+            // A box's face is packed tight: a name keeps to two rows inside
+            // its button, cut with `…`, never grown over the control below.
+            let text: egui::WidgetText = if state.layout.device.is_some() {
+                let mut job = std::sync::Arc::unwrap_or_clone(egui::WidgetText::from(text).into_layout_job(ui.style(), egui::FontSelection::Default, Align::Center));
+                job.wrap = egui::text::TextWrapping {
+                    max_width: (rect.width() - 2.0 * ui.spacing().button_padding.x).max(theme.hairline),
+                    max_rows: 2,
+                    break_anywhere: true,
+                    overflow_character: Some('…'),
+                };
+                egui::WidgetText::Galley(ui.fonts_mut(|f| f.layout_job(job)))
+            } else {
+                text.into()
+            };
+            let mut button = egui::Button::new(text).min_size(rect.size()).fill(theme.inset);
             if lit {
                 button = button.fill(theme.accent_vivid);
             }
@@ -3621,9 +3856,17 @@ fn paint_cell(
     }
 }
 
-/// A dial's centre text and arc: the loop length for `speed`, the page for
-/// the `fn` dial, the column being searched for `search`.
-fn dial_face(state: &PanelState, role: &crate::surface::Role) -> (String, Option<f32>) {
+/// Whether a control the cell is bound to is held on the box right now.
+fn hw_pressed(state: &PanelState, key: &str) -> bool {
+    state
+        .layout
+        .binds_of(key)
+        .any(|b| state.hw_down.iter().any(|h| metal_midi::same_control(&b.input, h)))
+}
+
+/// A dial's centre text and arc: the loop length for `speed`; a box's spare
+/// knob where the hardware sits.
+fn dial_face(state: &PanelState, key: &str, role: &crate::surface::Role) -> (String, Option<f32>) {
     use crate::surface::{Role, LOOP_TICKS};
     match role {
         Role::SpeedDial => {
@@ -3635,6 +3878,10 @@ fn dial_face(state: &PanelState, role: &crate::surface::Role) -> (String, Option
                 .map_or(state.layout.loop_ticks, |l| l.ticks);
             let at = LOOP_TICKS.iter().position(|&t| t >= ticks).unwrap_or(LOOP_TICKS.len() - 1);
             (format!("{ticks}"), Some(at as f32 / (LOOP_TICKS.len() - 1) as f32))
+        }
+        Role::Knob { .. } => {
+            let level = state.layout.binds_of(key).find_map(|b| hw_level(state, &b.input));
+            (level.map(|v| format!("{:.0}", v * 127.0)).unwrap_or_default(), level)
         }
         _ => (String::new(), None),
     }
@@ -4186,10 +4433,34 @@ fn cell_editor_popup(
             ui.set_min_width(theme.text_input_width * 2.0);
             let small = |t: String| RichText::new(t).font(theme.font_small.clone());
 
-            if let Some(span) = size_choices(ui, theme, cell.span) {
-                set_grid_span(door, state, &key, span);
+            // On a box's face the panel sizes everything.
+            if state.layout.device.is_none() {
+                if let Some(span) = size_choices(ui, theme, cell.span) {
+                    set_grid_span(door, state, &key, span);
+                }
+                ui.separator();
             }
-            ui.separator();
+            // A control cell's job: any of the surface's, so a box's button
+            // or knob does what the operator wants of it.
+            if let Some(current) = role.as_ref().filter(|r| !matches!(r, Role::Piano { .. })) {
+                ui.horizontal(|ui| {
+                    ui.label(small(tr("does").into()));
+                    let _ = plain_menu(ui, theme, small(tr_dyn(&current.label()).to_string()), |ui| {
+                        let jobs = Role::catalogue()
+                            .into_iter()
+                            .filter(|r| !matches!(r, Role::Piano { .. }))
+                            .chain(current.is_spare().then(|| current.clone()));
+                        for job in jobs {
+                            if ui.selectable_label(&job == current, small(tr_dyn(&job.label()).to_string())).clicked() {
+                                state.layout.roles.insert(key.clone(), job);
+                                changed = true;
+                                ui.close();
+                            }
+                        }
+                    });
+                });
+                ui.separator();
+            }
 
             // Its page: pinned cells stay on theirs; the rest follow the order.
             // A control cell is on every page.
@@ -7393,6 +7664,61 @@ fn without_an_open_graph_create_button_says_so() {
             m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": "strobe" })
         });
         assert!(fired, "the key turns the switch on through the off-screen drive");
+    }
+
+    /// Picking the FLkey Mini in the bar's controller menu gives the grid its
+    /// face; the first pad then fires the first switch, while the key of the
+    /// same note (another channel) does not, and the record button is `rec`.
+    #[test]
+    fn the_flkey_face_wires_its_pads_to_the_grids_buttons() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond("GET", "/switch", json!({ "switches": [
+            { "id": "strobe", "name": "strobe", "kind": "toggle", "on": false }
+        ] }));
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        harness.get_by_label_contains("free grid").click();
+        harness.run();
+        harness.get_by_label("Novation FLkey Mini").click();
+        harness.run();
+        let posted = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/settings" && body_of(params)["grid_surface"]["device"] == json!("flkey-mini")
+        });
+        assert!(posted, "the face is stored");
+        assert!(harness.query_by_label("shift\nfn").is_some() && harness.query_by_label("piano").is_some());
+
+        let press = |input: &str| {
+            crate::input::push_surface(crate::input::SurfaceEvent {
+                port: "FLkey Mini".into(),
+                input: input.into(),
+                edge: metal_midi::Edge::Press { velocity: 1.0 },
+            })
+        };
+        let switch_posts = |r: &FakeDoor| r.calls.borrow().iter().filter(|(m, p, _)| m == "POST" && p == "/switch").count();
+        crate::input::drain_surface();
+        press("note:40@1");
+        harness.run();
+        assert_eq!(switch_posts(&recorder), 0, "a key is not the pad of the same note");
+        press("note:40@10");
+        harness.run();
+        let fired = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": "strobe" })
+        });
+        assert!(fired, "the first pad fires the switch in it");
+        // A CC button sends 127 down, 0 up; `rec` records on its release.
+        for raw in [127u8, 0] {
+            crate::input::push_surface(crate::input::SurfaceEvent {
+                port: "FLkey Mini".into(),
+                input: "cc:117@1".into(),
+                edge: metal_midi::Edge::Value { value: raw as f32 / 127.0, raw },
+            });
+            harness.run();
+        }
+        assert!(harness.state_mut().lanes_state_mut().surface.is_recording(), "record is rec");
     }
 
     /// `GET /settings` is read once, and a 2×1 picked in the cell's menu is

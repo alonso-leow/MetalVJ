@@ -164,6 +164,27 @@ pub fn dial(
     (response, steps as i32)
 }
 
+/// Paints a fader or a touch strip in `rect` — a vertical track filled to
+/// `level` (empty when `None`), its label under it. It answers nothing: a
+/// box's fader with no cell in it only shows where the hardware sits.
+pub fn strip(ui: &Ui, theme: &Theme, rect: Rect, label: &str, level: Option<f32>) {
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, theme.corner_radius(), theme.inset);
+    let track = rect.shrink(theme.hairline * 2.0);
+    painter.rect_stroke(track, theme.square_corner(), theme.rule_bright_stroke(), egui::StrokeKind::Inside);
+    if let Some(v) = level {
+        let top = track.bottom() - track.height() * v.clamp(0.0, 1.0);
+        painter.rect_filled(Rect::from_min_max(Pos2::new(track.left(), top), track.max), theme.square_corner(), theme.phosphor);
+    }
+    painter.text(
+        Pos2::new(rect.center().x, rect.bottom() - theme.hairline),
+        Align2::CENTER_BOTTOM,
+        label,
+        theme.font_small.clone(),
+        theme.ink_weak,
+    );
+}
+
 fn library_key() -> Id {
     Id::new("surface/library-intents")
 }

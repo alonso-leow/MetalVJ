@@ -37,7 +37,7 @@ pub fn trigger_key(msg: &Msg) -> Option<(Option<u8>, Option<u8>)> {
 }
 
 fn on_msg(shared: &Arc<Mutex<crate::Shared>>, host: &str, http_port: u16, port: &str, msg: Msg) {
-    super::push_surface(super::SurfaceEvent { port: port.to_string(), input: msg.input(), edge: msg.edge() });
+    super::push_surface(super::SurfaceEvent { port: port.to_string(), input: msg.input_on_channel(), edge: msg.edge() });
     let Some((cc, note)) = trigger_key(&msg) else {
         return;
     };

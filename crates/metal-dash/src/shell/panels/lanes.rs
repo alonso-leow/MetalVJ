@@ -3088,6 +3088,34 @@ fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     response.on_hover_text(tr("the controller the grid takes the shape of"));
 }
 
+/// `does ▸`: the surface's jobs (`fn dial`, `rec`, `page ›`, …) for a box's
+/// slot, on every page — what it held goes. Answers whether one was picked.
+fn job_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, slot: usize) -> bool {
+    let small = |t: String| RichText::new(t).font(theme.font_small.clone());
+    let Some(id) = state.layout.slots.get(slot).map(|s| s.id.clone()) else { return false };
+    let mut picked = false;
+    let _ = plain_menu(ui, theme, small(tr("does").into()), |ui| {
+        for job in crate::surface::Role::catalogue().into_iter().filter(|r| !matches!(r, crate::surface::Role::Piano { .. })) {
+            if ui.button(small(tr_dyn(&job.label()).to_string())).clicked() {
+                let key = format!("hw:{id}");
+                let gone = state.layout.place(&key, slot, None);
+                drop_controllers(door, state, &gone);
+                state.layout.roles.insert(key, job);
+                save_layout(door, state);
+                picked = true;
+                ui.close();
+            }
+        }
+    });
+    picked
+}
+
+/// The box's slot a control's controller (`hw:<id>:<page>`) sits in.
+fn slot_of_controller(state: &PanelState, key: &str) -> Option<usize> {
+    let (id, _) = key.strip_prefix("hw:")?.rsplit_once(':')?;
+    state.layout.slots.iter().position(|s| s.id == id)
+}
+
 /// The buttons a box's controls and its keys held go with its face.
 fn forget_face_controllers(door: &dyn Call, state: &mut PanelState) {
     let face: Vec<String> = state.controllers.keys().filter(|k| is_hw_controller(k)).map(|k| format!("ctrl:{k}")).collect();
@@ -3182,18 +3210,7 @@ fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState
             ui.label(small(tr("— open a graph to control its nodes —").into()).color(theme.ink_weak));
         }
     }
-    let _ = plain_menu(ui, theme, small(tr("does").into()), |ui| {
-        for job in crate::surface::Role::catalogue().into_iter().filter(|r| !matches!(r, crate::surface::Role::Piano { .. })) {
-            if ui.button(small(tr_dyn(&job.label()).to_string())).clicked() {
-                let key = format!("hw:{id}");
-                let gone = state.layout.place(&key, slot, None);
-                drop_controllers(door, state, &gone);
-                state.layout.roles.insert(key, job);
-                save_layout(door, state);
-                ui.close();
-            }
-        }
-    });
+    job_menu(ui, theme, door, state, slot);
     let learning = state.slot_learn == Some(slot);
     if ui.selectable_label(learning, small(tr("learn: press a key, pad or knob").into())).clicked() {
         state.slot_learn = if learning { None } else { Some(slot) };
@@ -4629,6 +4646,15 @@ fn cell_editor_popup(
             }
             // A control cell's job: any of the surface's, so a box's button
             // or knob does what the operator wants of it.
+            // A box's control holding a button: the same jobs, in its place.
+            if let CellKind::Controller { key: ctrl } = &cell.kind {
+                if let Some(slot) = slot_of_controller(state, ctrl) {
+                    if job_menu(ui, theme, door, state, slot) {
+                        state.grid_selected = None;
+                    }
+                    ui.separator();
+                }
+            }
             if let Some(current) = role.as_ref().filter(|r| !matches!(r, Role::Piano { .. })) {
                 ui.horizontal(|ui| {
                     ui.label(small(tr("does").into()));
@@ -5011,6 +5037,13 @@ fn controller_editor(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
         let current = state.grid_spans.get(&span_key).copied().unwrap_or((1.0, 1.0));
         if let Some(span) = size_choices(ui, theme, current) {
             set_grid_span(door, state, &span_key, span);
+        }
+    }
+    // A box's control can trade its button for one of the surface's jobs.
+    if let Some(slot) = slot_of_controller(state, key) {
+        if job_menu(ui, theme, door, state, slot) {
+            state.editing_controller = None;
+            return;
         }
     }
     ui.separator();
@@ -7969,6 +8002,7 @@ fn without_an_open_graph_create_button_says_so() {
                 json!({ "graph": "g", "name": "", "mode": "switch", "targets": [{ "node": "glow", "param": "gain", "value": 0.0 }] }),
             );
             state.layout.place("ctrl:hw:pot-1:0", pot, Some(0));
+            assert_eq!(slot_of_controller(state, "hw:pot-1:0"), Some(pot), "its editor offers the jobs for that pot");
             state.controllers.insert(
                 "key:48:0".into(),
                 json!({ "graph": "g", "name": "", "mode": "switch", "targets": [{ "node": "strobe-node", "on": true }] }),

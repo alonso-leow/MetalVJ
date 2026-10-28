@@ -76,6 +76,11 @@ pub fn drain_surface() -> Vec<SurfaceEvent> {
     surface_queue().lock().map(|mut q| q.drain(..).collect()).unwrap_or_default()
 }
 
+/// Whether anything is queued for the surface.
+pub fn surface_pending() -> bool {
+    surface_queue().lock().map(|q| !q.is_empty()).unwrap_or(false)
+}
+
 /// How the window asks to be repainted; the shell sets it once.
 pub fn set_surface_waker(wake: impl Fn() + Send + Sync + 'static) {
     if let Ok(mut w) = waker().lock() {

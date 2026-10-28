@@ -1612,6 +1612,10 @@ impl Shell {
         // before the next frame's lanes paint. Here, not beside the grid
         // paint, because the frame's `door` borrow is still live up there.
         self.route_library_intents(ui.ctx());
+
+        // The MIDI controller drives the overlays grid even while it is not on
+        // screen (the sequence editor open): a no-op when the grid painted.
+        lanes_panel::drive_offscreen(ui, self.door.as_ref(), &mut self.lanes);
     }
 }
 

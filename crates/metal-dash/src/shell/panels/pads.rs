@@ -189,6 +189,11 @@ pub fn set_loaded(ctx: &egui::Context, drag: super::FileDrag) {
     ctx.request_repaint();
 }
 
+/// Whether a library pick waits for the grid.
+pub fn has_loaded(ctx: &egui::Context) -> bool {
+    ctx.data(|d| d.get_temp::<Option<super::FileDrag>>(loaded_key()).flatten().is_some())
+}
+
 /// The grid takes the file the library loaded, once.
 pub fn take_loaded(ctx: &egui::Context) -> Option<super::FileDrag> {
     ctx.data_mut(|d| d.get_temp_mut_or_default::<Option<super::FileDrag>>(loaded_key()).take())

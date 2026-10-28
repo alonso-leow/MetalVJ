@@ -230,6 +230,9 @@ pub struct PanelState {
     /// A fader moved by MIDI waits this long without moving before its
     /// value is saved.
     controllers_dirty: Option<f64>,
+    /// The egui pass the grid last drove the surface in, so the off-screen
+    /// drive does not run a second time that frame.
+    driven_pass: Option<u64>,
     /// The saved node controllers, read once from `GET /settings`'s
     /// `grid_controllers` (rule 5, the same trade `grid_spans` makes) and
     /// replaced by each `POST`'s reply. Keyed by an arbitrary string; each
@@ -366,6 +369,7 @@ impl Default for PanelState {
             piano_held: HashMap::new(),
             cc_down: BTreeSet::new(),
             controllers_dirty: None,
+            driven_pass: None,
             controllers: BTreeMap::new(),
             expanded_nodes: BTreeSet::new(),
             builtin_hsb: [0.0, 1.0, 1.0],
@@ -2662,42 +2666,9 @@ fn overlays_grid(
     state_val: &Value,
     open_graph: Option<&str>,
 ) {
-    let cells = grid_cells(door, state, state_val);
-
-    // Fixed columns × rows (`grid_surface`), in sub-cells so the halves and
-    // thirds pack beside whole cells. Pinned cells land on their page first;
-    // the rest flow in the stored order.
+    let GridPlan { cells, pins, placed, pages, page } = grid_plan(door, state, state_val);
     let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
-    let spans: Vec<(usize, usize)> = cells
-        .iter()
-        .map(|c| (crate::surface::units(c.span.0), crate::surface::units(c.span.1)))
-        .collect();
-    // Control cells hold one place on every page, like the hardware buttons
-    // they stand for — a `fn` that turns the page is still there to release.
-    let pins: Vec<crate::surface::Pin> = cells
-        .iter()
-        .map(|c| match (&c.kind, state.layout.pages.get(&c.key)) {
-            (CellKind::Role { .. }, _) => crate::surface::Pin::Every,
-            (_, Some(&p)) => crate::surface::Pin::Page(p),
-            _ => crate::surface::Pin::Flow,
-        })
-        .collect();
-    let placed = crate::surface::pack(&spans, &pins, cols * crate::surface::UNITS, rows * crate::surface::UNITS);
-    let pages = placed
-        .iter()
-        .map(|p| p.page + 1)
-        .max()
-        .unwrap_or(1)
-        .max(state.layout.page_count)
-        .max(1);
-    // The stored page, clamped to the pages this layout holds: a removed
-    // button or a trigger stepping past an end cannot strand it. The clamped
-    // value is written back so the stored and shown page agree.
-    let stored = stored_page(door);
-    let page = stored.clamp(0, pages as i64 - 1) as usize;
-    if stored != page as i64 {
-        set_stored_page(door, page);
-    }
+    state.driven_pass = Some(ui.ctx().cumulative_pass_nr());
 
     // The hardware first: what the controller sent since the last frame, and
     // the loops' playback, fire before this frame paints what they changed.
@@ -2769,6 +2740,84 @@ fn overlays_grid(
     controller_editor_popup(ui, theme, door, state);
     // The edit mode's inspector for the selected cell.
     cell_editor_popup(ui, theme, door, state, &cells, page, pages);
+}
+
+/// The grid as laid out this frame: the cells in order, where each may land
+/// and where it did, how many pages there are and which one is shown.
+struct GridPlan {
+    cells: Vec<Cell>,
+    pins: Vec<crate::surface::Pin>,
+    placed: Vec<crate::surface::Placed>,
+    pages: usize,
+    page: usize,
+}
+
+fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan {
+    let cells = grid_cells(door, state, state_val);
+
+    // Fixed columns × rows (`grid_surface`), in sub-cells so the halves and
+    // thirds pack beside whole cells. Pinned cells land on their page first;
+    // the rest flow in the stored order.
+    let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
+    let spans: Vec<(usize, usize)> = cells
+        .iter()
+        .map(|c| (crate::surface::units(c.span.0), crate::surface::units(c.span.1)))
+        .collect();
+    // Control cells hold one place on every page, like the hardware buttons
+    // they stand for — a `fn` that turns the page is still there to release.
+    let pins: Vec<crate::surface::Pin> = cells
+        .iter()
+        .map(|c| match (&c.kind, state.layout.pages.get(&c.key)) {
+            (CellKind::Role { .. }, _) => crate::surface::Pin::Every,
+            (_, Some(&p)) => crate::surface::Pin::Page(p),
+            _ => crate::surface::Pin::Flow,
+        })
+        .collect();
+    let placed = crate::surface::pack(&spans, &pins, cols * crate::surface::UNITS, rows * crate::surface::UNITS);
+    let pages = placed
+        .iter()
+        .map(|p| p.page + 1)
+        .max()
+        .unwrap_or(1)
+        .max(state.layout.page_count)
+        .max(1);
+    // The stored page, clamped to the pages this layout holds: a removed
+    // button or a trigger stepping past an end cannot strand it. The clamped
+    // value is written back so the stored and shown page agree.
+    let stored = stored_page(door);
+    let page = stored.clamp(0, pages as i64 - 1) as usize;
+    if stored != page as i64 {
+        set_stored_page(door, page);
+    }
+
+    GridPlan { cells, pins, placed, pages, page }
+}
+
+/// MIDI keeps driving the grid while it is off screen — the sequence editor
+/// open, or a layout without the lanes region. The shell calls this once a
+/// frame after the panels painted; it does nothing when the grid itself was
+/// painted (and so already drove), or when nothing is waiting: no control
+/// heard, no loop playing, no take recording, no library pick to load.
+pub(crate) fn drive_offscreen(ui: &Ui, door: &dyn Call, state: &mut PanelState) {
+    if state.driven_pass == Some(ui.ctx().cumulative_pass_nr()) {
+        return;
+    }
+    let busy = crate::input::surface_pending()
+        || !state.pad_inputs.is_empty()
+        || state.surface.is_recording()
+        || state.controllers_dirty.is_some()
+        || state.layout.loops.values().any(|l| l.playing)
+        || super::pads::has_loaded(ui.ctx());
+    if !busy {
+        return;
+    }
+    state.refresh(door);
+    let state_val = get(door, "GET", "/state", &[]).unwrap_or_else(|| json!({}));
+    let plan = grid_plan(door, state, &state_val);
+    drive_surface(ui, door, state, &plan.cells, plan.page, plan.pages);
+    if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
+        apply_overlay_drop(door, state, &drag);
+    }
 }
 
 /// Every cell the grid holds, in the stored order, sized: the movement
@@ -7308,6 +7357,42 @@ fn without_an_open_graph_create_button_says_so() {
         assert_eq!(spans_json(&spans)["sw:thin"], json!([1, 0.3]));
         assert_eq!(spans_json(&spans)["mv:drop"], json!([2, 1]));
         assert!(parse_spans(&json!({})).is_empty());
+    }
+
+    /// A MIDI key bound to a switch fires it while the sequence editor is
+    /// open: the grid is off screen, so the shell's off-screen drive is what
+    /// hears the key.
+    #[test]
+    fn a_bound_midi_key_fires_its_switch_while_the_sequence_is_open() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond("GET", "/switch", json!({ "switches": [
+            { "id": "strobe", "name": "strobe", "kind": "toggle", "on": false }
+        ] }));
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 0, "grid_surface": {
+                "binds": [{ "input": "note:60", "page": 0, "cell": "sw:strobe" }]
+            } }),
+        );
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.state_mut().lanes_state_mut().force_mode(crate::shell::lanes::Mode::Lanes);
+        harness.run();
+        assert!(harness.query_by_label_contains("›").is_none(), "the grid is off screen");
+
+        crate::input::drain_surface();
+        crate::input::push_surface(crate::input::SurfaceEvent {
+            port: "FLkey Mini".into(),
+            input: "note:60".into(),
+            edge: metal_midi::Edge::Press { velocity: 1.0 },
+        });
+        harness.run();
+        let fired = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": "strobe" })
+        });
+        assert!(fired, "the key turns the switch on through the off-screen drive");
     }
 
     /// `GET /settings` is read once, and a 2×1 picked in the cell's menu is

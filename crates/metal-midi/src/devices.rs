@@ -6,10 +6,9 @@
 //! w, h]` from the top-left, so a half-width strip or a half-height button
 //! sits where it does on the hardware.
 //!
-//! What a control does on the surface is its `role`, a surface role tag
-//! (`rec`, `fn`, `speed-dial`, `page-next`, `fn-3`, …). A control without
-//! one is a **slot**: the grid's own buttons fill the pads page by page, its
-//! faders the knobs and faders. The keys are the piano.
+//! A face only says where each control is and what it sends: every control
+//! is an empty **slot** the operator gives a job (a button, a fader, a
+//! surface role), and the keys are the piano, each key a slot of its own.
 //!
 //! `input` is what the control sends with the box's factory settings (a
 //! channel-qualified id, [`crate::Msg::input_on_channel`], when a pad shares
@@ -47,8 +46,6 @@ pub struct Control {
     pub rect: [u16; 4],
     /// What it sends by default (`note:36@10`, `cc:21`, `bend`).
     pub input: Option<String>,
-    /// The surface role tag it plays; `None` is a slot (or the keys).
-    pub role: Option<String>,
 }
 
 /// One box.
@@ -116,17 +113,12 @@ fn at(x: f32, y: f32, w: f32, h: f32) -> [u16; 4] {
 }
 
 fn control(id: impl Into<String>, label: impl Into<String>, part: Part, rect: [u16; 4]) -> Control {
-    Control { id: id.into(), label: label.into(), part, rect, input: None, role: None }
+    Control { id: id.into(), label: label.into(), part, rect, input: None }
 }
 
 impl Control {
     fn sends(mut self, input: impl Into<String>) -> Control {
         self.input = Some(input.into());
-        self
-    }
-
-    fn plays(mut self, role: impl Into<String>) -> Control {
-        self.role = Some(role.into());
         self
     }
 }
@@ -140,22 +132,17 @@ fn flkey_mini() -> Device {
     let mut c = vec![
         control("pitch", "pitch", Part::Strip, at(0.0, 0.0, 0.5, 3.0)).sends("bend"),
         control("mod", "mod", Part::Strip, at(0.5, 0.0, 0.5, 3.0)).sends("cc:1"),
-        control("shift", "shift", Part::Button, at(1.0, 0.0, 1.0, 1.0)).plays("fn"),
-        control("transpose", "transpose", Part::Button, at(1.0, 1.0, 1.0, 1.0)).plays("folder"),
-        control("octave-up", "octave +", Part::Button, at(1.0, 2.0, 1.0, 0.5)).plays("octave-up"),
-        control("octave-down", "octave −", Part::Button, at(1.0, 2.5, 1.0, 0.5)).plays("octave-down"),
+        control("shift", "shift", Part::Button, at(1.0, 0.0, 1.0, 1.0)),
+        control("transpose", "transpose", Part::Button, at(1.0, 1.0, 1.0, 1.0)),
+        control("octave-up", "octave +", Part::Button, at(1.0, 2.0, 1.0, 0.5)),
+        control("octave-down", "octave −", Part::Button, at(1.0, 2.5, 1.0, 0.5)),
     ];
     // The pots send CC 21–28 in the Custom pot mode, the one mode the box has
-    // without FL Studio. The first three are the surface's own dials.
+    // without FL Studio.
     for i in 0..8u8 {
         let pot = control(format!("pot-{}", i + 1), format!("pot {}", i + 1), Part::Knob, at(2.0 + i as f32, 0.0, 1.0, 1.0))
             .sends(format!("cc:{}", 21 + i));
-        c.push(match i {
-            0 => pot.plays("speed-dial"),
-            1 => pot.plays("search-dial"),
-            2 => pot.plays("fn-dial"),
-            _ => pot,
-        });
+        c.push(pot);
     }
     // The pads on channel 10, two 4×2 drum blocks: 40–43 48–51 over
     // 36–39 44–47 (the FPC halves the guide describes).
@@ -168,12 +155,12 @@ fn flkey_mini() -> Device {
         }
     }
     c.extend([
-        control("rack-up", "rack ▲", Part::Button, at(10.0, 1.0, 1.0, 1.0)).sends("cc:104").plays("page-prev"),
-        control("rack-down", "rack ▼", Part::Button, at(10.0, 2.0, 1.0, 1.0)).sends("cc:105").plays("page-next"),
-        control("scale", "scale", Part::Button, at(11.0, 1.0, 1.0, 1.0)).plays("load"),
-        control("note-repeat", "repeat", Part::Button, at(12.0, 1.0, 1.0, 1.0)).plays("drop-rec"),
-        control("play", "▶", Part::Button, at(11.0, 2.0, 1.0, 1.0)).sends("cc:115").plays("play"),
-        control("record", "●", Part::Button, at(12.0, 2.0, 1.0, 1.0)).sends("cc:117").plays("rec"),
+        control("rack-up", "rack ▲", Part::Button, at(10.0, 1.0, 1.0, 1.0)).sends("cc:104"),
+        control("rack-down", "rack ▼", Part::Button, at(10.0, 2.0, 1.0, 1.0)).sends("cc:105"),
+        control("scale", "scale", Part::Button, at(11.0, 1.0, 1.0, 1.0)),
+        control("note-repeat", "repeat", Part::Button, at(12.0, 1.0, 1.0, 1.0)),
+        control("play", "▶", Part::Button, at(11.0, 2.0, 1.0, 1.0)).sends("cc:115"),
+        control("record", "●", Part::Button, at(12.0, 2.0, 1.0, 1.0)).sends("cc:117"),
         control("logo", "FLkey mini", Part::Logo, at(10.0, 0.0, 3.0, 1.0)),
         control("keys", "keys", Part::Keys { base: 48, count: 25 }, at(0.0, 3.0, 13.0, 2.0)),
     ]);
@@ -196,17 +183,17 @@ fn flkey_mini() -> Device {
 /// channel strips, each a knob over a fader with Solo/Mute/Rec beside it.
 fn nanokontrol2() -> Device {
     let mut c = vec![
-        control("track-prev", "track ◀", Part::Button, at(0.0, 0.0, 1.0, 1.0)).sends("cc:58").plays("page-prev"),
-        control("track-next", "track ▶", Part::Button, at(1.0, 0.0, 1.0, 1.0)).sends("cc:59").plays("page-next"),
-        control("cycle", "cycle", Part::Button, at(0.0, 1.0, 1.0, 1.0)).sends("cc:46").plays("fn"),
-        control("marker-set", "set", Part::Button, at(2.0, 1.0, 1.0, 1.0)).sends("cc:60").plays("load"),
-        control("marker-prev", "marker ◀", Part::Button, at(3.0, 1.0, 1.0, 1.0)).sends("cc:61").plays("folder"),
+        control("track-prev", "track ◀", Part::Button, at(0.0, 0.0, 1.0, 1.0)).sends("cc:58"),
+        control("track-next", "track ▶", Part::Button, at(1.0, 0.0, 1.0, 1.0)).sends("cc:59"),
+        control("cycle", "cycle", Part::Button, at(0.0, 1.0, 1.0, 1.0)).sends("cc:46"),
+        control("marker-set", "set", Part::Button, at(2.0, 1.0, 1.0, 1.0)).sends("cc:60"),
+        control("marker-prev", "marker ◀", Part::Button, at(3.0, 1.0, 1.0, 1.0)).sends("cc:61"),
         control("marker-next", "marker ▶", Part::Button, at(4.0, 1.0, 1.0, 1.0)).sends("cc:62"),
         control("rew", "◀◀", Part::Button, at(0.0, 2.0, 1.0, 1.0)).sends("cc:43"),
         control("ff", "▶▶", Part::Button, at(1.0, 2.0, 1.0, 1.0)).sends("cc:44"),
-        control("stop", "■", Part::Button, at(2.0, 2.0, 1.0, 1.0)).sends("cc:42").plays("drop-rec"),
-        control("play", "▶", Part::Button, at(3.0, 2.0, 1.0, 1.0)).sends("cc:41").plays("play"),
-        control("rec", "●", Part::Button, at(4.0, 2.0, 1.0, 1.0)).sends("cc:45").plays("rec"),
+        control("stop", "■", Part::Button, at(2.0, 2.0, 1.0, 1.0)).sends("cc:42"),
+        control("play", "▶", Part::Button, at(3.0, 2.0, 1.0, 1.0)).sends("cc:41"),
+        control("rec", "●", Part::Button, at(4.0, 2.0, 1.0, 1.0)).sends("cc:45"),
     ];
     let strip_x = |i: u8| 5.0 + 1.5 * i as f32;
     // S, M and R by rows, so the grid's buttons fill a row across before the next.
@@ -224,12 +211,7 @@ fn nanokontrol2() -> Device {
     for i in 0..8u8 {
         let knob = control(format!("knob-{}", i + 1), format!("knob {}", i + 1), Part::Knob, at(strip_x(i) + 0.5, 0.0, 1.0, 1.0))
             .sends(format!("cc:{}", 16 + i));
-        c.push(match i {
-            0 => knob.plays("speed-dial"),
-            1 => knob.plays("search-dial"),
-            2 => knob.plays("fn-dial"),
-            _ => knob,
-        });
+        c.push(knob);
     }
     Device {
         id: "nanokontrol2",
@@ -259,20 +241,17 @@ fn apc_mini_mk2() -> Device {
         c.push(
             control(format!("scene-{}", row + 1), "▶", Part::Button, at(8.0, row as f32, 1.0, 1.0))
                 .sends(format!("note:{}", 112 + row))
-                .plays(format!("fn-{}", row + 1)),
+                ,
         );
     }
-    let tracks = ["rec", "drop-rec", "play", "load", "folder", "page-prev", "page-next", ""];
-    for (i, role) in tracks.iter().enumerate() {
-        let b = control(format!("track-{}", i + 1), format!("{}", i + 1), Part::Button, at(i as f32, 8.0, 1.0, 1.0))
-            .sends(format!("note:{}", 100 + i));
-        c.push(if role.is_empty() { b } else { b.plays(*role) });
+    for i in 0..8u8 {
+        c.push(control(format!("track-{}", i + 1), format!("{}", i + 1), Part::Button, at(i as f32, 8.0, 1.0, 1.0)).sends(format!("note:{}", 100 + i)));
     }
-    c.push(control("shift", "shift", Part::Button, at(8.0, 8.0, 1.0, 1.0)).sends("note:122").plays("fn"));
+    c.push(control("shift", "shift", Part::Button, at(8.0, 8.0, 1.0, 1.0)).sends("note:122"));
     for i in 0..9u8 {
         let f = control(format!("fader-{}", i + 1), if i == 8 { "master".into() } else { format!("{}", i + 1) }, Part::Fader, at(i as f32, 9.0, 1.0, 2.0))
             .sends(format!("cc:{}", 48 + i));
-        c.push(if i == 8 { f.plays("speed-dial") } else { f });
+        c.push(f);
     }
     Device {
         id: "apc-mini-mk2",
@@ -321,18 +300,9 @@ fn launchpad_x() -> Device {
 /// the top row, `last` the scene column's foot.
 fn launchpad(modes: [&str; 4], last: &str) -> Vec<Control> {
     let mut c = Vec::new();
-    let top = [
-        ("▲", "page-prev"),
-        ("▼", "page-next"),
-        ("◀", "folder"),
-        ("▶", "load"),
-        (modes[0], "rec"),
-        (modes[1], "drop-rec"),
-        (modes[2], "play"),
-        (modes[3], "fn"),
-    ];
-    for (i, (label, role)) in top.iter().enumerate() {
-        c.push(control(format!("top-{}", i + 1), *label, Part::Button, at(i as f32, 0.0, 1.0, 1.0)).sends(format!("cc:{}", 91 + i)).plays(*role));
+    let top = ["▲", "▼", "◀", "▶", modes[0], modes[1], modes[2], modes[3]];
+    for (i, label) in top.iter().enumerate() {
+        c.push(control(format!("top-{}", i + 1), *label, Part::Button, at(i as f32, 0.0, 1.0, 1.0)).sends(format!("cc:{}", 91 + i)));
     }
     c.push(control("logo", "LP", Part::Logo, at(8.0, 0.0, 1.0, 1.0)));
     for row in 0..8u8 {
@@ -346,7 +316,7 @@ fn launchpad(modes: [&str; 4], last: &str) -> Vec<Control> {
         c.push(
             control(format!("scene-{}", row + 1), label, Part::Button, at(8.0, 1.0 + row as f32, 1.0, 1.0))
                 .sends(format!("cc:{}", (8 - row) * 10 + 9))
-                .plays(format!("fn-{}", row + 1)),
+                ,
         );
     }
     c
@@ -363,12 +333,7 @@ fn launch_control_xl() -> Device {
         for i in 0..8u8 {
             let knob = control(format!("{}-{}", name.replace(' ', "-"), i + 1), format!("{name} {}", i + 1), Part::Knob, at(i as f32, row as f32, 1.0, 1.0))
                 .sends(format!("cc:{}", base + i));
-            c.push(match (row, i) {
-                (0, 0) => knob.plays("speed-dial"),
-                (0, 1) => knob.plays("search-dial"),
-                (0, 2) => knob.plays("fn-dial"),
-                _ => knob,
-            });
+            c.push(knob);
         }
     }
     for i in 0..8u8 {
@@ -382,14 +347,14 @@ fn launch_control_xl() -> Device {
         }
     }
     c.extend([
-        control("send-up", "send ▲", Part::Button, at(8.0, 0.0, 1.0, 1.0)).sends("cc:104").plays("page-prev"),
-        control("send-down", "send ▼", Part::Button, at(8.0, 1.0, 1.0, 1.0)).sends("cc:105").plays("page-next"),
-        control("track-prev", "◀", Part::Button, at(8.0, 2.0, 0.5, 1.0)).sends("cc:106").plays("folder"),
-        control("track-next", "▶", Part::Button, at(8.5, 2.0, 0.5, 1.0)).sends("cc:107").plays("load"),
-        control("device", "device", Part::Button, at(8.0, 3.0, 1.0, 1.0)).sends("note:105").plays("fn"),
-        control("mute", "mute", Part::Button, at(8.0, 4.0, 1.0, 1.0)).sends("note:106").plays("drop-rec"),
-        control("solo", "solo", Part::Button, at(8.0, 5.0, 1.0, 1.0)).sends("note:107").plays("play"),
-        control("record-arm", "record arm", Part::Button, at(8.0, 6.0, 1.0, 1.0)).sends("note:108").plays("rec"),
+        control("send-up", "send ▲", Part::Button, at(8.0, 0.0, 1.0, 1.0)).sends("cc:104"),
+        control("send-down", "send ▼", Part::Button, at(8.0, 1.0, 1.0, 1.0)).sends("cc:105"),
+        control("track-prev", "◀", Part::Button, at(8.0, 2.0, 0.5, 1.0)).sends("cc:106"),
+        control("track-next", "▶", Part::Button, at(8.5, 2.0, 0.5, 1.0)).sends("cc:107"),
+        control("device", "device", Part::Button, at(8.0, 3.0, 1.0, 1.0)).sends("note:105"),
+        control("mute", "mute", Part::Button, at(8.0, 4.0, 1.0, 1.0)).sends("note:106"),
+        control("solo", "solo", Part::Button, at(8.0, 5.0, 1.0, 1.0)).sends("note:107"),
+        control("record-arm", "record arm", Part::Button, at(8.0, 6.0, 1.0, 1.0)).sends("note:108"),
     ]);
     Device {
         id: "launch-control-xl",
@@ -415,15 +380,15 @@ fn mpk_mini_mk3() -> Device {
         control("stick-y", "y", Part::Strip, at(1.0, 0.0, 1.0, 1.0)).sends("cc:1"),
     ];
     let left = [
-        [("arp", "arp", "fn"), ("tap", "tap tempo", "rec")],
-        [("octave-down", "oct −", "octave-down"), ("octave-up", "oct +", "octave-up")],
-        [("full-level", "full level", "drop-rec"), ("note-repeat", "note repeat", "play")],
+        [("arp", "arp"), ("tap", "tap tempo")],
+        [("octave-down", "oct −"), ("octave-up", "oct +")],
+        [("full-level", "full level"), ("note-repeat", "note repeat")],
     ];
     // Three button rows in the two pad rows' height: two thirds of a cell each.
     for (row, pair) in left.iter().enumerate() {
-        for (col, (id, label, role)) in pair.iter().enumerate() {
+        for (col, (id, label)) in pair.iter().enumerate() {
             let rect = [col as u16 * 6, 6 + row as u16 * 4, 6, 4];
-            c.push(control(*id, *label, Part::Button, rect).plays(*role));
+            c.push(control(*id, *label, Part::Button, rect));
         }
     }
     for (row, first) in [(0usize, 5u8), (1, 1)] {
@@ -436,27 +401,22 @@ fn mpk_mini_mk3() -> Device {
         }
     }
     c.push(control("display", "display", Part::Logo, at(6.0, 0.0, 1.0, 1.0)));
-    for (i, (id, label, role)) in [
-        ("bank", "bank a/b", "page-next"),
-        ("cc", "cc", "folder"),
-        ("prog-change", "prog change", "load"),
-        ("prog-select", "prog select", "button"),
+    for (i, (id, label)) in [
+        ("bank", "bank a/b"),
+        ("cc", "cc"),
+        ("prog-change", "prog change"),
+        ("prog-select", "prog select"),
     ]
     .iter()
     .enumerate()
     {
-        c.push(control(*id, *label, Part::Button, at(7.0 + i as f32, 0.0, 1.0, 1.0)).plays(*role));
+        c.push(control(*id, *label, Part::Button, at(7.0 + i as f32, 0.0, 1.0, 1.0)));
     }
     for i in 0..8u8 {
         let (row, col) = (i / 4, i % 4);
         let knob = control(format!("k{}", i + 1), format!("k{}", i + 1), Part::Knob, at(6.5 + col as f32, 1.0 + row as f32, 1.0, 1.0))
             .sends(format!("cc:{}", 70 + i));
-        c.push(match i {
-            0 => knob.plays("speed-dial"),
-            1 => knob.plays("search-dial"),
-            2 => knob.plays("fn-dial"),
-            _ => knob,
-        });
+        c.push(knob);
     }
     c.push(control("keys", "keys", Part::Keys { base: 48, count: 25 }, at(0.0, 3.0, 11.0, 2.0)));
     Device {
@@ -481,12 +441,7 @@ fn midimix() -> Device {
         for row in 0..3u8 {
             let knob = control(format!("knob-{}-{}", i + 1, row + 1), "", Part::Knob, at(i as f32, row as f32, 1.0, 1.0))
                 .sends(format!("cc:{}", base + row));
-            c.push(match (i, row) {
-                (0, 0) => knob.plays("speed-dial"),
-                (0, 1) => knob.plays("search-dial"),
-                (0, 2) => knob.plays("fn-dial"),
-                _ => knob,
-            });
+            c.push(knob);
         }
     }
     for (row, (name, first)) in [("mute", 1u8), ("rec-arm", 3)].iter().enumerate() {
@@ -500,9 +455,9 @@ fn midimix() -> Device {
     }
     c.extend([
         control("logo", "MIDImix", Part::Logo, at(8.0, 0.0, 1.0, 2.0)),
-        control("bank-left", "bank ◀", Part::Button, at(8.0, 2.0, 0.5, 1.0)).sends("note:25").plays("page-prev"),
-        control("bank-right", "bank ▶", Part::Button, at(8.5, 2.0, 0.5, 1.0)).sends("note:26").plays("page-next"),
-        control("solo", "solo", Part::Button, at(8.0, 3.0, 1.0, 1.0)).sends("note:27").plays("fn"),
+        control("bank-left", "bank ◀", Part::Button, at(8.0, 2.0, 0.5, 1.0)).sends("note:25"),
+        control("bank-right", "bank ▶", Part::Button, at(8.5, 2.0, 0.5, 1.0)).sends("note:26"),
+        control("solo", "solo", Part::Button, at(8.0, 3.0, 1.0, 1.0)).sends("note:27"),
         control("master", "master", Part::Fader, at(8.0, 4.0, 1.0, 2.0)).sends("cc:62"),
     ]);
     Device {
@@ -535,43 +490,33 @@ mod generic {
     pub fn all() -> Vec<Device> {
         vec![
             device("generic-8-faders", "8 faders", 8, 3, faders(0.0, 0.0, 8, 3.0)),
-            device("generic-8-knobs-8-faders", "8 knobs + 8 faders", 8, 4, [knobs(0.0, 0.0, 8, 1, true), faders(0.0, 1.0, 8, 3.0)].concat()),
+            device("generic-8-knobs-8-faders", "8 knobs + 8 faders", 8, 4, [knobs(0.0, 0.0, 8, 1), faders(0.0, 1.0, 8, 3.0)].concat()),
             device("generic-16-pads", "16 pads (4×4)", 4, 4, pads(0.0, 0.0, 4, 4)),
-            device("generic-16-pads-8-knobs", "16 pads + 8 knobs", 8, 4, [pads(0.0, 0.0, 4, 4), knobs(4.0, 0.0, 4, 2, true), transport(4.0, 2.0)].concat()),
+            device("generic-16-pads-8-knobs", "16 pads + 8 knobs", 8, 4, [pads(0.0, 0.0, 4, 4), knobs(4.0, 0.0, 4, 2), transport(4.0, 2.0)].concat()),
             device("generic-64-pads", "8×8 pad grid", 8, 8, pads(0.0, 0.0, 8, 8)),
             device(
                 "generic-25-keys",
                 "25 keys + 8 pads + 8 knobs",
                 9,
                 4,
-                [wheels(), pads(1.0, 0.0, 4, 2), knobs(5.0, 0.0, 4, 2, true), keys(0.0, 2.0, 9.0, 25)].concat(),
+                [wheels(), pads(1.0, 0.0, 4, 2), knobs(5.0, 0.0, 4, 2), keys(0.0, 2.0, 9.0, 25)].concat(),
             ),
             device(
                 "generic-49-keys",
                 "49 keys + 9 faders + 8 knobs",
                 11,
                 5,
-                [wheels(), knobs(1.0, 0.0, 8, 1, true), faders(1.0, 1.0, 9, 2.0), side_transport(), keys(0.0, 3.0, 11.0, 49)].concat(),
+                [wheels(), knobs(1.0, 0.0, 8, 1), faders(1.0, 1.0, 9, 2.0), side_transport(), keys(0.0, 3.0, 11.0, 49)].concat(),
             ),
-            device("generic-61-keys", "61 keys + 8 knobs", 12, 3, [wheels_short(), knobs(1.0, 0.0, 8, 1, true), side_transport_short(), keys(0.0, 1.0, 12.0, 61)].concat()),
+            device("generic-61-keys", "61 keys + 8 knobs", 12, 3, [wheels_short(), knobs(1.0, 0.0, 8, 1), side_transport_short(), keys(0.0, 1.0, 12.0, 61)].concat()),
         ]
     }
 
-    /// `n` knobs, `per_row` across from `(x, y)`, CC 21 up; the first three
-    /// are the surface's own dials when `dials`.
-    fn knobs(x: f32, y: f32, per_row: u8, rows: u8, dials: bool) -> Vec<Control> {
+    /// `n` knobs, `per_row` across from `(x, y)`, CC 21 up.
+    fn knobs(x: f32, y: f32, per_row: u8, rows: u8) -> Vec<Control> {
         let n = per_row * rows;
         (0..n)
-            .map(|i| {
-                let k = control(format!("knob-{}", i + 1), format!("knob {}", i + 1), Part::Knob, at(x + (i % per_row) as f32, y + (i / per_row) as f32, 1.0, 1.0))
-                    .sends(format!("cc:{}", 21 + i));
-                match (dials, i) {
-                    (true, 0) => k.plays("speed-dial"),
-                    (true, 1) => k.plays("search-dial"),
-                    (true, 2) => k.plays("fn-dial"),
-                    _ => k,
-                }
-            })
+            .map(|i| control(format!("knob-{}", i + 1), format!("knob {}", i + 1), Part::Knob, at(x + (i % per_row) as f32, y + (i / per_row) as f32, 1.0, 1.0)).sends(format!("cc:{}", 21 + i)))
             .collect()
     }
 
@@ -613,36 +558,36 @@ mod generic {
         ]
     }
 
-    fn button(id: &str, label: &str, x: f32, y: f32, w: f32, h: f32, cc: u8, role: &str) -> Control {
-        control(id, label, Part::Button, at(x, y, w, h)).sends(format!("cc:{cc}")).plays(role)
+    fn button(id: &str, label: &str, x: f32, y: f32, w: f32, h: f32, cc: u8) -> Control {
+        control(id, label, Part::Button, at(x, y, w, h)).sends(format!("cc:{cc}"))
     }
 
     /// ◀ ▶ over ▶ ● in a 4 × 2 block.
     fn transport(x: f32, y: f32) -> Vec<Control> {
         vec![
-            button("page-prev", "◀", x, y, 2.0, 1.0, 102, "page-prev"),
-            button("page-next", "▶", x + 2.0, y, 2.0, 1.0, 103, "page-next"),
-            button("play", "▶ play", x, y + 1.0, 2.0, 1.0, 115, "play"),
-            button("record", "●", x + 2.0, y + 1.0, 2.0, 1.0, 117, "rec"),
+            button("page-prev", "◀", x, y, 2.0, 1.0, 102),
+            button("page-next", "▶", x + 2.0, y, 2.0, 1.0, 103),
+            button("play", "▶ play", x, y + 1.0, 2.0, 1.0, 115),
+            button("record", "●", x + 2.0, y + 1.0, 2.0, 1.0, 117),
         ]
     }
 
     /// ◀ ▶ ▶ ● stacked in the right cell, three rows tall.
     fn side_transport() -> Vec<Control> {
         vec![
-            button("page-prev", "◀", 10.0, 0.0, 0.5, 1.0, 102, "page-prev"),
-            button("page-next", "▶", 10.5, 0.0, 0.5, 1.0, 103, "page-next"),
-            button("play", "▶ play", 10.0, 1.0, 1.0, 1.0, 115, "play"),
-            button("record", "●", 10.0, 2.0, 1.0, 1.0, 117, "rec"),
+            button("page-prev", "◀", 10.0, 0.0, 0.5, 1.0, 102),
+            button("page-next", "▶", 10.5, 0.0, 0.5, 1.0, 103),
+            button("play", "▶ play", 10.0, 1.0, 1.0, 1.0, 115),
+            button("record", "●", 10.0, 2.0, 1.0, 1.0, 117),
         ]
     }
 
     fn side_transport_short() -> Vec<Control> {
         vec![
-            button("page-prev", "◀", 9.0, 0.0, 0.5, 1.0, 102, "page-prev"),
-            button("page-next", "▶", 9.5, 0.0, 0.5, 1.0, 103, "page-next"),
-            button("play", "▶", 10.0, 0.0, 1.0, 1.0, 115, "play"),
-            button("record", "●", 11.0, 0.0, 1.0, 1.0, 117, "rec"),
+            button("page-prev", "◀", 9.0, 0.0, 0.5, 1.0, 102),
+            button("page-next", "▶", 9.5, 0.0, 0.5, 1.0, 103),
+            button("play", "▶", 10.0, 0.0, 1.0, 1.0, 115),
+            button("record", "●", 11.0, 0.0, 1.0, 1.0, 117),
         ]
     }
 }

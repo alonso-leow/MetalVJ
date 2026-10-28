@@ -50,9 +50,13 @@ fn black_rect(rect: Rect, whites: &[u8], n: u8, key_w: f32, depth: f32) -> Optio
     ))
 }
 
-/// Paints a piano of `keys` keys in `rect` — lit keys in phosphor, `C` keys named — and
-/// answers the press/release the pointer made on it (`held` is the note the
-/// pointer is down on, kept by the caller between frames).
+/// Paints a piano of `keys` keys in `rect`, dark like the grid's buttons —
+/// the sharps a shade apart from the naturals, lit keys in phosphor, `C`
+/// keys named, a key holding a button marked (`mark`: its colours, or none
+/// for a plain one) — and answers the press/release the pointer made on it
+/// (`held` is the note the pointer is down on, kept by the caller between
+/// frames).
+#[allow(clippy::too_many_arguments)]
 pub fn piano(
     ui: &mut Ui,
     theme: &Theme,
@@ -61,36 +65,49 @@ pub fn piano(
     base: u8,
     keys: u8,
     lit: &dyn Fn(u8) -> bool,
+    mark: &dyn Fn(u8) -> Option<Vec<[f32; 3]>>,
     held: &mut Option<u8>,
 ) -> (Response, Vec<KeyEdge>) {
     let response = ui.interact(rect, id, Sense::click_and_drag());
-    let painter = ui.painter_at(rect);
     let depth = theme.piano_black_depth;
     let notes: Vec<u8> = (0..keys).map(|i| base.saturating_add(i)).collect();
     let whites: Vec<u8> = notes.iter().copied().filter(|n| !metal_midi::is_black(*n)).collect();
     let key_w = rect.width() / whites.len().max(1) as f32;
+    // A key's button: its colours along its foot, or a plain bar.
+    let paint_mark = |ui: &mut Ui, n: u8, r: Rect| match mark(n) {
+        Some(stops) if !stops.is_empty() => super::builtins::paint_stops(ui, theme, &stops, r),
+        Some(_) => {
+            let bar = Rect::from_min_max(Pos2::new(r.left(), r.bottom() - r.height() * theme.swatch_strip), r.max);
+            ui.painter().rect_filled(bar, theme.square_corner(), theme.phosphor_dim);
+        }
+        None => {}
+    };
     for (i, &n) in whites.iter().enumerate() {
         let r = Rect::from_min_size(
             Pos2::new(rect.left() + key_w * i as f32, rect.top()),
             egui::vec2(key_w, rect.height()),
         )
         .shrink(theme.hairline);
-        let fill = if lit(n) { theme.phosphor } else { theme.ink };
-        painter.rect_filled(r, theme.square_corner(), fill);
+        let fill = if lit(n) { theme.phosphor } else { theme.inset };
+        ui.painter().rect_filled(r, theme.square_corner(), fill);
+        ui.painter().rect_stroke(r, theme.square_corner(), (theme.hairline, theme.rule), egui::StrokeKind::Inside);
+        paint_mark(ui, n, r);
         if n % 12 == 0 {
-            painter.text(
-                Pos2::new(r.center().x, r.bottom() - theme.hairline),
+            ui.painter().text(
+                Pos2::new(r.center().x, r.bottom() - r.height() * theme.swatch_strip - theme.hairline),
                 Align2::CENTER_BOTTOM,
                 metal_midi::note_name(n),
                 theme.font_small.clone(),
-                theme.inset,
+                theme.ink_faint,
             );
         }
     }
     for &n in notes.iter().filter(|n| metal_midi::is_black(**n)) {
         if let Some(r) = black_rect(rect, &whites, n, key_w, depth) {
-            let fill = if lit(n) { theme.phosphor } else { theme.inset };
-            painter.rect_filled(r, theme.square_corner(), fill);
+            let fill = if lit(n) { theme.phosphor } else { theme.rule };
+            ui.painter().rect_filled(r, theme.square_corner(), fill);
+            ui.painter().rect_stroke(r, theme.square_corner(), theme.rule_bright_stroke(), egui::StrokeKind::Inside);
+            paint_mark(ui, n, r);
         }
     }
     let mut edges = Vec::new();

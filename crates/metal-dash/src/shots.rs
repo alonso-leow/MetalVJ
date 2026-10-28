@@ -416,4 +416,36 @@ fn shots_controller_faces() {
         }
         shot(&mut hs, &dir, &format!("controller-{}", device.id));
     }
+    // The FLkey with cells given: a job, a fader in a pot and in a strip,
+    // a palette in a pad and in two keys.
+    {
+        let state = hs.state_mut().lanes_state_mut();
+        state.layout.apply_device(&metal_midi::devices::device("flkey-mini").expect("in the catalogue"));
+        let slot = |state: &crate::shell::panels::lanes::PanelState, id: &str| {
+            state.layout.slots.iter().position(|s| s.id == id).expect("on the face")
+        };
+        let (record, pot, strip, pad) = (slot(state, "record"), slot(state, "pot-1"), slot(state, "mod"), slot(state, "pad-9"));
+        state.layout.place("hw:record", record, None);
+        state.layout.roles.insert("hw:record".into(), crate::surface::Role::Rec);
+        let palette = serde_json::json!([[1.0, 0.1, 0.1], [1.0, 0.6, 0.0], [0.2, 0.4, 1.0], [0.8, 0.2, 1.0]]);
+        let fader = |name: &str, v: f32| {
+            serde_json::json!({ "graph": "g", "name": name, "mode": "switch", "targets": [{ "node": "n", "param": "gain", "value": v }] })
+        };
+        let colours = |name: &str| {
+            serde_json::json!({ "graph": "g", "name": name, "mode": "switch", "targets": [{ "node": "p", "colors": palette }] })
+        };
+        for (key, cell, at) in [
+            ("hw:pot-1:0", fader("glow", 0.7), Some(pot)),
+            ("hw:mod:0", fader("blur", 0.4), Some(strip)),
+            ("hw:pad-9:0", colours("sunset"), Some(pad)),
+            ("key:48:0", colours(""), None),
+            ("key:51:0", colours(""), None),
+        ] {
+            state.controllers.insert(key.into(), cell);
+            if let Some(at) = at {
+                state.layout.place(&format!("ctrl:{key}"), at, Some(0));
+            }
+        }
+    }
+    shot(&mut hs, &dir, "controller-flkey-mini-assigned");
 }

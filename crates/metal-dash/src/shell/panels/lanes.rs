@@ -219,6 +219,8 @@ pub struct PanelState {
     pub(crate) grid_selected: Option<String>,
     /// A cell waiting for the next MIDI control (or piano key) to bind.
     pub(crate) grid_learn: Option<String>,
+    /// A box's slot waiting for the next MIDI control: what it sends.
+    slot_learn: Option<usize>,
     /// The last thing the surface wants the operator to read.
     grid_note: Option<String>,
     /// A dial's part-step, by cell key, between frames.
@@ -369,6 +371,7 @@ impl Default for PanelState {
             grid_edit: false,
             grid_selected: None,
             grid_learn: None,
+            slot_learn: None,
             grid_note: None,
             dial_acc: HashMap::new(),
             piano_held: HashMap::new(),
@@ -2533,6 +2536,7 @@ fn show_preview(
 /// for: `sequences_row`/`switches_row` stop painting and hand their cells
 /// back instead, so every control in the panel lands in the same
 /// [`egui::Grid`].
+#[derive(Clone)]
 struct Cell {
     /// What a click reaches, with the ids and targets its builder resolved.
     kind: CellKind,
@@ -2596,6 +2600,7 @@ impl Cell {
 }
 
 /// What a click on a [`Cell`] does.
+#[derive(Clone)]
 enum CellKind {
     /// `GET`/`POST /overlay/blackout`; the cell's own `on` is the state.
     Blackout,
@@ -2673,7 +2678,7 @@ fn overlays_grid(
     state_val: &Value,
     open_graph: Option<&str>,
 ) {
-    let GridPlan { cells, pins, placed, pages, page, wired, filled } = grid_plan(door, state, state_val);
+    let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, state_val);
     let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
     state.driven_pass = Some(ui.ctx().cumulative_pass_nr());
 
@@ -2702,7 +2707,7 @@ fn overlays_grid(
         ui.allocate_exact_size(block.size(), Sense::hover());
         let (cu, ru) = (cols * crate::surface::UNITS, rows * crate::surface::UNITS);
         let mut occupied = vec![false; cu * ru];
-        for ((c, p), pin) in cells.iter().zip(&placed).zip(&pins) {
+        for (((c, p), pin), slot) in cells.iter().zip(&placed).zip(&pins).zip(&slot_of) {
             if p.page != page && *pin != crate::surface::Pin::Every {
                 continue;
             }
@@ -2712,7 +2717,7 @@ fn overlays_grid(
                 }
             }
             let rect = unit_rect(origin, cell, gap, p.x, p.y, p.w, p.h);
-            paint_cell(ui, theme, door, state, c, rect, open_graph);
+            paint_cell(ui, theme, door, state, c, rect, open_graph, *slot);
         }
         // A box's face: its empty slots paint as the control they are (a pad
         // still takes a dropped card), and its mark where the panel has it.
@@ -2720,7 +2725,7 @@ fn overlays_grid(
             for (i, slot) in state.layout.slots.clone().iter().enumerate() {
                 if !filled.get(i).copied().unwrap_or(false) {
                     let [x, y, w, h] = slot.rect.map(|v| v as usize);
-                    paint_empty_slot(ui, theme, door, state, i, slot, unit_rect(origin, cell, gap, x, y, w, h));
+                    paint_empty_slot(ui, theme, door, state, i, slot, unit_rect(origin, cell, gap, x, y, w, h), page, open_graph);
                 }
             }
             for logo in device.controls.iter().filter(|c| c.part == metal_midi::devices::Part::Logo) {
@@ -2743,7 +2748,7 @@ fn overlays_grid(
                 let free = (row * u..(row + 1) * u).all(|y| (col * u..(col + 1) * u).all(|x| !occupied[y * cu + x]));
                 if free {
                     let rect = unit_rect(origin, cell, gap, col * u, row * u, u, u);
-                    paint_phantom_cell(ui, theme, door, state, row * cols + col, rect);
+                    let _ = paint_phantom_cell(ui, theme, door, state, row * cols + col, rect);
                 }
             }
         }
@@ -2778,11 +2783,14 @@ struct GridPlan {
     placed: Vec<crate::surface::Placed>,
     pages: usize,
     page: usize,
-    /// On a box's face: each slot input on the shown page and the cell in
-    /// that slot, which the control fires unless a binding says otherwise.
-    wired: Vec<(String, String)>,
+    /// On a box's face: each slot input on the shown page, the cell in
+    /// that slot (which the control fires unless a binding says otherwise)
+    /// and how the control reports a turn.
+    wired: Vec<(String, String, crate::surface::DialMode)>,
     /// Which of the face's slots hold a cell on the shown page.
     filled: Vec<bool>,
+    /// The face's slot each cell sits in.
+    slot_of: Vec<Option<usize>>,
 }
 
 fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan {
@@ -2809,9 +2817,9 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
             .iter()
             .zip(&places)
             .map(|(c, at)| match (at, state.layout.pages.get(&c.key)) {
-                (Some(_), _) => Pin::Every,
-                (None, Some(&p)) => Pin::Page(p),
-                _ => Pin::Flow,
+                (_, Some(&p)) => Pin::Page(p),
+                (Some(_), None) => Pin::Every,
+                (None, None) => Pin::Flow,
             })
             .collect();
         let (placed, slot_of): (Vec<_>, Vec<_>) =
@@ -2851,17 +2859,18 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
 
     let mut filled = vec![false; state.layout.slots.len()];
     let mut wired = Vec::new();
-    for ((c, p), s) in cells.iter().zip(&placed).zip(&slot_of) {
+    for (((c, p), pin), s) in cells.iter().zip(&placed).zip(&pins).zip(&slot_of) {
         let Some(s) = *s else { continue };
-        if p.page != page {
+        if p.page != page && *pin != crate::surface::Pin::Every {
             continue;
         }
         filled[s] = true;
-        if let Some(input) = &state.layout.slots[s].input {
-            wired.push((input.clone(), c.key.clone()));
+        let slot = &state.layout.slots[s];
+        if let Some(input) = &slot.input {
+            wired.push((input.clone(), c.key.clone(), slot.dial));
         }
     }
-    GridPlan { cells, pins, placed, pages, page, wired, filled }
+    GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of }
 }
 
 /// MIDI keeps driving the grid while it is off screen — the sequence editor
@@ -2949,25 +2958,13 @@ fn grid_cells(door: &dyn Call, state: &PanelState, state_val: &Value) -> Vec<Cel
 
 /// The control cells and the recorded loops, off the stored layout.
 fn surface_cells(state: &PanelState) -> Vec<Cell> {
-    // A box's control reads as its panel prints it, then its job.
-    let device = state.layout.device.as_deref().and_then(metal_midi::devices::device);
-    let printed = |key: &str| {
-        let id = key.strip_prefix("hw:")?;
-        let c = device.as_ref()?.controls.iter().find(|c| c.id == id)?;
-        (!c.label.is_empty()).then(|| c.label.clone())
-    };
     let roles = state.layout.roles.iter().map(|(key, role)| Cell {
         kind: CellKind::Role { role: role.clone() },
         key: key.clone(),
         span: role.default_span(),
-        // A knob shows its job (its value says the rest); a button its print
-        // over its job.
-        label: match printed(key) {
-            Some(_) if role.is_dial() && !role.is_spare() => tr_dyn(&role.label()).to_string(),
-            Some(p) if !role.is_spare() && p != role.label() => format!("{p}\n{}", tr_dyn(&role.label())),
-            Some(p) => p,
-            None => tr_dyn(&role.label()).to_string(),
-        },
+        // A control says its job; a box's control kept from before the
+        // faces were blank says nothing.
+        label: if role.is_spare() { String::new() } else { tr_dyn(&role.label()).to_string() },
         on: false,
         running: false,
         progress: None,
@@ -3022,7 +3019,7 @@ fn page_bar(
         (add, Cell::add()),
         (next, Cell::page(format!("{}/{pages} ›", page + 1), (page + 1).min(pages - 1))),
     ] {
-        paint_cell(ui, theme, door, state, &cell, rect, open_graph);
+        paint_cell(ui, theme, door, state, &cell, rect, open_graph, None);
     }
     let middle = Rect::from_min_max(
         Pos2::new(prev.right() + theme.item_gap.x, bar.top()),
@@ -3058,6 +3055,7 @@ fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     let ports = crate::input::midi_ports();
     let (response, _) = plain_menu(ui, theme, RichText::new(format!("{label} ▾")), |ui| {
         if ui.selectable_label(current.is_none(), small(tr("free grid").into())).clicked() {
+            forget_face_controllers(door, state);
             state.layout.clear_device();
             state.grid_note = Some(tr("the grid is free again").to_string());
             save_layout(door, state);
@@ -3079,6 +3077,7 @@ fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
             };
             let picked = state.layout.device.as_deref() == Some(d.id);
             if ui.selectable_label(picked, small(name)).on_hover_text(tr_dyn(d.note)).clicked() {
+                forget_face_controllers(door, state);
                 state.layout.apply_device(&d);
                 state.grid_note = Some(trf("the grid is a {name}", &[("name", &d.name)]));
                 save_layout(door, state);
@@ -3089,10 +3088,18 @@ fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     response.on_hover_text(tr("the controller the grid takes the shape of"));
 }
 
-/// A box's slot with no cell in it on this page, painted as the control it
-/// is: a pad (that takes a dropped card, like a free grid's empty cell) lit
-/// while pressed, a knob turned and a fader or strip filled to where the
-/// hardware sits.
+/// The buttons a box's controls and its keys held go with its face.
+fn forget_face_controllers(door: &dyn Call, state: &mut PanelState) {
+    let face: Vec<String> = state.controllers.keys().filter(|k| is_hw_controller(k)).map(|k| format!("ctrl:{k}")).collect();
+    drop_controllers(door, state, &face);
+}
+
+/// A box's slot with no cell in it on this page, painted unnamed as the
+/// control it is: a pad or button (that takes a dropped card, like a free
+/// grid's empty cell) lit while pressed, a knob turned and a fader or strip
+/// filled to where the hardware sits. Its right-click (any click in edit
+/// mode) gives it a cell ([`slot_menu`]).
+#[allow(clippy::too_many_arguments)]
 fn paint_empty_slot(
     ui: &mut Ui,
     theme: &Theme,
@@ -3101,28 +3108,102 @@ fn paint_empty_slot(
     index: usize,
     slot: &crate::surface::Slot,
     rect: Rect,
+    page: usize,
+    open_graph: Option<&str>,
 ) {
     use crate::surface::SlotKind;
     let input = slot.input.as_deref().unwrap_or_default();
     let down = !input.is_empty() && state.hw_down.iter().any(|h| metal_midi::same_control(input, h));
     let level = hw_level(state, input);
-    match slot.kind {
-        SlotKind::Pad => {
-            paint_phantom_cell(ui, theme, door, state, index, rect);
+    let response = match slot.kind {
+        SlotKind::Pad | SlotKind::Button => {
+            let response = paint_phantom_cell(ui, theme, door, state, index, rect);
             if down {
                 ui.painter().rect_filled(rect, theme.corner_radius(), theme.phosphor);
             }
-            if !slot.label.is_empty() {
-                ui.painter().text(rect.center(), Align2::CENTER_CENTER, &slot.label, theme.font_small.clone(), theme.ink_weak);
-            }
+            response
         }
         SlotKind::Knob => {
             let id = Id::new(("shell/region/lanes/slot", index));
             let mut acc = 0.0;
             let value = level.map(|v| format!("{:.0}", v * 127.0)).unwrap_or_default();
-            let _ = super::pads::dial(ui, theme, id, rect, &slot.label, &value, level, false, &mut acc);
+            super::pads::dial(ui, theme, id, rect, "", &value, level, false, &mut acc).0
         }
-        SlotKind::Fader | SlotKind::Strip => super::pads::strip(ui, theme, rect, &slot.label, level),
+        SlotKind::Fader | SlotKind::Strip => {
+            super::pads::strip(ui, theme, rect, "", level);
+            ui.interact(rect, Id::new(("shell/region/lanes/slot", index)), Sense::click())
+        }
+    };
+    let response = if slot.label.is_empty() { response } else { response.on_hover_text(&slot.label) };
+    slot_popup(theme, door, state, &response, index, page, open_graph);
+}
+
+/// Opens [`slot_menu`] off a slot's right-click, or any click in edit mode.
+#[allow(clippy::too_many_arguments)]
+fn slot_popup(
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    response: &Response,
+    slot: usize,
+    page: usize,
+    open_graph: Option<&str>,
+) {
+    let popup = if state.grid_edit { Popup::menu(response) } else { Popup::context_menu(response) };
+    popup.show(|ui| slot_menu(ui, theme, door, state, slot, page, open_graph));
+}
+
+/// What a box's control can hold: a button or fader of the open graph's
+/// nodes, params and colours (its own, on this page — the same editor the
+/// free grid's `controller button` opens), any of the surface's control
+/// jobs (on every page), or nothing. `learn` takes the next control heard
+/// as what this one sends.
+fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, slot: usize, page: usize, open_graph: Option<&str>) {
+    let small = |t: String| RichText::new(t).font(theme.font_small.clone());
+    let Some(id) = state.layout.slots.get(slot).map(|s| s.id.clone()) else { return };
+    let held = state.layout.in_slot(slot);
+    match open_graph {
+        Some(gid) => {
+            if ui.button(small(tr("controller button").into())).clicked() {
+                let key = slot_controller(&id, page);
+                if !state.controllers.contains_key(&key) {
+                    state.controllers.insert(key.clone(), json!({ "graph": gid, "name": "", "mode": "switch", "targets": [] }));
+                    save_controllers(door, state);
+                }
+                let gone = state.layout.place(&format!("ctrl:{key}"), slot, Some(page));
+                drop_controllers(door, state, &gone);
+                save_layout(door, state);
+                state.editing_controller = Some(key);
+                state.controller_edit_pos = ui.input(|i| i.pointer.interact_pos());
+                ui.close();
+            }
+        }
+        None => {
+            ui.label(small(tr("— open a graph to control its nodes —").into()).color(theme.ink_weak));
+        }
+    }
+    let _ = plain_menu(ui, theme, small(tr("does").into()), |ui| {
+        for job in crate::surface::Role::catalogue().into_iter().filter(|r| !matches!(r, crate::surface::Role::Piano { .. })) {
+            if ui.button(small(tr_dyn(&job.label()).to_string())).clicked() {
+                let key = format!("hw:{id}");
+                let gone = state.layout.place(&key, slot, None);
+                drop_controllers(door, state, &gone);
+                state.layout.roles.insert(key, job);
+                save_layout(door, state);
+                ui.close();
+            }
+        }
+    });
+    let learning = state.slot_learn == Some(slot);
+    if ui.selectable_label(learning, small(tr("learn: press a key, pad or knob").into())).clicked() {
+        state.slot_learn = if learning { None } else { Some(slot) };
+        ui.close();
+    }
+    if held.iter().any(|(_, on)| on.is_none() || *on == Some(page)) && ui.button(small(tr("remove").into())).clicked() {
+        let gone = state.layout.clear_slot(slot, Some(page));
+        drop_controllers(door, state, &gone);
+        save_layout(door, state);
+        ui.close();
     }
 }
 
@@ -3195,7 +3276,7 @@ fn surface_status(ui: &mut Ui, theme: &Theme, state: &PanelState) {
     if frozen > 0 {
         ui.label(small(trf("{n} frozen", &[("n", &frozen)]), theme.phosphor));
     }
-    if state.grid_learn.is_some() {
+    if state.grid_learn.is_some() || state.slot_learn.is_some() {
         ui.label(small(tr("press a key, pad or knob…").to_string(), theme.phosphor));
     } else if let Some(note) = &state.grid_note {
         ui.label(small(note.clone(), theme.ink_weak));
@@ -3216,7 +3297,7 @@ fn drive_surface(
     cells: &[Cell],
     page: usize,
     pages: usize,
-    wired: &[(String, String)],
+    wired: &[(String, String, crate::surface::DialMode)],
 ) {
     let now = ui.input(|i| i.time);
     let mut inputs: Vec<(String, metal_midi::Edge)> =
@@ -3254,7 +3335,7 @@ fn surface_input(
     door: &dyn Call,
     state: &mut PanelState,
     cells: &[Cell],
-    wired: &[(String, String)],
+    wired: &[(String, String, crate::surface::DialMode)],
     input: &str,
     edge: metal_midi::Edge,
     now: f64,
@@ -3311,6 +3392,18 @@ fn surface_input(
         state.hw_levels.insert(input.to_string(), value);
     }
 
+    if let Some(slot) = state.slot_learn {
+        if matches!(edge, Edge::Release) {
+            return Vec::new();
+        }
+        state.slot_learn = None;
+        if let Some(s) = state.layout.slots.get_mut(slot) {
+            s.input = Some(input.to_string());
+            state.grid_note = Some(trf("{input} → {cell}", &[("input", &input), ("cell", &s.id)]));
+            save_layout(door, state);
+        }
+        return Vec::new();
+    }
     if let Some(cell) = state.grid_learn.clone() {
         if matches!(edge, Edge::Release) {
             return Vec::new();
@@ -3325,14 +3418,25 @@ fn surface_input(
         return Vec::new();
     }
     let wired_bind = || {
-        wired.iter().find(|(i, _)| metal_midi::same_control(i, input)).map(|(i, cell)| crate::surface::Bind {
+        wired.iter().find(|(i, _, _)| metal_midi::same_control(i, input)).map(|(i, cell, dial)| crate::surface::Bind {
             input: i.clone(),
             page: Some(page),
             cell: cell.clone(),
+            dial: *dial,
+        })
+    };
+    // A piano key holding a button of its own on this page.
+    let key_bind = || {
+        let n = metal_midi::input_note(input).filter(|_| !slot_input)?;
+        let key = key_controller(n, page);
+        state.controllers.contains_key(&key).then(|| crate::surface::Bind {
+            input: input.to_string(),
+            page: Some(page),
+            cell: format!("ctrl:{key}"),
             dial: crate::surface::DialMode::Absolute,
         })
     };
-    let Some(bind) = state.layout.bound(input, page).cloned().or_else(wired_bind) else {
+    let Some(bind) = state.layout.bound(input, page).cloned().or_else(wired_bind).or_else(key_bind) else {
         return Vec::new();
     };
     if let Some(role) = state.layout.roles.get(&bind.cell).cloned() {
@@ -3355,9 +3459,10 @@ fn surface_input(
     if state.layout.loops.contains_key(&bind.cell) {
         return if level == Some(true) { state.surface.loop_pressed(&bind.cell) } else { Vec::new() };
     }
-    let Some(cell) = cells.iter().find(|c| c.key == bind.cell) else {
+    let Some(cell) = find_cell(state, cells, &bind.cell) else {
         return Vec::new();
     };
+    let cell = &cell;
     // A fader takes a knob's position; everything else takes the press.
     let fader = matches!(&cell.kind, CellKind::Controller { key } if controller_is_fader(state, key));
     let gesture = match (edge, fader) {
@@ -3395,8 +3500,8 @@ fn run_outs(
                 if state.layout.loops.contains_key(&cell) {
                     continue;
                 }
-                if let Some(c) = cells.iter().find(|c| c.key == cell) {
-                    fire_cell(ui.input(|i| i.time), door, state, c, gesture);
+                if let Some(c) = find_cell(state, cells, &cell) {
+                    fire_cell(ui.input(|i| i.time), door, state, &c, gesture);
                 }
             }
             Out::Page(p) => set_stored_page(door, p.min(pages.saturating_sub(1))),
@@ -3579,19 +3684,13 @@ fn controller_editor_popup(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &
     let Some(key) = state.editing_controller.clone() else {
         return;
     };
-    let graph = state
-        .controllers
-        .get(&key)
-        .and_then(|c| c["graph"].as_str())
-        .unwrap_or(&key)
-        .to_string();
     let mut open = true;
     crate::shell::gallery::overlay_window("shell/region/lanes/controller-editor", tr("controller button").to_string())
         .current_pos(state.controller_edit_pos.unwrap_or(egui::pos2(theme.pad as f32, theme.pad as f32)))
         .open(&mut open)
         .show(ui.ctx(), |ui| {
             ui.set_min_width(theme.text_input_width * 2.0);
-            controller_editor(ui, theme, door, state, &graph);
+            controller_editor(ui, theme, door, state, &key);
         });
     if !open {
         state.editing_controller = None;
@@ -3615,11 +3714,11 @@ fn paint_phantom_cell(
     state: &mut PanelState,
     slot: usize,
     rect: Rect,
-) {
+) -> Response {
     let response = ui.interact(
         rect,
         ui.id().with(("shell/region/lanes/overlay-phantom", slot)),
-        Sense::hover(),
+        Sense::click(),
     );
     ui.painter()
         .rect_filled(rect, theme.corner_radius(), theme.rule_bright);
@@ -3646,10 +3745,10 @@ fn paint_phantom_cell(
             }
         }
     }
-    let Some(drag) = response.dnd_release_payload::<crate::shell::panels::FileDrag>() else {
-        return;
-    };
-    apply_overlay_drop(door, state, &drag);
+    if let Some(drag) = response.dnd_release_payload::<crate::shell::panels::FileDrag>() {
+        apply_overlay_drop(door, state, &drag);
+    }
+    response
 }
 
 /// What an `files` card dropped on the overlays grid does — split out of
@@ -3700,18 +3799,53 @@ fn paint_cell(
     cell: &Cell,
     rect: Rect,
     open_graph: Option<&str>,
+    slot: Option<usize>,
 ) {
     use crate::surface::{Gesture, Role};
     let now = ui.input(|i| i.time);
     let editing = state.grid_edit && !cell.is_fixed();
+    let page = stored_page(door).max(0) as usize;
+    // The box's control under the cell, held down right now.
+    let slot_kind = slot.and_then(|i| state.layout.slots.get(i)).map(|s| s.kind);
+    let slot_down = slot
+        .and_then(|i| state.layout.slots.get(i))
+        .and_then(|s| s.input.as_deref())
+        .is_some_and(|input| state.hw_down.iter().any(|h| metal_midi::same_control(input, h)));
     let response = match &cell.kind {
-        CellKind::Controller { key } => paint_controller_cell(ui, theme, door, state, key, rect),
+        CellKind::Controller { key } => paint_controller_cell(ui, theme, door, state, key, rect, slot_kind, slot_down),
         CellKind::Role { role: Role::Piano { base, keys } } => {
             let lit = |n: u8| state.surface.notes.contains(&n);
+            // A key holding a button shows it: its colours, or a mark.
+            let mark = |n: u8| {
+                let key = key_controller(n, page);
+                state.controllers.contains_key(&key).then(|| match controller_face(door, state, &key) {
+                    ControllerFace::Palette { stops } => stops,
+                    _ => Vec::new(),
+                })
+            };
             let mut held = state.piano_held.get(&cell.key).copied().flatten();
             let id = Id::new(("shell/region/lanes/piano", &cell.key));
-            let (response, edges) = super::pads::piano(ui, theme, id, rect, *base, *keys, &lit, &mut held);
+            let (response, edges) = super::pads::piano(ui, theme, id, rect, *base, *keys, &lit, &mark, &mut held);
             state.piano_held.insert(cell.key.clone(), held);
+            // A key's right-click gives it a button of its own on this page.
+            if response.secondary_clicked() && !editing {
+                let note = ui
+                    .input(|i| i.pointer.interact_pos())
+                    .and_then(|p| super::pads::note_at(rect, *base, *keys, theme.piano_black_depth, p));
+                match (note, open_graph) {
+                    (Some(n), Some(gid)) => {
+                        let key = key_controller(n, page);
+                        if !state.controllers.contains_key(&key) {
+                            state.controllers.insert(key.clone(), json!({ "graph": gid, "name": "", "mode": "switch", "targets": [] }));
+                            save_controllers(door, state);
+                        }
+                        state.editing_controller = Some(key);
+                        state.controller_edit_pos = Some(rect.min);
+                    }
+                    (Some(_), None) => state.grid_note = Some(tr("— open a graph to control its nodes —").to_string()),
+                    _ => {}
+                }
+            }
             for e in edges {
                 let (n, edge) = match e {
                     super::pads::KeyEdge::Press(n) => (n, metal_midi::Edge::Press { velocity: 1.0 }),
@@ -3730,15 +3864,15 @@ fn paint_cell(
             let (response, steps) = super::pads::dial(ui, theme, id, rect, &cell.label, &value, frac, lit, &mut acc);
             state.dial_acc.insert(cell.key.clone(), acc);
             if steps != 0 && !editing {
-                let out = state.surface.role(&state.layout, &cell.key, role, Gesture::Steps(steps), now, stored_page(door).max(0) as usize);
+                let out = state.surface.role(&state.layout, &cell.key, role, Gesture::Steps(steps), now, page);
                 state.grid_outs.extend(out);
             }
             response
         }
         _ => {
             let lit = match &cell.kind {
-                CellKind::Role { role } => state.surface.role_lit(&cell.key, role) || hw_pressed(state, &cell.key),
-                _ => cell.on,
+                CellKind::Role { role } => state.surface.role_lit(&cell.key, role) || hw_pressed(state, &cell.key) || slot_down,
+                _ => cell.on || slot_down,
             };
             // Filled buttons are darker than the gray empty slots.
             let text = RichText::new(&cell.label).font(theme.font_small.clone());
@@ -3791,10 +3925,17 @@ fn paint_cell(
         return;
     }
     // A scene cell opens its shared editor on a right-click (the size menu
-    // and delete live in [`controller_editor`]); every other sized cell keeps
-    // the size/remove menu.
-    if !cell.is_fixed() && !matches!(cell.kind, CellKind::Controller { .. }) {
-        response.context_menu(|ui| grid_cell_menu(ui, theme, door, state, cell));
+    // and delete live in [`controller_editor`]); a box's control what it can
+    // hold ([`slot_menu`]); the piano gives its key a button; every other
+    // sized cell keeps the size/remove menu.
+    let piano = matches!(cell.kind, CellKind::Role { role: Role::Piano { .. } });
+    match slot {
+        _ if piano || matches!(cell.kind, CellKind::Controller { .. }) => {}
+        Some(i) => slot_popup(theme, door, state, &response, i, page, open_graph),
+        None if !cell.is_fixed() => {
+            response.context_menu(|ui| grid_cell_menu(ui, theme, door, state, cell));
+        }
+        None => {}
     }
 
     // The pointer's gesture: a hold button (and `rec`, `drop rec`, `fn`) on
@@ -3843,7 +3984,6 @@ fn paint_cell(
         }
         CellKind::Role { role } => {
             if let Some(g) = gesture {
-                let page = stored_page(door).max(0) as usize;
                 let out = state.surface.role(&state.layout, &cell.key, role, g, now, page);
                 state.grid_outs.extend(out);
             }
@@ -3897,8 +4037,12 @@ fn dial_face(state: &PanelState, key: &str, role: &crate::surface::Role) -> (Str
 }
 
 /// The label a controller scene cell paints: its `name` when it has one, else
-/// its `graph` id, else the key itself.
+/// its `graph` id, else the key itself. A box's control or a piano key says
+/// nothing until it is named.
 fn controller_label(state: &PanelState, key: &str) -> String {
+    if is_hw_controller(key) {
+        return state.controllers.get(key).and_then(|c| c["name"].as_str()).unwrap_or_default().to_string();
+    }
     state
         .controllers
         .get(key)
@@ -3981,7 +4125,10 @@ fn stops_of(t: &Value) -> Vec<[f32; 3]> {
 /// button. Pressing a button or palette applies the whole stored state at once
 /// in `switch` mode, on the press/release edge in `hold` mode — the opposite
 /// `on` on release. The `⚙` corner and a right-click both open
-/// [`controller_editor`]. Returns the cell's response.
+/// [`controller_editor`]. In a box's knob a fader is the knob itself — a
+/// drag or the wheel turns it — and `held` lights a button while its box
+/// control is down. Returns the cell's response.
+#[allow(clippy::too_many_arguments)]
 fn paint_controller_cell(
     ui: &mut Ui,
     theme: &Theme,
@@ -3989,6 +4136,8 @@ fn paint_controller_cell(
     state: &mut PanelState,
     key: &str,
     rect: Rect,
+    shape: Option<crate::surface::SlotKind>,
+    held: bool,
 ) -> Response {
     if !state.controllers.contains_key(key) {
         return ui.interact(
@@ -3999,7 +4148,30 @@ fn paint_controller_cell(
     }
     let label = controller_label(state, key);
     let face = controller_face(door, state, key);
+    let fill = if held { theme.accent_vivid } else { theme.inset };
     let response = match face {
+        ControllerFace::Fader { node, param, min, max, value } if shape == Some(crate::surface::SlotKind::Knob) => {
+            let range = (max - min).max(0.0);
+            let frac = if range > 0.0 { ((value - min) / range).clamp(0.0, 1.0) } else { 0.0 };
+            let mut acc = state.dial_acc.get(key).copied().unwrap_or(0.0);
+            let id = Id::new(("shell/region/lanes/controller-knob", key));
+            let (response, steps) = super::pads::dial(ui, theme, id, rect, &label, &format!("{value:.2}"), Some(frac), false, &mut acc);
+            state.dial_acc.insert(key.to_string(), acc);
+            if steps != 0 && !state.grid_edit {
+                // A hundred steps sweep the whole range.
+                let new = (value + steps as f32 * range / 100.0).clamp(min, max);
+                let graph = state.controllers.get(key).and_then(|c| c["graph"].as_str()).unwrap_or(key).to_string();
+                let _ = door.json(
+                    "POST",
+                    "/graph/node",
+                    Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": new })),
+                );
+                let target = json!({ "node": node, "param": param, "value": new });
+                set_controller_target_value(state, key, &target, new);
+                state.controllers_dirty = Some(ui.input(|i| i.time));
+            }
+            response
+        }
         ControllerFace::Fader { node, param, min, max, value } => {
             let range = (max - min).max(0.0);
             let frac = if range > 0.0 { ((value - min) / range).clamp(0.0, 1.0) } else { 0.0 };
@@ -4032,7 +4204,7 @@ fn paint_controller_cell(
         ControllerFace::Palette { stops } => {
             let button = egui::Button::new(RichText::new(&label).font(theme.font_small.clone()))
                 .min_size(rect.size())
-                .fill(theme.inset);
+                .fill(fill);
             let response = ui.put(rect, button);
             builtins::paint_stops(ui, theme, &stops, rect);
             response
@@ -4040,7 +4212,7 @@ fn paint_controller_cell(
         ControllerFace::Button => {
             let button = egui::Button::new(RichText::new(&label).font(theme.font_small.clone()))
                 .min_size(rect.size())
-                .fill(theme.inset);
+                .fill(fill);
             ui.put(rect, button)
         }
     };
@@ -4369,10 +4541,16 @@ fn set_controller_name(door: &dyn Call, state: &mut PanelState, graph: &str, nam
     save_controllers(door, state);
 }
 
-/// Removes `graph`'s controller from the grid.
+/// Removes `graph`'s controller from the grid (and from the box's control
+/// it sat in).
 fn delete_controller(door: &dyn Call, state: &mut PanelState, graph: &str) {
     state.controllers.remove(&controller_key(graph));
     save_controllers(door, state);
+    let cell = format!("ctrl:{}", controller_key(graph));
+    if state.layout.places.contains_key(&cell) {
+        state.layout.forget(&cell);
+        save_layout(door, state);
+    }
 }
 
 /// The `switch`/`hold` mode `graph`'s controller carries, `switch` (a click
@@ -4820,16 +4998,23 @@ fn node_folder_row(
 /// and — editing an existing controller — its **delete**. Prefilled from the
 /// controller's whole payload, so editing changes a button rather than starting
 /// again.
-fn controller_editor(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, graph: &str) {
-    controller_name_field(ui, theme, door, state, graph);
-    controller_mode_header(ui, theme, door, state, graph);
-    let span_key = format!("ctrl:{graph}");
-    let current = state.grid_spans.get(&span_key).copied().unwrap_or((1.0, 1.0));
-    if let Some(span) = size_choices(ui, theme, current) {
-        set_grid_span(door, state, &span_key, span);
+fn controller_editor(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, key: &str) {
+    // A free grid's controller is keyed by its graph; a box's control or a
+    // piano key names the graph it reaches.
+    let graph = state.controllers.get(key).and_then(|c| c["graph"].as_str()).unwrap_or(key).to_string();
+    let graph = graph.as_str();
+    controller_name_field(ui, theme, door, state, key);
+    controller_mode_header(ui, theme, door, state, key);
+    // A box's controls are the size the panel has them.
+    if !is_hw_controller(key) {
+        let span_key = format!("ctrl:{key}");
+        let current = state.grid_spans.get(&span_key).copied().unwrap_or((1.0, 1.0));
+        if let Some(span) = size_choices(ui, theme, current) {
+            set_grid_span(door, state, &span_key, span);
+        }
     }
     ui.separator();
-    controller_list(ui, theme, door, state, graph);
+    controller_list(ui, theme, door, state, key, graph);
     ui.separator();
     // `save` commits the name (and is one more way out beside a click
     // outside); `delete` removes the whole controller from the grid.
@@ -4838,15 +5023,15 @@ fn controller_editor(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
             .button(RichText::new(tr("save")).font(theme.font_small.clone()))
             .clicked()
         {
-            commit_controller_name(door, state, graph);
+            commit_controller_name(door, state, key);
             state.editing_controller = None;
         }
-        if state.controllers.contains_key(&controller_key(graph))
+        if state.controllers.contains_key(&controller_key(key))
             && ui
                 .button(RichText::new(tr("delete controller")).font(theme.font_small.clone()))
                 .clicked()
         {
-            delete_controller(door, state, graph);
+            delete_controller(door, state, key);
             state.editing_controller = None;
         }
     });
@@ -4927,7 +5112,7 @@ fn controller_mode_header(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &m
 /// **toggles membership** of the controller's targets; a node/group/fixture row
 /// that is a target carries its `on` checkbox. Params are not booleans and
 /// carry the grid's one fader instead.
-fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, graph: &str) {
+fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, key: &str, graph: &str) {
     let nodes: Vec<(String, Option<String>, String, Value)> = get(door, "GET", "/graph", &[("id", graph.to_string())])
         .and_then(|g| g["graph"]["nodes"].as_array().cloned())
         .unwrap_or_default()
@@ -4962,8 +5147,8 @@ fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pane
         let colour = colour_target(&kind, &id, &config);
         let is_colour = colour.is_some();
         let target = colour.unwrap_or_else(|| json!({ "node": id, "on": true }));
-        let picked = controller_has_target(state, graph, &target);
-        let on = (!is_colour).then(|| controller_target_on(state, graph, &target));
+        let picked = controller_has_target(state, key, &target);
+        let on = (!is_colour).then(|| controller_target_on(state, key, &target));
         let row = node_folder_row(
             ui,
             theme,
@@ -4981,10 +5166,10 @@ fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pane
             }
         }
         if row.name {
-            toggle_controller_target(door, state, graph, target.clone());
+            toggle_controller_target(door, state, key, target.clone());
         }
         if let Some(on) = row.checked {
-            set_controller_target_on(door, state, graph, &target, on);
+            set_controller_target_on(door, state, key, &target, on);
         }
         let expanded = if row.toggle { !expanded } else { expanded };
         if !expanded || floats.is_empty() {
@@ -4992,13 +5177,13 @@ fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pane
         }
         ui.indent(("shell/region/lanes/controller-node", id.as_str()), |ui| {
             for p in &floats {
-                controller_param_row(ui, theme, door, state, graph, &id, p);
+                controller_param_row(ui, theme, door, state, key, graph, &id, p);
             }
         });
     }
     // The venue half of the same list: a group folder row over its fixtures,
     // an ungrouped fixture a peer row beside the node rows.
-    fixture_controller_rows(ui, theme, door, state, graph);
+    fixture_controller_rows(ui, theme, door, state, key, graph);
 }
 
 /// One parameter row of the editor: the name (a pick that toggles the
@@ -5006,20 +5191,22 @@ fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pane
 /// ([`builtins::fader`], horizontal) editing the value. A drag posts
 /// `{op:"param"}` live and updates the stored value; the release saves the
 /// controller. Params are never booleans, so no checkbox.
+#[allow(clippy::too_many_arguments)]
 fn controller_param_row(
     ui: &mut Ui,
     theme: &Theme,
     door: &dyn Call,
     state: &mut PanelState,
+    key: &str,
     graph: &str,
     node: &str,
     p: &super::dials::Float,
 ) {
     let target = json!({ "node": node, "param": p.name, "value": p.value });
-    let picked = controller_has_target(state, graph, &target);
+    let picked = controller_has_target(state, key, &target);
     let stored = state
         .controllers
-        .get(&controller_key(graph))
+        .get(&controller_key(key))
         .and_then(|c| c["targets"].as_array())
         .and_then(|ts| ts.iter().find(|t| same_target(t, &target)))
         .and_then(|t| t["value"].as_f64())
@@ -5032,7 +5219,7 @@ fn controller_param_row(
             RichText::new(&p.name).font(theme.font_small.clone())
         };
         if ui.selectable_label(picked, text).clicked() {
-            toggle_controller_target(door, state, graph, target.clone());
+            toggle_controller_target(door, state, key, target.clone());
         }
         let range = (p.max - p.min).max(0.0);
         let frac = if range > 0.0 { ((stored - p.min) / range).clamp(0.0, 1.0) } else { 0.0 };
@@ -5057,7 +5244,7 @@ fn controller_param_row(
                 "/graph/node",
                 Some(json!({ "op": "param", "graph": graph, "node": node, "name": p.name, "value": value })),
             );
-            set_controller_target_value(state, graph, &target, value);
+            set_controller_target_value(state, key, &target, value);
         }
         if f.response.drag_stopped() {
             save_controllers(door, state);
@@ -5109,7 +5296,7 @@ fn assigned_nodes(door: &dyn Call) -> std::collections::BTreeSet<String> {
 /// `expanded_nodes` holds the group rows' collapse state (keyed `group:<name>`
 /// so it cannot collide with a node id); a group starts open and always has
 /// fixtures, so it always carries a chevron.
-fn fixture_controller_rows(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, gid: &str) {
+fn fixture_controller_rows(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, ctrl: &str, gid: &str) {
     let fixtures = venue_fixture_list(door);
     if fixtures.is_empty() {
         return;
@@ -5130,14 +5317,14 @@ fn fixture_controller_rows(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &
         // A fixture target names the fixture itself (the node it resolved to
         // already encodes the group), the same shape the old pick made.
         let target = json!({ "node": node, "fixture": id, "on": true });
-        let picked = controller_has_target(state, gid, &target);
-        let on = controller_target_on(state, gid, &target);
+        let picked = controller_has_target(state, ctrl, &target);
+        let on = controller_target_on(state, ctrl, &target);
         let row = node_folder_row(ui, theme, &format!("◉ {name}"), None, false, picked, picked.then_some(on));
         if row.name {
-            toggle_controller_target(door, state, gid, target.clone());
+            toggle_controller_target(door, state, ctrl, target.clone());
         }
         if let Some(on) = row.checked {
-            set_controller_target_on(door, state, gid, &target, on);
+            set_controller_target_on(door, state, ctrl, &target, on);
         }
     };
     let mut groups: Vec<String> = fixtures.iter().filter_map(|(_, _, g, _)| g.clone()).collect();
@@ -5151,8 +5338,8 @@ fn fixture_controller_rows(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &
         let collapsed = state.expanded_nodes.contains(&key);
         let open = !collapsed;
         let target = group_target(&nodes, &venue_id, group);
-        let picked = target.as_ref().is_some_and(|t| controller_has_target(state, gid, t));
-        let on = target.as_ref().is_some_and(|t| controller_target_on(state, gid, t));
+        let picked = target.as_ref().is_some_and(|t| controller_has_target(state, ctrl, t));
+        let on = target.as_ref().is_some_and(|t| controller_target_on(state, ctrl, t));
         let row = node_folder_row(ui, theme, &format!("▣ {group}"), Some(open), false, picked, picked.then_some(on));
         if row.toggle {
             if collapsed {
@@ -5163,11 +5350,11 @@ fn fixture_controller_rows(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &
         }
         if row.name {
             if let Some(t) = &target {
-                toggle_controller_target(door, state, gid, t.clone());
+                toggle_controller_target(door, state, ctrl, t.clone());
             }
         }
         if let (Some(on), Some(t)) = (row.checked, &target) {
-            set_controller_target_on(door, state, gid, t, on);
+            set_controller_target_on(door, state, ctrl, t, on);
         }
         let open = if row.toggle { !open } else { open };
         if !open {
@@ -5564,10 +5751,12 @@ fn switches_cells(door: &dyn Call) -> Vec<Cell> {
 /// graph id, else the key, when it has none) and its stable key is
 /// `ctrl:<graph>`, so `grid_spans` sizes it like every other non-fixed cell.
 fn controller_cells(state: &PanelState) -> Vec<Cell> {
+    // A piano key's button lives in its key, not in the grid.
     state
         .controllers
-        .iter()
-        .map(|(key, _)| Cell {
+        .keys()
+        .filter(|key| !key.starts_with("key:"))
+        .map(|key| Cell {
             kind: CellKind::Controller { key: key.clone() },
             key: format!("ctrl:{key}"),
             span: (1.0, 1.0),
@@ -5577,6 +5766,53 @@ fn controller_cells(state: &PanelState) -> Vec<Cell> {
             progress: None,
         })
         .collect()
+}
+
+/// The controller a piano key holds on `page`.
+fn key_controller(note: u8, page: usize) -> String {
+    format!("key:{note}:{page}")
+}
+
+/// The controller a box's control (slot `id`) holds on `page`.
+fn slot_controller(id: &str, page: usize) -> String {
+    format!("hw:{id}:{page}")
+}
+
+/// Whether a controller belongs to a box's control or a piano key rather
+/// than to the free grid.
+fn is_hw_controller(key: &str) -> bool {
+    key.starts_with("hw:") || key.starts_with("key:")
+}
+
+/// The cell `key` names: one the grid laid out, or a piano key's button
+/// (never laid out, fired from its key).
+fn find_cell(state: &PanelState, cells: &[Cell], key: &str) -> Option<Cell> {
+    if let Some(c) = cells.iter().find(|c| c.key == key) {
+        return Some(c.clone());
+    }
+    let ctrl = key.strip_prefix("ctrl:").filter(|k| k.starts_with("key:") && state.controllers.contains_key(*k))?;
+    Some(Cell {
+        kind: CellKind::Controller { key: ctrl.to_string() },
+        key: key.to_string(),
+        span: (1.0, 1.0),
+        label: controller_label(state, ctrl),
+        on: false,
+        running: false,
+        progress: None,
+    })
+}
+
+/// Drops the controllers behind cells a slot let go of (`ctrl:<key>`).
+fn drop_controllers(door: &dyn Call, state: &mut PanelState, cells: &[String]) {
+    let mut any = false;
+    for c in cells {
+        if let Some(k) = c.strip_prefix("ctrl:") {
+            any |= state.controllers.remove(k).is_some();
+        }
+    }
+    if any {
+        save_controllers(door, state);
+    }
 }
 
 /// The playhead tick for the running overlay whose `movement == name` — the
@@ -7676,10 +7912,12 @@ fn without_an_open_graph_create_button_says_so() {
     }
 
     /// Picking the FLkey Mini in the bar's controller menu gives the grid its
-    /// face; the first pad then fires the first switch, while the key of the
-    /// same note (another channel) does not, and the record button is `rec`.
+    /// face, every control blank: the first pad then fires the first switch
+    /// (the key of the same note, another channel, does not); a job given to
+    /// the record button, a fader to a pot and a button to a piano key each
+    /// answer their control.
     #[test]
-    fn the_flkey_face_wires_its_pads_to_the_grids_buttons() {
+    fn the_flkey_face_is_blank_controls_each_given_its_cell() {
         let recorder = std::rc::Rc::new(FakeDoor::new());
         recorder.respond("GET", "/state", json!({ "outputs": [] }));
         recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
@@ -7698,14 +7936,17 @@ fn without_an_open_graph_create_button_says_so() {
             m == "POST" && p == "/settings" && body_of(params)["grid_surface"]["device"] == json!("flkey-mini")
         });
         assert!(posted, "the face is stored");
-        assert!(harness.query_by_label("shift\nfn").is_some() && harness.query_by_label("piano").is_some());
+        assert!(harness.query_by_label("piano").is_some());
+        for printed in ["shift", "shift\nfn", "speed", "rec", "octave +"] {
+            assert!(harness.query_by_label(printed).is_none(), "{printed:?} is not painted: the controls are blank");
+        }
 
-        let press = |input: &str| {
-            crate::input::push_surface(crate::input::SurfaceEvent {
-                port: "FLkey Mini".into(),
-                input: input.into(),
-                edge: metal_midi::Edge::Press { velocity: 1.0 },
-            })
+        let send = |input: &str, edge: metal_midi::Edge| {
+            crate::input::push_surface(crate::input::SurfaceEvent { port: "FLkey Mini".into(), input: input.into(), edge })
+        };
+        let press = |input: &str| send(input, metal_midi::Edge::Press { velocity: 1.0 });
+        let posted_with = |r: &FakeDoor, path: &str, body: Value| {
+            r.calls.borrow().iter().any(|(m, p, params)| m == "POST" && p == path && body_of(params) == body)
         };
         let switch_posts = |r: &FakeDoor| r.calls.borrow().iter().filter(|(m, p, _)| m == "POST" && p == "/switch").count();
         crate::input::drain_surface();
@@ -7714,20 +7955,44 @@ fn without_an_open_graph_create_button_says_so() {
         assert_eq!(switch_posts(&recorder), 0, "a key is not the pad of the same note");
         press("note:40@10");
         harness.run();
-        let fired = recorder.calls.borrow().iter().any(|(m, p, params)| {
-            m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": "strobe" })
-        });
-        assert!(fired, "the first pad fires the switch in it");
+        assert!(posted_with(&recorder, "/switch", json!({ "op": "on", "id": "strobe" })), "the first pad fires the switch in it");
+
+        {
+            let state = harness.state_mut().lanes_state_mut();
+            let slot = |state: &PanelState, id: &str| state.layout.slots.iter().position(|s| s.id == id).unwrap();
+            let record = slot(state, "record");
+            state.layout.place("hw:record", record, None);
+            state.layout.roles.insert("hw:record".into(), crate::surface::Role::Rec);
+            let pot = slot(state, "pot-1");
+            state.controllers.insert(
+                "hw:pot-1:0".into(),
+                json!({ "graph": "g", "name": "", "mode": "switch", "targets": [{ "node": "glow", "param": "gain", "value": 0.0 }] }),
+            );
+            state.layout.place("ctrl:hw:pot-1:0", pot, Some(0));
+            state.controllers.insert(
+                "key:48:0".into(),
+                json!({ "graph": "g", "name": "", "mode": "switch", "targets": [{ "node": "strobe-node", "on": true }] }),
+            );
+        }
+        harness.run();
         // A CC button sends 127 down, 0 up; `rec` records on its release.
         for raw in [127u8, 0] {
-            crate::input::push_surface(crate::input::SurfaceEvent {
-                port: "FLkey Mini".into(),
-                input: "cc:117@1".into(),
-                edge: metal_midi::Edge::Value { value: raw as f32 / 127.0, raw },
-            });
+            send("cc:117@1", metal_midi::Edge::Value { value: raw as f32 / 127.0, raw });
             harness.run();
         }
-        assert!(harness.state_mut().lanes_state_mut().surface.is_recording(), "record is rec");
+        assert!(harness.state_mut().lanes_state_mut().surface.is_recording(), "the record button was given rec");
+        send("cc:21@1", metal_midi::Edge::Value { value: 0.5, raw: 64 });
+        harness.run();
+        assert!(
+            posted_with(&recorder, "/graph/node", json!({ "op": "param", "graph": "g", "node": "glow", "name": "gain", "value": 0.5 })),
+            "the pot is the fader it holds"
+        );
+        press("note:48@1");
+        harness.run();
+        assert!(
+            posted_with(&recorder, "/graph/node", json!({ "op": "flag", "graph": "g", "node": "strobe-node", "field": "bypass", "on": true })),
+            "the key fires its button"
+        );
     }
 
     /// `GET /settings` is read once, and a 2×1 picked in the cell's menu is

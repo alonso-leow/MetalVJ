@@ -20,11 +20,12 @@
 //! - **Sizes** are whole cells or the fractions `0.5` and `0.3` (a third) of
 //!   one; the packer works in [`UNITS`] sub-cells per cell so both fit.
 //! - **A box's face.** [`Layout::apply_device`] gives the grid the exact shape
-//!   of a known controller ([`metal_midi::devices`]): its buttons and knobs
-//!   become control cells held where they sit on the panel, its keys the
-//!   piano, and its pads, faders and free knobs [`Slot`]s the grid's own
-//!   buttons fill page by page ([`pack_device`]) — each answering the
-//!   control under it.
+//!   of a known controller ([`metal_midi::devices`]): its keys become the
+//!   piano and every other control an empty, unnamed [`Slot`] where it sits
+//!   on the panel. The operator gives each slot its cell (a button or fader
+//!   of nodes and params, a control role) page by page or on every page
+//!   ([`Layout::place`]); the grid's own buttons fill the pads still free
+//!   ([`pack_device`]). Each slot's control fires the cell in it.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -165,33 +166,6 @@ impl Role {
             Role::Octave { step: 1 },
             Role::Play,
         ]
-    }
-
-    /// The role a box's control plays (its `role` tag, [`Role::tag`] plus
-    /// `fn-<n>` for a page, `page-prev`/`-next`, `octave-down`/`-up`);
-    /// `label` names the bare `button`/`knob` ones.
-    pub fn from_hint(hint: &str, label: &str) -> Option<Role> {
-        Some(match hint {
-            "rec" => Role::Rec,
-            "drop-rec" => Role::DropRec,
-            "speed-dial" => Role::SpeedDial,
-            "search-dial" => Role::SearchDial,
-            "load" => Role::Load,
-            "folder" => Role::Folder,
-            "fn" => Role::Fn { page: None },
-            "fn-dial" => Role::FnDial,
-            "page-prev" => Role::Page { step: -1 },
-            "page-next" => Role::Page { step: 1 },
-            "octave-down" => Role::Octave { step: -1 },
-            "octave-up" => Role::Octave { step: 1 },
-            "play" => Role::Play,
-            "button" => Role::Button { label: label.to_string() },
-            "knob" => Role::Knob { label: label.to_string() },
-            _ => {
-                let n: usize = hint.strip_prefix("fn-")?.parse().ok()?;
-                Role::Fn { page: Some(n.checked_sub(1)?) }
-            }
-        })
     }
 
     /// The wire tag (`speed-dial`, `piano`, …), also the stem of a new key.
@@ -369,8 +343,9 @@ pub struct Layout {
     /// `None` is the free grid.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device: Option<String>,
-    /// Cells held at a fixed place on every page, `[x, y, w, h]` in
-    /// sub-cells: a box's buttons and knobs where the panel has them.
+    /// Cells held at a fixed place, `[x, y, w, h]` in sub-cells: the piano
+    /// and the cells given a box's slot — on the page they are pinned to
+    /// ([`Layout::pages`]), on every page when unpinned.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub places: BTreeMap<String, [u16; 4]>,
     /// The places the grid's own buttons fill, page by page.
@@ -378,16 +353,23 @@ pub struct Layout {
     pub slots: Vec<Slot>,
 }
 
-/// A place on a box's face the grid's own buttons fill: a pad takes a
-/// button, a fader, knob or strip takes a fader. On every page the cell in
+/// One control of a box's face: empty until the operator gives it a cell
+/// (or the grid's own buttons flow into a pad). On every page the cell in
 /// it answers the control under it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Slot {
+    /// The control's id on its box (`pad-3`, `pot-1`).
+    #[serde(default)]
+    pub id: String,
     /// `[x, y, w, h]` in sub-cells.
     pub rect: [u16; 4],
     pub kind: SlotKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input: Option<String>,
+    /// How a knob on it reports itself (an encoder is relative).
+    #[serde(default, skip_serializing_if = "is_absolute")]
+    pub dial: DialMode,
+    /// What the panel prints by it — a hover hint, never painted.
     #[serde(default)]
     pub label: String,
 }
@@ -396,6 +378,7 @@ pub struct Slot {
 #[serde(rename_all = "kebab-case")]
 pub enum SlotKind {
     Pad,
+    Button,
     Knob,
     Fader,
     Strip,
@@ -404,7 +387,7 @@ pub enum SlotKind {
 impl SlotKind {
     /// Whether it takes a value (a fader) rather than a press.
     pub fn takes_value(self) -> bool {
-        !matches!(self, SlotKind::Pad)
+        matches!(self, SlotKind::Knob | SlotKind::Fader | SlotKind::Strip)
     }
 }
 
@@ -523,11 +506,10 @@ impl Layout {
         self.places.remove(cell);
     }
 
-    /// Gives the grid `d`'s face: its columns × rows; its buttons and knobs
-    /// as control cells at their place on the panel (`hw:<control>`), bound
-    /// to what they send; its keys as the piano; its pads, faders and free
-    /// knobs as slots. A face already there goes first; the grid's own
-    /// buttons, their pages and their bindings stay.
+    /// Gives the grid `d`'s face: its columns × rows, its keys as the piano
+    /// (`hw:<keys>`) and every other control an empty slot where the panel
+    /// has it. A face already there goes first; the grid's own buttons,
+    /// their pages and their bindings stay.
     pub fn apply_device(&mut self, d: &metal_midi::devices::Device) {
         use metal_midi::devices::Part;
         self.clear_device();
@@ -535,44 +517,72 @@ impl Layout {
         self.cols = d.cols.clamp(MIN_DIM, MAX_DIM);
         self.rows = d.rows.clamp(MIN_DIM, MAX_DIM);
         for c in &d.controls {
-            let slot = |kind| Slot { rect: c.rect, kind, input: c.input.clone(), label: c.label.clone() };
-            let role = match (c.part, c.role.as_deref()) {
-                (Part::Logo, _) => continue,
-                (Part::Keys { base, count }, _) => Role::Piano { base, keys: count.clamp(1, 88) },
-                (_, Some(hint)) => match Role::from_hint(hint, &c.label) {
-                    Some(r) => r,
-                    None => continue,
-                },
-                (Part::Button, None) => Role::Button { label: c.label.clone() },
-                (Part::Pad, None) => {
-                    self.slots.push(slot(SlotKind::Pad));
+            let kind = match c.part {
+                Part::Logo => continue,
+                Part::Keys { base, count } => {
+                    let key = format!("hw:{}", c.id);
+                    self.roles.insert(key.clone(), Role::Piano { base, keys: count.clamp(1, 88) });
+                    self.places.insert(key, c.rect);
                     continue;
                 }
-                (Part::Knob | Part::Encoder, None) => {
-                    self.slots.push(slot(SlotKind::Knob));
-                    continue;
-                }
-                (Part::Fader, None) => {
-                    self.slots.push(slot(SlotKind::Fader));
-                    continue;
-                }
-                (Part::Strip, None) => {
-                    self.slots.push(slot(SlotKind::Strip));
-                    continue;
-                }
+                Part::Pad => SlotKind::Pad,
+                Part::Button => SlotKind::Button,
+                Part::Knob | Part::Encoder => SlotKind::Knob,
+                Part::Fader => SlotKind::Fader,
+                Part::Strip => SlotKind::Strip,
             };
-            let key = format!("hw:{}", c.id);
-            self.roles.insert(key.clone(), role);
-            self.places.insert(key.clone(), c.rect);
-            if let Some(input) = &c.input {
-                self.bind(input, None, &key);
-                if c.part == Part::Encoder {
-                    if let Some(b) = self.binds.last_mut() {
-                        b.dial = DialMode::Relative;
-                    }
-                }
-            }
+            self.slots.push(Slot {
+                id: c.id.clone(),
+                rect: c.rect,
+                kind,
+                input: c.input.clone(),
+                dial: if c.part == Part::Encoder { DialMode::Relative } else { DialMode::Absolute },
+                label: c.label.clone(),
+            });
         }
+    }
+
+    /// The cells held in slot `slot`, each with the page it is pinned to
+    /// (`None`: every page).
+    pub fn in_slot(&self, slot: usize) -> Vec<(String, Option<usize>)> {
+        let Some(s) = self.slots.get(slot) else { return Vec::new() };
+        self.places
+            .iter()
+            .filter(|(_, r)| **r == s.rect)
+            .map(|(k, _)| (k.clone(), self.pages.get(k).copied()))
+            .collect()
+    }
+
+    /// Puts `cell` in slot `slot` on `page` (every page when `None`). What
+    /// held that slot there goes; the keys forgotten are answered, so the
+    /// panel can drop what they stood for.
+    pub fn place(&mut self, cell: &str, slot: usize, page: Option<usize>) -> Vec<String> {
+        let Some(rect) = self.slots.get(slot).map(|s| s.rect) else { return Vec::new() };
+        // The cell itself moves rather than goes.
+        self.places.remove(cell);
+        self.pages.remove(cell);
+        let gone = self.clear_slot(slot, page);
+        self.places.insert(cell.to_string(), rect);
+        match page {
+            Some(p) => self.pages.insert(cell.to_string(), p),
+            None => self.pages.remove(cell),
+        };
+        gone
+    }
+
+    /// Empties slot `slot` on `page` (a cell there on every page goes too),
+    /// or on every page when `None`, answering the keys forgotten.
+    pub fn clear_slot(&mut self, slot: usize, page: Option<usize>) -> Vec<String> {
+        let gone: Vec<String> = self
+            .in_slot(slot)
+            .into_iter()
+            .filter(|(_, on)| page.is_none() || on.is_none() || *on == page)
+            .map(|(k, _)| k)
+            .collect();
+        for k in &gone {
+            self.forget(k);
+        }
+        gone
     }
 
     /// Back to the free grid: the face's cells and slots go, the columns ×
@@ -717,19 +727,27 @@ pub fn pack(spans: &[(usize, usize)], pins: &[Pin], cols: usize, rows: usize) ->
     placed.into_iter().map(|p| p.expect("every span is placed")).collect()
 }
 
-/// Lays cells out on a box's face. A cell with a `place` holds it on every
-/// page; the rest fill the slots in order, page by page — a fader
-/// (`value`) the knob/fader/strip slots, everything else the pads (each
-/// kind falls back to the other's slots when the box has none of its own) —
-/// a page pin first taking a free slot on its page. Each answer names the
-/// slot the cell landed in.
+/// Lays cells out on a box's face. A cell with a `place` holds it — on its
+/// pinned page, or on every page — and keeps that slot from the rest. The
+/// rest fill the free slots in order, page by page: a fader (`value`) the
+/// knobs, faders and strips, everything else the pads (each falls back to
+/// the other's slots, a press to the box's buttons, when the box has none of
+/// its own), a page pin first taking a free slot on its page. Each answer
+/// names the slot the cell landed in.
 pub fn pack_device(places: &[Option<[u16; 4]>], value: &[bool], pins: &[Pin], slots: &[Slot]) -> Vec<(Placed, Option<usize>)> {
-    let pads: Vec<usize> = (0..slots.len()).filter(|&i| !slots[i].kind.takes_value()).collect();
-    let knobs: Vec<usize> = (0..slots.len()).filter(|&i| slots[i].kind.takes_value()).collect();
+    let of = |kinds: &[SlotKind]| -> Vec<usize> { (0..slots.len()).filter(|&i| kinds.contains(&slots[i].kind)).collect() };
+    let (pads, buttons, knobs) = (
+        of(&[SlotKind::Pad]),
+        of(&[SlotKind::Button]),
+        of(&[SlotKind::Knob, SlotKind::Fader, SlotKind::Strip]),
+    );
+    let first = |order: [&Vec<usize>; 3]| -> Vec<usize> { order.into_iter().find(|v| !v.is_empty()).cloned().unwrap_or_default() };
+    let (press, turn) = (first([&pads, &buttons, &knobs]), first([&knobs, &pads, &buttons]));
     let pool = |v: bool| -> &[usize] {
-        match (v, pads.is_empty(), knobs.is_empty()) {
-            (true, _, false) | (false, true, false) => &knobs,
-            _ => &pads,
+        if v {
+            &turn
+        } else {
+            &press
         }
     };
     let at = |page: usize, r: [u16; 4]| Placed {
@@ -740,9 +758,30 @@ pub fn pack_device(places: &[Option<[u16; 4]>], value: &[bool], pins: &[Pin], sl
         h: r[3].max(1) as usize,
     };
     let mut used: BTreeSet<(usize, usize)> = BTreeSet::new();
-    let mut out: Vec<Option<(Placed, Option<usize>)>> = places.iter().map(|p| p.map(|r| (at(0, r), None))).collect();
+    let mut every: BTreeSet<usize> = BTreeSet::new();
+    let mut out: Vec<Option<(Placed, Option<usize>)>> = Vec::with_capacity(places.len());
+    for (place, pin) in places.iter().zip(pins) {
+        out.push(place.map(|r| {
+            let s = slots.iter().position(|s| s.rect == r);
+            let page = match *pin {
+                Pin::Page(p) => p,
+                _ => 0,
+            };
+            if let Some(s) = s {
+                match *pin {
+                    Pin::Page(p) => {
+                        used.insert((p, s));
+                    }
+                    _ => {
+                        every.insert(s);
+                    }
+                }
+            }
+            (at(page, r), s)
+        }));
+    }
     let take = |page: usize, pool: &[usize], used: &mut BTreeSet<(usize, usize)>| -> Option<(Placed, Option<usize>)> {
-        let s = *pool.iter().find(|&&s| !used.contains(&(page, s)))?;
+        let s = *pool.iter().find(|&&s| !every.contains(&s) && !used.contains(&(page, s)))?;
         used.insert((page, s));
         Some((at(page, slots[s].rect), Some(s)))
     };
@@ -756,8 +795,8 @@ pub fn pack_device(places: &[Option<[u16; 4]>], value: &[bool], pins: &[Pin], sl
             continue;
         }
         let pool = pool(value[i]);
-        if pool.is_empty() {
-            // A face with no slots at all: the cell sits over the corner.
+        if pool.iter().all(|s| every.contains(s)) {
+            // No slot it can ever take: the cell sits over the corner.
             out[i] = Some((Placed { page: 0, x: 0, y: 0, w: UNITS, h: UNITS }, None));
             continue;
         }
@@ -1278,32 +1317,47 @@ mod tests {
     }
 
     #[test]
-    fn a_box_face_places_its_buttons_binds_them_and_slots_its_pads() {
+    fn a_box_face_is_empty_slots_and_the_piano() {
         let flkey = metal_midi::devices::device("flkey-mini").unwrap();
         let mut l = Layout::default();
         l.bind("note:60", Some(0), "sw:mine");
         l.apply_device(&flkey);
         assert_eq!((l.cols, l.rows, l.device.as_deref()), (13, 5, Some("flkey-mini")));
-        assert_eq!(l.roles.get("hw:record"), Some(&Role::Rec));
+        // No control comes with a job: only the piano is a cell.
+        assert_eq!(l.roles.len(), 1);
         assert_eq!(l.roles.get("hw:keys"), Some(&Role::Piano { base: 48, keys: 25 }));
-        assert_eq!(l.roles.get("hw:octave-up"), Some(&Role::Octave { step: 1 }));
-        assert_eq!(l.places.get("hw:octave-down"), Some(&[6, 15, 6, 3]));
-        assert_eq!(l.bound("cc:117@1", 3).unwrap().cell, "hw:record");
-        assert_eq!(l.bound("cc:21@1", 0).unwrap().cell, "hw:pot-1");
-        // 16 pads, 5 free pots and 2 strips are slots.
-        assert_eq!(l.slots.iter().filter(|s| s.kind == SlotKind::Pad).count(), 16);
-        assert_eq!(l.slots.iter().filter(|s| s.kind.takes_value()).count(), 7);
-        assert_eq!(l.slots.iter().find(|s| s.kind == SlotKind::Pad).unwrap().input.as_deref(), Some("note:40@10"));
+        let count = |k: SlotKind| l.slots.iter().filter(|s| s.kind == k).count();
+        assert_eq!((count(SlotKind::Pad), count(SlotKind::Button), count(SlotKind::Knob), count(SlotKind::Strip)), (16, 10, 8, 2));
+        let pad = l.slots.iter().find(|s| s.kind == SlotKind::Pad).unwrap();
+        assert_eq!((pad.id.as_str(), pad.input.as_deref()), ("pad-1", Some("note:40@10")));
+        let octave = l.slots.iter().find(|s| s.id == "octave-down").unwrap();
+        assert_eq!((octave.rect, octave.kind), ([6, 15, 6, 3], SlotKind::Button));
         // Another face replaces this one; the grid's own binding stays.
         l.apply_device(&metal_midi::devices::device("apc-mini-mk2").unwrap());
-        assert!(!l.roles.contains_key("hw:keys") && l.roles.contains_key("hw:scene-1"));
-        assert_eq!(l.roles.get("hw:scene-3"), Some(&Role::Fn { page: Some(2) }));
+        assert!(l.roles.is_empty());
         assert_eq!(l.slots.iter().filter(|s| s.kind == SlotKind::Pad).count(), 64);
         assert!(l.bound("note:60", 0).is_some_and(|b| b.cell == "sw:mine"));
         l.clear_device();
         assert!(l.roles.is_empty() && l.slots.is_empty() && l.places.is_empty() && l.device.is_none());
         let v = l.to_value();
         assert!(v.get("slots").is_none() && v.get("device").is_none(), "a free grid stores as before");
+    }
+
+    #[test]
+    fn a_slot_holds_one_cell_per_page_or_one_on_every_page() {
+        let mut l = Layout::default();
+        l.apply_device(&metal_midi::devices::device("flkey-mini").unwrap());
+        let pad = l.slots.iter().position(|s| s.id == "pad-1").unwrap();
+        assert!(l.place("ctrl:a", pad, Some(0)).is_empty());
+        assert!(l.place("ctrl:b", pad, Some(1)).is_empty(), "another page, another cell");
+        assert_eq!(l.in_slot(pad).len(), 2);
+        assert_eq!(l.place("ctrl:c", pad, Some(0)), vec!["ctrl:a".to_string()], "the same page replaces");
+        let mut gone = l.place("rec-1", pad, None);
+        gone.sort();
+        assert_eq!(gone, vec!["ctrl:b".to_string(), "ctrl:c".to_string()], "every page takes the whole slot");
+        assert_eq!(l.place("ctrl:d", pad, Some(2)), vec!["rec-1".to_string()]);
+        assert_eq!(l.clear_slot(pad, None), vec!["ctrl:d".to_string()]);
+        assert!(l.in_slot(pad).is_empty());
     }
 
     #[test]
@@ -1318,7 +1372,7 @@ mod tests {
 
     #[test]
     fn the_face_fills_its_pads_page_by_page_and_faders_take_the_knobs() {
-        let slot = |x: u16, kind| Slot { rect: [x, 0, 6, 6], kind, input: None, label: String::new() };
+        let slot = |x: u16, kind| Slot { id: String::new(), rect: [x, 0, 6, 6], kind, input: None, dial: DialMode::Absolute, label: String::new() };
         let slots = [slot(0, SlotKind::Pad), slot(6, SlotKind::Pad), slot(12, SlotKind::Knob)];
         let places = [Some([18, 0, 6, 6]), None, None, None, None, None];
         let value = [false, false, true, false, false, true];
@@ -1334,6 +1388,17 @@ mod tests {
         // No knob slots: a fader takes a pad.
         let out = pack_device(&[None], &[true], &[Pin::Flow], &slots[..1]);
         assert_eq!(out[0].1, Some(0));
+        // A cell given a slot keeps it from the flow: on its page, or on all.
+        let places = [Some([0, 0, 6, 6]), Some([6, 0, 6, 6]), None, None];
+        let pins = [Pin::Page(0), Pin::Every, Pin::Flow, Pin::Flow];
+        let out = pack_device(&places, &[false; 4], &pins, &slots);
+        let at = |i: usize| (out[i].0.page, out[i].1);
+        assert_eq!((at(0), at(1)), ((0, Some(0)), (0, Some(1))));
+        assert_eq!((at(2), at(3)), ((1, Some(0)), (2, Some(0))), "pad 2 is taken on every page");
+        // Pads first; the box's buttons only when it has no pads.
+        let buttons = [slot(0, SlotKind::Button), slot(6, SlotKind::Pad)];
+        assert_eq!(pack_device(&[None], &[false], &[Pin::Flow], &buttons)[0].1, Some(1));
+        assert_eq!(pack_device(&[None], &[false], &[Pin::Flow], &buttons[..1])[0].1, Some(0));
     }
 
     #[test]
@@ -1346,8 +1411,6 @@ mod tests {
         l.loops.insert("loop-1".into(), Loop { name: "loop 1".into(), ticks: 8, events: vec![], playing: false });
         assert_eq!(s.role(&l, "x", &Role::Play, Gesture::Down, 0.0, 0), vec![Out::LoopToggle("loop-1".into())]);
         assert!(s.role(&l, "b", &Role::Button { label: "◀◀".into() }, Gesture::Down, 0.0, 0).is_empty());
-        assert_eq!(Role::from_hint("fn-3", ""), Some(Role::Fn { page: Some(2) }));
-        assert_eq!(Role::from_hint("fn-0", ""), None);
     }
 
     #[test]

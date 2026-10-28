@@ -571,7 +571,10 @@ impl Layout {
     }
 
     /// Empties slot `slot` on `page` (a cell there on every page goes too),
-    /// or on every page when `None`, answering the keys forgotten.
+    /// or on every page when `None`, answering the keys let go. A cell made
+    /// for the face (`hw:…`, a control's or key's button `ctrl:hw:…`,
+    /// `ctrl:key:…`) is forgotten; one of the grid's own only leaves the
+    /// slot, keeping its bindings.
     pub fn clear_slot(&mut self, slot: usize, page: Option<usize>) -> Vec<String> {
         let gone: Vec<String> = self
             .in_slot(slot)
@@ -580,9 +583,28 @@ impl Layout {
             .map(|(k, _)| k)
             .collect();
         for k in &gone {
-            self.forget(k);
+            if is_face_cell(k) {
+                self.forget(k);
+            } else {
+                self.places.remove(k);
+                self.pages.remove(k);
+            }
         }
         gone
+    }
+
+    /// Gives slot `slot` the input `input` (what its control was heard
+    /// sending); a slot that had the same control lets it go, so no two
+    /// controls answer one message.
+    pub fn learn_slot(&mut self, slot: usize, input: &str) {
+        for (i, s) in self.slots.iter_mut().enumerate() {
+            if i != slot && s.input.as_deref().is_some_and(|x| metal_midi::same_control(x, input)) {
+                s.input = None;
+            }
+        }
+        if let Some(s) = self.slots.get_mut(slot) {
+            s.input = Some(input.to_string());
+        }
     }
 
     /// Back to the free grid: the face's cells and slots go, the columns ×
@@ -622,6 +644,12 @@ impl Layout {
         order.insert(to, k);
         self.order = order;
     }
+}
+
+/// Whether `key` is a cell made for a box's face rather than one of the
+/// grid's own.
+pub fn is_face_cell(key: &str) -> bool {
+    key.starts_with("hw:") || key.starts_with("ctrl:hw:") || key.starts_with("ctrl:key:")
 }
 
 /// Where one cell landed: its page and its corner, in sub-cells.
@@ -1358,6 +1386,15 @@ mod tests {
         assert_eq!(l.place("ctrl:d", pad, Some(2)), vec!["rec-1".to_string()]);
         assert_eq!(l.clear_slot(pad, None), vec!["ctrl:d".to_string()]);
         assert!(l.in_slot(pad).is_empty());
+        // The grid's own switch only leaves the slot: its binding stays.
+        l.bind("note:60", Some(0), "sw:strobe");
+        l.place("sw:strobe", pad, Some(0));
+        l.clear_slot(pad, Some(0));
+        assert!(l.in_slot(pad).is_empty() && l.bound("note:60", 0).is_some());
+        // A learned control moves off any slot that had it.
+        let pad2 = l.slots.iter().position(|s| s.id == "pad-2").unwrap();
+        l.learn_slot(pad2, "note:40@10");
+        assert_eq!((l.slots[pad].input.as_deref(), l.slots[pad2].input.as_deref()), (None, Some("note:40@10")));
     }
 
     #[test]

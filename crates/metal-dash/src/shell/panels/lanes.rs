@@ -221,6 +221,15 @@ pub struct PanelState {
     pub(crate) grid_learn: Option<String>,
     /// A box's slot waiting for the next MIDI control: what it sends.
     slot_learn: Option<usize>,
+    /// Learning the whole face: the slot waiting for its control (the
+    /// slots' count is the piano's lowest key), and the control just
+    /// learned, which a turn or release keeps sending.
+    face_learn: Option<usize>,
+    face_learn_last: Option<String>,
+    /// The last MIDI message heard, `input · port`, for the status row.
+    last_heard: Option<String>,
+    /// The grid's own buttons, `(key, label)`, a face's control can hold.
+    face_pool: Vec<(String, String)>,
     /// The last thing the surface wants the operator to read.
     grid_note: Option<String>,
     /// A dial's part-step, by cell key, between frames.
@@ -372,6 +381,10 @@ impl Default for PanelState {
             grid_selected: None,
             grid_learn: None,
             slot_learn: None,
+            face_learn: None,
+            face_learn_last: None,
+            last_heard: None,
+            face_pool: Vec::new(),
             grid_note: None,
             dial_acc: HashMap::new(),
             piano_held: HashMap::new(),
@@ -2681,6 +2694,12 @@ fn overlays_grid(
     let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, state_val);
     let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
     state.driven_pass = Some(ui.ctx().cumulative_pass_nr());
+    // What a face's control can be given from the grid's own buttons.
+    state.face_pool = cells
+        .iter()
+        .filter(|c| !c.is_fixed() && !crate::surface::is_face_cell(&c.key) && !matches!(c.kind, CellKind::Role { .. }))
+        .map(|c| (c.key.clone(), c.label.replace('\n', " ")))
+        .collect();
 
     // The hardware first: what the controller sent since the last frame, and
     // the loops' playback, fire before this frame paints what they changed.
@@ -2727,6 +2746,11 @@ fn overlays_grid(
                     let [x, y, w, h] = slot.rect.map(|v| v as usize);
                     paint_empty_slot(ui, theme, door, state, i, slot, unit_rect(origin, cell, gap, x, y, w, h), page, open_graph);
                 }
+            }
+            if let Some(slot) = state.face_learn.and_then(|i| state.layout.slots.get(i)) {
+                let [x, y, w, h] = slot.rect.map(|v| v as usize);
+                let r = unit_rect(origin, cell, gap, x, y, w, h);
+                ui.painter().rect_stroke(r, theme.corner_radius(), theme.card_picked_stroke(), egui::StrokeKind::Outside);
             }
             for logo in device.controls.iter().filter(|c| c.part == metal_midi::devices::Part::Logo) {
                 let [x, y, w, h] = logo.rect.map(|v| v as usize);
@@ -2822,8 +2846,16 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
                 (None, None) => Pin::Flow,
             })
             .collect();
-        let (placed, slot_of): (Vec<_>, Vec<_>) =
+        let (mut placed, mut slot_of): (Vec<_>, Vec<_>) =
             crate::surface::pack_device(&places, &value, &pins, &state.layout.slots).into_iter().unzip();
+        // A face shows only what the operator gave its controls: the grid's
+        // own buttons wait in each control's menu ([`slot_menu`]).
+        for (i, at) in places.iter().enumerate() {
+            if at.is_none() {
+                placed[i].page = usize::MAX;
+                slot_of[i] = None;
+            }
+        }
         (pins, placed, slot_of)
     } else {
         // Control cells hold one place on every page, like the hardware
@@ -2843,6 +2875,7 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
     };
     let pages = placed
         .iter()
+        .filter(|p| p.page != usize::MAX)
         .map(|p| p.page + 1)
         .max()
         .unwrap_or(1)
@@ -3029,6 +3062,9 @@ fn page_bar(
         // What does not fit is cut, never laid over `+` and `›`.
         ui.set_clip_rect(middle.intersect(ui.clip_rect()));
         device_menu(ui, theme, door, state);
+        if state.face_learn.is_some() {
+            face_learn_row(ui, theme, door, state);
+        }
         let edit = ui.selectable_label(state.grid_edit, RichText::new(tr("edit grid")).font(theme.font_small.clone()));
         if edit.clicked() {
             state.grid_edit = !state.grid_edit;
@@ -3037,11 +3073,52 @@ fn page_bar(
                 state.grid_selected = None;
             }
         }
-        if state.grid_edit {
+        if state.grid_edit && state.face_learn.is_none() {
             grid_dims_row(ui, theme, door, state, pages);
         }
         surface_status(ui, theme, state);
     });
+}
+
+/// While `learn the face` walks the box's controls (started from the
+/// controller menu; the one waiting is outlined on the face): `skip` leaves
+/// a control as it was, `stop learning` ends the walk.
+fn face_learn_row(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState) {
+    let Some(i) = state.face_learn else { return };
+    let small = |t: String| RichText::new(t).font(theme.font_small.clone());
+    if ui.button(small(tr("skip").into())).clicked() {
+        face_learn_next(door, state, i);
+    }
+    if ui.button(small(tr("stop learning").into())).clicked() {
+        state.face_learn = None;
+        save_layout(door, state);
+    }
+}
+
+/// The walk moves past step `i`: to the next control, the piano, or done.
+fn face_learn_next(door: &dyn Call, state: &mut PanelState, i: usize) {
+    let piano = state.layout.roles.values().any(|r| matches!(r, crate::surface::Role::Piano { .. }));
+    let last = state.layout.slots.len() + usize::from(piano);
+    if i + 1 >= last {
+        state.face_learn = None;
+        state.grid_note = Some(tr("the face is learned").to_string());
+        save_layout(door, state);
+    } else {
+        state.face_learn = Some(i + 1);
+    }
+}
+
+/// What the walk asks for now, for the status row.
+fn face_learn_prompt(state: &PanelState) -> Option<String> {
+    let i = state.face_learn?;
+    let n = state.layout.slots.len();
+    Some(match state.layout.slots.get(i) {
+        Some(s) => {
+            let name = if s.label.is_empty() { s.id.clone() } else { s.label.clone() };
+            trf("{n}/{m}: touch {name} on the controller", &[("n", &(i + 1)), ("m", &n), ("name", &name)])
+        }
+        None => tr("now press the piano's lowest key").to_string(),
+    })
 }
 
 /// The box the grid takes the shape of: the free grid, or one of the known
@@ -3054,6 +3131,13 @@ fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     let label = current.as_ref().map_or_else(|| tr("free grid").to_string(), |d| tr_dyn(d.name).to_string());
     let ports = crate::input::midi_ports();
     let (response, _) = plain_menu(ui, theme, RichText::new(format!("{label} ▾")), |ui| {
+        // Takes each control's message off the box itself, one by one.
+        if !state.layout.slots.is_empty() && ui.button(small(tr("learn the face").into())).clicked() {
+            state.face_learn = Some(0);
+            state.face_learn_last = None;
+            state.slot_learn = None;
+            ui.close();
+        }
         if ui.selectable_label(current.is_none(), small(tr("free grid").into())).clicked() {
             forget_face_controllers(door, state);
             state.layout.clear_device();
@@ -3210,6 +3294,21 @@ fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState
             ui.label(small(tr("— open a graph to control its nodes —").into()).color(theme.ink_weak));
         }
     }
+    let pool = state.face_pool.clone();
+    if !pool.is_empty() {
+        let _ = plain_menu(ui, theme, small(tr("grid buttons").into()), |ui| {
+            ScrollArea::vertical().max_height(theme.text_input_width * 2.0).show(ui, |ui| {
+                for (key, label) in &pool {
+                    if ui.button(small(label.clone())).clicked() {
+                        let gone = state.layout.place(key, slot, Some(page));
+                        drop_controllers(door, state, &gone);
+                        save_layout(door, state);
+                        ui.close();
+                    }
+                }
+            });
+        });
+    }
     job_menu(ui, theme, door, state, slot);
     let learning = state.slot_learn == Some(slot);
     if ui.selectable_label(learning, small(tr("learn: press a key, pad or knob").into())).clicked() {
@@ -3286,6 +3385,12 @@ fn surface_status(ui: &mut Ui, theme: &Theme, state: &PanelState) {
         trf("midi: {ports}", &[("ports", &names.join(", "))])
     };
     ui.label(small(midi, theme.ink_weak));
+    // While mapping: exactly what the box last sent, and on which port.
+    if state.grid_edit || state.face_learn.is_some() {
+        if let Some(heard) = &state.last_heard {
+            ui.label(small(trf("heard {what}", &[("what", heard)]), theme.ink_weak));
+        }
+    }
     if state.surface.is_recording() {
         ui.label(small(tr("● rec").to_string(), theme.phosphor));
     }
@@ -3293,7 +3398,9 @@ fn surface_status(ui: &mut Ui, theme: &Theme, state: &PanelState) {
     if frozen > 0 {
         ui.label(small(trf("{n} frozen", &[("n", &frozen)]), theme.phosphor));
     }
-    if state.grid_learn.is_some() || state.slot_learn.is_some() {
+    if let Some(prompt) = face_learn_prompt(state) {
+        ui.label(small(prompt, theme.phosphor));
+    } else if state.grid_learn.is_some() || state.slot_learn.is_some() {
         ui.label(small(tr("press a key, pad or knob…").to_string(), theme.phosphor));
     } else if let Some(note) = &state.grid_note {
         ui.label(small(note.clone(), theme.ink_weak));
@@ -3317,8 +3424,11 @@ fn drive_surface(
     wired: &[(String, String, crate::surface::DialMode)],
 ) {
     let now = ui.input(|i| i.time);
-    let mut inputs: Vec<(String, metal_midi::Edge)> =
-        crate::input::drain_surface().into_iter().map(|e| (e.input, e.edge)).collect();
+    let events = crate::input::drain_surface();
+    if let Some(e) = events.last() {
+        state.last_heard = Some(format!("{} · {}", e.input, e.port));
+    }
+    let mut inputs: Vec<(String, metal_midi::Edge)> = events.into_iter().map(|e| (e.input, e.edge)).collect();
     inputs.append(&mut state.pad_inputs);
     let heard = !inputs.is_empty();
     for (input, edge) in inputs {
@@ -3409,14 +3519,34 @@ fn surface_input(
         state.hw_levels.insert(input.to_string(), value);
     }
 
+    if let Some(i) = state.face_learn {
+        // A turned knob keeps sending, a button sends its release: only a
+        // control not just learned moves the walk on.
+        let fresh = !state.face_learn_last.as_deref().is_some_and(|l| metal_midi::same_control(l, input));
+        if fresh && !matches!(edge, Edge::Release) {
+            if i < state.layout.slots.len() {
+                state.layout.learn_slot(i, input);
+                state.face_learn_last = Some(input.to_string());
+                face_learn_next(door, state, i);
+            } else if let Some(n) = metal_midi::input_note(input) {
+                for role in state.layout.roles.values_mut() {
+                    if let crate::surface::Role::Piano { base, keys } = role {
+                        *base = n.min(128 - *keys);
+                    }
+                }
+                face_learn_next(door, state, i);
+            }
+        }
+        return Vec::new();
+    }
     if let Some(slot) = state.slot_learn {
         if matches!(edge, Edge::Release) {
             return Vec::new();
         }
         state.slot_learn = None;
-        if let Some(s) = state.layout.slots.get_mut(slot) {
-            s.input = Some(input.to_string());
-            state.grid_note = Some(trf("{input} → {cell}", &[("input", &input), ("cell", &s.id)]));
+        if slot < state.layout.slots.len() {
+            state.layout.learn_slot(slot, input);
+            state.grid_note = Some(trf("{input} → {cell}", &[("input", &input), ("cell", &state.layout.slots[slot].id)]));
             save_layout(door, state);
         }
         return Vec::new();
@@ -3934,8 +4064,13 @@ fn paint_cell(
         );
         ui.painter().rect_filled(bar, theme.corner_radius(), theme.phosphor);
     }
-    // Edit mode: a click (or right click) selects; nothing fires.
+    // Edit mode: a click on a box's control opens what it can hold; any
+    // other click (or right click) selects; nothing fires.
     if editing {
+        if let Some(i) = slot {
+            slot_popup(theme, door, state, &response, i, page, open_graph);
+            return;
+        }
         if response.clicked() || response.secondary_clicked() || response.drag_started() {
             state.grid_selected = Some(cell.key.clone());
         }
@@ -3947,9 +4082,10 @@ fn paint_cell(
     // sized cell keeps the size/remove menu.
     let piano = matches!(cell.kind, CellKind::Role { role: Role::Piano { .. } });
     match slot {
-        _ if piano || matches!(cell.kind, CellKind::Controller { .. }) => {}
+        _ if piano => {}
         Some(i) => slot_popup(theme, door, state, &response, i, page, open_graph),
-        None if !cell.is_fixed() => {
+        None if matches!(cell.kind, CellKind::Controller { .. }) => {}
+        None if !cell.is_fixed() && state.layout.device.is_none() => {
             response.context_menu(|ui| grid_cell_menu(ui, theme, door, state, cell));
         }
         None => {}
@@ -4247,7 +4383,8 @@ fn paint_controller_cell(
     gear_response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tr("controller settings"))
     });
-    if gear_response.clicked() || response.secondary_clicked() {
+    // On a box's control the right-click is the control's menu instead.
+    if gear_response.clicked() || (response.secondary_clicked() && shape.is_none()) {
         state.editing_controller = Some(key.to_string());
         state.controller_edit_pos = Some(rect.min);
     }
@@ -5032,7 +5169,7 @@ fn controller_editor(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
     controller_name_field(ui, theme, door, state, key);
     controller_mode_header(ui, theme, door, state, key);
     // A box's controls are the size the panel has them.
-    if !is_hw_controller(key) {
+    if !is_hw_controller(key) && state.layout.device.is_none() {
         let span_key = format!("ctrl:{key}");
         let current = state.grid_spans.get(&span_key).copied().unwrap_or((1.0, 1.0));
         if let Some(span) = size_choices(ui, theme, current) {
@@ -5839,7 +5976,7 @@ fn find_cell(state: &PanelState, cells: &[Cell], key: &str) -> Option<Cell> {
 fn drop_controllers(door: &dyn Call, state: &mut PanelState, cells: &[String]) {
     let mut any = false;
     for c in cells {
-        if let Some(k) = c.strip_prefix("ctrl:") {
+        if let Some(k) = c.strip_prefix("ctrl:").filter(|k| is_hw_controller(k)) {
             any |= state.controllers.remove(k).is_some();
         }
     }
@@ -7982,17 +8119,18 @@ fn without_an_open_graph_create_button_says_so() {
             r.calls.borrow().iter().any(|(m, p, params)| m == "POST" && p == path && body_of(params) == body)
         };
         let switch_posts = |r: &FakeDoor| r.calls.borrow().iter().filter(|(m, p, _)| m == "POST" && p == "/switch").count();
+        assert!(harness.query_by_label("strobe").is_none(), "the grid's own buttons wait in the controls' menus");
         crate::input::drain_surface();
-        press("note:40@1");
-        harness.run();
-        assert_eq!(switch_posts(&recorder), 0, "a key is not the pad of the same note");
         press("note:40@10");
         harness.run();
-        assert!(posted_with(&recorder, "/switch", json!({ "op": "on", "id": "strobe" })), "the first pad fires the switch in it");
+        assert_eq!(switch_posts(&recorder), 0, "an empty pad fires nothing");
 
         {
             let state = harness.state_mut().lanes_state_mut();
             let slot = |state: &PanelState, id: &str| state.layout.slots.iter().position(|s| s.id == id).unwrap();
+            let pad = slot(state, "pad-1");
+            assert!(state.face_pool.iter().any(|(k, _)| k == "sw:strobe"), "the switch is offered to the pad");
+            state.layout.place("sw:strobe", pad, Some(0));
             let record = slot(state, "record");
             state.layout.place("hw:record", record, None);
             state.layout.roles.insert("hw:record".into(), crate::surface::Role::Rec);
@@ -8009,6 +8147,12 @@ fn without_an_open_graph_create_button_says_so() {
             );
         }
         harness.run();
+        press("note:40@1");
+        harness.run();
+        assert_eq!(switch_posts(&recorder), 0, "a key is not the pad of the same note");
+        press("note:40@10");
+        harness.run();
+        assert!(posted_with(&recorder, "/switch", json!({ "op": "on", "id": "strobe" })), "the pad fires the switch given it");
         // A CC button sends 127 down, 0 up; `rec` records on its release.
         for raw in [127u8, 0] {
             send("cc:117@1", metal_midi::Edge::Value { value: raw as f32 / 127.0, raw });
@@ -8027,6 +8171,54 @@ fn without_an_open_graph_create_button_says_so() {
             posted_with(&recorder, "/graph/node", json!({ "op": "flag", "graph": "g", "node": "strobe-node", "field": "bypass", "on": true })),
             "the key fires its button"
         );
+    }
+
+    /// `learn the face` takes each control as the operator touches it: a
+    /// knob's further turns and a button's release do not move the walk on,
+    /// and the last step sets the piano from its lowest key.
+    #[test]
+    fn learning_the_face_takes_each_control_as_it_is_touched() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        {
+            let state = harness.state_mut().lanes_state_mut();
+            state.layout.apply_device(&metal_midi::devices::device("generic-25-keys").unwrap());
+        }
+        harness.run();
+        harness.get_by_label_contains("25 keys + 8 pads").click();
+        harness.run();
+        harness.get_by_label("learn the face").click();
+        harness.run();
+        assert_eq!(harness.state_mut().lanes_state_mut().face_learn, Some(0), "the walk starts");
+        let send = |input: &str, edge: metal_midi::Edge| {
+            crate::input::push_surface(crate::input::SurfaceEvent { port: "box".into(), input: input.into(), edge });
+        };
+        crate::input::drain_surface();
+        // The wheels first: the pitch wheel turned a lot, then the mod wheel.
+        for v in [0.5, 0.6, 0.7] {
+            send("bend@1", metal_midi::Edge::Value { value: v, raw: 64 });
+            harness.run();
+        }
+        send("cc:9@2", metal_midi::Edge::Value { value: 1.0, raw: 127 });
+        harness.run();
+        let (first, second, at) = {
+            let state = harness.state_mut().lanes_state_mut();
+            (state.layout.slots[0].input.clone(), state.layout.slots[1].input.clone(), state.face_learn)
+        };
+        assert_eq!((first.as_deref(), second.as_deref(), at), (Some("bend@1"), Some("cc:9@2"), Some(2)));
+        // Skip to the end: the piano's lowest key.
+        let n = harness.state_mut().lanes_state_mut().layout.slots.len();
+        harness.state_mut().lanes_state_mut().face_learn = Some(n);
+        send("note:36@1", metal_midi::Edge::Press { velocity: 1.0 });
+        harness.run();
+        let state = harness.state_mut().lanes_state_mut();
+        assert!(state.face_learn.is_none(), "the walk ends");
+        assert!(state.layout.roles.values().any(|r| *r == crate::surface::Role::Piano { base: 36, keys: 25 }));
     }
 
     /// `GET /settings` is read once, and a 2×1 picked in the cell's menu is

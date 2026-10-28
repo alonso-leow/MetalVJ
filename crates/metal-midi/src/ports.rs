@@ -19,8 +19,8 @@ pub struct Inputs {
 }
 
 /// Connects every input port whose name contains `filter` (all of them when
-/// `None`; ALSA's own `Midi Through` and this app's own ports — the MTC
-/// output — are skipped unless the filter names them).
+/// `None`; ALSA's own `Midi Through`, a box's `DAW` port and this app's own
+/// ports — the MTC output — are skipped unless the filter names them).
 /// `on_msg(port, msg)` runs on midir's thread for each decoded message.
 pub fn open<F>(filter: Option<&str>, on_msg: F) -> Result<Inputs, String>
 where
@@ -34,7 +34,9 @@ where
             let name = probe.port_name(&p).ok()?;
             let keep = match filter {
                 Some(f) => name.contains(f),
-                None => !name.contains("Midi Through") && !name.contains("metalvj"),
+                // A box's DAW port (FLkey, Launchkey) echoes its controls in
+                // the DAW's own numbering: heard twice, mixed up.
+                None => !name.contains("Midi Through") && !name.contains("metalvj") && !name.contains("DAW"),
             };
             keep.then_some((p, name))
         })

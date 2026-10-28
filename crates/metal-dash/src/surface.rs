@@ -525,6 +525,9 @@ impl Layout {
                     self.places.insert(key, c.rect);
                     continue;
                 }
+                // A known box's button that sends nothing (octave, shift)
+                // works inside the box: no slot on the face.
+                Part::Button if c.input.is_none() && !d.port.is_empty() => continue,
                 Part::Pad => SlotKind::Pad,
                 Part::Button => SlotKind::Button,
                 Part::Knob | Part::Encoder => SlotKind::Knob,
@@ -1355,11 +1358,11 @@ mod tests {
         assert_eq!(l.roles.len(), 1);
         assert_eq!(l.roles.get("hw:keys"), Some(&Role::Piano { base: 48, keys: 25 }));
         let count = |k: SlotKind| l.slots.iter().filter(|s| s.kind == k).count();
-        assert_eq!((count(SlotKind::Pad), count(SlotKind::Button), count(SlotKind::Knob), count(SlotKind::Strip)), (16, 10, 8, 2));
+        assert_eq!((count(SlotKind::Pad), count(SlotKind::Button), count(SlotKind::Knob), count(SlotKind::Strip)), (16, 4, 8, 2));
         let pad = l.slots.iter().find(|s| s.kind == SlotKind::Pad).unwrap();
         assert_eq!((pad.id.as_str(), pad.input.as_deref()), ("pad-1", Some("note:40@10")));
-        let octave = l.slots.iter().find(|s| s.id == "octave-down").unwrap();
-        assert_eq!((octave.rect, octave.kind), ([6, 15, 6, 3], SlotKind::Button));
+        // Octave, shift and the like send nothing: no slot for them.
+        assert!(!l.slots.iter().any(|s| s.id == "octave-down" || s.id == "shift"));
         // Another face replaces this one; the grid's own binding stays.
         l.apply_device(&metal_midi::devices::device("apc-mini-mk2").unwrap());
         assert!(l.roles.is_empty());

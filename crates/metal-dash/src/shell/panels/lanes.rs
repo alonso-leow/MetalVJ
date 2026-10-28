@@ -3414,6 +3414,28 @@ fn seconds_per_tick() -> f64 {
 
 /// Feeds the surface what the hardware (and the on-screen piano) sent since
 /// the last frame, ticks the loops, and keeps painting while either moves.
+/// Moves the piano by whole octaves until note `n` is on it; whether it moved.
+fn follow_octave(layout: &mut crate::surface::Layout, n: u8) -> bool {
+    let mut moved = false;
+    for role in layout.roles.values_mut() {
+        if let crate::surface::Role::Piano { base, keys } = role {
+            let top = base.saturating_add(*keys);
+            let to = if n < *base {
+                base.saturating_sub((*base - n).div_ceil(12) * 12)
+            } else if n >= top {
+                base.saturating_add((n - top) / 12 * 12 + 12)
+            } else {
+                continue;
+            };
+            if to != *base && to.saturating_add(*keys) <= 128 + 12 {
+                *base = to;
+                moved = true;
+            }
+        }
+    }
+    moved
+}
+
 fn drive_surface(
     ui: &Ui,
     door: &dyn Call,
@@ -3430,6 +3452,26 @@ fn drive_surface(
     }
     let mut inputs: Vec<(String, metal_midi::Edge)> = events.into_iter().map(|e| (e.input, e.edge)).collect();
     inputs.append(&mut state.pad_inputs);
+    // A swept knob sends dozens of values a frame: only its last one counts,
+    // unless it is an encoder whose every step adds up.
+    let relative = |input: &str| {
+        let dial = crate::surface::DialMode::Relative;
+        state.layout.slots.iter().any(|s| s.dial == dial && s.input.as_deref().is_some_and(|i| metal_midi::same_control(i, input)))
+            || state.layout.binds.iter().any(|b| b.dial == dial && metal_midi::same_control(&b.input, input))
+    };
+    // (A value across the half from the next one stays: a CC button's press.)
+    let mut later: HashMap<String, bool> = HashMap::new();
+    let mut keep = vec![true; inputs.len()];
+    for (i, (input, edge)) in inputs.iter().enumerate().rev() {
+        if let metal_midi::Edge::Value { value, .. } = edge {
+            let high = *value > 0.5;
+            if later.insert(input.clone(), high) == Some(high) && !relative(input) {
+                keep[i] = false;
+            }
+        }
+    }
+    let mut keep = keep.into_iter();
+    inputs.retain(|_| keep.next().unwrap_or(true));
     let heard = !inputs.is_empty();
     for (input, edge) in inputs {
         let outs = surface_input(door, state, cells, wired, &input, edge, now, page);
@@ -3480,6 +3522,11 @@ fn surface_input(
         match edge {
             Edge::Press { .. } => {
                 state.surface.notes.insert(n);
+                // The box's octave buttons send nothing of their own: a key
+                // heard past the piano moves it by whole octaves to follow.
+                if state.face_learn.is_none() && follow_octave(&mut state.layout, n) {
+                    save_layout(door, state);
+                }
             }
             Edge::Release => {
                 state.surface.notes.remove(&n);
@@ -8176,6 +8223,22 @@ fn without_an_open_graph_create_button_says_so() {
     /// `learn the face` takes each control as the operator touches it: a
     /// knob's further turns and a button's release do not move the walk on,
     /// and the last step sets the piano from its lowest key.
+    #[test]
+    fn the_piano_follows_the_box_octave_by_octave() {
+        use crate::surface::Role;
+        let mut l = crate::surface::Layout::default();
+        l.apply_device(&metal_midi::devices::device("flkey-mini").unwrap());
+        let base = |l: &crate::surface::Layout| match l.roles.get("hw:keys") {
+            Some(Role::Piano { base, .. }) => *base,
+            _ => 0,
+        };
+        assert!(!follow_octave(&mut l, 72), "the top C is on the piano");
+        assert!(follow_octave(&mut l, 73));
+        assert_eq!(base(&l), 60);
+        assert!(follow_octave(&mut l, 30));
+        assert_eq!(base(&l), 24);
+    }
+
     #[test]
     fn learning_the_face_takes_each_control_as_it_is_touched() {
         let recorder = std::rc::Rc::new(FakeDoor::new());

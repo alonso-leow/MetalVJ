@@ -166,6 +166,15 @@ pub fn graph_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
                 Some("offline") => metal_graph::Domain::Offline,
                 _ => metal_graph::Domain::Live,
             };
+            // There is one live collection (`col-main`): a screen is an
+            // `output.device` node in it, so a second live canvas would be a
+            // second copy of the show. Offline graphs are unaffected.
+            if domain == metal_graph::Domain::Live && id != metal_graph::collection::CENTRAL_ID {
+                return Err(CallError::Bad(format!(
+                    "there is one live collection ({}): add {id:?}'s nodes to it, and a screen as an output node there",
+                    metal_graph::collection::CENTRAL_ID
+                )));
+            }
             let mut g = metal_graph::Graph::new(id, &name, domain);
             // A collection can start with its first screen: one output node
             // naming it (`metal_graph::collection`).
@@ -1661,6 +1670,19 @@ mod param_tests {
 
     /// audio → gen.turing → fx.vignette → output, plus a script fed by the
     /// audio that declares one output `x` and one float `gain`.
+    #[test]
+    fn a_second_live_collection_is_refused_and_an_offline_graph_is_not() {
+        let (mut paint, mut state, mut sim, author) = fixture();
+        let mut ctx = Ctx { state: &mut state, paint: paint.as_mut(), sim: &mut sim, author: &author };
+        let err = graph_post(&mut ctx, &body(json!({ "op": "create", "id": "collection-9", "name": "collection 9" }))).unwrap_err();
+        let CallError::Bad(why) = err else { panic!("refused as a bad request") };
+        assert!(why.contains("one live collection"), "{why}");
+        assert!(!metal_vfs::exists(&crate::graph_path("collection-9")), "nothing was written");
+        let offline = format!("offline-create-{}", std::process::id());
+        graph_post(&mut ctx, &body(json!({ "op": "create", "id": offline, "domain": "offline" }))).unwrap();
+        let _ = metal_vfs::remove_file(crate::graph_path(&offline));
+    }
+
     fn saved_graph(tag: &str) -> (metal_graph::Graph, Ids) {
         let graph = format!("param-{tag}-{}", std::process::id());
         let mut g = metal_graph::Graph::new(&graph, "params", metal_graph::Domain::Live);

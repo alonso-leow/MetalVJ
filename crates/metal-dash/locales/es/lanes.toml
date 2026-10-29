@@ -106,3 +106,7 @@
 "{n}/{m}: touch {name} on the controller" = "{n}/{m}: toca {name} en el controlador"
 "now press the piano's lowest key" = "ahora pulsa la tecla más grave del piano"
 "heard {what}" = "recibido {what}"
+"configure nodes control" = "configurar control de nodos"
+"configure general controls" = "configurar controles generales"
+"learn input signal" = "aprender señal de entrada"
+"Add new control" = "Añadir control nuevo"

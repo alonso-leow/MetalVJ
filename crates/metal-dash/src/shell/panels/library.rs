@@ -917,15 +917,24 @@ fn drag_ghost_row(
 /// A row's favourite star (`shell/favorites.rs`): a click queues the file or
 /// folder for the global store, and the star shows whether it is one. It sits
 /// just left of the `…` column, so every row's star lands at the same x.
+/// Side of a row's corner button (`★`, `…`), in points.
+const CORNER_SIDE: f32 = 20.0;
+
+/// The top-right corner buttons of a library row: `index` 0 is the rightmost
+/// (`…`), 1 sits left of it (`★`). Both share one top edge and one size, so
+/// every row lines them up.
+fn corner_slot(rect: Rect, index: usize) -> Rect {
+    let pad = 4.0;
+    let x = rect.right() - pad - CORNER_SIDE - index as f32 * (CORNER_SIDE + pad);
+    Rect::from_min_size(Pos2::new(x, rect.top() + pad), Vec2::splat(CORNER_SIDE))
+}
+
 fn favourite_star(ui: &mut Ui, theme: &Theme, rect: Rect, entry: &crate::shell::favorites::Entry) {
-    let side = theme.library_badge_size.y;
-    let slot = Rect::from_min_size(
-        Pos2::new(rect.right() - theme.row_menu_width - side, rect.center().y - side / 2.0),
-        Vec2::splat(side),
-    );
+    let slot = corner_slot(rect, 1);
     let fav = crate::shell::favorites::is_favourite(ui.ctx(), &entry.key);
     let response = ui.interact(slot, ui.id().with(("shell/library/star", &entry.key)), Sense::click());
     let ink = if fav { theme.accent_vivid } else { theme.ink_weak };
+    ui.painter().rect_filled(slot, theme.library_card_corner(), theme.library_badge);
     paint_icon_stroked(ui.painter(), slot, Icon::Star, theme, theme.line_stroke(ink));
     if response.on_hover_text(tr("favourite")).clicked() {
         crate::shell::favorites::request_toggle(ui.ctx(), entry.clone());
@@ -939,18 +948,15 @@ fn row_menu(
     row: &Response,
     add_contents: impl FnOnce(&mut Ui),
 ) {
-    let column = Rect::from_min_max(
-        Pos2::new(rect.right() - theme.row_menu_width, rect.top()),
-        rect.right_bottom(),
-    );
-    let mut child = ui.new_child(UiBuilder::new().max_rect(column));
+    let mut child = ui.new_child(UiBuilder::new().max_rect(corner_slot(rect, 0)));
     egui::containers::menu::MenuButton::from_button(
         egui::Button::new(
             RichText::new("…")
                 .font(theme.font_small.clone())
                 .color(theme.ink_weak),
         )
-        .frame(row.hovered()),
+        .min_size(Vec2::splat(CORNER_SIDE))
+        .fill(theme.library_badge),
     )
     .ui(&mut child, add_contents);
 }

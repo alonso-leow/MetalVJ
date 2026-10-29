@@ -308,9 +308,8 @@ pub struct Theme {
     pub library_badge_size: Vec2,
     /// Gap between a card's name line and its detail line.
     pub library_detail_gap: f32,
-    /// Width of the fixed right column every library row reserves for its
-    /// `…` menu, so the buttons of folders and files line up whatever the
-    /// title length (`panels/library.rs`'s `file_like_row`).
+    /// Width of the strip every library row reserves at its right for the two
+    /// corner buttons (`★` and `…`), so titles never run under them (`panels/library.rs`'s `file_like_row`).
     pub row_menu_width: f32,
 
     // --- responsive delegation (`S.U13`, `O.12.f`) -------------------------
@@ -704,7 +703,7 @@ impl Theme {
             library_badge: Color32::from_rgb(0x2a, 0x2a, 0x31),
             library_badge_size: Vec2::new(24.0, 24.0),
             library_detail_gap: 2.0,
-            row_menu_width: 24.0,
+            row_menu_width: 52.0,
             sidebar_share: 0.32,
             sidebar_min_width: 220.0,
             sidebar_max_share: 0.5,
@@ -921,7 +920,7 @@ impl Theme {
             library_badge: Color32::from_rgb(0xec, 0xe0, 0xdb),
             library_badge_size: Vec2::new(24.0, 24.0),
             library_detail_gap: 2.0,
-            row_menu_width: 24.0,
+            row_menu_width: 52.0,
             sidebar_share: 0.32,
             sidebar_min_width: 220.0,
             sidebar_max_share: 0.5,

@@ -256,7 +256,7 @@ fn ensure_output_node(g: &mut Graph, device: &str) -> bool {
 /// any node id `target` already uses, so two graphs can share one collection
 /// without two nodes answering the same id. An `output.device` node that names
 /// no screen is bound to `device` (the graph `other` was the screen's own).
-fn absorb(target: &mut Graph, other: &Graph, device: &str) {
+fn absorb(target: &mut Graph, other: &Graph, device: Option<&str>) {
     let mut rename: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
     for node in &other.nodes {
         let id = if target.node(&node.id).is_some() {
@@ -270,7 +270,7 @@ fn absorb(target: &mut Graph, other: &Graph, device: &str) {
     for node in &other.nodes {
         let mut node = node.clone();
         node.id = rename[&node.id].clone();
-        if node.kind == "output.device" && node_device(&node).is_none() {
+        if let (Some(device), "output.device", None) = (device, node.kind.as_str(), node_device(&node)) {
             bind_node(&mut node, device);
         }
         target.nodes.push(node);
@@ -323,7 +323,7 @@ pub fn adopt_device_graphs(dir: &Path, io: &Io) -> Vec<String> {
         if before.contains(&device) {
             continue;
         }
-        absorb(&mut central, &device_graph, &device);
+        absorb(&mut central, &device_graph, Some(&device));
         ensure_output_node(&mut central, &device);
         adopted = true;
     }
@@ -339,11 +339,14 @@ pub fn adopt_device_graphs(dir: &Path, io: &Io) -> Vec<String> {
     vec![CENTRAL_ID.to_string()]
 }
 
-/// Folds the per-device collections an earlier boot minted (`col-<screen>`,
-/// one output node naming that screen) into the central collection, keeping
-/// every device's nodes and its `output.device` node, then drops the now-empty
-/// files. A collection that is not one of those — an operator's own canvas, one
-/// naming several screens — is left alone. Returns the ids it merged.
+/// There is one collection. Every other live collection file (a per-device
+/// `col-<screen>` an earlier boot minted, an operator's canvas, one naming
+/// several screens, one naming none) is folded into the central collection,
+/// its nodes and wiring kept under fresh ids, then its file is dropped. A
+/// screen a folded collection names is claimed by the central one, unless
+/// central already feeds it. Outputs that name no screen stay unbound (the
+/// central canvas shows them as issues). Central's own duplicate node ids are
+/// repaired too. Returns the ids it merged.
 pub fn merge_device_collections(dir: &Path, io: &Io) -> Vec<String> {
     let Ok(entries) = metal_vfs::read_dir(dir) else {
         return Vec::new();
@@ -359,16 +362,30 @@ pub fn merge_device_collections(dir: &Path, io: &Io) -> Vec<String> {
             continue;
         }
         let Some(col) = read(dir, id) else { continue };
-        let Some(device) = per_device_collection_device(&col) else { continue };
-        if !before.contains(&device) {
-            absorb(&mut central, &col, &device);
-            ensure_output_node(&mut central, &device);
+        match per_device_collection_device(&col) {
+            Some(device) => {
+                if !before.contains(&device) {
+                    absorb(&mut central, &col, Some(&device));
+                    ensure_output_node(&mut central, &device);
+                }
+            }
+            None => {
+                // An output naming a screen central already feeds is dropped
+                // with its edges: one screen, one output node.
+                let mut col = col;
+                let taken = bound_devices(&central);
+                col.nodes.retain(|n| !(n.kind == "output.device" && node_device(n).is_some_and(|d| taken.contains(d))));
+                let kept: std::collections::BTreeSet<&str> = col.nodes.iter().map(|n| n.id.as_str()).collect();
+                col.edges.retain(|e| kept.contains(e.from.node.as_str()) && kept.contains(e.to.node.as_str()));
+                absorb(&mut central, &col, None);
+            }
         }
         merged.push(id.to_string());
     }
     if merged.is_empty() {
         return Vec::new();
     }
+    dedupe_node_ids(&mut central);
     if write(dir, &central, io).is_err() {
         return Vec::new();
     }
@@ -380,6 +397,22 @@ pub fn merge_device_collections(dir: &Path, io: &Io) -> Vec<String> {
         let _ = metal_vfs::remove_file(dir.join(format!("{id}.owner")));
     }
     merged
+}
+
+/// Gives a later copy of a node id that repeats an earlier one a fresh id (the
+/// first keeps its id). Edges that name the repeated id stay on the first node.
+fn dedupe_node_ids(g: &mut Graph) {
+    let mut seen = BTreeSet::new();
+    for i in 0..g.nodes.len() {
+        let id = g.nodes[i].id.clone();
+        if seen.insert(id.clone()) {
+            continue;
+        }
+        let prefix = id.rsplit_once('-').map(|(p, _)| p).unwrap_or("node").to_string();
+        let fresh = g.ids.next(&prefix);
+        seen.insert(fresh.clone());
+        g.nodes[i].id = fresh;
+    }
 }
 
 /// `POST /outputs {op:"add"}`'s half: make `device` a screen of the central
@@ -405,7 +438,7 @@ pub fn ensure_device(dir: &Path, device: &str, io: &Io) -> Vec<String> {
     }
     if !before.contains(device) {
         if let Some(g) = existing.as_ref().filter(|g| g.source.is_none()) {
-            absorb(&mut central, g, device);
+            absorb(&mut central, g, Some(device));
         }
     }
     ensure_output_node(&mut central, device);
@@ -601,6 +634,34 @@ mod tests {
             assert_eq!(read(&dir, &format!("device-{device}")).unwrap().source.as_deref(), Some(CENTRAL_ID));
         }
         assert!(merge_device_collections(&dir, &IO).is_empty(), "idempotent");
+    }
+
+    #[test]
+    fn every_other_collection_folds_into_the_central_one() {
+        let dir = scratch("fold-all");
+        let mut central = Graph::new(CENTRAL_ID, CENTRAL_NAME, Domain::Live);
+        central.add_node("gen", "gen.turing", [0.0, 0.0]);
+        let out = central.add_node("out", "output.device", [200.0, 0.0]);
+        bind_node(central.node_mut(&out).unwrap(), "HDMI");
+        // A duplicate id already in central (the shape the old boot left).
+        central.nodes.push(crate::Node::new(out.clone(), "output.device", [0.0, 0.0]));
+        store(&dir, &central, &IO).unwrap();
+        // An operator's canvas with no screen: its oracle and an unbound output.
+        let mut orphan = Graph::new("col-5", "collection 5", Domain::Live);
+        let oracle = orphan.add_node("gen", "gen.oracle", [0.0, 0.0]);
+        let out5 = orphan.add_node("output", "output.device", [200.0, 0.0]);
+        orphan.add_edge(crate::Endpoint::new(&oracle, "image"), crate::Endpoint::new(&out5, "image"));
+        store(&dir, &orphan, &IO).unwrap();
+
+        assert_eq!(merge_device_collections(&dir, &IO), ["col-5"]);
+        let col = read(&dir, CENTRAL_ID).unwrap();
+        assert!(col.nodes.iter().any(|n| n.kind == "gen.oracle"), "the oracle is in central");
+        let mut ids: Vec<&str> = col.nodes.iter().map(|n| n.id.as_str()).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), col.nodes.len(), "every node id is unique");
+        assert_eq!(bound_devices(&col).into_iter().collect::<Vec<_>>(), ["HDMI"], "the unbound output names no screen");
+        assert!(read(&dir, "col-5").is_none(), "the orphan file is gone");
     }
 
     #[test]

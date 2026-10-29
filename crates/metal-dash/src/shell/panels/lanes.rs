@@ -3057,6 +3057,8 @@ fn page_bar(
     ] {
         paint_cell(ui, theme, door, state, &cell, rect, open_graph, None);
     }
+    // `+` names what it does: the same items as the free grid's add menu.
+    ui.interact(add, Id::new("shell/region/lanes/add-tip"), Sense::hover()).on_hover_text(tr("Add new control"));
     let middle = Rect::from_min_max(
         Pos2::new(prev.right() + theme.item_gap.x, bar.top()),
         Pos2::new(add.left() - theme.item_gap.x, bar.bottom()),
@@ -3065,6 +3067,14 @@ fn page_bar(
         // What does not fit is cut, never laid over `+` and `›`.
         ui.set_clip_rect(middle.intersect(ui.clip_rect()));
         device_menu(ui, theme, door, state);
+        // Walks a box's controls from the top (one at a time, `skip` or stop).
+        if state.face_learn.is_none() && state.layout.device.is_some() {
+            if ui.button(RichText::new(tr("learn the face")).font(theme.font_small.clone())).clicked() {
+                state.face_learn = Some(0);
+                state.face_learn_last = None;
+                state.slot_learn = None;
+            }
+        }
         if state.face_learn.is_some() {
             face_learn_row(ui, theme, door, state);
         }
@@ -3174,7 +3184,7 @@ fn job_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState,
     let small = |t: String| RichText::new(t).font(theme.font_small.clone());
     let Some(id) = state.layout.slots.get(slot).map(|s| s.id.clone()) else { return false };
     let mut picked = false;
-    let _ = plain_menu(ui, theme, small(tr("general control").into()), |ui| {
+    let _ = plain_menu(ui, theme, small(tr("configure general controls").into()), |ui| {
         for job in crate::surface::Role::catalogue().into_iter().filter(|r| !matches!(r, crate::surface::Role::Piano { .. })) {
             if ui.button(small(tr_dyn(&job.label()).to_string())).clicked() {
                 let key = format!("hw:{id}");
@@ -3270,16 +3280,9 @@ fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState
     let small = |t: String| RichText::new(t).font(theme.font_small.clone());
     let Some(id) = state.layout.slots.get(slot).map(|s| s.id.clone()) else { return };
     let held = state.layout.in_slot(slot);
-    // Takes each control's message off the box itself, one by one.
-    if ui.button(small(tr("learn the face").into())).clicked() {
-        state.face_learn = Some(0);
-        state.face_learn_last = None;
-        state.slot_learn = None;
-        ui.close();
-    }
     match open_graph {
         Some(gid) => {
-            if ui.button(small(tr("nodes control").into())).clicked() {
+            if ui.button(small(tr("configure nodes control").into())).clicked() {
                 let key = slot_controller(&id, page);
                 if !state.controllers.contains_key(&key) {
                     state.controllers.insert(key.clone(), json!({ "graph": gid, "name": "", "mode": "switch", "targets": [] }));
@@ -3314,7 +3317,7 @@ fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState
     }
     job_menu(ui, theme, door, state, slot);
     let learning = state.slot_learn == Some(slot);
-    if ui.selectable_label(learning, small(tr("learn: press a key, pad or knob").into())).clicked() {
+    if ui.selectable_label(learning, small(tr("learn input signal").into())).clicked() {
         state.slot_learn = if learning { None } else { Some(slot) };
         ui.close();
     }
@@ -4377,7 +4380,7 @@ fn paint_controller_cell(
     let face = controller_face(door, state, key);
     let fill = if held { theme.accent_vivid } else { theme.inset };
     let response = match face {
-        ControllerFace::Fader { node, param, min, max, value } if shape == Some(crate::surface::SlotKind::Knob) => {
+        ControllerFace::Fader { min, max, value, .. } if shape == Some(crate::surface::SlotKind::Knob) => {
             let range = (max - min).max(0.0);
             let frac = if range > 0.0 { ((value - min) / range).clamp(0.0, 1.0) } else { 0.0 };
             let mut acc = state.dial_acc.get(key).copied().unwrap_or(0.0);
@@ -4385,21 +4388,13 @@ fn paint_controller_cell(
             let (response, steps) = super::pads::dial(ui, theme, id, rect, &label, &format!("{value:.2}"), Some(frac), false, &mut acc);
             state.dial_acc.insert(key.to_string(), acc);
             if steps != 0 && !state.grid_edit {
-                // A hundred steps sweep the whole range.
-                let new = (value + steps as f32 * range / 100.0).clamp(min, max);
-                let graph = state.controllers.get(key).and_then(|c| c["graph"].as_str()).unwrap_or(key).to_string();
-                let _ = door.json(
-                    "POST",
-                    "/graph/node",
-                    Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": new })),
-                );
-                let target = json!({ "node": node, "param": param, "value": new });
-                set_controller_target_value(state, key, &target, new);
+                // A hundred steps sweep the whole range, as the fader's drag does.
+                apply_controller_fraction(door, state, key, (frac + steps as f32 / 100.0).clamp(0.0, 1.0));
                 state.controllers_dirty = Some(ui.input(|i| i.time));
             }
             response
         }
-        ControllerFace::Fader { node, param, min, max, value } => {
+        ControllerFace::Fader { min, max, value, .. } => {
             let range = (max - min).max(0.0);
             let frac = if range > 0.0 { ((value - min) / range).clamp(0.0, 1.0) } else { 0.0 };
             let f = builtins::fader(
@@ -4413,15 +4408,7 @@ fn paint_controller_cell(
                 Sense::click_and_drag(),
             );
             if f.response.dragged() || f.response.clicked() || f.response.changed() {
-                let new = min + f.value * range;
-                let graph = state.controllers.get(key).and_then(|c| c["graph"].as_str()).unwrap_or(key).to_string();
-                let _ = door.json(
-                    "POST",
-                    "/graph/node",
-                    Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": new })),
-                );
-                let target = json!({ "node": node, "param": param, "value": new });
-                set_controller_target_value(state, key, &target, new);
+                apply_controller_fraction(door, state, key, f.value);
             }
             if f.response.drag_stopped() {
                 save_controllers(door, state);
@@ -4446,12 +4433,16 @@ fn paint_controller_cell(
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label.clone()));
 
     // The `⚙` corner: the same editor a right-click opens, one click away.
+    // Inset from the corner with its own outline, so it reads as a control
+    // of its own rather than a smudge on the button's edge.
+    let pad = theme.gear_size * 0.2;
     let gear = Rect::from_min_size(
-        rect.right_top() - egui::vec2(theme.gear_size, 0.0),
+        rect.right_top() + egui::vec2(-(theme.gear_size + pad), pad),
         egui::vec2(theme.gear_size, theme.gear_size),
     );
+    ui.painter().rect_stroke(gear, theme.corner_radius(), theme.rule_stroke(), egui::StrokeKind::Inside);
     let gear_response = ui.put(
-        gear,
+        gear.shrink(pad * 0.5),
         egui::Button::new(lucide(Icon::Settings, theme.font_small.size)).frame(false),
     );
     gear_response.widget_info(|| {
@@ -4467,6 +4458,41 @@ fn paint_controller_cell(
     // through `paint_cell`'s gesture (the click, or the hold edges), so the
     // surface can freeze and record it like any other button.
     response
+}
+
+/// The numeric targets of a controller that still exist (their node and float
+/// are there), with the range each one's float reports.
+fn controller_float_targets(door: &dyn Call, state: &PanelState, key: &str) -> Vec<(String, String, f32, f32)> {
+    let Some(ctrl) = state.controllers.get(key) else { return Vec::new() };
+    let graph = ctrl["graph"].as_str().unwrap_or(key).to_string();
+    let mut out = Vec::new();
+    for t in ctrl["targets"].as_array().into_iter().flatten().filter(|t| t["param"].is_string()) {
+        let node = t["node"].as_str().unwrap_or_default().to_string();
+        let param = t["param"].as_str().unwrap_or_default().to_string();
+        let io = get(door, "GET", "/graph/io", &[("id", graph.clone()), ("node", node.clone())]).unwrap_or(Value::Null);
+        if let Some(f) = super::dials::floats(&io).into_iter().find(|f| f.name == param) {
+            out.push((node, param, f.min, f.max));
+        }
+    }
+    out
+}
+
+/// Sets every numeric target of a controller to the same place in its own
+/// range (`frac`, 0..1). The dial and the fader both write through here, so a
+/// knob and a fader of one controller do the same thing, and a controller with
+/// several params moves all of them together.
+fn apply_controller_fraction(door: &dyn Call, state: &mut PanelState, key: &str, frac: f32) {
+    let graph = state.controllers.get(key).and_then(|c| c["graph"].as_str()).unwrap_or(key).to_string();
+    for (node, param, min, max) in controller_float_targets(door, state, key) {
+        let new = min + frac * (max - min).max(0.0);
+        let _ = door.json(
+            "POST",
+            "/graph/node",
+            Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": new })),
+        );
+        let target = json!({ "node": node, "param": param, "value": new });
+        set_controller_target_value(state, key, &target, new);
+    }
 }
 
 /// Applies a controller's whole stored state through the one node write each
@@ -4955,7 +4981,7 @@ fn cell_editor_popup(
                 });
             }
             let learning = state.grid_learn.as_deref() == Some(key.as_str());
-            if ui.selectable_label(learning, small(tr("learn: press a key, pad or knob").into())).clicked() {
+            if ui.selectable_label(learning, small(tr("learn input signal").into())).clicked() {
                 state.grid_learn = if learning { None } else { Some(key.clone()) };
             }
 
@@ -5242,6 +5268,15 @@ fn controller_editor(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
     let graph = graph.as_str();
     controller_name_field(ui, theme, door, state, key);
     controller_mode_header(ui, theme, door, state, key);
+    // A free grid's controller takes its input signal the same way a bound
+    // cell does (the next control heard is bound to it).
+    if !is_hw_controller(key) {
+        let cell = format!("ctrl:{}", controller_key(key));
+        let learning = state.grid_learn.as_deref() == Some(cell.as_str());
+        if ui.selectable_label(learning, RichText::new(tr("learn input signal")).font(theme.font_small.clone())).clicked() {
+            state.grid_learn = if learning { None } else { Some(cell) };
+        }
+    }
     // A box's controls are the size the panel has them.
     if !is_hw_controller(key) && state.layout.device.is_none() {
         let span_key = format!("ctrl:{key}");

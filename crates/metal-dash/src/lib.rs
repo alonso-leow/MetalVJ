@@ -109,6 +109,7 @@ mod playhead;
 // P-D: the `clock.timecode` readers and `GET /timecode`, `GET /artnet/nodes`.
 mod json_memo;
 mod paint;
+mod warm;
 mod perf;
 mod timecode;
 // The in-app updater's settings and wire replies (`call/update.rs` is the two
@@ -413,6 +414,9 @@ fn serve_forever(
     #[cfg(not(feature = "gpu"))]
     let author = Arc::new(Author::new());
     let shared = Arc::new(Mutex::new(Shared { state, paint, sim }));
+    // The on-air model is warmed in the background from startup (see `warm`).
+    warm::spawn(Arc::clone(&shared));
+    warm::request(shared.lock().expect("shared lock poisoned").state.router.chosen);
     // The agent's executor (chat turns and `POST /agent/tool`) reaches the
     // live state through this door, so its door-bound tools work headless too.
     #[cfg(any(feature = "gpu", feature = "glow"))]

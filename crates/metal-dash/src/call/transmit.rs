@@ -304,6 +304,9 @@ pub fn select(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     };
     ctx.state.router.chosen = chosen;
     ctx.state.router.mode = Mode::Single;
+    // Cued, not yet on air necessarily: warm it in the background so it does
+    // not stall the first frame that shows it.
+    crate::warm::request(chosen);
     Ok(json!({ "ok": true }))
 }
 
@@ -322,6 +325,9 @@ pub fn router(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             .map(|v| v as usize)
             .filter(|i| *i < model_count)
             .collect();
+        for &i in &ctx.state.router.picked {
+            crate::warm::request(i);
+        }
     }
     if let Some(v) = body["sensitivity"].as_f64() {
         ctx.state.router.content.sensitivity = (v as f32).clamp(0.0, 1.0);

@@ -41,6 +41,7 @@ use wgpu::util::DeviceExt;
 use crate::model::{color_at, spec, spec_held, Block, Built, Ctx, FloatSpec, Model, Schema, SurfaceSpec};
 use crate::shared::fullscreen::Fullscreen;
 use crate::shared::kit::{self, CAM2D_BLOCK, LOOK_BLOCK};
+use crate::shared::sim::{FixedStep, SIM_HZ};
 use crate::shared::surface::Part;
 use crate::shared::{build_shader, ColorSlotGpu};
 
@@ -669,7 +670,10 @@ impl Sim {
 pub struct Driver {
     pub sim: Option<Sim>,
     wall: Option<f32>,
+    /// Sim steps owed per sim tick, fractional.
     carry: f32,
+    /// The 30 Hz tick clock; the sim steps only on ticks.
+    clock: FixedStep,
     key: (u32, u32, u32, u32),
     high: bool,
     pub variant: u32,
@@ -678,20 +682,36 @@ pub struct Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Driver { sim: None, wall: None, carry: 0.0, key: (0, 0, 0, 0), high: false, variant: 0, full_t: 0.0 }
+        Driver {
+            sim: None,
+            wall: None,
+            carry: 0.0,
+            clock: FixedStep::default(),
+            key: (0, 0, 0, 0),
+            high: false,
+            variant: 0,
+            full_t: 0.0,
+        }
     }
+}
+
+/// `semilla` quantised to 1/64 of its range: a small modulation keeps the
+/// same curve instead of reseeding it.
+fn seed_step(own: &[f32]) -> u32 {
+    (clean(own, F_SEMILLA) * 64.0).round() as u32
 }
 
 impl Driver {
     fn fresh(&mut self, own: &[f32], p: &Params) {
         let shape = clean(own, F_FORMA).round() as u32;
-        let seed = ((clean(own, F_SEMILLA) * 4096.0) as u64) << 32 | self.variant as u64;
+        let seed = (seed_step(own) as u64) << 32 | self.variant as u64;
         let mut sim = Sim::new(shape, seed.wrapping_mul(0x2545_F491_4F6C_DD1D) ^ shape as u64, p.threshold);
         for _ in 0..BURN_IN {
             sim.step(p);
         }
         self.sim = Some(sim);
         self.carry = 0.0;
+        self.clock.reset();
         self.full_t = 0.0;
     }
 
@@ -705,7 +725,7 @@ impl Driver {
         if edge {
             self.variant = self.variant.wrapping_add(1);
         }
-        let key = (size.0, size.1, clean(own, F_FORMA).round() as u32, (clean(own, F_SEMILLA) * 4096.0) as u32);
+        let key = (size.0, size.1, clean(own, F_FORMA).round() as u32, seed_step(own));
         let reseed = edge
             || self.sim.is_none()
             || key != self.key
@@ -717,9 +737,15 @@ impl Driver {
             self.fresh(own, &p);
             return self.sim.as_ref().expect("seeded above");
         }
-        let rate = clean(own, F_PASOS) * 60.0 * clean(own, F_VEL);
-        self.carry += rate * dt;
-        let whole = self.carry.floor().max(0.0);
+        // Steps per second, spread over the sim ticks that fall in this draw.
+        let rate = clean(own, F_PASOS) * 60.0 * clean(own, F_VEL) / SIM_HZ;
+        let mut whole = 0.0;
+        for _ in 0..self.clock.tick(dt) {
+            self.carry += rate;
+            let w = self.carry.floor().max(0.0);
+            self.carry -= w;
+            whole += w;
+        }
         let wanted = whole.min(32.0) as u32;
         let sim = self.sim.as_mut().expect("present when not reseeding");
         let (mut done, mut spent) = (0u32, 0u64);
@@ -729,7 +755,6 @@ impl Driver {
             done += 1;
         }
         // Whatever the budget refused is dropped (slowdown, not a backlog).
-        self.carry -= whole;
         if dt > 0.0 {
             if sim.nodes.len() + 1 >= p.cap {
                 self.full_t += dt;
@@ -770,7 +795,7 @@ fn vnoise(x: f32, y: f32, z: f32) -> f32 {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct LVert {
     pos: [f32; 2],
     side: f32,
@@ -942,6 +967,9 @@ pub struct Corales {
     lines: Built<LinePipe>,
     mask: Option<Mask>,
     mask_sampler: Option<wgpu::Sampler>,
+    /// The last stroke vertex buffer and the vertices it holds; re-uploaded
+    /// only when the strokes changed.
+    vbuf: Option<(wgpu::Buffer, Vec<LVert>)>,
     surface: Part,
 }
 
@@ -958,6 +986,7 @@ impl Corales {
             lines: Built::default(),
             mask: None,
             mask_sampler: None,
+            vbuf: None,
             surface: Part::default(),
         }
     }
@@ -1202,11 +1231,15 @@ impl Model for Corales {
         if verts.is_empty() {
             return;
         }
-        let vbuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("corales vertices"),
-            contents: bytemuck::cast_slice(&verts),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        if self.vbuf.as_ref().map_or(true, |(_, last)| *last != verts) {
+            let buf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("corales vertices"),
+                contents: bytemuck::cast_slice(&verts),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            self.vbuf = Some((buf, verts.clone()));
+        }
+        let vbuf = &self.vbuf.as_ref().expect("set above").0;
         let mut enc = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("corales lines") });
         {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {

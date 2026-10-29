@@ -30,7 +30,7 @@
 use crate::model::{color_at, spec, spec_held, Block, Ctx, FloatSpec, Model, Schema};
 use crate::shared::fullscreen::Fullscreen;
 use crate::shared::kit::{self, CAM2D_BLOCK, LOOK_BLOCK, TWIST_BLOCK};
-use crate::shared::sim::PingPong;
+use crate::shared::sim::{FixedStep, PingPong, SIM_HZ};
 use crate::shared::ColorSlotGpu;
 
 const FLOATS: &[FloatSpec] = &[
@@ -205,9 +205,10 @@ fn hash01(seed: u32, k: u32) -> f32 {
     (x >> 8) as f32 / (1u32 << 24) as f32
 }
 
-/// The seed as an integer: `kh_semilla` in thousandths.
+/// The seed as an integer: `kh_semilla` quantised to 1/64 of its range (so a
+/// small modulation keeps the same billows), in thousandths.
 pub fn seed_of(row: &[f32]) -> u32 {
-    (clean(row, F_SEMILLA) * 1000.0).round() as u32
+    ((clean(row, F_SEMILLA) * 64.0).round() * 1000.0 / 64.0).round() as u32
 }
 
 impl Params {
@@ -332,7 +333,10 @@ fn display_src() -> &'static str {
 #[derive(Default)]
 struct Sim {
     wall: Option<f32>,
+    /// Steps owed per sim tick, fractional.
     carry: f32,
+    /// The 30 Hz tick clock; the solver steps only on ticks.
+    clock: FixedStep,
     key: (u32, u32, u32),
     reinicio_high: bool,
     ritmo_high: bool,
@@ -410,14 +414,20 @@ impl Model for Nubes {
         let steps;
         if reseed {
             self.sim.carry = 0.0;
+            self.sim.clock.reset();
             self.sim.puff_left = 0;
             grid.reset();
             grid.step(ctx, &mut self.step, &StepUniform::new(&p, true, [0.0; 4]));
             steps = h; // burn-in: the first frame already has billows
         } else {
-            self.sim.carry += p.steps_per_second(clean(own, F_VEL)) * dt;
-            let whole = self.sim.carry.floor();
-            self.sim.carry -= whole;
+            let rate = p.steps_per_second(clean(own, F_VEL)) / SIM_HZ;
+            let mut whole = 0.0;
+            for _ in 0..self.sim.clock.tick(dt) {
+                self.sim.carry += rate;
+                let w = self.sim.carry.floor();
+                self.sim.carry -= w;
+                whole += w;
+            }
             steps = (whole.max(0.0) as u32).min(MAX_STEPS_PER_FRAME);
         }
         if edge {

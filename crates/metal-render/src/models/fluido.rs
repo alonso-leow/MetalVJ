@@ -18,8 +18,9 @@
 //! the shader clamps every texel it writes. Semi-Lagrangian advection and the
 //! projection are stable at any in-range setting.
 //!
-//! **State advances by time**, at a fixed 60 steps per second: a fractional
-//! step is carried, the same instant twice steps nothing, a resize, rewind,
+//! **State advances by time**, at a fixed 60 steps per second run in 30 Hz
+//! ticks (a fractional tick is carried, so a 60 fps draw loop steps every
+//! other draw): the same instant twice steps nothing, a resize, rewind,
 //! seek or structural change reseeds and burns in. All randomness is a hash
 //! of (emitter, kick index), never a clock.
 
@@ -28,7 +29,7 @@ use std::sync::OnceLock;
 use crate::model::{color_at, background, spec, spec_held, Block, Ctx, FloatSpec, Model, Schema};
 use crate::shared::fullscreen::Fullscreen;
 use crate::shared::kit::{self, CAM2D_BLOCK, LOOK_BLOCK, TWIST_BLOCK};
-use crate::shared::sim::STATE_FORMAT;
+use crate::shared::sim::{FixedStep, STATE_FORMAT};
 use crate::shared::ColorSlotGpu;
 
 const FLOATS: &[FloatSpec] = &[
@@ -125,7 +126,8 @@ const F_IRI: usize = 22;
 const F_DERIVA: usize = 23;
 
 const DT: f32 = 1.0 / 60.0;
-const STEPS_PER_SECOND: f32 = 60.0;
+/// 60 steps per second, run in 30 Hz ticks of two steps each.
+const STEPS_PER_TICK: u32 = 2;
 const MAX_STEPS_PER_FRAME: u32 = 6;
 const BURN_IN: u32 = 90;
 const SEEK_GAP: f32 = 30.0;
@@ -415,7 +417,8 @@ impl Gpu {
 #[derive(Default)]
 struct Clock {
     wall: Option<f32>,
-    carry: f32,
+    /// The 30 Hz tick clock; steps run only on ticks.
+    ticks: FixedStep,
     /// Steps taken since the last reseed.
     steps: u32,
     /// Pattern phase in turns, accumulated so a changing speed never jumps.
@@ -517,10 +520,7 @@ impl Model for Fluido {
             *clock = Clock { wall: Some(time), ..Clock::default() };
             steps = BURN_IN;
         } else {
-            clock.carry += STEPS_PER_SECOND * dt;
-            let whole = clock.carry.floor();
-            clock.carry -= whole;
-            steps = steps.max((whole.max(0.0) as u32).min(MAX_STEPS_PER_FRAME));
+            steps = steps.max((clock.ticks.tick(dt) * STEPS_PER_TICK).min(MAX_STEPS_PER_FRAME));
         }
 
         let slot = |blk: usize| ColorSlotGpu::from_floats(&floats[off(blk)..off(blk) + 12]);

@@ -92,3 +92,86 @@ impl PingPong {
         self.fresh = false;
     }
 }
+
+/// Simulation ticks per second: the CPU sims step at this fixed rate, so a
+/// 60 fps draw loop runs every other draw and reuses the last state.
+pub const SIM_HZ: f32 = 30.0;
+/// Most ticks one draw may run; a longer gap drops the rest (slowdown, not a
+/// backlog that stalls the next frames).
+pub const MAX_TICKS: u32 = 3;
+
+/// A fixed-rate accumulator over the frame clock: [`tick`](Self::tick) turns a
+/// frame's elapsed time into the whole number of sim ticks to run now, and
+/// carries the fraction to the next draw.
+#[derive(Clone, Copy, Debug)]
+pub struct FixedStep {
+    hz: f32,
+    max: u32,
+    acc: f32,
+}
+
+impl FixedStep {
+    pub const fn new(hz: f32, max: u32) -> FixedStep {
+        FixedStep { hz, max, acc: 0.0 }
+    }
+
+    /// Ticks to run for `dt` seconds of elapsed time (the caller clamps it
+    /// against seeks). Never more than `max`.
+    pub fn tick(&mut self, dt: f32) -> u32 {
+        self.acc += dt.max(0.0) * self.hz;
+        let n = (self.acc.floor() as u32).min(self.max);
+        // A capped backlog is dropped, not carried.
+        self.acc = if n == self.max { 0.0 } else { self.acc - n as f32 };
+        n
+    }
+
+    /// Forget the carried fraction; the next tick starts a fresh interval.
+    pub fn reset(&mut self) {
+        self.acc = 0.0;
+    }
+}
+
+impl Default for FixedStep {
+    fn default() -> Self {
+        FixedStep::new(SIM_HZ, MAX_TICKS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sixty_fps_runs_about_every_other_draw_at_thirty_hz() {
+        let mut s = FixedStep::default();
+        let ticks: Vec<u32> = (0..60).map(|_| s.tick(1.0 / 60.0)).collect();
+        let total: u32 = ticks.iter().sum();
+        assert!((29..=30).contains(&total), "one second is 30 ticks: {total}");
+        assert!(ticks.iter().all(|&n| n <= 1), "no draw runs two ticks at 60 fps");
+    }
+
+    #[test]
+    fn a_long_gap_is_capped_and_the_backlog_dropped() {
+        let mut s = FixedStep::new(30.0, 3);
+        assert_eq!(s.tick(1.0), 3, "a long gap is capped");
+        assert_eq!(s.tick(0.0), 0, "the capped backlog is not carried");
+        assert_eq!(s.tick(-5.0), 0, "a rewound clock ticks nothing");
+    }
+
+    #[test]
+    fn a_fraction_carries_until_it_is_a_whole_tick() {
+        let mut s = FixedStep::new(30.0, 3);
+        assert_eq!(s.tick(0.02), 0, "0.6 of a tick is carried");
+        assert_eq!(s.tick(0.02), 1, "0.6 + 0.6 crosses one tick");
+        assert_eq!(s.tick(0.02), 0, "0.2 + 0.6 is still short");
+    }
+
+    #[test]
+    fn reset_forgets_the_fraction() {
+        let mut s = FixedStep::new(30.0, 3);
+        assert_eq!(s.tick(0.02), 0);
+        s.reset();
+        assert_eq!(s.tick(0.02), 0, "without the reset this would tick");
+        assert_eq!(s.tick(0.02), 1);
+    }
+}

@@ -437,6 +437,10 @@ impl Model for Monstruo {
         "monster"
     }
 
+    fn render_scale(&self) -> f32 {
+        0.6
+    }
+
     fn name(&self) -> &'static str {
         "Monstruo"
     }
@@ -1229,7 +1233,7 @@ mod tests {
                 time: 3.0,
                 width: w,
                 height: h,
-                fondo_alpha: false,
+                fondo_alpha: false, detail: 1.0,
             };
             model.render(&ctx, &floats, &view, FORMAT);
             crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &texture, w, h)
@@ -1287,7 +1291,7 @@ mod tests {
                 time: 3.0,
                 width: w,
                 height: h,
-                fondo_alpha: false,
+                fondo_alpha: false, detail: 1.0,
             };
             model.render(&ctx, &floats, &view, FORMAT);
             let plain = crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &texture, w, h);
@@ -1335,7 +1339,7 @@ mod tests {
                 time: 3.0,
                 width: w,
                 height: h,
-                fondo_alpha: false,
+                fondo_alpha: false, detail: 1.0,
             };
             model.render(&ctx, &floats, &view, FORMAT);
             crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &texture, w, h)
@@ -1375,7 +1379,7 @@ mod tests {
             time,
             width: w,
             height: h,
-            fondo_alpha: false,
+            fondo_alpha: false, detail: 1.0,
         };
         let mut model = Monstruo::new();
         model.render(&ctx, floats, &view, FORMAT);

@@ -271,7 +271,7 @@ mod tests {
                 time: t,
                 width: W,
                 height: W,
-                fondo_alpha: false,
+                fondo_alpha: false, detail: 1.0,
             };
             model.render(&ctx, floats, &view, FORMAT);
             out = crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, W, W);

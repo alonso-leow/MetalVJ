@@ -424,7 +424,7 @@ impl App {
             time,
             width: *ow,
             height: *oh,
-            fondo_alpha: false,
+            fondo_alpha: false, detail: 1.0,
         };
         ui.models[ui.selected].render(&ctx, &ui.model_floats[ui.selected], offscreen_view, OFFSCREEN_FORMAT);
 

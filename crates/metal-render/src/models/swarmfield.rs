@@ -62,7 +62,8 @@ pub static DEF: ScaffoldDef = ScaffoldDef::new(
     FLOATS,
     3,
     include_str!("../../shaders/swarmfield.wgsl"),
-);
+)
+.with_render_scale(0.6);
 
 crate::scaffold_model!(Swarmfield, DEF);
 

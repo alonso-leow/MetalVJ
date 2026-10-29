@@ -24,7 +24,8 @@ fn orbit_pos(base: vec2<f32>, h: vec4<f32>, h2: vec4<f32>, k: f32, tm: f32, cell
 }
 
 fn dot_cell(p: vec2<f32>, cell: vec2<f32>, celda: f32, acc: ptr<function, vec4<f32>>) {
-    let n = clamp(i32(floor(f_amount() + 0.5)), 1, 6);
+    let n_a = clamp(i32(floor(f_amount() + 0.5)), 1, 6);
+    let n = min(n_a, i32(ceil(f32(n_a) * p_detail())));
     let t = p_time();
     let steps = max(floor(f_steps_color() + 0.5), 1.0) * 3.0 + 1.0;
     let ntrail = select(0, 4, f_wake() > 0.01);

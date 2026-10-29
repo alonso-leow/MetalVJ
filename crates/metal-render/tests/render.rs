@@ -35,7 +35,7 @@ fn render_at(
         time,
         width: w,
         height: h,
-        fondo_alpha: false,
+        fondo_alpha: false, detail: 1.0,
     };
     model.render(&ctx, floats, &view, FORMAT);
     readback_at(gpu, &texture, w, h)
@@ -296,7 +296,7 @@ fn the_post_chain_compiles_and_runs() {
         time: 2.3,
         width: (W as f32 * metal_render::shared::post::OVERSCAN) as u32,
         height: (H as f32 * metal_render::shared::post::OVERSCAN) as u32,
-        fondo_alpha: false,
+        fondo_alpha: false, detail: 1.0,
     };
     model.render(&ctx, &floats, &src_view, FORMAT);
 
@@ -354,7 +354,7 @@ fn an_active_colour_grade_moves_the_frame_on_the_gpu() {
         time: 2.3,
         width: (W as f32 * metal_render::shared::post::OVERSCAN) as u32,
         height: (H as f32 * metal_render::shared::post::OVERSCAN) as u32,
-        fondo_alpha: false,
+        fondo_alpha: false, detail: 1.0,
     };
     model.render(&ctx, &floats, &src_view, FORMAT);
 
@@ -451,7 +451,7 @@ fn two_effects_enabled_together_chain_instead_of_crossfading() {
         time: 2.3,
         width: (W as f32 * metal_render::shared::post::OVERSCAN) as u32,
         height: (H as f32 * metal_render::shared::post::OVERSCAN) as u32,
-        fondo_alpha: false,
+        fondo_alpha: false, detail: 1.0,
     };
     model.render(&ctx, &floats, &src_view, FORMAT);
 
@@ -535,7 +535,7 @@ fn every_effect_on_at_once_still_renders_a_finite_frame() {
         time: 5.5,
         width: (W as f32 * metal_render::shared::post::OVERSCAN) as u32,
         height: (H as f32 * metal_render::shared::post::OVERSCAN) as u32,
-        fondo_alpha: false,
+        fondo_alpha: false, detail: 1.0,
     };
     model.render(&ctx, &floats, &src_view, FORMAT);
 
@@ -713,7 +713,7 @@ fn reordering_two_interacting_effects_changes_the_rendered_picture() {
         time: 1.1,
         width: (W as f32 * metal_render::shared::post::OVERSCAN) as u32,
         height: (H as f32 * metal_render::shared::post::OVERSCAN) as u32,
-        fondo_alpha: false,
+        fondo_alpha: false, detail: 1.0,
     };
     model.render(&ctx, &floats, &src_view, FORMAT);
 
@@ -1075,6 +1075,7 @@ fn fondo_alpha_affects_only_the_alpha_channel() {
             width: w,
             height: h,
             fondo_alpha,
+            detail: 1.0,
         };
         model.render(&ctx, floats, &view, FORMAT);
         readback_at(&gpu, &texture, w, h)
@@ -1182,7 +1183,7 @@ fn an_estela_chain_step_at_zero_renders_identical_to_no_chain_at_all() {
         time: 9.2,
         width: (W as f32 * metal_render::shared::post::OVERSCAN) as u32,
         height: (H as f32 * metal_render::shared::post::OVERSCAN) as u32,
-        fondo_alpha: false,
+        fondo_alpha: false, detail: 1.0,
     };
     model.render(&ctx, &floats, &src_view, FORMAT);
 
@@ -1393,7 +1394,7 @@ fn fm_source(gpu: &Gpu) -> wgpu::TextureView {
         (H as f32 * metal_render::shared::post::OVERSCAN) as u32,
     );
     let (_t, view) = offscreen_target(&gpu.device, w, h, FORMAT);
-    let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: 2.3, width: w, height: h, fondo_alpha: false };
+    let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: 2.3, width: w, height: h, fondo_alpha: false, detail: 1.0 };
     model.render(&ctx, &floats, &view, FORMAT);
     view
 }
@@ -1574,7 +1575,7 @@ fn the_wavewarp_edge_modes_differ_on_a_frame_that_reaches_the_border() {
     for mut model in all_models() {
         let floats = model.schema().defaults();
         let (_t, view) = offscreen_target(&gpu.device, w, h, FORMAT);
-        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: 2.3, width: w, height: h, fondo_alpha: false };
+        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: 2.3, width: w, height: h, fondo_alpha: false, detail: 1.0 };
         model.render(&ctx, &floats, &view, FORMAT);
         let clamp = run_wavewarp(&gpu, &post, &view, &set(0.0), true);
         let mirror = run_wavewarp(&gpu, &post, &view, &set(1.0), true);

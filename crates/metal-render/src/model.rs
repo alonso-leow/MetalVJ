@@ -144,6 +144,11 @@ pub struct Ctx<'a> {
     /// [`Model::backdrop`] is `true` — see `the design notes Part IV` §17.3. Ignored
     /// by every other model.
     pub fondo_alpha: bool,
+    /// How much of the authored particle/step/iteration counts this frame can
+    /// afford: the tile's pixel count over 1920x1080, clamped to 0.25..=1.0 (see
+    /// `headless::detail_factor`). `1.0` at 1080p and above, so big outputs are
+    /// unchanged. Read by scaffold shaders through `p_detail()`.
+    pub detail: f32,
 }
 
 impl Ctx<'_> {
@@ -220,6 +225,14 @@ pub trait Model: MaybeSend {
         target: &wgpu::TextureView,
         format: wgpu::TextureFormat,
     );
+
+    /// The fraction of the output's linear size this model renders at, before
+    /// the post pass upscales it back to full size. `1.0` is the authored look;
+    /// the heavy fullscreen models say `0.6`, which is roughly 2.8x fewer
+    /// fragments. The renderer multiplies this by its global quality.
+    fn render_scale(&self) -> f32 {
+        1.0
+    }
 
     /// Whether this model draws over **source material** rather than generating
     /// its own picture — a *transmission*, in `docs/TRANSMISSIONS.md`'s word.

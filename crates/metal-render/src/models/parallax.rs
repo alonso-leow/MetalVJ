@@ -20,7 +20,7 @@ use crate::model::{Ctx, Model, Schema};
 use crate::shared::parallax::{Parallax, World};
 
 macro_rules! world {
-    ($ty:ident, $id:literal, $name:literal, $world:expr, $schema:ident) => {
+    ($ty:ident, $id:literal, $name:literal, $world:expr, $schema:ident, $scale:literal) => {
         pub struct $ty {
             engine: Parallax,
         }
@@ -40,6 +40,11 @@ macro_rules! world {
         impl Model for $ty {
             fn id(&self) -> &'static str {
                 $id
+            }
+
+            /// The heavy worlds draw at a reduced scale (see `Model::render_scale`).
+            fn render_scale(&self) -> f32 {
+                $scale
             }
 
             fn name(&self) -> &'static str {
@@ -123,10 +128,10 @@ pub static CAMPOS_SCHEMA: Schema =
 pub static CIUDAD_SCHEMA: Schema =
     crate::parallax_schema!(&CIUDAD_FONDO, &CIUDAD_CAPAS, &CIUDAD_OBJETOS, &CIUDAD_LUCES, &CIUDAD_NIEBLA);
 
-world!(ParallaxCueva, "parallax-cave", "Parallax Cave", World::Cueva, CUEVA_SCHEMA);
-world!(ParallaxCielo, "parallax-sky", "Parallax Sky", World::Cielo, CIELO_SCHEMA);
-world!(ParallaxCampos, "parallax-fields", "Parallax Fields", World::Campos, CAMPOS_SCHEMA);
-world!(ParallaxCiudad, "parallax-city", "Parallax City", World::Ciudad, CIUDAD_SCHEMA);
+world!(ParallaxCueva, "parallax-cave", "Parallax Cave", World::Cueva, CUEVA_SCHEMA, 0.6);
+world!(ParallaxCielo, "parallax-sky", "Parallax Sky", World::Cielo, CIELO_SCHEMA, 0.6);
+world!(ParallaxCampos, "parallax-fields", "Parallax Fields", World::Campos, CAMPOS_SCHEMA, 0.6);
+world!(ParallaxCiudad, "parallax-city", "Parallax City", World::Ciudad, CIUDAD_SCHEMA, 1.0);
 
 #[cfg(test)]
 mod tests {

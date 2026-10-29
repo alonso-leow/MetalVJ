@@ -598,7 +598,7 @@ mod tests {
         let (tex, view) = crate::gpu::offscreen_target(&gpu.device, W, W, FORMAT);
         let mut out = vec![];
         for &t in times {
-            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: W, height: W, fondo_alpha: false };
+            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: W, height: W, fondo_alpha: false, detail: 1.0 };
             model.render(&ctx, floats, &view, FORMAT);
             out = crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, W, W);
         }
@@ -828,7 +828,7 @@ mod tests {
                         time: k as f32 * 0.1,
                         width: W,
                         height: W,
-                        fondo_alpha: false,
+                        fondo_alpha: false, detail: 1.0,
                     };
                     m.render(&ctx, &row, &view, fmt);
                 }

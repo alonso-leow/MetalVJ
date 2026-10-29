@@ -693,7 +693,7 @@ mod tests {
         let mut last = Vec::new();
         for &t in times {
             let (tex, view) = offscreen_target(&gpu.device, S, S, FMT);
-            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: S, height: S, fondo_alpha: false };
+            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: S, height: S, fondo_alpha: false, detail: 1.0 };
             m.render(&ctx, f, &view, FMT);
             last = read(gpu, &tex);
         }
@@ -917,7 +917,7 @@ mod tests {
             let mut m = Fluido::new();
             for i in 0..120 {
                 let (tex, view) = offscreen_target(&gpu.device, S, S, FMT);
-                let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: i as f32 * 0.04, width: S, height: S, fondo_alpha: false };
+                let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: i as f32 * 0.04, width: S, height: S, fondo_alpha: false, detail: 1.0 };
                 m.render(&ctx, row, &view, FMT);
                 if i % 20 == 19 {
                     let v = values(&read(&gpu, &tex));
@@ -939,7 +939,7 @@ mod tests {
         let mut t = 0.0;
         for _ in 0..10 {
             t += 1.0 / 60.0;
-            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: w, height: h, fondo_alpha: false };
+            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: w, height: h, fondo_alpha: false, detail: 1.0 };
             m.render(&ctx, &f, &view, FMT);
         }
         gpu.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
@@ -947,7 +947,7 @@ mod tests {
         let n = 60;
         for _ in 0..n {
             t += 1.0 / 60.0;
-            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: w, height: h, fondo_alpha: false };
+            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: w, height: h, fondo_alpha: false, detail: 1.0 };
             m.render(&ctx, &f, &view, FMT);
         }
         gpu.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();

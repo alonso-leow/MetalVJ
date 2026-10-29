@@ -299,7 +299,7 @@ mod tests {
         let mut last = Vec::new();
         for &t in times {
             let (tex, view) = offscreen_target(&gpu.device, S, S, FMT);
-            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: S, height: S, fondo_alpha: false };
+            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: S, height: S, fondo_alpha: false, detail: 1.0 };
             m.render(&ctx, f, &view, FMT);
             last = read(gpu, &tex);
         }

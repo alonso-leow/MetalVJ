@@ -5,7 +5,8 @@
 //! operations: linemerge, linesimplify, crop, layout). Written from the
 //! algorithms; no code was taken from either.
 //!
-//! **Pipeline, all on the CPU, every frame, a pure function of (floats, time):**
+//! **Pipeline, all on the CPU, a pure function of (floats, time), composed on a
+//! worker thread one frame behind and cached by stage (see `Composer`):**
 //! 1. A scene of `n_objetos` analytic shapes. Each is a welded grid mesh of one
 //!    morphing surface `P(u, v)`: sphere, cube (superquadric), torus, cone,
 //!    trefoil tube. `forma_a`/`forma_b` index that list (fractions blend two
@@ -30,8 +31,8 @@
 
 use std::collections::{HashMap, HashSet};
 use std::f32::consts::{PI, TAU};
+use std::sync::{mpsc, Arc};
 
-use glam::{Mat3, Vec2, Vec3};
 use wgpu::util::DeviceExt;
 
 use crate::model::{color_at, spec, spec_held, Block, Built, Ctx, FloatSpec, Model, Schema};
@@ -681,6 +682,9 @@ pub struct Params {
     pub dotted: f32,
     pub hide: f32,
     pub plane: f32,
+    /// Hatch spacing divisor: 1 at 1080p and above, below 1 on small outputs
+    /// (preview tiles) so they carry fewer hatch lines. Not a float row entry.
+    pub hatch_scale: f32,
 }
 
 impl Params {
@@ -707,7 +711,25 @@ impl Params {
             dotted: c(F_PUNT),
             hide: c(F_OCULTAR),
             plane: c(F_PLANO),
+            hatch_scale: 1.0,
         }
+    }
+
+    /// The hatch scale for an output `height` px tall: 1 from 1080 up, fewer
+    /// lines (spacing / sqrt(h / 1080), floor 0.5) below.
+    pub fn hatch_scale_for(height: u32) -> f32 {
+        (height.max(1) as f32 / 1080.0).sqrt().clamp(0.5, 1.0)
+    }
+
+    /// Every field's bits, for the frame cache.
+    fn push_key(&self, k: &mut Vec<u32>) {
+        let f = [
+            self.a, self.b, self.mix, self.variety, self.dispersion, self.turn, self.hatch_dens, self.hatch_ang, self.hatch_cross,
+            self.light, self.sil_px, self.trazo_px, self.noise, self.simplify, self.cut, self.dotted, self.hide, self.plane,
+            self.hatch_scale,
+        ];
+        k.extend(f.iter().map(|v| v.to_bits()));
+        k.push(self.n as u32);
     }
 
     /// The floats that decide the meshes; the cache key.
@@ -739,12 +761,12 @@ fn vnoise(p: Vec2) -> f32 {
 /// The meshes of the scene's objects, shared by the whole frame.
 pub struct SceneMeshes {
     key: [u32; 5],
-    meshes: Vec<Mesh>,
+    meshes: std::sync::Arc<Vec<Mesh>>,
 }
 
 impl SceneMeshes {
     pub fn new() -> SceneMeshes {
-        SceneMeshes { key: [u32::MAX; 5], meshes: Vec::new() }
+        SceneMeshes { key: [u32::MAX; 5], meshes: std::sync::Arc::new(Vec::new()) }
     }
 
     pub fn sync(&mut self, p: &Params) -> &[Mesh] {
@@ -755,15 +777,20 @@ impl SceneMeshes {
                 4..=6 => (40, 22),
                 _ => (32, 18),
             };
-            self.meshes = (0..p.n.max(1))
+            self.meshes = std::sync::Arc::new((0..p.n.max(1))
                 .map(|i| {
                     let off = p.variety * i as f32;
                     build_mesh(p.a + off, p.b + off, p.mix, nu, nv)
                 })
-                .collect();
+                .collect());
             self.key = key;
         }
         &self.meshes
+    }
+
+    /// The current meshes, shareable with the compose worker.
+    pub fn shared(&self) -> std::sync::Arc<Vec<Mesh>> {
+        self.meshes.clone()
     }
 }
 
@@ -864,6 +891,7 @@ fn axis_for(angle: f32) -> Vec3 {
 
 /// Iso-line segments of `dot(local, axis)` every `d`, on the triangles flagged
 /// in `want`, mapped to world by `to_world`.
+#[cfg(test)]
 fn level_segments(
     local: &[Vec3],
     tris: &[[u32; 3]],
@@ -872,6 +900,19 @@ fn level_segments(
     d: f32,
     to_world: &dyn Fn(Vec3) -> Vec3,
     out: &mut Vec<(Vec3, Vec3)>,
+) {
+    level_segments_tagged(local, tris, want, axis, d, to_world, &mut |_, a, b| out.push((a, b)));
+}
+
+/// [`level_segments`] reporting the triangle each segment came from.
+fn level_segments_tagged(
+    local: &[Vec3],
+    tris: &[[u32; 3]],
+    want: &[bool],
+    axis: Vec3,
+    d: f32,
+    to_world: &dyn Fn(Vec3) -> Vec3,
+    out: &mut dyn FnMut(u32, Vec3, Vec3),
 ) {
     for (ti, t) in tris.iter().enumerate() {
         if !want[ti] {
@@ -902,14 +943,56 @@ fn level_segments(
                 }
             }
             if count == 2 {
-                out.push((hits[0], hits[1]));
+                out(ti as u32, hits[0], hits[1]);
             }
         }
     }
 }
 
+/// Hatch segments in mesh-local space, per triangle (ascending), for one axis.
+type LocalHatch = Vec<(u32, Vec3, Vec3)>;
+
+/// Mesh-local hatch segments of every triangle, per mesh and layer (main,
+/// cross), keyed on the meshes and the hatch parameters. Camera, light and
+/// time only choose which triangles show, so they never invalidate it.
+#[derive(Default)]
+pub struct HatchCache {
+    key: Option<[u32; 8]>,
+    meshes: Vec<[LocalHatch; 2]>,
+}
+
+impl HatchCache {
+    fn sync(&mut self, p: &Params, meshes: &[Mesh], d: f32) {
+        let cross = p.hatch_cross > 0.01;
+        let mk = p.mesh_key();
+        let key = [mk[0], mk[1], mk[2], mk[3], mk[4], p.hatch_ang.to_bits(), d.to_bits(), cross as u32];
+        if self.key == Some(key) {
+            return;
+        }
+        let ident = |v: Vec3| v;
+        self.meshes = meshes
+            .iter()
+            .map(|m| {
+                let all = vec![true; m.tris.len()];
+                let layer = |ang: f32| {
+                    let mut out: LocalHatch = Vec::new();
+                    level_segments_tagged(&m.verts, &m.tris, &all, axis_for(ang), d, &ident, &mut |t, a, b| out.push((t, a, b)));
+                    out
+                };
+                [layer(p.hatch_ang), if cross { layer(p.hatch_ang + PI * 0.5) } else { Vec::new() }]
+            })
+            .collect();
+        self.key = Some(key);
+    }
+}
+
 /// The whole frame's strokes in screen space, post-processed and capped.
 pub fn compose(p: &Params, meshes: &[Mesh], cam: &CamFrame, time: f32, aspect: f32) -> Vec<Run> {
+    compose_with(p, meshes, cam, time, aspect, &mut HatchCache::default())
+}
+
+/// [`compose`] reusing the mesh-local hatch work in `cache`.
+pub fn compose_with(p: &Params, meshes: &[Mesh], cam: &CamFrame, time: f32, aspect: f32, cache: &mut HatchCache) -> Vec<Run> {
     let aspect = aspect.clamp(0.1, 10.0);
     let placed = place(p, meshes, time);
     // Depth buffer of every triangle.
@@ -927,7 +1010,10 @@ pub fn compose(p: &Params, meshes: &[Mesh], cam: &CamFrame, time: f32, aspect: f
 
     let light = Vec3::new(p.light.cos(), 0.85, p.light.sin()).normalize();
     let mut pieces: Vec<(Vec<P2>, u8)> = Vec::new();
-    let hatch_d = 0.30 + (0.035 - 0.30) * p.hatch_dens;
+    let hatch_d = ((0.30 + (0.035 - 0.30) * p.hatch_dens) / p.hatch_scale.max(0.1)).max(0.02);
+    if p.hatch_dens > 0.01 {
+        cache.sync(p, meshes, hatch_d);
+    }
     let thr2 = 0.75 - 0.6 * p.hatch_cross;
     let always = |_: Vec3| 1.0;
 
@@ -961,15 +1047,20 @@ pub fn compose(p: &Params, meshes: &[Mesh], cam: &CamFrame, time: f32, aspect: f
 
         // Hatching.
         if p.hatch_dens > 0.01 {
-            let d = hatch_d;
             let to_world = |v: Vec3| o.pos + o.rot * (v * o.size);
-            let local_d = d;
-            let want1: Vec<bool> = (0..m.tris.len()).map(|i| front[i] && dark[i] > 0.12).collect();
+            let layers = &cache.meshes[oi];
             let mut segs = Vec::new();
-            level_segments(&m.verts, &m.tris, &want1, axis_for(p.hatch_ang), local_d.max(0.02), &to_world, &mut segs);
+            for &(t, a, b) in &layers[0] {
+                if front[t as usize] && dark[t as usize] > 0.12 {
+                    segs.push((to_world(a), to_world(b)));
+                }
+            }
             if p.hatch_cross > 0.01 {
-                let want2: Vec<bool> = (0..m.tris.len()).map(|i| front[i] && dark[i] > thr2).collect();
-                level_segments(&m.verts, &m.tris, &want2, axis_for(p.hatch_ang + PI * 0.5), local_d.max(0.02), &to_world, &mut segs);
+                for &(t, a, b) in &layers[1] {
+                    if front[t as usize] && dark[t as usize] > thr2 {
+                        segs.push((to_world(a), to_world(b)));
+                    }
+                }
             }
             for pl in linemerge(&segs) {
                 for piece in project_polyline(&pl, cam, &zb, p.hide, &always, 0.3) {
@@ -1196,10 +1287,116 @@ fn strip_vertices(runs: &[Run], slot: &ColorSlotGpu, widths: [f32; 4], px: f32) 
     v
 }
 
+/// Compose with every stage cache: the mesh-local hatch work, and the whole
+/// frame when its inputs repeat bit for bit.
+#[derive(Default)]
+struct Composer {
+    hatch: HatchCache,
+    last: Option<(Vec<u32>, Arc<Vec<Run>>)>,
+}
+
+impl Composer {
+    /// The strokes for these inputs; the very same `Arc` as last time when
+    /// nothing that matters changed (time only counts when something spins or
+    /// wobbles with it).
+    fn run(&mut self, p: &Params, meshes: &[Mesh], cam: &CamFrame, time: f32, aspect: f32) -> Arc<Vec<Run>> {
+        let mut key = Vec::with_capacity(48);
+        p.push_key(&mut key);
+        key.extend([cam.eye, cam.right, cam.up, cam.fwd].iter().flat_map(|v| [v.x.to_bits(), v.y.to_bits(), v.z.to_bits()]));
+        key.push(cam.tan_half.to_bits());
+        key.push(aspect.to_bits());
+        key.push(if p.turn != 0.0 || p.noise > 0.01 { time.to_bits() } else { 0 });
+        if let Some((k, runs)) = &self.last {
+            if *k == key {
+                return runs.clone();
+            }
+        }
+        let runs = Arc::new(compose_with(p, meshes, cam, time, aspect, &mut self.hatch));
+        self.last = Some((key, runs.clone()));
+        runs
+    }
+}
+
+struct Job {
+    p: Params,
+    meshes: Arc<Vec<Mesh>>,
+    cam: CamFrame,
+    time: f32,
+    aspect: f32,
+}
+
+/// A thread running [`Composer`] one frame behind the renderer. Dropping it
+/// closes the job channel and joins the thread.
+struct Worker {
+    tx: Option<mpsc::Sender<Job>>,
+    rx: mpsc::Receiver<Arc<Vec<Run>>>,
+    handle: Option<std::thread::JoinHandle<()>>,
+    busy: bool,
+}
+
+impl Worker {
+    fn spawn() -> Worker {
+        let (tx, jobs) = mpsc::channel::<Job>();
+        let (done, rx) = mpsc::channel();
+        let handle = std::thread::Builder::new()
+            .name("fineline compose".into())
+            .spawn(move || {
+                let mut composer = Composer::default();
+                while let Ok(mut job) = jobs.recv() {
+                    // Only the newest request matters.
+                    while let Ok(newer) = jobs.try_recv() {
+                        job = newer;
+                    }
+                    let runs = composer.run(&job.p, &job.meshes, &job.cam, job.time, job.aspect);
+                    if done.send(runs).is_err() {
+                        break;
+                    }
+                }
+            })
+            .ok();
+        Worker { tx: Some(tx), rx, handle, busy: false }
+    }
+
+    /// Queues a job; false when the thread is gone.
+    fn submit(&mut self, job: Job) -> bool {
+        self.busy = self.tx.as_ref().is_some_and(|tx| tx.send(job).is_ok());
+        self.busy
+    }
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        self.tx = None;
+        if let Some(h) = self.handle.take() {
+            let _ = h.join();
+        }
+    }
+}
+
+/// GPU buffers kept between frames: the vertex buffer only grows.
+#[derive(Default)]
+struct LineGpu {
+    vbuf: Option<wgpu::Buffer>,
+    cap: u64,
+    ubuf: Option<wgpu::Buffer>,
+    bind: Option<(wgpu::TextureFormat, wgpu::BindGroup)>,
+    /// What the uploaded vertices were built from.
+    vkey: Vec<u8>,
+    count: u32,
+}
+
 pub struct Fineline {
     bg: Fullscreen,
     lines: Built<LinePipe>,
     meshes: SceneMeshes,
+    composer: Composer,
+    worker: Option<Worker>,
+    /// Compose on the worker thread (one frame behind) instead of inline.
+    threaded: bool,
+    shown: Option<Arc<Vec<Run>>>,
+    /// Bumps whenever `shown` changes to different strokes.
+    shown_id: u64,
+    gpu: LineGpu,
 }
 
 fn bg_src() -> &'static str {
@@ -1209,16 +1406,75 @@ fn bg_src() -> &'static str {
 
 impl Fineline {
     pub fn new() -> Fineline {
-        Fineline { bg: Fullscreen::new("fineline", bg_src()), lines: Built::default(), meshes: SceneMeshes::new() }
+        Fineline {
+            bg: Fullscreen::new("fineline", bg_src()),
+            lines: Built::default(),
+            meshes: SceneMeshes::new(),
+            composer: Composer::default(),
+            worker: None,
+            threaded: true,
+            shown: None,
+            shown_id: 0,
+            gpu: LineGpu::default(),
+        }
     }
 
-    /// The strokes this model would draw (no GPU): used by the tests.
-    pub fn strokes(&mut self, floats: &[f32], aspect: f32, time: f32) -> Vec<Run> {
+    /// A model that composes inline in `render`, so frames are a pure function
+    /// of the inputs (the tests).
+    pub fn new_sync() -> Fineline {
+        Fineline { threaded: false, ..Fineline::new() }
+    }
+
+    fn inputs(floats: &[f32], time: f32) -> (Params, CamFrame, f32) {
         let own = &floats[off(B_OWN)..off(B_OWN) + FLOATS.len()];
-        let p = Params::from_floats(own);
-        let cam = camera(&kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]), clean(time, -1e6, 1e6, 0.0));
-        let meshes = self.meshes.sync(&p);
-        compose(&p, meshes, &cam, clean(time, -1e6, 1e6, 0.0), aspect)
+        let time = clean(time, -1e6, 1e6, 0.0);
+        let cam = camera(&kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]), time);
+        (Params::from_floats(own), cam, time)
+    }
+
+    /// The strokes this model would draw (no GPU, always inline): used by the tests.
+    pub fn strokes(&mut self, floats: &[f32], aspect: f32, time: f32) -> Vec<Run> {
+        let (p, cam, time) = Self::inputs(floats, time);
+        self.meshes.sync(&p);
+        let meshes = self.meshes.shared();
+        self.composer.run(&p, &meshes, &cam, time, aspect.clamp(0.1, 10.0)).as_ref().clone()
+    }
+
+    /// The strokes to draw now. Inline when not threaded and for the first
+    /// frame (never draw empty); otherwise the newest finished worker result,
+    /// with the inputs of this frame queued for the next.
+    fn frame_runs(&mut self, p: &Params, cam: &CamFrame, time: f32, aspect: f32) -> Arc<Vec<Run>> {
+        self.meshes.sync(p);
+        let meshes = self.meshes.shared();
+        let aspect = aspect.clamp(0.1, 10.0);
+        if self.threaded {
+            if let Some(shown) = self.shown.clone() {
+                let w = self.worker.get_or_insert_with(Worker::spawn);
+                let mut newest = None;
+                while let Ok(r) = w.rx.try_recv() {
+                    newest = Some(r);
+                    w.busy = false;
+                }
+                if !w.busy && !w.submit(Job { p: *p, meshes, cam: *cam, time, aspect }) {
+                    // The worker died: fall back to inline from here on.
+                    self.worker = None;
+                    self.threaded = false;
+                }
+                let runs = newest.unwrap_or(shown);
+                self.adopt(&runs);
+                return runs;
+            }
+        }
+        let runs = self.composer.run(p, &meshes, cam, time, aspect);
+        self.adopt(&runs);
+        runs
+    }
+
+    fn adopt(&mut self, runs: &Arc<Vec<Run>>) {
+        if !self.shown.as_ref().is_some_and(|s| Arc::ptr_eq(s, runs)) {
+            self.shown_id += 1;
+            self.shown = Some(runs.clone());
+        }
     }
 }
 
@@ -1246,8 +1502,8 @@ impl Model for Fineline {
         let look = kit::Look::from_floats(&floats[off(B_LOOK)..off(B_LOOK) + kit::Look::N]);
         let slot = |blk: usize| ColorSlotGpu::from_floats(&floats[off(blk)..off(blk) + 12]);
         let time = if ctx.time.is_finite() { ctx.time } else { 0.0 };
-        let own = &floats[off(B_OWN)..off(B_OWN) + FLOATS.len()];
-        let params = Params::from_floats(own);
+        let (mut params, cam, time) = Self::inputs(floats, time);
+        params.hatch_scale = Params::hatch_scale_for(ctx.height);
 
         let bg = BgUniform {
             background: slot(B_FONDO),
@@ -1256,11 +1512,36 @@ impl Model for Fineline {
         };
         self.bg.draw(ctx, target, format, &bg);
 
-        let runs = self.strokes(floats, aspect, time);
+        let runs = self.frame_runs(&params, &cam, time, aspect);
         let px = 2.0 / ctx.height.max(1) as f32;
         let widths = [params.sil_px, params.trazo_px, params.trazo_px * 0.7, params.trazo_px];
-        let verts = strip_vertices(&runs, &slot(B_TRAZO), widths, px);
-        if verts.is_empty() {
+        let trazo = slot(B_TRAZO);
+        // Rebuild and upload the vertices only when something they come from moved.
+        let mut vkey: Vec<u8> = self.shown_id.to_le_bytes().to_vec();
+        vkey.extend_from_slice(bytemuck::bytes_of(&trazo));
+        vkey.extend(widths.iter().chain(&[px]).flat_map(|w| w.to_bits().to_le_bytes()));
+        let g = &mut self.gpu;
+        if g.vkey != vkey {
+            let verts = strip_vertices(&runs, &trazo, widths, px);
+            g.count = verts.len() as u32;
+            if !verts.is_empty() {
+                let bytes: &[u8] = bytemuck::cast_slice(&verts);
+                if g.vbuf.is_none() || bytes.len() as u64 > g.cap {
+                    g.cap = (bytes.len() as u64).next_power_of_two().max(4096);
+                    g.vbuf = Some(ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                        label: Some("fineline vertices"),
+                        size: g.cap,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        mapped_at_creation: false,
+                    }));
+                }
+                if let Some(vb) = &g.vbuf {
+                    ctx.queue.write_buffer(vb, 0, bytes);
+                }
+            }
+            g.vkey = vkey;
+        }
+        if g.count == 0 {
             return;
         }
         let pipe = self.lines.get(format, || LinePipe::new(ctx.device, format));
@@ -1268,21 +1549,24 @@ impl Model for Fineline {
             look: [look.shine, look.contrast, look.tone, look.saturation],
             misc: [aspect, look.opacity, 0.0, 0.0],
         };
-        let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("fineline line uniform"),
-            contents: bytemuck::bytes_of(&uniform),
-            usage: wgpu::BufferUsages::UNIFORM,
+        let ubuf = g.ubuf.get_or_insert_with(|| {
+            ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("fineline line uniform"),
+                size: std::mem::size_of::<LineUniform>() as u64,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            })
         });
-        let bind = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("fineline line"),
-            layout: &pipe.layout,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }],
-        });
-        let vbuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("fineline vertices"),
-            contents: bytemuck::cast_slice(&verts),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        ctx.queue.write_buffer(ubuf, 0, bytemuck::bytes_of(&uniform));
+        if g.bind.as_ref().map(|b| b.0) != Some(format) {
+            let bind = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("fineline line"),
+                layout: &pipe.layout,
+                entries: &[wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }],
+            });
+            g.bind = Some((format, bind));
+        }
+        let (Some(vbuf), Some((_, bind))) = (&g.vbuf, &g.bind) else { return };
         let mut enc = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("fineline lines") });
         {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -1299,9 +1583,9 @@ impl Model for Fineline {
                 multiview_mask: None,
             });
             pass.set_pipeline(&pipe.pipeline);
-            pass.set_bind_group(0, &bind, &[]);
-            pass.set_vertex_buffer(0, vbuf.slice(..));
-            pass.draw(0..verts.len() as u32, 0..1);
+            pass.set_bind_group(0, bind, &[]);
+            pass.set_vertex_buffer(0, vbuf.slice(0..g.count as u64 * std::mem::size_of::<LVert>() as u64));
+            pass.draw(0..g.count, 0..1);
         }
         ctx.queue.submit(Some(enc.finish()));
     }
@@ -1324,7 +1608,7 @@ mod tests {
     }
 
     fn frames(gpu: &crate::gpu::Gpu, floats: &[f32]) -> Vec<u8> {
-        let mut m = Fineline::new();
+        let mut m = Fineline::new_sync();
         TIMES.iter().flat_map(|&t| frame_at(gpu, &mut m, floats, t)).collect()
     }
 
@@ -1479,6 +1763,42 @@ mod tests {
         for kind in 0..4 {
             assert!(a.iter().any(|r| r.kind == kind), "no stroke of kind {kind}");
         }
+    }
+
+    #[test]
+    fn a_repeated_frame_is_a_cache_hit_and_the_worker_matches_inline() {
+        let f = base();
+        let (p, cam, time) = Fineline::inputs(&f, 0.3);
+        let meshes: Vec<Mesh> = SceneMeshes::new().sync(&p).to_vec();
+        let mut c = Composer::default();
+        let a = c.run(&p, &meshes, &cam, time, 1.5);
+        let b = c.run(&p, &meshes, &cam, time, 1.5);
+        assert!(Arc::ptr_eq(&a, &b), "identical inputs must reuse the strokes");
+        let moved = c.run(&p, &meshes, &cam, time, 1.6);
+        assert!(!Arc::ptr_eq(&a, &moved));
+        let same = |x: &[Run], y: &[Run]| {
+            x.len() == y.len() && x.iter().zip(y).all(|(r, s)| r.kind == s.kind && r.pts.len() == s.pts.len() && r.pts.iter().zip(&s.pts).all(|(p, q)| p.p == q.p && p.a == q.a))
+        };
+        // The hatch cache changes nothing against a cold compose.
+        assert!(same(&a, &compose(&p, &meshes, &cam, time, 1.5)));
+        // The worker answers with what inline composes.
+        let mut w = Worker::spawn();
+        assert!(w.submit(Job { p, meshes: Arc::new(meshes.clone()), cam, time, aspect: 1.5 }));
+        let got = w.rx.recv().expect("worker result");
+        assert!(same(&a, &got));
+    }
+
+    #[test]
+    fn small_outputs_carry_fewer_hatch_lines() {
+        let mut f = base();
+        f[F_HDENS] = 0.8;
+        let (mut p, cam, time) = Fineline::inputs(&f, 0.0);
+        let meshes: Vec<Mesh> = SceneMeshes::new().sync(&p).to_vec();
+        let full = segment_count(&compose(&p, &meshes, &cam, time, 1.5));
+        assert_eq!(Params::hatch_scale_for(1080), 1.0);
+        p.hatch_scale = Params::hatch_scale_for(270);
+        let small = segment_count(&compose(&p, &meshes, &cam, time, 1.5));
+        assert!(small < full, "{small} !< {full}");
     }
 
     #[test]

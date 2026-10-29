@@ -85,6 +85,19 @@ pub trait Call {
         let _ = self.json("POST", path, Some(body));
     }
 
+    /// Whether a read of `path` (no query) is still being fetched behind the
+    /// frame, so its answer is not in yet. A caller that latches something
+    /// on its first answer (a one-shot boot) waits for this to clear rather
+    /// than latching the empty reply. `false` for a door that answers inline.
+    fn is_pending(&self, _path: &str) -> bool {
+        false
+    }
+
+    /// Hands the door a way to wake the UI when a read it deferred lands
+    /// (`egui::Context::request_repaint`). A door that answers inline never
+    /// defers, so it ignores this.
+    fn set_wake(&self, _wake: Arc<dyn Fn() + Send + Sync>) {}
+
     /// The open graph as a background writer read it back once its queued
     /// writes had settled, with the id it was read for (`None` when this door
     /// has no writer, or nothing new has landed). The canvas applies it in

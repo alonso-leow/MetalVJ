@@ -675,12 +675,19 @@ fn ensure_loaded(door: &dyn Call, state: &mut PanelState) {
     if state.opened {
         return;
     }
-    state.opened = true;
     refresh_graph_list(door, state);
     // The renderer's model order is fixed for the process, so one read
     // is the whole cadence; a glow-only build (no `/author/*`) simply
     // leaves it empty and no tile is ever painted.
-    state.model_names = get(door, "GET", "/author/render/state", &[])
+    let models = get(door, "GET", "/author/render/state", &[]);
+    // These reads are answered behind the frame on first use (`Call::is_pending`).
+    // Until they land the panel shows its empty state and boots again next
+    // frame, rather than latching an empty graph list for the whole run.
+    if ["/graphs", "/graph", "/author/render/state"].iter().any(|p| door.is_pending(p)) {
+        return;
+    }
+    state.opened = true;
+    state.model_names = models
         .and_then(|v| v["names"].as_array().cloned())
         .unwrap_or_default()
         .iter()

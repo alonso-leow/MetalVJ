@@ -949,6 +949,11 @@ impl Shell {
         WAKER.call_once(|| {
             let ctx = ui.ctx().clone();
             crate::input::set_surface_waker(move || ctx.request_repaint());
+            // A read the door answers in the background wakes the UI when it
+            // lands, so a panel that showed its empty state adopts the reply
+            // (`reads::CachedDoor`).
+            let ctx = ui.ctx().clone();
+            self.door.set_wake(std::sync::Arc::new(move || ctx.request_repaint()));
         });
         perf_hud::paint(ui, &theme);
 

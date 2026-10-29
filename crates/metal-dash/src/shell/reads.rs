@@ -176,6 +176,13 @@ struct Cache {
     /// Fetches in flight, by token.
     fetches: HashMap<u64, Fetch>,
     next_token: u64,
+    /// Reads whose reply is not JSON, or that no route answers. A miss on one
+    /// of these is answered inline: a picture is not waited for, and an
+    /// unrouted path costs nothing.
+    inline_only: HashSet<String>,
+    /// Woken when a read the UI was not waiting on, or a read that cannot be
+    /// deferred, lands (see [`Call::set_wake`]).
+    wake: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl Cache {
@@ -238,8 +245,22 @@ impl CachedDoor {
                     if let Ok(mut c) = cache.lock() {
                         c.refreshing.remove(&key);
                         let stale = c.end(token);
-                        if let Some(reply) = reply.filter(|r| r.kind == "application/json") {
-                            c.entries.insert(key, Entry::of(&reply, cost, stale));
+                        // A first answer is what the UI is waiting on: wake it
+                        // so the panel adopts it. A refresh of an answer it
+                        // already has is picked up on its next frame anyway.
+                        let landed = match reply {
+                            Some(reply) if reply.kind == "application/json" => {
+                                c.entries.insert(key, Entry::of(&reply, cost, stale)).is_none()
+                            }
+                            _ => {
+                                c.inline_only.insert(key);
+                                true
+                            }
+                        };
+                        if landed {
+                            if let Some(wake) = &c.wake {
+                                wake();
+                            }
                         }
                     }
                 }
@@ -367,6 +388,22 @@ impl Call for CachedDoor {
         self.writes.as_ref()?.take_refresh()
     }
 
+    fn is_pending(&self, path: &str) -> bool {
+        let Ok(cache) = crate::perf::locked(&self.cache, "reads.cache") else {
+            return false;
+        };
+        cache
+            .refreshing
+            .iter()
+            .any(|k| k.split('\u{1}').next() == Some(path) && !cache.entries.contains_key(k))
+    }
+
+    fn set_wake(&self, wake: Arc<dyn Fn() + Send + Sync>) {
+        if let Ok(mut cache) = crate::perf::locked(&self.cache, "reads.cache") {
+            cache.wake = Some(wake);
+        }
+    }
+
     fn post_async(&self, path: &str, body: serde_json::Value) {
         match &self.writes {
             Some(writes) if path == "/graph/node" => {
@@ -404,6 +441,20 @@ impl Call for CachedDoor {
                             let _ = tx.send((key.clone(), path.to_string(), params.clone(), token));
                         }
                         return Some(reply);
+                    }
+                }
+                // No reply yet: the first read of a path is not fetched on the
+                // UI thread either. It goes to the refresher, and this call
+                // answers `None` (the panel's empty state) until it lands and
+                // wakes the UI. A path that cannot be deferred (see
+                // `inline_only`) still runs inline below.
+                if let Some(tx) = self.refresh.as_ref() {
+                    if !cache.inline_only.contains(key) {
+                        if cache.refreshing.insert(key.clone()) {
+                            let token = cache.begin(key);
+                            let _ = tx.send((key.clone(), path.to_string(), params.clone(), token));
+                        }
+                        return None;
                     }
                 }
             }

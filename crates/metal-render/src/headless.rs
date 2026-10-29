@@ -24,6 +24,11 @@ use metal_schema::{EffectStep, CHAIN_KIND_ESTELA};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
+/// The size of the throwaway frame [`Renderer::warm`] draws. Small on purpose:
+/// the pipelines do not depend on the size, and the readback is what is left.
+const WARM_W: u32 = 64;
+const WARM_H: u32 = 36;
+
 /// 8-bit sRGB, unlike the window's `Rgba16Float`: this path ends in a JPEG,
 /// so the sRGB encode the hardware does on write is exactly the conversion
 /// that would otherwise have to happen by hand on the way out.
@@ -68,6 +73,9 @@ pub struct Renderer {
     /// CPU time the last `draw_tile` spent inside `Model::render` alone (the
     /// model's own encode + submit, not the post chain) — for `render-bench`.
     pub last_model_cpu: std::time::Duration,
+    /// Per model: whether [`Renderer::warm`] (or a real draw) has built its
+    /// pipelines and meshes on this device. Index-aligned with `models`.
+    warmed: Vec<bool>,
 }
 
 impl Renderer {
@@ -83,11 +91,14 @@ impl Renderer {
         let post = PostChain::new(&gpu.device, FORMAT);
         let trail = TrailChain::new(&gpu.device, FORMAT);
         let stutter = Stutter::new(&gpu.device, FORMAT);
+        let models = all_models();
+        let warmed = vec![false; models.len()];
         Renderer {
             gpu,
             post,
             trail,
-            models: all_models(),
+            models,
+            warmed,
             scratch: None,
             canvas: None,
             trails: Trails::default(),
@@ -120,6 +131,36 @@ impl Renderer {
 
     pub fn model_count(&self) -> usize {
         self.models.len()
+    }
+
+    /// Whether model `index` has been warmed (or drawn) on this renderer, so
+    /// its first real frame will not stall on pipeline and mesh creation.
+    pub fn is_warm(&self, index: usize) -> bool {
+        self.warmed.get(index).copied().unwrap_or(false)
+    }
+
+    /// Draws one throwaway frame of model `index` at a tiny size with its
+    /// default row, so the model's GPU pipelines and meshes (and the post
+    /// chain's) are built now rather than on the first frame that goes on air.
+    /// The picture is discarded. Does nothing for an index out of range, an
+    /// already warm model, or a model this device cannot run (see
+    /// [`Renderer::runs_here`]), which stays cold.
+    pub fn warm(&mut self, index: usize) {
+        if index >= self.models.len() || self.is_warm(index) || !self.runs_here(index) {
+            return;
+        }
+        let row = self.models[index].schema().defaults();
+        let _ = self.solo_chain(
+            index,
+            &row,
+            0.0,
+            WARM_W,
+            WARM_H,
+            false,
+            &[],
+            &EstelaParams::default(),
+        );
+        self.warmed[index] = true;
     }
 
     /// Whether model `index` can draw on this device: every model can where the
@@ -1178,5 +1219,34 @@ mod export_tests {
             other => panic!("expected Done, got {other:?}"),
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod warm_tests {
+    use super::*;
+
+    /// A renderer on a real adapter, or `None` where there is none (CI): the
+    /// same skip the other GPU tests take rather than a failure.
+    fn renderer_or_skip() -> Option<Renderer> {
+        if !matches!(crate::gpu::probe(wgpu::Backends::PRIMARY), crate::gpu::Backend::Wgpu) {
+            eprintln!("skipping: no wgpu adapter");
+            return None;
+        }
+        Some(Renderer::new())
+    }
+
+    /// Warming marks exactly the asked-for model, leaves the rest cold, and a
+    /// second warm of the same model is a no-op.
+    #[test]
+    fn warm_marks_only_the_model_asked_for() {
+        let Some(mut r) = renderer_or_skip() else { return };
+        assert!(!r.is_warm(0));
+        r.warm(0);
+        assert!(r.is_warm(0));
+        assert!(!r.is_warm(1));
+        r.warm(0);
+        assert!(r.is_warm(0));
+        assert!(!r.is_warm(r.model_count()));
     }
 }

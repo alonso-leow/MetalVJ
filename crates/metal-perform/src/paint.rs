@@ -366,6 +366,15 @@ pub trait Paint: PaintBound {
         crate::transition::apply(spec, v, frame, w, h, seed)
     }
 
+    /// Builds model `index`'s GPU resources ahead of its first frame (see
+    /// `Renderer::warm`). A no-op where nothing is built lazily.
+    fn warm(&mut self, _index: usize) {}
+
+    /// Whether [`Paint::warm`] has nothing left to do for model `index`.
+    fn is_warm(&self, _index: usize) -> bool {
+        true
+    }
+
     /// G1: which half composes. Chosen once at startup (see
     /// [`crate::backend`]); the CPU stand-in is always [`Backend::Cpu`].
     fn backend(&self) -> crate::backend::Backend {
@@ -1508,6 +1517,14 @@ impl Gpu {
 impl Paint for Gpu {
     fn backend(&self) -> crate::backend::Backend {
         self.4
+    }
+    fn warm(&mut self, index: usize) {
+        if self.4 == crate::backend::Backend::Gpu {
+            self.0.warm(index);
+        }
+    }
+    fn is_warm(&self, index: usize) -> bool {
+        self.4 != crate::backend::Backend::Gpu || self.0.is_warm(index)
     }
     fn gpu_cx(&mut self) -> Option<crate::gpu_compose::GpuCx> {
         (self.4 == crate::backend::Backend::Gpu).then(|| self.5.cx.clone())

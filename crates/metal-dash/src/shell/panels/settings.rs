@@ -706,7 +706,7 @@ fn section_performance(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut 
         crate::shell::components::combo_box(theme, Id::new("shell/panel/ajustes/tone-mode"))
             .selected_text(tr_tone_mode(&selected))
             .show_ui(ui, |ui| {
-                for mode in crate::call::settings::TONE_MODES {
+                for mode in ["off", "sample", "live"] {
                     if ui
                         .selectable_label(
                             selected == mode,

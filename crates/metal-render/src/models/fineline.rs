@@ -31,6 +31,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::f32::consts::{PI, TAU};
+use glam::{Mat3, Vec2, Vec3};
 use std::sync::{mpsc, Arc};
 
 use wgpu::util::DeviceExt;

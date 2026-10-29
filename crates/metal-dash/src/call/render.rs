@@ -218,7 +218,7 @@ pub(crate) fn set_deferring(on: bool) {
 }
 
 /// Takes what a deferred handler parked, if anything.
-fn take_pending() -> Option<(Codec, Vec<u8>, u32, u32)> {
+pub(crate) fn take_pending() -> Option<(Codec, Vec<u8>, u32, u32)> {
     PENDING.with(|p| p.borrow_mut().take())
 }
 

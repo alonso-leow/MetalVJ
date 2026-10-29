@@ -33,6 +33,67 @@ pub mod live;
 
 pub use reducer::Reducer;
 
+use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
+
+/// How the live tone path listens (the `tone_mode` setting).
+///
+/// `Sample` is the default because the constant ~2 s-window inference of `Live`
+/// held ~20% of a core (measured 2026-10-29): harmony is a mood, so one look
+/// every few seconds is enough for most shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+    /// No inference thread; the columns are the no-model zeros.
+    Off,
+    /// One inference per `tone_sample_s`, latched until the next.
+    Sample,
+    /// Continuous, one inference per hop of the live worker.
+    Live,
+}
+
+impl Mode {
+    pub const ALL: [Mode; 3] = [Mode::Off, Mode::Sample, Mode::Live];
+
+    pub fn wire(self) -> &'static str {
+        match self {
+            Mode::Off => "off",
+            Mode::Sample => "sample",
+            Mode::Live => "live",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Mode> {
+        Mode::ALL.into_iter().find(|m| m.wire() == s)
+    }
+}
+
+/// Default seconds between samples in [`Mode::Sample`].
+pub const DEFAULT_SAMPLE_S: f32 = 4.0;
+
+// The process-wide setting, written by the settings route and polled by the
+// capture worker, which owns the `Tone` (so no handle has to cross threads).
+static MODE: AtomicU8 = AtomicU8::new(1);
+static SAMPLE_MS: AtomicU32 = AtomicU32::new(4_000);
+
+/// Set the process-wide tone mode; the capture worker applies it on its next pass.
+pub fn set_global_mode(mode: Mode) {
+    MODE.store(mode as u8, Ordering::Relaxed);
+}
+
+/// The process-wide tone mode (`Sample` until set).
+pub fn global_mode() -> Mode {
+    Mode::ALL[(MODE.load(Ordering::Relaxed) as usize).min(2)]
+}
+
+/// Set the process-wide seconds between samples.
+pub fn set_global_sample_s(s: f32) {
+    SAMPLE_MS.store((s.max(0.0) * 1000.0) as u32, Ordering::Relaxed);
+}
+
+/// The process-wide seconds between samples.
+pub fn global_sample_s() -> f32 {
+    SAMPLE_MS.load(Ordering::Relaxed) as f32 / 1000.0
+}
+
 /// The six column names, in order — declared once in [`metal_schema`]. Indices
 /// 0..6 of a tone block, and `MUSIC + VOICE..` of a digest row.
 pub const COLUMNS: [&str; metal_schema::TONE] = metal_schema::TONE_COLUMNS;
@@ -59,6 +120,8 @@ pub struct Tone {
     /// Where the model was expected to live, kept so [`Tone::reduce_offline`]
     /// can open its own session without sharing the worker's.
     model_path: Option<std::path::PathBuf>,
+    mode: Mode,
+    sample_s: f32,
 }
 
 #[cfg(feature = "tone")]
@@ -70,12 +133,53 @@ impl Tone {
     /// Tone runs in "no model" mode: all-zero columns, conf 0, so colour falls
     /// back to chroma (D8).
     pub fn new(model_path: Option<&std::path::Path>) -> Tone {
-        let runner = model_path.and_then(live::Runner::start);
+        Tone::with_mode(model_path, Mode::Live, DEFAULT_SAMPLE_S)
+    }
+
+    /// [`Tone::new`] in a given mode. `Off` loads nothing and spawns nothing.
+    pub fn with_mode(model_path: Option<&std::path::Path>, mode: Mode, sample_s: f32) -> Tone {
+        let runner = if mode == Mode::Off { None } else { model_path.and_then(live::Runner::start) };
+        if let Some(r) = &runner {
+            r.configure(mode, sample_s);
+        }
         Tone {
+            mode,
+            sample_s,
             reducer: Reducer::new(),
             runner,
             cols: [0.0; metal_schema::TONE],
             model_path: model_path.map(|p| p.to_path_buf()),
+        }
+    }
+
+    /// Change mode live. `Off` drops the runner (its worker exits on its own
+    /// once the channel closes, so this never waits on an inference); leaving
+    /// `Off` loads the model again on the calling thread.
+    pub fn set_mode(&mut self, mode: Mode, sample_s: f32) {
+        if mode == self.mode && sample_s == self.sample_s {
+            return;
+        }
+        if mode == Mode::Off {
+            self.runner = None;
+        } else {
+            if self.runner.is_none() {
+                self.runner = self.model_path.as_deref().and_then(live::Runner::start);
+            }
+            if let Some(r) = &self.runner {
+                r.configure(mode, sample_s);
+            }
+        }
+        self.mode = mode;
+        self.sample_s = sample_s;
+    }
+
+    /// Tell the runner whether any on-air consumer reads tone; false stops all
+    /// inference. TODO: the capture worker passes `true` always, as there is no
+    /// cheap "does an on-air graph bind a tone column" query yet (bindings
+    /// resolve by name deep in metal-graph).
+    pub fn set_wanted(&self, wanted: bool) {
+        if let Some(r) = &self.runner {
+            r.set_wanted(wanted);
         }
     }
 

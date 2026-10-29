@@ -26,6 +26,16 @@
 //! silence is exact: the window is all silence either way, so the first window
 //! after sound returns has the same contents as before.
 //!
+//! # Sample mode: look now and then, not constantly
+//!
+//! Measured 2026-10-29, even [`LIVE_HOP`] holds ~20% of a core. In
+//! [`Mode::Sample`] the worker infers once per period (`tone_sample_s`, 4 s by
+//! default): a [`SampleGate`] lets only the last window's worth of each period
+//! reach the channel, the worker runs ONE inference over it, latches the result
+//! (it holds until the next sample) and sleeps in `recv` again. Between samples
+//! [`Runner::push`] drops the audio before it is even copied. [`Mode::Off`]
+//! starts no runner at all (see [`crate::tone::Tone::set_mode`]).
+//!
 //! # No model, no thread
 //!
 //! [`Runner::start`] returns `None` when the path is missing or will not load,
@@ -34,13 +44,14 @@
 use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use web_time::Instant;
 
 use crate::tone::basic_pitch::{self, AUDIO_N_SAMPLES, FFT_HOP};
 use crate::tone::reducer::Reducer;
+use crate::tone::Mode;
 
 /// Samples between inferences: ~93 ms at 22 050 Hz. See the module doc.
 pub const HOP: usize = 2_048;
@@ -89,6 +100,38 @@ impl IdleGate {
     }
 }
 
+/// Decides which samples of the stream a `sample`-mode worker gets: the last
+/// `window` samples of every `period`, nothing in between. Pure counting, no
+/// clock, so the cadence is testable without real time.
+struct SampleGate {
+    period: usize,
+    window: usize,
+    /// Position inside the current period.
+    pos: usize,
+}
+
+impl SampleGate {
+    /// A period shorter than one window would have no gap, so it is raised to
+    /// the window. The first window opens at once, so the first sample lands
+    /// one window after start instead of one period.
+    fn new(period: usize, window: usize) -> SampleGate {
+        let period = period.max(window).max(1);
+        SampleGate { period, window, pos: period - window }
+    }
+
+    /// Account for a block of `len` samples; returns the sub-range of it to
+    /// forward (empty while between samples). A block longer than the gap
+    /// forwards only the window that ends inside it first; blocks are a few
+    /// hundred ms, far under the gap.
+    fn admit(&mut self, len: usize) -> std::ops::Range<usize> {
+        let open = self.period - self.window;
+        let lo = open.saturating_sub(self.pos).min(len);
+        let hi = (self.period - self.pos).min(len);
+        self.pos = (self.pos + len) % self.period;
+        lo..hi.max(lo)
+    }
+}
+
 /// What the worker publishes and the digester reads.
 struct Latch {
     cols: [f32; metal_schema::TONE],
@@ -104,6 +147,13 @@ struct Shared {
     /// True while the worker has seen a full window of silence. Read by
     /// [`Runner::push`] so silent blocks never reach the worker in that state.
     idle: AtomicBool,
+    /// True in [`Mode::Live`], false in [`Mode::Sample`]; read by the worker.
+    live: AtomicBool,
+    /// False when no on-air consumer reads tone: [`Runner::push`] then drops
+    /// everything, so the worker sleeps. See `Tone::set_wanted`.
+    wanted: AtomicBool,
+    /// Samples per sample-mode period; a change rebuilds the gate in `push`.
+    period: AtomicUsize,
 }
 
 /// The inference thread and the handles to talk to it.
@@ -111,6 +161,8 @@ pub struct Runner {
     tx: Sender<Vec<f32>>,
     shared: Arc<Shared>,
     handle: Option<JoinHandle<()>>,
+    /// Sample-mode admission, behind a lock because `push` takes `&self`.
+    sampler: Mutex<SampleGate>,
 }
 
 impl Runner {
@@ -119,13 +171,33 @@ impl Runner {
     pub fn start(model_path: &Path) -> Option<Runner> {
         let model = metal_ml::Model::load_light(model_path).ok()?;
         let (tx, rx) = channel::<Vec<f32>>();
-        let shared = Arc::new(Shared { latch: Mutex::new(None), idle: AtomicBool::new(false) });
+        let shared = Arc::new(Shared {
+            latch: Mutex::new(None),
+            idle: AtomicBool::new(false),
+            live: AtomicBool::new(false),
+            wanted: AtomicBool::new(true),
+            period: AtomicUsize::new(AUDIO_N_SAMPLES),
+        });
         let worker_shared = Arc::clone(&shared);
         let handle = std::thread::Builder::new()
             .name("tone-infer".into())
             .spawn(move || worker(model, rx, worker_shared))
             .ok()?;
-        Some(Runner { tx, shared, handle: Some(handle) })
+        let sampler = Mutex::new(SampleGate::new(AUDIO_N_SAMPLES, AUDIO_N_SAMPLES));
+        Some(Runner { tx, shared, handle: Some(handle), sampler })
+    }
+
+    /// Switch between `Sample` and `Live` (`Off` is [`crate::tone::Tone`]'s
+    /// job: it drops the runner) and set the sample period.
+    pub fn configure(&self, mode: Mode, sample_s: f32) {
+        self.shared.live.store(mode == Mode::Live, Ordering::Relaxed);
+        let period = (sample_s.max(0.0) * crate::SR as f32) as usize;
+        self.shared.period.store(period.max(AUDIO_N_SAMPLES), Ordering::Relaxed);
+    }
+
+    /// Whether any consumer reads tone; false makes [`Runner::push`] drop all.
+    pub fn set_wanted(&self, wanted: bool) {
+        self.shared.wanted.store(wanted, Ordering::Relaxed);
     }
 
     /// Append samples to the shared ring buffer and wake the worker.
@@ -134,6 +206,24 @@ impl Runner {
     /// A dropped worker (channel closed) is ignored rather than panicking — the
     /// digester keeps running.
     pub fn push(&self, samples: &[f32]) {
+        if !self.shared.wanted.load(Ordering::Relaxed) {
+            return;
+        }
+        let samples = if self.shared.live.load(Ordering::Relaxed) {
+            samples
+        } else {
+            // Sample mode: only the sampled window's worth goes on.
+            let Ok(mut gate) = self.sampler.lock() else { return };
+            let period = self.shared.period.load(Ordering::Relaxed);
+            if gate.period != period.max(gate.window) {
+                *gate = SampleGate::new(period, AUDIO_N_SAMPLES);
+            }
+            let range = gate.admit(samples.len());
+            &samples[range]
+        };
+        if samples.is_empty() {
+            return;
+        }
         // While idle the worker's window is already all silence, so a silent
         // block would change nothing; skip the send and let the worker sleep.
         if self.shared.idle.load(Ordering::Relaxed) && is_silent(samples) {
@@ -218,7 +308,8 @@ fn worker(model: metal_ml::Model, rx: Receiver<Vec<f32>>, shared: Arc<Shared>) {
             fresh = 0;
             continue;
         }
-        if ring.len() < AUDIO_N_SAMPLES || fresh < LIVE_HOP {
+        let live = shared.live.load(Ordering::Relaxed);
+        if ring.len() < AUDIO_N_SAMPLES || fresh < if live { LIVE_HOP } else { AUDIO_N_SAMPLES } {
             continue;
         }
         fresh = 0;
@@ -230,7 +321,14 @@ fn worker(model: metal_ml::Model, rx: Receiver<Vec<f32>>, shared: Arc<Shared>) {
             // the last real value and conf decays. Nothing is fabricated.
             continue;
         };
-        let newest = basic_pitch::newest(&frames, frames_per_hop);
+        // Live advances the reducer by the hop's new frames; a sample is a
+        // whole fresh window, so it starts the reducer over and feeds all of it.
+        let newest = if live {
+            basic_pitch::newest(&frames, frames_per_hop)
+        } else {
+            reducer.reset();
+            basic_pitch::newest(&frames, usize::MAX)
+        };
         for i in 0..newest.note.len() {
             reducer.push_frame(&newest.note[i], &newest.onset[i], 1.0 / basic_pitch::FPS);
         }
@@ -272,6 +370,42 @@ mod tests {
         assert!(!is_silent(&[0.0, 0.0, 0.01, 0.0]));
         let hiss: Vec<f32> = (0..512).map(|i| if i % 2 == 0 { 3e-4 } else { -3e-4 }).collect();
         assert!(is_silent(&hiss), "a -70 dBFS noise floor is silence");
+    }
+
+    #[test]
+    fn sample_mode_forwards_one_window_per_period() {
+        let period = AUDIO_N_SAMPLES * 2;
+        let mut gate = SampleGate::new(period, AUDIO_N_SAMPLES);
+        // Blocks of 4 divide both the window and the period exactly.
+        let mut forwarded = Vec::new();
+        for _ in 0..(period * 3 / 4) {
+            forwarded.push(gate.admit(4).len());
+        }
+        let first_period: usize = forwarded[..period / 4].iter().sum();
+        let total: usize = forwarded.iter().sum();
+        assert_eq!(first_period, AUDIO_N_SAMPLES, "one window in the first period");
+        assert_eq!(total, 3 * AUDIO_N_SAMPLES, "one window per period, nothing between");
+        // The first window opens at once; the gap follows it.
+        let mut gate = SampleGate::new(period, AUDIO_N_SAMPLES);
+        assert_eq!(gate.admit(4), 0..4);
+        let mut gate = SampleGate::new(period, AUDIO_N_SAMPLES);
+        gate.admit(AUDIO_N_SAMPLES);
+        assert!(gate.admit(4).is_empty(), "dropped between samples");
+    }
+
+    #[test]
+    fn a_period_shorter_than_a_window_is_raised_to_one() {
+        let mut gate = SampleGate::new(10, AUDIO_N_SAMPLES);
+        assert_eq!(gate.admit(AUDIO_N_SAMPLES), 0..AUDIO_N_SAMPLES);
+    }
+
+    #[test]
+    fn off_runs_no_inference_and_reads_zero() {
+        let path = Path::new("data/models/basic-pitch/does-not-exist.onnx");
+        let mut tone = crate::tone::Tone::with_mode(Some(path), Mode::Off, 4.0);
+        tone.push(&vec![0.5f32; AUDIO_N_SAMPLES]);
+        assert!(!tone.loaded(), "off must not start the worker");
+        assert_eq!(tone.columns(), [0.0; metal_schema::TONE]);
     }
 
     #[test]

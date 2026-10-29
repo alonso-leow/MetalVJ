@@ -408,7 +408,21 @@ impl Digester {
     /// fallback.
     #[cfg(feature = "tone")]
     pub fn attach_tone(&mut self, model_path: Option<&std::path::Path>) {
-        self.tone = Some(tone::Tone::new(model_path));
+        self.tone = Some(tone::Tone::with_mode(
+            model_path,
+            tone::global_mode(),
+            tone::global_sample_s(),
+        ));
+    }
+
+    /// Apply the process-wide tone mode to the attached Tone (cheap no-op when
+    /// unchanged), so a settings change needs no restart.
+    #[cfg(feature = "tone")]
+    pub fn sync_tone_mode(&mut self) {
+        if let Some(t) = self.tone.as_mut() {
+            t.set_mode(tone::global_mode(), tone::global_sample_s());
+            t.set_wanted(true);
+        }
     }
 
     /// The tone path, once attached.

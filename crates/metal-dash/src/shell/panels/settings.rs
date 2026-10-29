@@ -153,6 +153,8 @@ pub struct PanelState {
     fps_cap: u32,
     /// The global UI scale percentage as last answered; 100 until the door has.
     ui_scale: u32,
+    /// The `tone_mode` setting as last answered (`off`/`sample`/`live`).
+    tone_mode: String,
     /// The `ingest_proxy` setting as last answered — whether a dropped clip
     /// builds its HAP proxy automatically; on until the door has.
     ingest_proxy: bool,
@@ -211,6 +213,7 @@ impl Default for PanelState {
             export_dir: String::new(),
             fps_cap: crate::frame_cap::DEFAULT_FPS_CAP,
             ui_scale: crate::ui_scale::DEFAULT,
+            tone_mode: "sample".to_string(),
             ingest_proxy: true,
             theme_name: String::new(),
             theme_colors: Vec::new(),
@@ -295,6 +298,9 @@ impl PanelState {
             if let Some(n) = reply["fps_cap"].as_u64() {
                 self.fps_cap = n as u32;
                 crate::frame_cap::set(n as u32);
+            }
+            if let Some(m) = reply["tone_mode"].as_str() {
+                self.tone_mode = m.to_string();
             }
             if let Some(dir) = reply["export_dir"].as_str() {
                 self.export_dir = dir.to_string();
@@ -689,6 +695,47 @@ fn section_performance(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut 
                 }
             });
     });
+    // How the harmony (tone) model listens; applied live by the route.
+    ui.horizontal_wrapped(|ui| {
+        ui.label(
+            RichText::new(tr("tone analysis"))
+                .font(theme.font_small.clone())
+                .color(theme.ink_weak),
+        );
+        let selected = state.tone_mode.clone();
+        crate::shell::components::combo_box(theme, Id::new("shell/panel/ajustes/tone-mode"))
+            .selected_text(tr_tone_mode(&selected))
+            .show_ui(ui, |ui| {
+                for mode in crate::call::settings::TONE_MODES {
+                    if ui
+                        .selectable_label(
+                            selected == mode,
+                            RichText::new(tr_tone_mode(mode)).font(theme.font_small.clone()),
+                        )
+                        .clicked()
+                        && selected != mode
+                    {
+                        if let Ok(reply) =
+                            door.json("POST", "/settings", Some(json!({ "tone_mode": mode })))
+                        {
+                            if let Some(m) = reply["tone_mode"].as_str() {
+                                state.tone_mode = m.to_string();
+                            }
+                        }
+                    }
+                }
+            });
+    });
+}
+
+/// The dropdown label of a tone mode. Literal `tr` calls so the locale test
+/// sees every key.
+fn tr_tone_mode(mode: &str) -> String {
+    match mode {
+        "off" => tr("off").to_string(),
+        "live" => tr("live (continuous)").to_string(),
+        _ => tr("sample (every few seconds)").to_string(),
+    }
 }
 
 /// P-G: the folder "Export frame" writes into — a text field saved on

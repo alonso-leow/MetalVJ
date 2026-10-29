@@ -38,6 +38,9 @@
 
 "performance" = "rendimiento"
 "frame rate cap" = "límite de fotogramas"
+"tone analysis" = "análisis de tono"
+"live (continuous)" = "en vivo (continuo)"
+"sample (every few seconds)" = "muestreo (cada pocos segundos)"
 
 # D1: the Fixtures section — the active venue's fixtures, the single place to
 # list and map devices (`POST /venue {op:"fixture"}`). Headers/most buttons

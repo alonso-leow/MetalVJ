@@ -1674,7 +1674,7 @@ mod tests {
 
     fn frame_at(gpu: &crate::gpu::Gpu, model: &mut Paisaje, floats: &[f32], time: f32, w: u32, h: u32) -> Vec<u8> {
         let (tex, view) = crate::gpu::offscreen_target(&gpu.device, w, h, FORMAT);
-        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time, width: w, height: h, fondo_alpha: false };
+        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time, width: w, height: h, fondo_alpha: false, detail: 1.0 };
         model.render(&ctx, floats, &view, FORMAT);
         crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, w, h)
     }
@@ -1920,7 +1920,7 @@ mod tests {
         let mut f = base();
         f[off(B_LOOK) + 3] = 0.0; // fondo_nivel
         let (tex, view) = crate::gpu::offscreen_target(&gpu.device, W, H, FORMAT);
-        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: 0.4, width: W, height: H, fondo_alpha: true };
+        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: 0.4, width: W, height: H, fondo_alpha: true, detail: 1.0 };
         Paisaje::new().render(&ctx, &f, &view, FORMAT);
         let px = crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, W, H);
         assert!(px.chunks_exact(4).any(|p| p[3] == 0), "some of the frame should be see-through");

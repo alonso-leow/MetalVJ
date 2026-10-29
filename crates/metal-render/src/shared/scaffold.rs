@@ -116,6 +116,9 @@ macro_rules! scaffold_model {
             fn schema(&self) -> &'static $crate::model::Schema {
                 self.0.def.schema
             }
+            fn render_scale(&self) -> f32 {
+                self.0.def.render_scale
+            }
             fn surfaces(&self) -> &'static [&'static str] {
                 self.0.def.surfaces
             }
@@ -148,6 +151,9 @@ pub struct ScaffoldDef {
     pub wgsl: &'static str,
     /// Optional source-picture parts (0 or 1 entry); see the module doc.
     pub surfaces: &'static [&'static str],
+    /// The model's [`Model::render_scale`]; `1.0` unless set with
+    /// [`ScaffoldDef::with_render_scale`].
+    pub render_scale: f32,
     src: OnceLock<String>,
 }
 
@@ -160,7 +166,25 @@ impl ScaffoldDef {
         slots: usize,
         wgsl: &'static str,
     ) -> ScaffoldDef {
-        ScaffoldDef { id, name, schema, own, slots, wgsl, surfaces: &[], src: OnceLock::new() }
+        ScaffoldDef {
+            id,
+            name,
+            schema,
+            own,
+            slots,
+            wgsl,
+            surfaces: &[],
+            render_scale: 1.0,
+            src: OnceLock::new(),
+        }
+    }
+
+    /// Renders this model at `scale` of the output's linear size (see
+    /// [`Model::render_scale`]). For the heavy fields that cost a fragment per
+    /// particle or step.
+    pub const fn with_render_scale(mut self, scale: f32) -> ScaffoldDef {
+        self.render_scale = scale;
+        self
     }
 
     /// As [`ScaffoldDef::new`] for an image-input shader: `surfaces` names the
@@ -174,7 +198,17 @@ impl ScaffoldDef {
         wgsl: &'static str,
         surfaces: &'static [&'static str],
     ) -> ScaffoldDef {
-        ScaffoldDef { id, name, schema, own, slots, wgsl, surfaces, src: OnceLock::new() }
+        ScaffoldDef {
+            id,
+            name,
+            schema,
+            own,
+            slots,
+            wgsl,
+            surfaces,
+            render_scale: 1.0,
+            src: OnceLock::new(),
+        }
     }
 
     /// Block index of the layout positions, so nothing hand-counts.
@@ -273,7 +307,7 @@ impl Scaffold {
             a: [ctx.aspect(), ctx.time, if ctx.fondo_alpha { 1.0 } else { 0.0 }, src_aspect],
             cam: [cam.zoom, cam.pan_x, cam.pan_y, cam.turn],
             b: [cam.drift, lk.shine, lk.contrast, lk.opacity],
-            c: [lk.background_level, lk.tone, lk.saturation, 0.0],
+            c: [lk.background_level, lk.tone, lk.saturation, ctx.detail],
             tw: [tw.warp_amount, tw.warp_freq, tw.mirror, tw.pulse],
             own,
         };
@@ -308,7 +342,7 @@ pub mod testing {
                 time: t,
                 width: W,
                 height: H,
-                fondo_alpha: false,
+                fondo_alpha: false, detail: 1.0,
             };
             m.render(&ctx, floats, &view, FORMAT);
             out = crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, W, H);
@@ -432,7 +466,7 @@ pub mod testing {
                 time: i as f32 * 0.05,
                 width: 1280,
                 height: 720,
-                fondo_alpha: false,
+                fondo_alpha: false, detail: 1.0,
             };
             m.render(&ctx, &f, &view, FORMAT);
             let _ = crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, 1280, 720);

@@ -43,7 +43,8 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let t = p_time();
     let aspect = p_aspect();
     let sed = f_seed();
-    let count = floor(mix(20.0, 120.0, clamp(f_density() / 100.0, 0.0, 1.0)));
+    // Authored count, scaled down for small tiles (p_detail: 0.25..1.0).
+    let count = floor(mix(20.0, 120.0, clamp(f_density() / 100.0, 0.0, 1.0)) * p_detail());
     let bands = max(floor(f_bands() + 0.5), 1.0);
     let rot = f_rotation() * TAU;
     let ell = 1.0 - clamp(f_orbit_ellipse(), 0.0, 1.0) * 0.6;

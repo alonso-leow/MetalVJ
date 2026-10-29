@@ -367,7 +367,7 @@ mod tests {
 
     fn frame_at(gpu: &crate::gpu::Gpu, model: &mut Objeto, floats: &[f32], time: f32, w: u32, h: u32) -> Vec<u8> {
         let (tex, view) = crate::gpu::offscreen_target(&gpu.device, w, h, FORMAT);
-        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time, width: w, height: h, fondo_alpha: false };
+        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time, width: w, height: h, fondo_alpha: false, detail: 1.0 };
         model.render(&ctx, floats, &view, FORMAT);
         crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, w, h)
     }
@@ -563,7 +563,7 @@ mod tests {
                 time: 1.0,
                 width: w,
                 height: h,
-                fondo_alpha: false,
+                fondo_alpha: false, detail: 1.0,
             };
             model.render(&ctx, &floats, &view, FORMAT);
             crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &texture, w, h)
@@ -652,7 +652,7 @@ mod tests {
         let mut m = Objeto::new();
         let mut run = |n: u32| {
             for i in 0..n {
-                let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: i as f32 * 0.016, width: w, height: h, fondo_alpha: false };
+                let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: i as f32 * 0.016, width: w, height: h, fondo_alpha: false, detail: 1.0 };
                 m.render(&ctx, &f, &view, FORMAT);
             }
             let _ = gpu.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });

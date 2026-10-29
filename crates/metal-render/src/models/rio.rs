@@ -915,7 +915,7 @@ mod tests {
             time: 3.0,
             width: w,
             height: h,
-            fondo_alpha: false,
+            fondo_alpha: false, detail: 1.0,
         };
         let draw = |model: &mut Rio| {
             model.render(&ctx, &floats, &view, FORMAT);
@@ -962,7 +962,7 @@ mod tests {
             time: 3.0,
             width: w,
             height: h,
-            fondo_alpha: false,
+            fondo_alpha: false, detail: 1.0,
         };
         let draw = |model: &mut Rio, floats: &[f32]| {
             model.render(&ctx, floats, &view, FORMAT);

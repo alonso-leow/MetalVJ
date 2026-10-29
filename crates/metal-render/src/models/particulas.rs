@@ -789,7 +789,7 @@ mod tests {
 
     fn frame_at(gpu: &crate::gpu::Gpu, m: &mut Particulas, floats: &[f32], time: f32, w: u32, h: u32) -> Vec<u8> {
         let (tex, view) = crate::gpu::offscreen_target(&gpu.device, w, h, FORMAT);
-        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time, width: w, height: h, fondo_alpha: false };
+        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time, width: w, height: h, fondo_alpha: false, detail: 1.0 };
         m.render(&ctx, floats, &view, FORMAT);
         crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, w, h)
     }
@@ -1112,7 +1112,7 @@ mod tests {
             f[F_N] = n_part;
             let mut run = |n: u32, t0: f32| {
                 for i in 0..n {
-                    let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t0 + i as f32 * 0.016, width: w, height: h, fondo_alpha: false };
+                    let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t0 + i as f32 * 0.016, width: w, height: h, fondo_alpha: false, detail: 1.0 };
                     m.render(&ctx, &f, &view, FORMAT);
                 }
                 let _ = gpu.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });

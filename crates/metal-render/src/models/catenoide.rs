@@ -301,7 +301,7 @@ mod tests {
 
     fn frame_at(gpu: &crate::gpu::Gpu, model: &mut Catenoide, floats: &[f32], time: f32, w: u32, h: u32) -> Vec<u8> {
         let (tex, view) = crate::gpu::offscreen_target(&gpu.device, w, h, FORMAT);
-        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time, width: w, height: h, fondo_alpha: false };
+        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time, width: w, height: h, fondo_alpha: false, detail: 1.0 };
         model.render(&ctx, floats, &view, FORMAT);
         crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, w, h)
     }

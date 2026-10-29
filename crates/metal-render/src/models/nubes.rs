@@ -677,7 +677,7 @@ mod tests {
         let (tex, view) = crate::gpu::offscreen_target(&gpu.device, W, W, FORMAT);
         let mut out = vec![];
         for &(t, floats) in frames {
-            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: W, height: W, fondo_alpha: false };
+            let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: t, width: W, height: W, fondo_alpha: false, detail: 1.0 };
             model.render(&ctx, floats, &view, FORMAT);
             out = crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, W, W);
         }
@@ -941,7 +941,7 @@ mod tests {
     fn the_shader_matches_the_cpu_reference() {
         let gpu = crate::gpu::Gpu::new_headless();
         let p = params(64, 64);
-        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: 0.0, width: 64, height: 64, fondo_alpha: false };
+        let ctx = Ctx { device: &gpu.device, queue: &gpu.queue, time: 0.0, width: 64, height: 64, fondo_alpha: false, detail: 1.0 };
         let mut pass = Fullscreen::with_textures("nubes step test", include_str!("../../shaders/nubes_step.wgsl"), 1);
         let mut grid = PingPong::new(&gpu.device, p.w, p.h);
         grid.step(&ctx, &mut pass, &StepUniform::new(&p, true, [0.0; 4]));
@@ -983,7 +983,7 @@ mod tests {
                         time: k as f32 * 0.1,
                         width: W,
                         height: W,
-                        fondo_alpha: false,
+                        fondo_alpha: false, detail: 1.0,
                     };
                     m.render(&ctx, &row, &view, fmt);
                 }

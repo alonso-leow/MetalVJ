@@ -28,7 +28,7 @@ struct ScaffoldU {
     cam: vec4<f32>,
     // deriva, brillo, contraste, opacidad
     b: vec4<f32>,
-    // fondo_nivel, tono, saturacion, 0
+    // fondo_nivel, tono, saturacion, detalle (see p_detail)
     c: vec4<f32>,
     // warp_cant, warp_freq, espejo, pulso
     tw: vec4<f32>,
@@ -43,6 +43,9 @@ const TAU: f32 = 6.28318531;
 
 fn p_time() -> f32 { return P.a.y; }
 fn p_aspect() -> f32 { return max(P.a.x, 0.01); }
+// How much of the authored counts this frame affords: 0.25..1.0, the tile's
+// pixels over 1920x1080 (`Ctx::detail`). Scale particle/step counts by it.
+fn p_detail() -> f32 { return P.c.w; }
 
 fn p_rot(p: vec2<f32>, a: f32) -> vec2<f32> {
     let c = cos(a); let s = sin(a);

@@ -166,7 +166,9 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 
     // Attractors: a ring of drifting wells that compress the field and mark the
     // spots where the chromatic fringe lives.
-    let natt = i32(round(clamp(f_attractors(), 0.0, 8.0)));
+    let natt_a = i32(round(clamp(f_attractors(), 0.0, 8.0)));
+    // Attractors scale with p_detail, never below a quarter (and 0 stays 0).
+    let natt = min(natt_a, i32(ceil(f32(natt_a) * p_detail())));
     let ar = clamp(f_attractor_radius(), 0.02, 0.6);
     let grav = clamp(f_gravity() / 100.0, 0.0, 1.0);
     var pull = vec2<f32>(0.0);

@@ -130,7 +130,7 @@ fn hl_point(
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let t = p_time();
     let system = i32(clamp(floor(f_system() + 0.5), 0.0, 3.0));
-    let n = clamp(floor(f_repetitions() + 0.5), 2.0, 32.0);
+    let n = max(2.0, ceil(clamp(floor(f_repetitions() + 0.5), 2.0, 32.0) * p_detail()));
     let radius = 0.25;
     let tension = clamp(f_curve_tension() / 400.0, 0.0, 1.0);
     let phase_offset = f_phase_offset() * PI / 180.0;

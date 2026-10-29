@@ -21,6 +21,7 @@ use crate::shared::trail::{EstelaRings, TrailChain, Trails};
 use crate::shared::ColorSlotGpu;
 use metal_ingest::export::{self as ingest_export, EncodeSettings, Encoder, FrameSource};
 use metal_schema::{EffectStep, CHAIN_KIND_ESTELA};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
@@ -28,6 +29,30 @@ use std::time::Instant;
 /// the pipelines do not depend on the size, and the readback is what is left.
 const WARM_W: u32 = 64;
 const WARM_H: u32 = 36;
+
+/// The pixel count a tile is judged against when it asks for less work (1080p).
+const DETAIL_REFERENCE_PIXELS: f32 = 1920.0 * 1080.0;
+/// The floor on `Ctx::detail`: a tile never gets less than a quarter of the authored counts.
+const MIN_DETAIL: f32 = 0.25;
+/// The floor on a model's render scale once the global quality is applied.
+const MIN_RENDER_SCALE: f32 = 0.1;
+/// Scratch sizes kept alive at once. Models at different scales alternate in a
+/// grid, so one slot would reallocate every tile; a handful covers any mix.
+const SCRATCH_CACHE_MAX: usize = 8;
+
+/// The overscanned size a `w x h` tile is drawn at when its model runs at
+/// `scale` of the output's linear size. `scale` of `1.0` is the authored size.
+pub fn scratch_size(w: u32, h: u32, scale: f32) -> (u32, u32) {
+    let ow = ((w as f32) * OVERSCAN * scale) as u32;
+    let oh = ((h as f32) * OVERSCAN * scale) as u32;
+    (ow.max(1), oh.max(1))
+}
+
+/// `Ctx::detail` for a `w x h` tile: its pixel count over 1920x1080, clamped to
+/// `MIN_DETAIL..=1.0`, so a tile at 1080p or above keeps the authored counts.
+pub fn detail_factor(w: u32, h: u32) -> f32 {
+    ((w as f32) * (h as f32) / DETAIL_REFERENCE_PIXELS).clamp(MIN_DETAIL, 1.0)
+}
 
 /// 8-bit sRGB, unlike the window's `Rgba16Float`: this path ends in a JPEG,
 /// so the sRGB encode the hardware does on write is exactly the conversion
@@ -45,9 +70,12 @@ pub struct Renderer {
     post: PostChain,
     trail: TrailChain,
     models: Vec<Box<dyn Model>>,
-    /// The overscanned texture each model draws into before the post chain
-    /// crops it down. Rebuilt only when the requested tile size changes.
-    scratch: Option<(wgpu::Texture, wgpu::TextureView, u32, u32)>,
+    /// The overscanned textures each model draws into before the post chain
+    /// crops it down, keyed by their size (a model's render scale sets it).
+    scratch: HashMap<(u32, u32), (wgpu::Texture, wgpu::TextureView)>,
+    /// The app's global render quality, `0.25..=1.0`, multiplied into every
+    /// model's own `render_scale`. See [`Renderer::set_quality`].
+    quality: f32,
     /// The composite the tiles are assembled into, then read back once.
     canvas: Option<(wgpu::Texture, wgpu::TextureView, u32, u32)>,
     /// One frame history **per model**, for ghosting. Per model rather than
@@ -99,7 +127,8 @@ impl Renderer {
             trail,
             models,
             warmed,
-            scratch: None,
+            scratch: HashMap::new(),
+            quality: 1.0,
             canvas: None,
             trails: Trails::default(),
             estela_rings: EstelaRings::default(),
@@ -234,15 +263,31 @@ impl Renderer {
         }
     }
 
-    fn scratch_for(&mut self, w: u32, h: u32) -> &wgpu::TextureView {
-        let ow = ((w as f32) * OVERSCAN) as u32;
-        let oh = ((h as f32) * OVERSCAN) as u32;
-        let stale = !matches!(&self.scratch, Some((_, _, sw, sh)) if *sw == ow && *sh == oh);
-        if stale {
-            let (t, v) = offscreen_target(&self.gpu.device, ow.max(1), oh.max(1), FORMAT);
-            self.scratch = Some((t, v, ow.max(1), oh.max(1)));
+    /// Global render quality: `1.0` is the authored look, lower renders every
+    /// model at a smaller scale and lets the post pass upscale it. Clamped to
+    /// `0.25..=1.0`; the app lowers it on weak GPUs.
+    pub fn set_quality(&mut self, quality: f32) {
+        let quality = if quality.is_finite() { quality } else { 1.0 };
+        self.quality = quality.clamp(0.25, 1.0);
+    }
+
+    /// The render scale model `index` draws at this frame: its own scale times
+    /// the global quality.
+    fn render_scale_for(&self, index: usize) -> f32 {
+        let model = self.models.get(index).map_or(1.0, |m| m.render_scale());
+        (model * self.quality).clamp(MIN_RENDER_SCALE, 1.0)
+    }
+
+    /// Makes sure a scratch texture of `size` exists. Dropping the whole cache
+    /// when it is full is the simple bound: the next tiles just reallocate.
+    fn scratch_for(&mut self, size: (u32, u32)) {
+        if !self.scratch.contains_key(&size) {
+            if self.scratch.len() >= SCRATCH_CACHE_MAX {
+                self.scratch.clear();
+            }
+            let (t, v) = offscreen_target(&self.gpu.device, size.0, size.1, FORMAT);
+            self.scratch.insert(size, (t, v));
         }
-        &self.scratch.as_ref().expect("just set").1
     }
 
     /// Ensures the composite exists at this size. Returns nothing on
@@ -266,10 +311,11 @@ impl Renderer {
         }
     }
 
-    /// Draws model `index` into `rect` of the canvas. The model always draws
-    /// at full tile size into the scratch texture first; the post chain is
-    /// what places it, so shake and the leaks land per tile instead of
-    /// smearing across the whole grid.
+    /// Draws model `index` into `rect` of the canvas. The model draws into the
+    /// scratch texture first, at its render scale of the tile (full tile size
+    /// unless the model or quality lowers it); the post chain is what places
+    /// it, so shake and the leaks land per tile instead of smearing across the
+    /// whole grid.
     ///
     /// The effect *amounts* are read out of `floats` itself — `read_post`,
     /// the mirror of every model's schema being widened by
@@ -338,25 +384,32 @@ impl Renderer {
         }
 
         let (_, _, w, h) = rect;
+        // The model draws at its render scale; the post pass samples the
+        // scratch in UV, so a smaller scratch is upscaled back to the tile.
+        let (ow, oh) = scratch_size(w, h, self.render_scale_for(index));
         // Split the borrow: `scratch_for` needs `&mut self`, everything after
         // it needs the view plus other fields at the same time.
-        self.scratch_for(w, h);
-        let Some((scratch_tex, scratch_view, ow, oh)) = &self.scratch else { return };
+        self.scratch_for((ow, oh));
+        let Some((scratch_tex, scratch_view)) = self.scratch.get(&(ow, oh)) else { return };
         let ctx = Ctx {
             device: &self.gpu.device,
             queue: &self.gpu.queue,
             time,
-            width: *ow,
-            height: *oh,
+            width: ow,
+            height: oh,
             fondo_alpha,
+            detail: detail_factor(w, h),
         };
         // The row's palette motion (`col_*`) moves its colour slots around the
         // slots' own values before the model reads them.
         let moved = metal_schema::apply_palette_motion(self.models[index].schema(), floats);
         let started = Instant::now();
         self.models[index].render(&ctx, moved.as_deref().unwrap_or(floats), scratch_view, FORMAT);
+        // A real draw builds the same pipelines a warm would: no need to warm it again.
+        if let Some(w) = self.warmed.get_mut(index) {
+            *w = true;
+        }
         self.last_model_cpu = started.elapsed();
-        let (ow, oh) = (*ow, *oh);
 
         // Ghosting sits **between** the model and the post chain, so the trail
         // is of the model's own frame: put it after, and a light leak smears
@@ -1248,5 +1301,30 @@ mod warm_tests {
         r.warm(0);
         assert!(r.is_warm(0));
         assert!(!r.is_warm(r.model_count()));
+    }
+}
+
+#[cfg(test)]
+mod scale_tests {
+    use super::*;
+
+    #[test]
+    fn scratch_size_is_the_overscan_at_full_scale() {
+        assert_eq!(scratch_size(1920, 1080, 1.0), (2035, 1144));
+    }
+
+    #[test]
+    fn scratch_size_shrinks_with_the_render_scale() {
+        assert_eq!(scratch_size(1920, 1080, 0.6), (1221, 686));
+        assert_eq!(scratch_size(0, 0, 0.1), (1, 1));
+    }
+
+    #[test]
+    fn detail_is_one_at_1080p_and_above_and_floored_below() {
+        assert_eq!(detail_factor(1920, 1080), 1.0);
+        assert_eq!(detail_factor(3840, 2160), 1.0);
+        assert_eq!(detail_factor(960, 540), 0.25);
+        assert_eq!(detail_factor(320, 180), 0.25);
+        assert!((detail_factor(1280, 720) - 4.0 / 9.0).abs() < 1e-5);
     }
 }

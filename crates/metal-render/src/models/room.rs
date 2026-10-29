@@ -673,7 +673,7 @@ mod tests {
             time: 3.0,
             width: w,
             height: h,
-            fondo_alpha: false,
+            fondo_alpha: false, detail: 1.0,
         };
         let draw = |model: &mut Room| {
             model.render(&ctx, &floats, &view, FORMAT);
@@ -720,7 +720,7 @@ mod tests {
             time: 3.0,
             width: w,
             height: h,
-            fondo_alpha: false,
+            fondo_alpha: false, detail: 1.0,
         };
         let draw = |model: &mut Room, floats: &[f32]| {
             model.render(&ctx, floats, &view, FORMAT);

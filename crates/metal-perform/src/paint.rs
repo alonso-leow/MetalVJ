@@ -278,6 +278,11 @@ pub trait Paint: PaintBound {
     fn names(&self) -> Vec<&'static str>;
     fn schemas(&self) -> Vec<&'static Schema>;
 
+    /// Global render quality, `0.25..=1.0` (`1.0` is the authored look). The GPU
+    /// painter lowers the render scale of every model with it; the CPU stand-in
+    /// has nothing to scale and ignores it.
+    fn set_quality(&mut self, _quality: f32) {}
+
     /// One model, at the size asked for. Returns RGBA8 plus its size.
     ///
     /// `background_alpha` is the source's `Layer::fondo_alpha` —
@@ -1525,6 +1530,9 @@ impl Paint for Gpu {
     }
     fn is_warm(&self, index: usize) -> bool {
         self.4 != crate::backend::Backend::Gpu || self.0.is_warm(index)
+    }
+    fn set_quality(&mut self, quality: f32) {
+        self.0.set_quality(quality);
     }
     fn gpu_cx(&mut self) -> Option<crate::gpu_compose::GpuCx> {
         (self.4 == crate::backend::Backend::Gpu).then(|| self.5.cx.clone())

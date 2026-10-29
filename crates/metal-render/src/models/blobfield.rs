@@ -52,7 +52,8 @@ pub static DEF: ScaffoldDef = ScaffoldDef::new(
     FLOATS,
     2,
     include_str!("../../shaders/blobfield.wgsl"),
-);
+)
+.with_render_scale(0.6);
 
 crate::scaffold_model!(Blobfield, DEF);
 

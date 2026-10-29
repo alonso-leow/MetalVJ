@@ -158,7 +158,7 @@ fn tr_point(s: f32, t: f32) -> vec2<f32> {
 
 // Core + wide halo for one trace age.
 fn tr_layer(p: vec2<f32>, t: f32) -> vec2<f32> {
-    let n = max(4.0, floor(48.0 / max(f_decimate(), 1.0)));
+    let n = max(4.0, ceil(floor(48.0 / max(f_decimate(), 1.0)) * p_detail()));
     let wid = max(f_beam_width() * (0.55 + 0.9 * f_softness()), 0.0012);
     let upper = wid * (1.15 + 2.4 * f_softness());
     var core = 0.0;

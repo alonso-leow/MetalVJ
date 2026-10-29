@@ -51,8 +51,10 @@ fn bf_lut(t: f32, shift: f32) -> vec3<f32> {
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let t = p_time();
     let aspect = p_aspect();
-    let cols = max(floor(f_columns() + 0.5), 1.0);
-    let rows = max(floor(f_rows() + 0.5), 1.0);
+    // Cells are a grid, so a linear pixel ratio is a square root per axis.
+    let axis = sqrt(p_detail());
+    let cols = max(ceil(max(floor(f_columns() + 0.5), 1.0) * axis), 1.0);
+    let rows = max(ceil(max(floor(f_rows() + 0.5), 1.0) * axis), 1.0);
     let cell_h = 1.0 / rows;
     let sym = f_symmetry();
     let base_r = f_blob_size() * cell_h * 0.5;

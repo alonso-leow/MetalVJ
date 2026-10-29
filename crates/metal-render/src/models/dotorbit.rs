@@ -49,7 +49,8 @@ pub static DEF: ScaffoldDef = ScaffoldDef::new(
     FLOATS,
     1,
     include_str!("../../shaders/dotorbit.wgsl"),
-);
+)
+.with_render_scale(0.6);
 
 crate::scaffold_model!(Dotorbit, DEF);
 

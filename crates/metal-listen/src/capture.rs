@@ -343,6 +343,10 @@ fn spawn_worker(shared: Arc<Shared>, rate: u32) -> std::thread::JoinHandle<()> {
 
             at_22050.clear();
             resampler.process(&captured, &mut at_22050);
+            // Follow the `tone_mode` setting live (and set_wanted(true): see
+            // its doc, no consumer query exists yet).
+            #[cfg(feature = "tone")]
+            digester.sync_tone_mode();
             digester.push(&at_22050);
             while let Some(row) = digester.pop() {
                 latest = row;

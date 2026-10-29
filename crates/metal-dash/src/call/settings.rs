@@ -22,10 +22,10 @@ use crate::call::{CallError, Ctx, Params};
 /// The keys this layer owns. A new key means a new preference that grew this
 /// slice (`O.16`'s naming/token sections, …) and added its own key *and* its
 /// own tests here — never a second file.
-const KEYS: [&str; 15] = [
+const KEYS: [&str; 17] = [
     "shell_mode", "language", "tick_level", "grid_spans", "grid_page", "grid_controllers",
     "shell_view", "colour_rule", "export_dir", "fps_cap", "file_tags", "ingest_proxy",
-    "ui_scale", "theme", "grid_surface",
+    "ui_scale", "theme", "grid_surface", "tone_mode", "tone_sample_s",
 ];
 
 pub use crate::frame_cap::{DEFAULT_FPS_CAP, FPS_CAPS};
@@ -54,6 +54,30 @@ pub fn ui_scale() -> u32 {
     crate::ui_scale::get()
 }
 
+/// Push the stored tone mode and sample period into `metal_listen`'s
+/// process-wide setting, which the capture worker polls — so the choice applies
+/// live and survives a restart (called from `GET /settings`, which the shell
+/// issues at start, and from every accepted POST).
+pub fn adopt_tone() {
+    adopt_tone_from(&load_at(path()));
+}
+
+fn adopt_tone_from(m: &Map<String, Value>) {
+    use metal_listen::tone::{set_global_mode, set_global_sample_s, Mode};
+    if let Some(mode) = m.get("tone_mode").and_then(Value::as_str).and_then(Mode::parse) {
+        set_global_mode(mode);
+    }
+    if let Some(s) = m.get("tone_sample_s").and_then(Value::as_f64) {
+        set_global_sample_s(s as f32);
+    }
+}
+
+/// The tone modes the dropdown offers (`metal_listen::tone::Mode`'s wire names).
+pub const TONE_MODES: [&str; 3] = ["off", "sample", "live"];
+
+/// Allowed seconds between `sample`-mode inferences.
+pub const TONE_SAMPLE_RANGE: std::ops::RangeInclusive<f64> = 1.0..=60.0;
+
 /// The two views the header toggles between (`Edit` builds, `Show` plays):
 /// spelled here so the route validates on every build, the same trade
 /// [`LANGUAGES`] makes. A test ties it to `shell::ShellView`.
@@ -69,6 +93,7 @@ pub const LANGUAGES: [&str; 2] = ["en", "es"];
 /// and a file that only carries keys it knows both answer the same default
 /// shape, so the panel never has three cases.
 pub fn get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+    adopt_tone();
     reply_at(&path()).map_err(CallError::Bad)
 }
 
@@ -79,7 +104,11 @@ pub fn post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let Some(body) = params.json() else {
         return Err(CallError::Bad("expected json".into()));
     };
-    post_at(&path(), &body).map_err(CallError::Bad)
+    let reply = post_at(&path(), &body).map_err(CallError::Bad)?;
+    if let Some(m) = reply.as_object() {
+        adopt_tone_from(m);
+    }
+    Ok(reply)
 }
 /// The `grid-page-next` (`+1`) and `grid-page-prev` (`-1`) trigger targets:
 /// steps the stored overlays page by `delta` and answers the new value. The
@@ -184,6 +213,10 @@ fn defaults() -> Map<String, Value> {
     // Whether a dropped clip builds its HAP proxy automatically; on by
     // default, so the editor shows a picture without a first preview.
     m.insert("ingest_proxy".into(), json!(true));
+    // How the tone (harmony) model listens: `off`, `sample` (one look every
+    // `tone_sample_s`) or `live` (continuous, ~20% of a core).
+    m.insert("tone_mode".into(), json!("sample"));
+    m.insert("tone_sample_s".into(), json!(metal_listen::tone::DEFAULT_SAMPLE_S));
     // The client's colour theme: a stored palette's name (`Palettes`), or ""
     // for the house phosphor look.
     m.insert("theme".into(), json!(""));
@@ -410,6 +443,22 @@ fn post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<Value, Str
         crate::frame_cap::set(n);
         changed = true;
     }
+    if let Some(v) = body.get("tone_mode") {
+        let s = v
+            .as_str()
+            .filter(|s| TONE_MODES.contains(s))
+            .ok_or_else(|| format!("tone_mode must be one of {TONE_MODES:?}, got {v}"))?;
+        next.insert("tone_mode".into(), json!(s));
+        changed = true;
+    }
+    if let Some(v) = body.get("tone_sample_s") {
+        let n = v
+            .as_f64()
+            .filter(|n| TONE_SAMPLE_RANGE.contains(n))
+            .ok_or_else(|| format!("tone_sample_s must be 1..=60, got {v}"))?;
+        next.insert("tone_sample_s".into(), json!(n));
+        changed = true;
+    }
     if let Some(v) = body.get("ui_scale") {
         let n = v
             .as_u64()
@@ -469,6 +518,18 @@ mod tests {
         assert!(post_at(&p, &json!({ "fps_cap": 77 })).is_err());
         assert_eq!(post_at(&p, &json!({ "fps_cap": 300 })).unwrap()["fps_cap"], json!(300));
         let _ = post_at(&p, &json!({ "fps_cap": 60 }));
+        let _ = metal_vfs::remove_file(&p);
+    }
+
+    #[test]
+    fn the_tone_mode_defaults_to_sample_and_refuses_unknown_values() {
+        let p = tmp_named("tone-mode");
+        assert_eq!(reply_at(&p).unwrap()["tone_mode"], json!("sample"));
+        assert_eq!(reply_at(&p).unwrap()["tone_sample_s"], json!(4.0));
+        assert!(post_at(&p, &json!({ "tone_mode": "always" })).is_err());
+        assert!(post_at(&p, &json!({ "tone_sample_s": 0.1 })).is_err());
+        assert_eq!(post_at(&p, &json!({ "tone_mode": "off" })).unwrap()["tone_mode"], json!("off"));
+        assert_eq!(reply_at(&p).unwrap()["tone_mode"], json!("off"));
         let _ = metal_vfs::remove_file(&p);
     }
 

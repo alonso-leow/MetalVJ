@@ -701,7 +701,17 @@ fn colour_slots(frame: &Frame, drive: &Drive) -> [f32; 12] {
     let smooth = drive.smooth.clamp(0.0, 1.0);
     match drive.colour_source {
         ColourSource::Chroma => slot(frame, drive.palette, smooth),
-        ColourSource::Tone => tone_slot(frame, drive.palette),
+        // A pinned tone source still has nothing to show at conf 0 (tone mode
+        // `off`, no model, silence): the all-zero block would paint the brand
+        // accent over whatever was authored, so it falls back to chroma.
+        ColourSource::Tone => {
+            let conf = at_col(frame, 1.0, crate::digest::TONE_CONF);
+            if conf.is_finite() && conf > 0.0 {
+                tone_slot(frame, drive.palette)
+            } else {
+                slot(frame, drive.palette, smooth)
+            }
+        }
         ColourSource::Auto => {
             // `tone_conf` smooths like any continuous column, by the same
             // per-tick decay `slot` applies, so the crossfade follows the same

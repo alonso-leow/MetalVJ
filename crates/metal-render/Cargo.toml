@@ -74,3 +74,7 @@ path = "src/bin/palette-proof.rs"
 
 [dev-dependencies]
 half = "2"
+
+[[bin]]
+name = "render-bench"
+path = "src/bin/render-bench.rs"

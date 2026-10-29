@@ -46,6 +46,15 @@ use crate::tone::reducer::Reducer;
 pub const HOP: usize = 2_048;
 /// The raised hop of §7, ~186 ms, if the benchmark is poor.
 pub const HOP_LONG: usize = 4_096;
+/// The hop the live worker uses. Measured 2026-10-29 (`scripts/perf-scenarios.sh`):
+/// at [`HOP`] the worker held ~30% of a core all the time, one full ~2 s window
+/// re-inferred ~11 times a second; harmony moves slower than that, so live
+/// runs at [`HOP_LONG`] (half the cost).
+pub const LIVE_HOP: usize = HOP_LONG;
+/// A block whose RMS is under this (-60 dBFS) is silence for the idle gate: a
+/// real input's noise floor sits around -70..-60 dBFS and never meets the
+/// per-sample [`SILENT_PEAK`], so without this the worker never idled.
+const SILENT_RMS: f32 = 1e-3;
 /// A block whose every sample is below this magnitude (-80 dBFS) is silence.
 /// Digital silence is exactly zero; this only has to sit above a zero-level
 /// resampler or dither floor, and far below anything music does.
@@ -53,7 +62,11 @@ const SILENT_PEAK: f32 = 1e-4;
 
 /// True when no sample in `samples` reaches [`SILENT_PEAK`].
 fn is_silent(samples: &[f32]) -> bool {
-    samples.iter().all(|s| s.abs() < SILENT_PEAK)
+    if samples.iter().all(|s| s.abs() < SILENT_PEAK) {
+        return true;
+    }
+    let n = samples.len().max(1) as f32;
+    (samples.iter().map(|s| s * s).sum::<f32>() / n).sqrt() < SILENT_RMS
 }
 
 /// Decides when the worker is idle: a full window of consecutive silence.
@@ -184,7 +197,7 @@ fn worker(model: metal_ml::Model, rx: Receiver<Vec<f32>>, shared: Arc<Shared>) {
 
     // Frames a live hop covers; the reducer is advanced by exactly the frames
     // that are new since the last inference.
-    let frames_per_hop = (HOP / FFT_HOP).max(1);
+    let frames_per_hop = (LIVE_HOP / FFT_HOP).max(1);
 
     while let Ok(block) = rx.recv() {
         ring.extend(block.iter().copied());
@@ -205,7 +218,7 @@ fn worker(model: metal_ml::Model, rx: Receiver<Vec<f32>>, shared: Arc<Shared>) {
             fresh = 0;
             continue;
         }
-        if ring.len() < AUDIO_N_SAMPLES || fresh < HOP {
+        if ring.len() < AUDIO_N_SAMPLES || fresh < LIVE_HOP {
             continue;
         }
         fresh = 0;
@@ -257,6 +270,8 @@ mod tests {
         assert!(is_silent(&[0.0; 16]));
         assert!(is_silent(&[SILENT_PEAK * 0.5; 16]));
         assert!(!is_silent(&[0.0, 0.0, 0.01, 0.0]));
+        let hiss: Vec<f32> = (0..512).map(|i| if i % 2 == 0 { 3e-4 } else { -3e-4 }).collect();
+        assert!(is_silent(&hiss), "a -70 dBFS noise floor is silence");
     }
 
     #[test]

@@ -65,6 +65,9 @@ pub struct Renderer {
     /// `fx.hardstutter`: the compose pass and each model's held frames (see
     /// `shared::stutter` for why this is its own texture and not a lookup).
     stutter: Stutter,
+    /// CPU time the last `draw_tile` spent inside `Model::render` alone (the
+    /// model's own encode + submit, not the post chain) — for `render-bench`.
+    pub last_model_cpu: std::time::Duration,
 }
 
 impl Renderer {
@@ -93,6 +96,7 @@ impl Renderer {
             forge_fx: crate::models::forge::ForgeFx::default(),
             warp_fx: crate::shared::warp::WarpFx::default(),
             stutter,
+            last_model_cpu: std::time::Duration::ZERO,
         }
     }
 
@@ -308,7 +312,9 @@ impl Renderer {
         // The row's palette motion (`col_*`) moves its colour slots around the
         // slots' own values before the model reads them.
         let moved = metal_schema::apply_palette_motion(self.models[index].schema(), floats);
+        let started = Instant::now();
         self.models[index].render(&ctx, moved.as_deref().unwrap_or(floats), scratch_view, FORMAT);
+        self.last_model_cpu = started.elapsed();
         let (ow, oh) = (*ow, *oh);
 
         // Ghosting sits **between** the model and the post chain, so the trail

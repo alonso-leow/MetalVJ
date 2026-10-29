@@ -201,7 +201,7 @@ fn shots_lanes_and_overlays() {
     overlays_plus(&hs).click();
     shot(&mut hs, &dir, "overlays-02-plus-menu");
 
-    hs.get_by_label("controller button").click();
+    hs.get_by_label("nodes control").click();
     shot(&mut hs, &dir, "overlays-03-controller-editor");
     {
         let state = hs.state_mut().lanes_state_mut();

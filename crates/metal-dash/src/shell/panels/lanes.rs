@@ -230,6 +230,8 @@ pub struct PanelState {
     last_heard: Option<String>,
     /// The grid's own buttons, `(key, label)`, a face's control can hold.
     face_pool: Vec<(String, String)>,
+    /// The free grid's controller buttons lit now (a switch's toggle, a hold's press).
+    lit_controllers: BTreeSet<String>,
     /// The last thing the surface wants the operator to read.
     grid_note: Option<String>,
     /// A dial's part-step, by cell key, between frames.
@@ -385,6 +387,7 @@ impl Default for PanelState {
             face_learn_last: None,
             last_heard: None,
             face_pool: Vec::new(),
+            lit_controllers: BTreeSet::new(),
             grid_note: None,
             dial_acc: HashMap::new(),
             piano_held: HashMap::new(),
@@ -3131,13 +3134,6 @@ fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     let label = current.as_ref().map_or_else(|| tr("free grid").to_string(), |d| tr_dyn(d.name).to_string());
     let ports = crate::input::midi_ports();
     let (response, _) = plain_menu(ui, theme, RichText::new(format!("{label} ▾")), |ui| {
-        // Takes each control's message off the box itself, one by one.
-        if !state.layout.slots.is_empty() && ui.button(small(tr("learn the face").into())).clicked() {
-            state.face_learn = Some(0);
-            state.face_learn_last = None;
-            state.slot_learn = None;
-            ui.close();
-        }
         if ui.selectable_label(current.is_none(), small(tr("free grid").into())).clicked() {
             forget_face_controllers(door, state);
             state.layout.clear_device();
@@ -3178,7 +3174,7 @@ fn job_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState,
     let small = |t: String| RichText::new(t).font(theme.font_small.clone());
     let Some(id) = state.layout.slots.get(slot).map(|s| s.id.clone()) else { return false };
     let mut picked = false;
-    let _ = plain_menu(ui, theme, small(tr("does").into()), |ui| {
+    let _ = plain_menu(ui, theme, small(tr("general control").into()), |ui| {
         for job in crate::surface::Role::catalogue().into_iter().filter(|r| !matches!(r, crate::surface::Role::Piano { .. })) {
             if ui.button(small(tr_dyn(&job.label()).to_string())).clicked() {
                 let key = format!("hw:{id}");
@@ -3274,9 +3270,16 @@ fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState
     let small = |t: String| RichText::new(t).font(theme.font_small.clone());
     let Some(id) = state.layout.slots.get(slot).map(|s| s.id.clone()) else { return };
     let held = state.layout.in_slot(slot);
+    // Takes each control's message off the box itself, one by one.
+    if ui.button(small(tr("learn the face").into())).clicked() {
+        state.face_learn = Some(0);
+        state.face_learn_last = None;
+        state.slot_learn = None;
+        ui.close();
+    }
     match open_graph {
         Some(gid) => {
-            if ui.button(small(tr("controller button").into())).clicked() {
+            if ui.button(small(tr("nodes control").into())).clicked() {
                 let key = slot_controller(&id, page);
                 if !state.controllers.contains_key(&key) {
                     state.controllers.insert(key.clone(), json!({ "graph": gid, "name": "", "mode": "switch", "targets": [] }));
@@ -3296,7 +3299,7 @@ fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState
     }
     let pool = state.face_pool.clone();
     if !pool.is_empty() {
-        let _ = plain_menu(ui, theme, small(tr("grid buttons").into()), |ui| {
+        let _ = plain_menu(ui, theme, small(tr("import button").into()), |ui| {
             ScrollArea::vertical().max_height(theme.text_input_width * 2.0).show(ui, |ui| {
                 for (key, label) in &pool {
                     if ui.button(small(label.clone())).clicked() {
@@ -3449,6 +3452,13 @@ fn drive_surface(
     let events = crate::input::drain_surface();
     if let Some(e) = events.last() {
         state.last_heard = Some(format!("{} · {}", e.input, e.port));
+    }
+    // `METALVJ_MIDI_LOG=1` prints every control heard, raw, for diagnosing a mapping.
+    let log = std::env::var_os("METALVJ_MIDI_LOG").is_some();
+    if log {
+        for e in &events {
+            eprintln!("  midi log: {} on {} {:?}", e.input, e.port, e.edge);
+        }
     }
     let mut inputs: Vec<(String, metal_midi::Edge)> = events.into_iter().map(|e| (e.input, e.edge)).collect();
     inputs.append(&mut state.pad_inputs);
@@ -3823,9 +3833,22 @@ fn fire_cell(now: f64, door: &dyn Call, state: &mut PanelState, cell: &Cell, g: 
                     state.controllers_dirty = Some(now);
                 }
             }
-            Gesture::Down | Gesture::Click => apply_scene(door, state, key, false),
+            Gesture::Down | Gesture::Click => {
+                // A switch toggles its light on each click; a hold lights while pressed.
+                match (controller_mode(state, key).as_str(), g) {
+                    ("hold", _) => {
+                        state.lit_controllers.insert(key.clone());
+                    }
+                    (_, Gesture::Click) if !state.lit_controllers.remove(key) => {
+                        state.lit_controllers.insert(key.clone());
+                    }
+                    _ => {}
+                }
+                apply_scene(door, state, key, false)
+            }
             Gesture::Up => {
                 if controller_mode(state, key) == "hold" {
+                    state.lit_controllers.remove(key);
                     apply_scene(door, state, key, true);
                 }
             }
@@ -3879,7 +3902,7 @@ fn controller_editor_popup(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &
         return;
     };
     let mut open = true;
-    crate::shell::gallery::overlay_window("shell/region/lanes/controller-editor", tr("controller button").to_string())
+    crate::shell::gallery::overlay_window("shell/region/lanes/controller-editor", tr("nodes control").to_string())
         .current_pos(state.controller_edit_pos.unwrap_or(egui::pos2(theme.pad as f32, theme.pad as f32)))
         .open(&mut open)
         .show(ui.ctx(), |ui| {
@@ -4275,16 +4298,16 @@ fn controller_face(door: &dyn Call, state: &PanelState, key: &str) -> Controller
     };
     let graph = ctrl["graph"].as_str().unwrap_or(key).to_string();
     let targets = ctrl["targets"].as_array().cloned().unwrap_or_default();
-    if let Some(t) = targets.iter().find(|t| t["param"].is_string()) {
+    // The first target whose node and param still exist: one deleted (its
+    // node or float gone) is skipped, so a param added after it takes the dial.
+    for t in targets.iter().filter(|t| t["param"].is_string()) {
         let node = t["node"].as_str().unwrap_or_default().to_string();
         let param = t["param"].as_str().unwrap_or_default().to_string();
         let stored = t["value"].as_f64().unwrap_or(0.0) as f32;
-        let io = get(door, "GET", "/graph/io", &[("id", graph), ("node", node.clone())]).unwrap_or(Value::Null);
-        let (min, max, value) = match super::dials::floats(&io).into_iter().find(|f| f.name == param) {
-            Some(f) => (f.min, f.max, stored.clamp(f.min, f.max)),
-            None => (0.0, 1.0, stored.clamp(0.0, 1.0)),
-        };
-        return ControllerFace::Fader { node, param, min, max, value };
+        let io = get(door, "GET", "/graph/io", &[("id", graph.clone()), ("node", node.clone())]).unwrap_or(Value::Null);
+        let Some(f) = super::dials::floats(&io).into_iter().find(|f| f.name == param) else { continue };
+        let value = stored.clamp(f.min, f.max);
+        return ControllerFace::Fader { node, param, min: f.min, max: f.max, value };
     }
     if !targets.is_empty()
         && targets.iter().all(|t| {
@@ -4841,7 +4864,7 @@ fn cell_editor_popup(
             }
             if let Some(current) = role.as_ref().filter(|r| !matches!(r, Role::Piano { .. })) {
                 ui.horizontal(|ui| {
-                    ui.label(small(tr("does").into()));
+                    ui.label(small(tr("general control").into()));
                     let _ = plain_menu(ui, theme, small(tr_dyn(&current.label()).to_string()), |ui| {
                         let jobs = Role::catalogue()
                             .into_iter()
@@ -5095,14 +5118,14 @@ fn add_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState,
     // cell's `⚙` and right-click reach, prefilled with the graph's controller.
     match open_graph {
         Some(gid) => {
-            if plain_item(ui, theme, RichText::new(tr("controller button"))).clicked() {
+            if plain_item(ui, theme, RichText::new(tr("nodes control"))).clicked() {
                 state.editing_controller = Some(gid.to_string());
                 state.controller_edit_pos = Some(ui.cursor().min);
                 ui.close();
             }
         }
         None => {
-            let _ = plain_item(ui, theme, RichText::new(tr("controller button")));
+            let _ = plain_item(ui, theme, RichText::new(tr("nodes control")));
             ui.label(
                 RichText::new(tr("— open a graph to control its nodes —"))
                     .font(theme.font_small.clone())
@@ -5124,7 +5147,7 @@ fn add_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState,
     });
     // `controls` — the hardware's own buttons as grid cells: the piano, rec
     // and drop rec, the dials, fn, and the library's search/load/folders.
-    let _ = plain_menu(ui, theme, RichText::new(tr("controls")), |ui| {
+    let _ = plain_menu(ui, theme, RichText::new(tr("general controls")), |ui| {
         for role in crate::surface::Role::catalogue() {
             let label = tr_dyn(&role.label());
             if ui.selectable_label(false, RichText::new(label).font(theme.font_small.clone())).clicked() {
@@ -5978,7 +6001,7 @@ fn controller_cells(state: &PanelState) -> Vec<Cell> {
             key: format!("ctrl:{key}"),
             span: (1.0, 1.0),
             label: controller_label(state, key),
-            on: false,
+            on: state.lit_controllers.contains(key),
             running: false,
             progress: None,
         })
@@ -6206,7 +6229,7 @@ fn open_controller_menu(harness: &mut egui_kittest::Harness<'static, Shell>) {
     harness.run();
     the_overlays_plus(harness).click();
     harness.run();
-    harness.get_by_label("controller button").click();
+    harness.get_by_label("nodes control").click();
     harness.run();
 }
 
@@ -6530,7 +6553,7 @@ fn clicking_a_node_row_adds_an_on_off_target() {
     harness.run();
     the_overlays_plus(&mut harness).click();
     harness.run();
-    harness.get_by_label("controller button").click();
+    harness.get_by_label("nodes control").click();
     harness.run();
     harness.get_by_label("Turing").click();
     harness.run();
@@ -6560,7 +6583,7 @@ fn a_node_in_a_switch_leads_with_the_red_marker() {
     harness.run();
     the_overlays_plus(&mut harness).click();
     harness.run();
-    harness.get_by_label("controller button").click();
+    harness.get_by_label("nodes control").click();
     harness.run();
     // The marker rides the node row's label.
     harness.get_by_label("● Turing");
@@ -6583,7 +6606,7 @@ fn a_node_starts_collapsed_and_expands_to_its_float_rows() {
     harness.run();
     the_overlays_plus(&mut harness).click();
     harness.run();
-    harness.get_by_label("controller button").click();
+    harness.get_by_label("nodes control").click();
     harness.run();
     // Collapsed: the chevron is `expand` and the float row is not painted.
     harness.get_by_label("expand Turing");
@@ -6716,7 +6739,7 @@ fn without_an_open_graph_create_button_says_so() {
     harness.run();
     the_overlays_plus(&mut harness).click();
     harness.run();
-    harness.get_by_label("controller button").click();
+    harness.get_by_label("nodes control").click();
     harness.run();
 
     harness.get_by_label("— open a graph to control its nodes —");
@@ -8182,6 +8205,8 @@ fn without_an_open_graph_create_button_says_so() {
             state.layout.place("hw:record", record, None);
             state.layout.roles.insert("hw:record".into(), crate::surface::Role::Rec);
             let pot = slot(state, "pot-1");
+            // The node's float is there to be the fader (a deleted one is not).
+            recorder.respond("GET", "/graph/io", json!({ "params": [{ "name": "gain", "kind": "float", "min": 0.0, "max": 1.0 }] }));
             state.controllers.insert(
                 "hw:pot-1:0".into(),
                 json!({ "graph": "g", "name": "", "mode": "switch", "targets": [{ "node": "glow", "param": "gain", "value": 0.0 }] }),
@@ -8255,7 +8280,8 @@ fn without_an_open_graph_create_button_says_so() {
         harness.run();
         harness.get_by_label_contains("25 keys + 8 pads").click();
         harness.run();
-        harness.get_by_label("learn the face").click();
+        // The walk starts from a control's menu (`learn the face` there).
+        harness.state_mut().lanes_state_mut().face_learn = Some(0);
         harness.run();
         assert_eq!(harness.state_mut().lanes_state_mut().face_learn, Some(0), "the walk starts");
         let send = |input: &str, edge: metal_midi::Edge| {

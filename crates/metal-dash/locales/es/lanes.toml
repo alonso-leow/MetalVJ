@@ -48,7 +48,7 @@
 "switch" = "interruptor"
 "Press to activate" = "presionar para activar"
 "create sequence" = "crear secuencia"
-"controller button" = "botón de control"
+"nodes control" = "control de nodos"
 "controller name" = "nombre del control"
 "controller settings" = "ajustes del control"
 "delete controller" = "borrar control"
@@ -59,7 +59,7 @@
 # 2026-10-28: the control surface — fixed grid, edit mode, MIDI bindings,
 # rec/freeze, loops, fn pages.
 "added {cell}" = "añadido {cell}"
-"controls" = "controles"
+"general controls" = "controles generales"
 "earlier" = "antes"
 "edit grid" = "editar cuadrícula"
 "every page" = "todas las páginas"
@@ -92,13 +92,13 @@
 
 # 2026-10-28: the grid takes the face of a known controller.
 "the controller the grid takes the shape of" = "el controlador cuya forma toma la cuadrícula"
-"does" = "hace"
+"general control" = "control general"
 "free grid" = "cuadrícula libre"
 "piano from {note}" = "piano desde {note}"
 "the grid is a {name}" = "la cuadrícula es un {name}"
 "the grid is free again" = "la cuadrícula vuelve a ser libre"
 "{name} · connected" = "{name} · conectado"
-"grid buttons" = "botones de la rejilla"
+"import button" = "importar botón"
 "learn the face" = "aprender el controlador"
 "skip" = "saltar"
 "stop learning" = "dejar de aprender"

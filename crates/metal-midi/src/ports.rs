@@ -36,7 +36,10 @@ where
                 Some(f) => name.contains(f),
                 // A box's DAW port (FLkey, Launchkey) echoes its controls in
                 // the DAW's own numbering: heard twice, mixed up.
-                None => !name.contains("Midi Through") && !name.contains("metalvj") && !name.contains("DAW"),
+                None => {
+                    let daw = name.contains("DAW") && std::env::var_os("METALVJ_MIDI_DAW").is_none();
+                    !name.contains("Midi Through") && !name.contains("metalvj") && !daw
+                }
             };
             keep.then_some((p, name))
         })

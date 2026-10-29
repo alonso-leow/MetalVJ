@@ -3907,7 +3907,11 @@ fn controller_editor_popup(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &
         .open(&mut open)
         .show(ui.ctx(), |ui| {
             ui.set_min_width(theme.text_input_width * 2.0);
-            controller_editor(ui, theme, door, state, &key);
+            // Many params scroll inside the window, never push it off the screen.
+            let max = ui.ctx().content_rect().height() * 0.7;
+            ScrollArea::vertical().max_height(max).auto_shrink([false, true]).show(ui, |ui| {
+                controller_editor(ui, theme, door, state, &key);
+            });
         });
     if !open {
         state.editing_controller = None;

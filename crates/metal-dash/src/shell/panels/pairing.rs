@@ -58,6 +58,9 @@ enum Action {
 /// same way [`super::super::frames::Fetcher`] does for the previews.
 pub struct PairWorker {
     tx: Sender<Job>,
+    /// The sync reads (`status`, `peers`, `discover`, `pair`), one poll per
+    /// message, each answered on the channel it carries.
+    polls: Sender<Sender<[Value; 4]>>,
 }
 
 /// One POST: the route, its body, and the channel its answer goes back on.
@@ -67,15 +70,26 @@ impl PairWorker {
     /// Starts the worker around `door`. A worker that cannot spawn leaves a
     /// `PairWorker` whose jobs never answer; the overlay then reads the
     /// disconnected channel as a refusal, never as a hang.
-    pub fn spawn<D: Call + Send + 'static>(door: D) -> PairWorker {
+    pub fn spawn<D: Call + Clone + Send + 'static>(door: D) -> PairWorker {
         let (tx, rx) = mpsc::channel::<Job>();
+        let poll_door = door.clone();
         let _ = thread::Builder::new().name("metal-dash pairing".into()).spawn(move || {
             while let Ok((path, body, back)) = rx.recv() {
                 let result = door.json("POST", &path, Some(body)).map(drop).map_err(|(_, msg)| msg);
                 let _ = back.send(result);
             }
         });
-        PairWorker { tx }
+        // The reads have their own thread: `metal-sync` can take seconds to
+        // refuse, and the frame must not wait for it.
+        let (polls, poll_rx) = mpsc::channel::<Sender<[Value; 4]>>();
+        let _ = thread::Builder::new().name("metal-dash sync poll".into()).spawn(move || {
+            while let Ok(back) = poll_rx.recv() {
+                let read = |path: &str| poll_door.json("GET", path, None).unwrap_or_else(|_| json!({}));
+                let reads = [read("/sync/status"), read("/sync/peers"), read("/sync/discover"), read("/sync/pair")];
+                let _ = back.send(reads);
+            }
+        });
+        PairWorker { tx, polls }
     }
 
     /// Hands one POST to the worker; the answer comes back on the returned
@@ -115,6 +129,8 @@ pub struct PanelState {
     worker: Option<PairWorker>,
     /// The POST on the worker, and what its answer is for.
     in_flight: Option<(Action, Receiver<Result<(), String>>)>,
+    /// The sync reads on the worker, when one is set and a poll is out.
+    poll_in_flight: Option<Receiver<[Value; 4]>>,
 }
 
 impl PanelState {
@@ -145,12 +161,43 @@ impl PanelState {
     /// worker's answer (if one landed) is taken in.
     pub fn refresh_due(&mut self, door: &dyn Call, now: Instant) {
         self.collect();
+        self.collect_poll(now);
         let due = match self.last_poll {
             None => true,
             Some(then) => now.duration_since(then) >= POLL_EVERY,
         };
-        if due {
-            self.refresh(door, now);
+        if !due {
+            return;
+        }
+        // With a worker the reads run there and land on a later frame; the
+        // kittest harness, which has none, reads inline.
+        let sent = match (&self.worker, &self.poll_in_flight) {
+            (Some(worker), None) => {
+                let (back, answer) = mpsc::channel();
+                worker.polls.send(back).ok().map(|_| answer)
+            }
+            _ => None,
+        };
+        match sent {
+            Some(answer) => {
+                self.poll_in_flight = Some(answer);
+                self.last_poll = Some(now);
+            }
+            None if self.worker.is_none() => self.refresh(door, now),
+            None => {}
+        }
+    }
+
+    /// Takes the sync reads in, if the worker has answered.
+    fn collect_poll(&mut self, now: Instant) {
+        let Some(answer) = self.poll_in_flight.take() else { return };
+        match answer.try_recv() {
+            Ok([status, peers, nearby, pair]) => {
+                self.absorb(&status, &peers, &nearby, &pair);
+                self.last_poll = Some(now);
+            }
+            Err(TryRecvError::Empty) => self.poll_in_flight = Some(answer),
+            Err(TryRecvError::Disconnected) => {}
         }
     }
 
@@ -524,6 +571,7 @@ mod tests {
     /// never a stale answer carried over from a poll that did succeed.
     /// A door whose every POST waits `delay` and answers `fail_path` with a
     /// refusal, as `metal-sync` does for a wrong code.
+    #[derive(Clone)]
     struct SlowDoor {
         delay: Duration,
         fail_path: &'static str,

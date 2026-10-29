@@ -976,9 +976,17 @@ pub fn set_held(
     if node_kind != crate::RAMP_KIND && node_kind.starts_with("gen.") {
         let mut held: Map<String, Value> =
             config.get(GEN_HELD_KEY).and_then(Value::as_object).cloned().unwrap_or_default();
+        // One key per parameter: the canonical name. A value written under an
+        // alias (`tam`, `tamano` for `size`) while the canonical key still holds
+        // an old one would be read back stale, since the reader tries the
+        // canonical name first.
+        let canonical = metal_schema::param_aliases::canonical_param_name(name).to_string();
+        for k in metal_schema::param_aliases::alias_keys(name).map(str::to_string).collect::<Vec<_>>() {
+            held.remove(&k);
+        }
         match value {
-            Some(v) => held.insert(name.to_string(), json!(v)),
-            None => held.remove(name),
+            Some(v) => held.insert(canonical, json!(v)),
+            None => None,
         };
         config[GEN_HELD_KEY] = Value::Object(held);
     } else if node_kind.starts_with("fx.text.") {
@@ -1578,6 +1586,22 @@ mod tests {
         set_held(&mut g, &p, "count", None, &catalog).unwrap();
         let released = node_params(g.node(&p).unwrap(), Some(particles));
         assert_eq!(released.iter().find(|x| x.name == "count").unwrap().value, None);
+    }
+
+    /// A gen parameter written under a Spanish alias is read back: the newest
+    /// write wins over a stale canonical value, and one key holds it.
+    #[test]
+    fn a_gen_param_written_under_an_alias_is_the_one_read_back() {
+        let catalog = catalog();
+        let mut g = Graph::new("g", "t", Domain::Live);
+        let o = g.add_node("gen", "gen.oracle", [0.0, 0.0]);
+        let oracle = kind(&catalog, "gen.oracle");
+        set_held(&mut g, &o, "size", Some(1.0), &catalog).unwrap();
+        set_held(&mut g, &o, "tamano", Some(3.0), &catalog).unwrap();
+        let v = node_params(g.node(&o).unwrap(), Some(oracle));
+        assert_eq!(v.iter().find(|x| x.name == "size").unwrap().value, Some(3.0));
+        let held = config_json(g.node(&o).unwrap())["floats"].clone();
+        assert_eq!(held.as_object().unwrap().len(), 1, "one key per parameter: {held}");
     }
 
     /// F1: a `venue.fixture` node declares every config key with a default,

@@ -732,9 +732,9 @@ fn section_performance(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut 
 /// sees every key.
 fn tr_tone_mode(mode: &str) -> String {
     match mode {
-        "off" => tr("off"),
-        "live" => tr("live (continuous)"),
-        _ => tr("sample (every few seconds)"),
+        "off" => tr("off").to_string(),
+        "live" => tr("live (continuous)").to_string(),
+        _ => tr("sample (every few seconds)").to_string(),
     }
 }
 

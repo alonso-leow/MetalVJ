@@ -681,10 +681,13 @@ pub fn node_params(node: &Node, kind: Option<&NodeKind>) -> Vec<Param> {
 /// One parameter of one node, by name — the float first when a colour slot
 /// shares its name (see the module doc).
 pub fn find_param(node: &Node, kind: Option<&NodeKind>, name: &str) -> Option<Param> {
-    let name = metal_schema::param_aliases::canonical_param_name(name);
+    // The name as the catalog spells it first, then its canonical form: a
+    // catalog name can itself be an alias (`cam_dist` → `cam_distance`).
+    let canonical = metal_schema::param_aliases::canonical_param_name(name);
     let params = node_params(node, kind);
-    let float = params.iter().position(|p| p.name == name && p.kind == ParamKind::Float);
-    let any = params.iter().position(|p| p.name == name);
+    let is = |p: &Param| p.name == name || p.name == canonical;
+    let float = params.iter().position(|p| is(p) && p.kind == ParamKind::Float);
+    let any = params.iter().position(is);
     float.or(any).map(|i| params[i].clone())
 }
 
@@ -944,6 +947,12 @@ pub fn set_held(
     }
     let node_kind = n.kind.clone();
     let mut config = config_json(n);
+    // Every branch below holds the value under the catalog's own name, and
+    // clears what an alias of it left behind: the readers try the names in
+    // turn, so a stale alias key would be the value read back.
+    let name: &str = param.name.as_str();
+    let aliases: Vec<String> =
+        metal_schema::param_aliases::alias_keys(name).filter(|k| *k != name).map(str::to_string).collect();
     // K: a colour's `h`/`s`/`b` and a palette's `shift` are held under their
     // own config keys — the picker and the digest both write there; releasing
     // removes the key so the parameter falls back to its default.
@@ -980,7 +989,7 @@ pub fn set_held(
         // alias (`tam`, `tamano` for `size`) while the canonical key still holds
         // an old one would be read back stale, since the reader tries the
         // canonical name first.
-        let canonical = metal_schema::param_aliases::canonical_param_name(name).to_string();
+        let canonical = param.name.clone();
         for k in metal_schema::param_aliases::alias_keys(name).map(str::to_string).collect::<Vec<_>>() {
             held.remove(&k);
         }
@@ -1009,6 +1018,11 @@ pub fn set_held(
         // K/B/advanced: `fx.move`, `fx.particles` and `fx.image-pop`, and each
         // advanced effect, hold every parameter under its own key; releasing
         // one removes it so it falls back to its declared default.
+        if let Some(o) = config.as_object_mut() {
+            for a in &aliases {
+                o.remove(a);
+            }
+        }
         match value {
             Some(v) => config[name] = json!(v),
             None => {
@@ -1602,6 +1616,50 @@ mod tests {
         assert_eq!(v.iter().find(|x| x.name == "size").unwrap().value, Some(3.0));
         let held = config_json(g.node(&o).unwrap())["floats"].clone();
         assert_eq!(held.as_object().unwrap().len(), 1, "one key per parameter: {held}");
+    }
+
+    /// Every float of every kind: written under its name and under each alias, the value
+    /// read back is the one written last, and one held key remains.
+    #[test]
+    fn every_float_of_every_kind_reads_back_what_was_written_under_any_of_its_names() {
+        let catalog = catalog();
+        let mut failures = Vec::new();
+        for k in catalog.iter() {
+            let mut g = Graph::new("g", "t", Domain::Live);
+            let id = g.add_node("gen", &k.kind, [0.0, 0.0]);
+            for p in k.params.iter().filter(|p| p.kind == ParamKind::Float) {
+                let names: Vec<String> = metal_schema::param_aliases::alias_keys(&p.name).map(str::to_string).collect();
+                for (i, name) in names.iter().enumerate() {
+                    let v = p.min + (p.max - p.min) * (i as f32 + 1.0) / (names.len() as f32 + 1.0);
+                    // An alias the node does not declare is refused by name: only the
+                    // names it takes are tried.
+                    if name != &p.name && set_held(&mut g, &id, name, Some(v), &catalog).is_err() {
+                        continue;
+                    }
+                    if name == &p.name && set_held(&mut g, &id, name, Some(v), &catalog).is_err() {
+                        failures.push(format!("{}.{} refuses its own name", k.kind, p.name));
+                        break;
+                    }
+                    // The float, not a colour slot of the same name (gen.gemsmoke's look `shine`).
+                    let got = node_params(g.node(&id).unwrap(), Some(k))
+                        .into_iter()
+                        .find(|x| x.name == p.name && x.kind == ParamKind::Float)
+                        .and_then(|x| x.value);
+                    if got != Some(v) {
+                        failures.push(format!("{}.{} written as {name:?} reads {got:?}", k.kind, p.name));
+                        break;
+                    }
+                }
+                // Where the kind holds its floats: a gen's `floats` map, else the config itself.
+                let cfg = config_json(g.node(&id).unwrap());
+                let store = cfg.get("floats").filter(|f| f.is_object()).unwrap_or(&cfg);
+                let keys: Vec<&String> = store.as_object().map(|o| o.keys().filter(|key| names.contains(key)).collect()).unwrap_or_default();
+                if keys.len() > 1 {
+                    failures.push(format!("{}.{}: several held keys {keys:?}", k.kind, p.name));
+                }
+            }
+        }
+        assert!(failures.is_empty(), "{} failures:\n{}", failures.len(), failures.join("\n"));
     }
 
     /// F1: a `venue.fixture` node declares every config key with a default,

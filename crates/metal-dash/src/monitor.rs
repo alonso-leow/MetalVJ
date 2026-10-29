@@ -299,7 +299,9 @@ enum FrameError {
 /// Content-Length or read-to-EOF (this client always sends
 /// `Connection: close`).
 fn fetch_jpeg(port: u16, device: &str) -> Result<(u32, u32, Vec<u8>), FrameError> {
-    let path = format!("/frame?device={}", percent_encode(device));
+    // `fmt=qoi`: a loopback ask, so the master skips the JPEG encode; a master
+    // (or `metal-sync`) that does not know it answers JPEG, read below.
+    let path = format!("/frame?device={}&fmt=qoi", percent_encode(device));
     // `Err(None)` from metal-sync means nothing is listening there; any HTTP
     // answer from it, error or not, is the answer — no second opinion.
     let bytes = match fetch_bytes(crate::call::peers::sync_port(), &path) {
@@ -310,6 +312,10 @@ fn fetch_jpeg(port: u16, device: &str) -> Result<(u32, u32, Vec<u8>), FrameError
         Some(409) => FrameError::Ceded,
         _ => FrameError::Unavailable,
     })?;
+    if bytes.starts_with(b"qoif") || bytes.starts_with(b"qois") {
+        let (width, height, rgba) = crate::qoi::decode(&bytes).ok_or(FrameError::Unavailable)?;
+        return Ok((width, height, crate::qoi::rgb_of(&rgba)));
+    }
     let mut decoder = jpeg_decoder::Decoder::new(std::io::Cursor::new(&bytes));
     // `decode` answers with the pixels themselves — RGB rows for a
     // 3-component frame. Grayscale masters would repaint a 1-component

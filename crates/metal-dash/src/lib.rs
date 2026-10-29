@@ -1434,8 +1434,23 @@ fn serve(mut stream: TcpStream, shared: &Mutex<Shared>, author: &Author) -> std:
         return metal_web::reply(&mut stream, reply.status_line(), reply.kind, &reply.body);
     }
 
+    // A picture route: loopback callers may take QOI/raw instead of JPEG, and
+    // two asks inside one frame time share the encoded answer.
+    let mut query = req.query.clone();
+    let cache_key = (req.method == "GET" && call::frame_cache::is_image_route(&req.path, &query)).then(|| {
+        let loopback = stream.peer_addr().is_ok_and(|a| a.ip().is_loopback());
+        call::frame_cache::negotiate(&mut query, loopback, req.headers.get("accept").map(String::as_str));
+        call::frame_cache::key(&req.path, &query)
+    });
+    static FRAMES: Mutex<Option<call::frame_cache::Cache>> = Mutex::new(None);
+    if let Some(key) = &cache_key {
+        let hit = FRAMES.lock().ok().and_then(|c| c.as_ref()?.get(key, std::time::Instant::now()));
+        if let Some((kind, body)) = hit {
+            return metal_web::reply(&mut stream, "200 OK", kind, &body);
+        }
+    }
     let params = call::Params {
-        query: req.query.clone(),
+        query,
         body: req.body.clone(),
         tail: None,
     };
@@ -1455,9 +1470,19 @@ fn serve(mut stream: TcpStream, shared: &Mutex<Shared>, author: &Author) -> std:
         sim,
         author,
     };
-    let reply = call::dispatch(&req.method, &req.path, &params, &mut ctx);
+    let reply = call::dispatch_deferred(&req.method, &req.path, &params, &mut ctx);
     drop(guard);
     perf::call(&req.method, &req.path, wait, asked.elapsed() - wait);
+    // The picture encode runs here, after the lock drop.
+    let reply = reply.map(|(reply, pending)| call::finish(reply, pending));
+    if let (Some(key), Some(reply)) = (cache_key, &reply) {
+        if reply.status == 200 {
+            if let Ok(mut c) = FRAMES.lock() {
+                c.get_or_insert_with(Default::default)
+                    .put(key, reply.kind, reply.body.clone(), std::time::Instant::now());
+            }
+        }
+    }
     match reply {
         Some(reply) => metal_web::reply(&mut stream, reply.status_line(), reply.kind, &reply.body),
         None => metal_web::not_found(&mut stream),

@@ -67,6 +67,7 @@ mod export;
 pub(crate) mod door; // `chdir_lock` (the cwd-fixture dance serializer) is shared with `shell::kittest`
 mod files;
 pub mod frame;
+pub mod frame_cache;
 pub(crate) mod graph;
 mod loop_audio;
 mod loops;
@@ -333,6 +334,33 @@ pub fn agent_intercept(method: &str, path: &str, params: &Params, authorized: bo
 }
 
 pub fn dispatch(method: &str, path: &str, params: &Params, ctx: &mut Ctx) -> Option<Reply> {
+    let (reply, pending) = dispatch_deferred(method, path, params, ctx)?;
+    Some(finish(reply, pending))
+}
+
+/// What a picture route parked instead of encoding: the codec and the pixels.
+pub type Pending = Option<(render::Codec, Vec<u8>, u32, u32)>;
+
+/// [`dispatch`] without the image encode: a picture route's reply comes back
+/// with an empty body and its pixels in the [`Pending`], to be turned into the
+/// body by [`finish`] after the caller drops the shared lock.
+pub fn dispatch_deferred(method: &str, path: &str, params: &Params, ctx: &mut Ctx) -> Option<(Reply, Pending)> {
+    render::set_deferring(true);
+    let reply = dispatch_route(method, path, params, ctx);
+    let pending = render::take_pending();
+    render::set_deferring(false);
+    reply.map(|r| (r, pending))
+}
+
+/// Runs the encode [`dispatch_deferred`] postponed.
+pub fn finish(mut reply: Reply, pending: Pending) -> Reply {
+    if let Some((codec, pixels, w, h)) = pending {
+        reply.body = codec.encode(&pixels, w, h).body;
+    }
+    reply
+}
+
+fn dispatch_route(method: &str, path: &str, params: &Params, ctx: &mut Ctx) -> Option<Reply> {
     let route = ROUTES.iter().find(|r| r.matches(method, path))?;
     let params = Params {
         tail: route.prefix.then(|| path[route.path.len()..].to_string()),

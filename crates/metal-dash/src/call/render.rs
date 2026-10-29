@@ -182,6 +182,15 @@ impl Codec {
         })
     }
 
+    /// The content type a picture in this codec is served as.
+    pub fn kind(self) -> &'static str {
+        match self {
+            Codec::Jpeg(_) => "image/jpeg",
+            Codec::Qoi => "image/qoi",
+            Codec::Rgba => "application/octet-stream",
+        }
+    }
+
     /// The reply for one picture in this codec.
     pub fn encode(self, rgba: &[u8], w: u32, h: u32) -> Bytes {
         match self {
@@ -193,15 +202,44 @@ impl Codec {
 }
 
 
+thread_local! {
+    /// Set by [`crate::call::dispatch_deferred`] around one handler call: the
+    /// image routes then park their pixels in [`PENDING`] instead of encoding,
+    /// so the encode runs after the caller has dropped the shared lock.
+    static DEFER: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static PENDING: std::cell::RefCell<Option<(Codec, Vec<u8>, u32, u32)>> = const { std::cell::RefCell::new(None) };
+}
+
+pub(crate) fn set_deferring(on: bool) {
+    DEFER.with(|d| d.set(on));
+    if !on {
+        PENDING.with(|p| p.borrow_mut().take());
+    }
+}
+
+/// Takes what a deferred handler parked, if anything.
+fn take_pending() -> Option<(Codec, Vec<u8>, u32, u32)> {
+    PENDING.with(|p| p.borrow_mut().take())
+}
+
+/// One picture as the reply, in the codec `fmt` asks for (JPEG when absent).
+/// Under [`crate::call::dispatch_deferred`] the encode is postponed (the body
+/// is empty until `finish`), so it never runs inside the shared lock.
+fn image(params: &Params, pixels: Vec<u8>, w: u32, h: u32) -> Result<Bytes, CallError> {
+    let codec = Codec::of(params)?;
+    if DEFER.with(|d| d.get()) {
+        PENDING.with(|p| *p.borrow_mut() = Some((codec, pixels, w, h)));
+        return Ok(Bytes { kind: codec.kind(), body: Vec::new() });
+    }
+    Ok(codec.encode(&pixels, w, h))
+}
+
 pub fn preview_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
     let w = params.num("w", 640.0).clamp(64.0, 1920.0) as u32;
     let h = params.num("h", 360.0).clamp(36.0, 1080.0) as u32;
     let (pixels, pw, ph) =
         crate::render_device(ctx.paint, ctx.sim, ctx.state, crate::PREVIEW, w, h);
-    Ok(Bytes {
-        kind: "image/jpeg",
-        body: encode_jpeg(&pixels, pw, ph),
-    })
+    image(params, pixels, pw, ph)
 }
 
 pub fn source_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
@@ -217,10 +255,7 @@ pub fn source_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
     match metal_perform::engine::with_preview_graph(gid.as_deref(), || {
         crate::render_source(ctx.paint, ctx.sim, ctx.state, &device, &layer, w, h)
     }) {
-        Some((pixels, pw, ph)) => Ok(Bytes {
-            kind: "image/jpeg",
-            body: encode_jpeg(&pixels, pw, ph),
-        }),
+        Some((pixels, pw, ph)) => image(params, pixels, pw, ph),
         None => Err(CallError::NotFound),
     }
 }
@@ -261,10 +296,7 @@ pub fn node_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
     match metal_perform::engine::with_preview_graph(gid.as_deref(), || {
         crate::render_node(ctx.paint, ctx.sim, ctx.state, &device, &node, w, h)
     }) {
-        Some((pixels, pw, ph)) => Ok(Bytes {
-            kind: "image/jpeg",
-            body: encode_jpeg(&pixels, pw, ph),
-        }),
+        Some((pixels, pw, ph)) => image(params, pixels, pw, ph),
         None => Err(CallError::NotFound),
     }
 }
@@ -303,10 +335,7 @@ fn output_jpeg(ctx: &mut Ctx, params: &Params, polled: bool) -> Result<Bytes, Ca
             }
         }
     };
-    Ok(Bytes {
-        kind: "image/jpeg",
-        body: encode_jpeg(&pixels, pw, ph),
-    })
+    image(params, pixels, pw, ph)
 }
 
 /// S.A.2: the same frame `/output.jpg` renders, with one mask's outline

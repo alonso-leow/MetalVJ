@@ -105,6 +105,11 @@ pub struct Index {
     pub height: u32,
     /// `(byte offset, byte length)` per frame, in presentation order.
     pub packets: Vec<(u64, u32)>,
+    /// The proxy spec this movie was encoded to (`index::PROXY_SPEC`). Absent
+    /// in a proxy made before the spec was one thing: that is `0`, and it is
+    /// rebuilt rather than read.
+    #[serde(default)]
+    pub spec: u32,
 }
 
 /// One clip's HAP proxy, open for reading.
@@ -401,7 +406,7 @@ mod tests {
         };
         assert_eq!((w, h, packets.len()), (128, 72, 6));
         let index = dir.join("hap").join("c.json");
-        metal_vfs::write(&index, serde_json::to_string(&Index { width: w, height: h, packets }).unwrap()).unwrap();
+        metal_vfs::write(&index, serde_json::to_string(&Index { width: w, height: h, packets, spec: crate::index::PROXY_SPEC }).unwrap()).unwrap();
         let mut hap = Hap::open(&movie, &index).unwrap();
         for k in [0, 5] {
             let f = hap.frame(k).unwrap();
@@ -476,7 +481,7 @@ mod tests {
         let index = dir.join("hap").join("c.json");
         metal_vfs::write(
             &index,
-            serde_json::to_string(&Index { width: w, height: h, packets }).unwrap(),
+            serde_json::to_string(&Index { width: w, height: h, packets, spec: crate::index::PROXY_SPEC }).unwrap(),
         )
         .unwrap();
 

@@ -29,6 +29,9 @@ metal-schema = { path = "../metal-schema" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 zune-jpeg = "0.5"
+# PNG and WebP stills (`index::decode`). Only the two codecs: no AVIF, no
+# GIF, no rayon, no default features, so the crate stays small.
+image = { version = "0.25", default-features = false, features = ["png", "webp"] }
 
 # Android: the clip decoder (`src/clip/media.rs`) is AMediaExtractor +
 # AMediaCodec, rendering into an AImageReader (`api-level-24`). The extractor

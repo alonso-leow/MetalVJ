@@ -71,6 +71,13 @@ pub const FPS: f32 = 12.0;
 /// How wide a rung is, in pixels. Height follows the source's aspect.
 pub const WIDTH: u32 = 640;
 
+/// The one proxy spec: every HAP proxy is [`FPS`] rungs a second at [`WIDTH`]
+/// pixels across, and the cut list is cut from those rows. The app's own
+/// proxies (`metal-dash`'s scene playout) and the library build both read this,
+/// so a clip has one movie and one cut list. A proxy whose index names another
+/// spec (or none, `0`) is stale and is rebuilt through the ingest job.
+pub const PROXY_SPEC: u32 = 2;
+
 /// ffmpeg's `-q:v`, where 2 is best and 31 is worst.
 pub const QUALITY: u8 = 4;
 
@@ -606,7 +613,7 @@ pub fn build(
             &mut |_| {},
         ) {
             Ok((width, height, packets)) => {
-                let text = serde_json::to_string(&crate::hap::Index { width, height, packets }).map_err(|e| e.to_string())?;
+                let text = serde_json::to_string(&crate::hap::Index { width, height, packets, spec: PROXY_SPEC }).map_err(|e| e.to_string())?;
                 metal_vfs::write(&index, text).map_err(|e| e.to_string())?;
             }
             Err(e) => {
@@ -764,7 +771,9 @@ pub fn cut(rows: &[[f32; COLUMNS]], rate: f32) -> Vec<Passage> {
 // the plumbing
 // ---------------------------------------------------------------------------
 
-/// A JPEG on disk → RGB8.
+/// A still on disk → RGB8: JPEG (the ladder's own format, decoded by zune),
+/// PNG or WebP (decoded by the `image` crate). The format is read from the
+/// bytes, not the extension, so a renamed file still decodes.
 ///
 /// Greyscale sources come back one byte per pixel and are expanded here rather
 /// than handled everywhere downstream. Black-and-white footage is a real thing
@@ -772,12 +781,22 @@ pub fn cut(rows: &[[f32; COLUMNS]], rate: f32) -> Vec<Passage> {
 /// component count.
 pub fn decode(path: &Path) -> Result<Rgb, String> {
     let bytes = metal_vfs::read(path).map_err(|e| e.to_string())?;
+    if is_jpeg(&bytes) {
+        return decode_jpeg(&bytes);
+    }
+    decode_image(&bytes)
+}
+
+/// JPEG starts `FF D8 FF`.
+fn is_jpeg(bytes: &[u8]) -> bool {
+    bytes.starts_with(&[0xFF, 0xD8, 0xFF])
+}
+
+fn decode_jpeg(bytes: &[u8]) -> Result<Rgb, String> {
     // `ZCursor` rather than the slice: zune's reader trait is implemented for
     // `BufRead + Seek`, which a `&[u8]` is not, and for its own cursor, which
     // wraps one without copying.
-    let mut decoder = zune_jpeg::JpegDecoder::new(zune_jpeg::zune_core::bytestream::ZCursor::new(
-        &bytes[..],
-    ));
+    let mut decoder = zune_jpeg::JpegDecoder::new(zune_jpeg::zune_core::bytestream::ZCursor::new(bytes));
     let px = decoder.decode().map_err(|e| e.to_string())?;
     let info = decoder.info().ok_or("no jpeg header")?;
     let (w, h) = (info.width as u32, info.height as u32);
@@ -792,6 +811,22 @@ pub fn decode(path: &Path) -> Result<Rgb, String> {
         other => return Err(format!("{other} components per pixel")),
     };
     Ok(Rgb { width: w, height: h, px })
+}
+
+/// PNG or WebP (anything else `image` reads is refused by name). An alpha
+/// channel is dropped: a still is a picture, and the descriptor and the
+/// proxies are RGB.
+fn decode_image(bytes: &[u8]) -> Result<Rgb, String> {
+    let format = image::guess_format(bytes).map_err(|_| "not a JPEG, PNG or WebP".to_string())?;
+    if !matches!(format, image::ImageFormat::Png | image::ImageFormat::WebP) {
+        return Err(format!("unsupported still format {format:?}"));
+    }
+    let rgb = image::load_from_memory_with_format(bytes, format).map_err(|e| e.to_string())?.to_rgb8();
+    let (w, h) = rgb.dimensions();
+    if w == 0 || h == 0 {
+        return Err("zero-sized frame".into());
+    }
+    Ok(Rgb { width: w, height: h, px: rgb.into_raw() })
 }
 
 /// `f` over every item, across every core, results in the original order.
@@ -899,6 +934,46 @@ fn unique(base: &str, used: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A 2×2 picture, one colour per corner, written in `format` to a tempdir.
+    fn still_file(name: &str, format: image::ImageFormat) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("fw-reel-still-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut img = image::RgbImage::new(2, 2);
+        img.put_pixel(0, 0, image::Rgb([255, 0, 0]));
+        img.put_pixel(1, 0, image::Rgb([0, 255, 0]));
+        img.put_pixel(0, 1, image::Rgb([0, 0, 255]));
+        img.put_pixel(1, 1, image::Rgb([255, 255, 255]));
+        let path = dir.join(name);
+        img.save_with_format(&path, format).unwrap();
+        path
+    }
+
+    /// PNG and WebP stills decode to the same RGB8 pixels the picture holds
+    /// (both are lossless here), beside the JPEG path that was already there.
+    #[test]
+    fn a_png_and_a_webp_still_decode_like_a_jpeg_does_not_have_to() {
+        for (name, format) in [("a.png", image::ImageFormat::Png), ("a.webp", image::ImageFormat::WebP)] {
+            let path = still_file(name, format);
+            let rgb = decode(&path).expect("decodes");
+            assert_eq!((rgb.width, rgb.height), (2, 2), "{name}");
+            assert_eq!(&rgb.px[0..3], &[255, 0, 0], "{name}: top-left is red");
+            assert_eq!(&rgb.px[9..12], &[255, 255, 255], "{name}: bottom-right is white");
+            let _ = std::fs::remove_dir_all(path.parent().unwrap());
+        }
+    }
+
+    /// The format is read from the bytes: a PNG renamed `.jpg` still decodes,
+    /// and bytes that are none of the three are refused by name.
+    #[test]
+    fn a_still_is_read_by_its_bytes_and_a_stranger_is_refused() {
+        let path = still_file("renamed.jpg", image::ImageFormat::Png);
+        assert!(decode(&path).is_ok(), "a PNG under a .jpg name decodes");
+        std::fs::write(&path, b"GIF89a not a still we take").unwrap();
+        let Err(err) = decode(&path) else { panic!("a GIF is refused") };
+        assert!(err.contains("not a JPEG, PNG or WebP") || err.contains("unsupported"), "{err}");
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
 
     fn rows(n: usize, motion_at: &[usize]) -> Vec<[f32; COLUMNS]> {
         (0..n)

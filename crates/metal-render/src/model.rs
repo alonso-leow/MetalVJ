@@ -459,6 +459,25 @@ pub struct MaterialSpec {
 /// this crate.
 pub use metal_reel::Reel;
 
+/// The one-line `look`. `Model` has no `description()`, so this composes the
+/// facts the trait **does** declare — generative or transmission, backdrop,
+/// camera track — rather than inventing prose. If a model ever grows a
+/// description, this is where it should be read.
+pub fn look_line(m: &dyn Model) -> String {
+    let mut parts = vec![if m.footage() {
+        "transmission: draws over source material"
+    } else {
+        "generative: draws its own picture"
+    }];
+    if m.backdrop() {
+        parts.push("draws its own backdrop");
+    }
+    if m.camera_track() {
+        parts.push("camera-trackable");
+    }
+    parts.join("; ")
+}
+
 #[cfg(test)]
 mod surface_default_tests {
     use super::{Ctx, Model, Schema};

@@ -154,6 +154,9 @@ pub struct Shell {
     theme: Theme,
     /// The house theme the settings' palette recolours (`Theme::with_palette`).
     base_theme: Theme,
+    /// The border weight per surface type the settings hold, laid over every
+    /// rebuilt theme.
+    borders: classes::Borders,
     door: Box<dyn Call>,
     /// The preview pump's worker, when there is one (`set_fetcher`) — the
     /// off-thread half of [`frames::Frame`]. `None` in tests, where the
@@ -332,6 +335,7 @@ impl Shell {
     pub fn new(theme: Theme, door: Box<dyn Call>) -> Self {
         Shell {
             base_theme: theme.clone(),
+            borders: classes::Borders::default(),
             theme,
             door,
             fetcher: None,
@@ -1020,9 +1024,14 @@ impl Shell {
             self.base_theme = base;
         }
         let palette = self.settings.take_theme_change();
-        if style.is_some() || palette.is_some() {
+        let borders = self.settings.take_borders_change();
+        if let Some(b) = borders {
+            self.borders = b;
+        }
+        if style.is_some() || palette.is_some() || borders.is_some() {
             let colors = palette.unwrap_or_else(|| self.settings.theme_colors().to_vec());
-            self.theme = if colors.is_empty() { self.base_theme.clone() } else { self.base_theme.with_palette(&colors) };
+            let base = if colors.is_empty() { self.base_theme.clone() } else { self.base_theme.with_palette(&colors) };
+            self.theme = base.with_borders(self.borders);
             self.theme.apply(ui.ctx());
         }
         // The global UI scale: egui's own keyboard zoom is off so Ctrl +/-/0

@@ -463,6 +463,19 @@ pub static ROUTES: &[Route] = &[
         prefix: false,
         handler: Handler::Bytes(render::kind_jpg),
     },
+    // The models dropdown's hover poster: the `model-demo` JPEG and its caption.
+    Route {
+        method: "GET",
+        path: "/models/demo.jpg",
+        prefix: false,
+        handler: Handler::Bytes(render::demo_jpg),
+    },
+    Route {
+        method: "GET",
+        path: "/models/demo",
+        prefix: false,
+        handler: Handler::Json(render::demo_info),
+    },
     // H5: a `sensor.yolo` node's live reading (the "lost track" indicator's
     // one fact) and its picture — the capture frame with the head drawn on it.
     // The `set_head_tracking` tool posts the same route (rule 6).

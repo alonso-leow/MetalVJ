@@ -15,14 +15,14 @@ use egui::{Color32, Frame, Id, Panel, Pos2, Rect, Response, RichText, Sense, Ui,
 
 use metal_notation::color::Hsb;
 
-use super::classes::{glyph_font, ControlState, Theme};
+use super::classes::{glyph_font, ControlState, Surface, Theme};
 
 /// The frame every panel region sits in: panel fill, hairline rule, the
 /// theme's padding and radius.
 pub fn panel_frame(theme: &Theme) -> Frame {
     Frame::new()
         .fill(theme.panel)
-        .stroke(theme.rule_stroke())
+        .stroke(theme.border_stroke(Surface::Panel))
         .inner_margin(theme.panel_margin())
         .corner_radius(theme.corner_radius())
 }
@@ -39,7 +39,7 @@ pub fn ground_frame(theme: &Theme) -> Frame {
 pub fn header_frame(theme: &Theme) -> Frame {
     Frame::new()
         .fill(theme.tube_raised)
-        .stroke(theme.rule_stroke())
+        .stroke(theme.border_stroke(Surface::Header))
         .inner_margin(theme.header_margin())
 }
 
@@ -238,7 +238,7 @@ pub fn colour_editor(ui: &mut Ui, theme: &Theme, value: &mut Hsb) -> egui::Respo
         let w = ui.available_width();
         let (rect, _) = ui.allocate_exact_size(egui::vec2(w, theme.swatch_size.y * 2.0), Sense::hover());
         ui.painter().rect_filled(rect, theme.radius, theme.color_of(value.to_rgb()));
-        ui.painter().rect_stroke(rect, theme.radius, theme.rule_stroke(), egui::StrokeKind::Inside);
+        ui.painter().rect_stroke(rect, theme.radius, theme.border_stroke(Surface::Control), egui::StrokeKind::Inside);
 
         let mut h = value.h;
         if colour_field(ui, theme, "H", &mut h, 0.0..=HUE_TURN, "°").changed() {
@@ -319,7 +319,7 @@ pub fn colour_button(ui: &mut Ui, theme: &Theme, value: &mut Hsb) -> egui::Respo
     let painter = ui.painter();
     painter.rect_filled(rect, theme.radius, theme.inset);
     painter.rect_filled(chip, theme.radius, theme.color_of(value.to_rgb()));
-    let stroke = if response.hovered() { theme.card_picked_stroke() } else { theme.rule_stroke() };
+    let stroke = if response.hovered() { theme.card_picked_stroke() } else { theme.border_stroke(Surface::Control) };
     painter.rect_stroke(rect, theme.radius, stroke, egui::StrokeKind::Inside);
     painter.text(
         egui::pos2(chip.right() + theme.picker_gap, rect.center().y),
@@ -960,7 +960,7 @@ pub fn label_row(
 /// and `Theme::card_gap` after it. Always the panel's full width.
 pub fn card<R>(ui: &mut Ui, theme: &Theme, title: Option<&str>, add: impl FnOnce(&mut Ui) -> R) -> R {
     let out = egui::Frame::new()
-        .stroke(theme.rule_stroke())
+        .stroke(theme.border_stroke(Surface::Card))
         .corner_radius(theme.corner_radius())
         .inner_margin(theme.card_pad)
         .show(ui, |ui| {
@@ -1021,7 +1021,7 @@ pub fn card_section<R>(
     add: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     let out = egui::Frame::new()
-        .stroke(theme.rule_stroke())
+        .stroke(theme.border_stroke(Surface::Card))
         .corner_radius(theme.corner_radius())
         .inner_margin(theme.card_pad)
         .show(ui, |ui| {

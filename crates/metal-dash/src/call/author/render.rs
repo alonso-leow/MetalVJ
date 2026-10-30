@@ -172,7 +172,7 @@ pub fn solo_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
     let index = preview_index(ctx.state, params)?;
     let w = params.num("w", 960.0).clamp(64.0, 1920.0) as u32;
     let h = params.num("h", 540.0).clamp(36.0, 1080.0) as u32;
-    let (pixels, w, h) = solo_at(ctx, index, params.param("device"), params.param("mask"), w, h)?;
+    let (pixels, w, h) = solo_at(ctx, index, params.param("device"), params.param("mask"), row_override(params), w, h)?;
     Ok(Bytes {
         kind: "image/jpeg",
         body: encode_jpeg(&pixels, w, h),
@@ -193,7 +193,28 @@ pub struct SoloPlan {
     mask: Option<String>,
 }
 
+/// The node's own row a request carries (`row=<f32,f32,…>`), in place of the
+/// studio's row for the model. A row of the wrong width, or with a value that
+/// is not a number, is ignored: the tile then shows the studio's row, never a
+/// misaligned one.
+pub fn row_override(params: &Params) -> Option<Vec<f32>> {
+    let row: Vec<f32> = params
+        .param("row")?
+        .split(',')
+        .map(|v| v.trim().parse::<f32>().ok().filter(|v| v.is_finite()))
+        .collect::<Option<_>>()?;
+    Some(row)
+}
+
 impl SoloPlan {
+    /// The plan drawn from `row` when it is as wide as the model's own row.
+    pub fn with_row(mut self, row: Option<Vec<f32>>) -> SoloPlan {
+        if let Some(row) = row.filter(|r| r.len() == self.row.len()) {
+            self.row = row;
+        }
+        self
+    }
+
     /// The clock the solo is drawn at (see [`PreviewMemo`]).
     pub fn time(&self) -> f32 {
         self.time
@@ -281,10 +302,11 @@ fn solo_at(
     index: usize,
     device: Option<&str>,
     mask: Option<&str>,
+    row: Option<Vec<f32>>,
     w: u32,
     h: u32,
 ) -> Result<(Vec<u8>, u32, u32), CallError> {
-    let plan = solo_plan_at(ctx.state, index, device, mask, w, h).ok_or(CallError::NotFound)?;
+    let plan = solo_plan_at(ctx.state, index, device, mask, w, h).ok_or(CallError::NotFound)?.with_row(row);
     let mut renderer = ctx.state.renderer.lock().expect("renderer lock");
     let (pixels, w, h) = solo_pixels_render(&mut renderer, &plan);
     drop(renderer);
@@ -423,6 +445,7 @@ pub fn solo_plan(state: &crate::author::State, params: &Params) -> Option<SoloPl
     let w = params.num("w", 960.0).clamp(64.0, 1920.0) as u32;
     let h = params.num("h", 540.0).clamp(36.0, 1080.0) as u32;
     solo_plan_at(state, index, params.param("device"), params.param("mask"), w, h)
+        .map(|plan| plan.with_row(row_override(params)))
 }
 
 /// G5: the first half of [`solo_texture`]: the model draws into a new frame of
@@ -607,6 +630,26 @@ mod tests {
         let mut p = Params::default();
         p.query.insert(k.into(), v.into());
         p
+    }
+
+    fn plan(row: Vec<f32>) -> SoloPlan {
+        SoloPlan { index: 0, row, time: 0.0, w: 8, h: 8, device: None, mask: None }
+    }
+
+    /// A request's `row` replaces the studio's row for that tile, but only
+    /// when it is as wide as the model's own row and every value is a number.
+    #[test]
+    fn a_requests_row_replaces_the_studio_row_only_when_it_fits() {
+        assert_eq!(row_override(&Params::default()), None);
+        assert_eq!(row_override(&with_query("row", "0.5, 2,3")), Some(vec![0.5, 2.0, 3.0]));
+        assert_eq!(row_override(&with_query("row", "0.5,x")), None);
+        assert_eq!(row_override(&with_query("row", "0.5,NaN")), None);
+        let base = vec![1.0, 1.0, 1.0];
+        assert_eq!(plan(base.clone()).with_row(Some(vec![0.5, 2.0, 3.0])).row, vec![0.5, 2.0, 3.0]);
+        assert_eq!(plan(base.clone()).with_row(Some(vec![0.5])).row, base, "a row of the wrong width is ignored");
+        assert_eq!(plan(base.clone()).with_row(None).row, base);
+        let (a, b) = (plan(base.clone()), plan(base).with_row(Some(vec![0.5, 2.0, 3.0])));
+        assert_ne!(a.key(), b.key(), "the memo tells the two rows apart");
     }
 
     #[test]

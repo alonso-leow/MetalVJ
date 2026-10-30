@@ -30,6 +30,7 @@ mod node;
 mod output_device;
 mod overlay;
 mod patch;
+mod poster;
 pub(crate) mod render_on;
 mod fixture;
 mod grade;

@@ -133,6 +133,10 @@ pub fn dispatch_free(method: &str, path: &str, params: &Params) -> Option<Reply>
 /// the answer before it is serialised. The caller holds the state lock for
 /// this call only. `None` when nothing matches.
 pub fn build(method: &str, path: &str, params: &Params, ctx: &mut Ctx) -> Option<Built> {
+    // The browser build (wasm32) keeps the manual routes; the AI ones answer.
+    if cfg!(target_arch = "wasm32") && desktop_only(path) {
+        return Some(Built::Json(Err(CallError::Bad("desktop only".into()))));
+    }
     // An external push, if anyone is making them, is adopted before the
     // request is served — same ordering `author::mod::serve` always had.
     ctx.state
@@ -152,6 +156,18 @@ pub fn build(method: &str, path: &str, params: &Params, ctx: &mut Ctx) -> Option
     })
 }
 
+
+/// The routes that need the desktop: the AI side (rig solver, router,
+/// Curator, grade and dataset training, song digestion and ingest). The browser
+/// build answers them "desktop only"; the manual routes (lanes `/models/timeline*`,
+/// properties `/render/*`, scenes `/scenes*`, `/pagedata`, `/play`) stay.
+pub fn desktop_only(path: &str) -> bool {
+    const AI: [&str; 11] = [
+        "/rig", "/router", "/curator", "/grade", "/dataset", "/models/example", "/models/song-hits",
+        "/add", "/digest", "/ingest", "/song/pull",
+    ];
+    AI.iter().any(|p| path == *p || path.starts_with(&format!("{p}/")))
+}
 
 /// Every `/author/*` route, on the path with the outer prefix already
 /// stripped. The dispatch order the old per-module `serve` chain had
@@ -659,6 +675,29 @@ pub static AUTHOR_ROUTES: &[Route] = &[
 
 #[cfg(test)]
 mod tests {
+    /// The browser keeps lanes, properties and scenes and loses the AI side:
+    /// computed over the route table, every AI route is flagged and every manual
+    /// one is not.
+    #[test]
+    fn the_browser_gets_manual_routes_and_the_ai_ones_say_desktop_only() {
+        let (mut ai, mut manual) = (0, 0);
+        for r in AUTHOR_ROUTES {
+            let ai_route = ["/rig", "/router", "/curator", "/grade", "/dataset"].iter().any(|p| r.path.starts_with(p));
+            let manual_route = ["/models/timeline", "/render", "/scenes", "/pagedata", "/play", "/palettes", "/models/library"]
+                .iter()
+                .any(|p| r.path.starts_with(p));
+            if ai_route {
+                ai += 1;
+                assert!(desktop_only(r.path), "{} is an AI route", r.path);
+            }
+            if manual_route {
+                manual += 1;
+                assert!(!desktop_only(r.path), "{} is a manual route", r.path);
+            }
+        }
+        assert!(ai > 0 && manual > 0, "the table has both kinds");
+    }
+
     use super::*;
 
     #[test]

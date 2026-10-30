@@ -1,3 +1,8 @@
 # Spanish for the shell module `chat` (the AI chat sidebar): "English source
 # text" = "Spanish text". See ../README.md.
 "send" = "enviar"
+"mention" = "mencionar"
+"mention node" = "nodo"
+"mention property" = "propiedad"
+"mention file" = "archivo"
+"mention overlay" = "superposición"

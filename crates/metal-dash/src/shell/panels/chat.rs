@@ -28,6 +28,8 @@ use egui::{
 use serde_json::{Value, json};
 
 use crate::call::Call;
+use crate::shell::classes;
+use crate::shell::mention::{self, Candidate};
 use crate::i18n::{tr, trf};
 
 use crate::shell::classes::Theme;
@@ -67,6 +69,18 @@ pub struct PanelState {
     /// The context chips above the composer: `{kind, id, graph, label}` each,
     /// sent with the next prompt and then cleared.
     pub(crate) context: Vec<Value>,
+    /// The `@` candidates the shell offers this frame (the open graph's nodes,
+    /// with the focused one marked). Set by the shell before [`paint`].
+    pub(crate) sources: Vec<Candidate>,
+    /// The caret's byte index as of the last painted frame: the `@` token is
+    /// read from here, before the editor is added this frame.
+    caret: usize,
+    /// A caret index to place once the editor next paints (after an insert).
+    pending_caret: Option<usize>,
+    /// The highlighted row of the open `@` list.
+    mention_sel: usize,
+    /// How many times each token was inserted this session (recency).
+    mention_uses: std::collections::HashMap<String, u32>,
 }
 
 impl Default for PanelState {
@@ -78,6 +92,11 @@ impl Default for PanelState {
             composer_h: 0.0,
             pending_focus: None,
             context: Vec::new(),
+            sources: Vec::new(),
+            caret: 0,
+            pending_caret: None,
+            mention_sel: 0,
+            mention_uses: std::collections::HashMap::new(),
         }
     }
 }
@@ -87,6 +106,13 @@ impl PanelState {
     #[cfg(test)]
     pub(crate) fn set_prompt_for_test(&mut self, text: &str) {
         self.prompt = text.to_string();
+        self.caret = self.prompt.len();
+    }
+
+    /// Test-only reader for the prompt text, as the composer holds it now.
+    #[cfg(test)]
+    pub(crate) fn prompt_for_test(&self) -> &str {
+        &self.prompt
     }
 }
 
@@ -890,7 +916,35 @@ fn prompt_box(
 ) {
     let prompt_id = Id::new(PROMPT_ID);
     let focused = ui.memory(|m| m.has_focus(prompt_id));
-    let enter = focused
+    // While an `@` token is open, Tab and Enter insert the highlighted
+    // candidate and the arrows move through the list; the keys are consumed
+    // here so the editor and the send path never see them.
+    let mentions = if focused { open_mentions(state) } else { Vec::new() };
+    let mut mention_key = false;
+    if !mentions.is_empty() {
+        let (down, up, tab, enter_key) = ui.input_mut(|i| {
+            (
+                i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::Tab),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::Enter),
+            )
+        });
+        let n = mentions.len();
+        if down {
+            state.mention_sel = (state.mention_sel + 1) % n;
+        }
+        if up {
+            state.mention_sel = (state.mention_sel + n - 1) % n;
+        }
+        if tab || enter_key {
+            let token = mentions[state.mention_sel.min(n - 1)].token.clone();
+            insert_mention(state, &token);
+            mention_key = true;
+        }
+    }
+    let enter = !mention_key
+        && focused
         && ui.input_mut(|i| {
             !i.modifiers.shift && i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)
         });
@@ -912,6 +966,9 @@ fn prompt_box(
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             context_chips(ui, theme, state);
+            if focused && !mentions.is_empty() {
+                mention_list(ui, theme, state, &mentions);
+            }
             let row_h = (ui.text_style_height(&egui::TextStyle::Body) * rows as f32
                 + theme.field_pad.y * 2.0)
                 .min(max_h)
@@ -958,19 +1015,30 @@ fn prompt_box(
             // The field gets an exact rect, so it can never squeeze the
             // send/stop control past the panel's right edge.
             ui.scope_builder(egui::UiBuilder::new().max_rect(field_rect), |ui| {
+                if let Some(at) = state.pending_caret.take() {
+                    place_caret(ui.ctx(), prompt_id, &state.prompt[..at]);
+                }
                 ScrollArea::vertical()
                     .max_height(max_h)
                     .auto_shrink([false, true])
                     .id_salt("shell/panel/chat/composer")
                     .show(ui, |ui| {
-                        ui.add(
-                            TextEdit::multiline(&mut state.prompt)
-                                .id(prompt_id)
-                                .desired_width(field_w)
-                                .margin(theme.field_pad)
-                                .desired_rows(rows)
-                                .hint_text(tr("ask about the graph…")),
-                        );
+                        let out = TextEdit::multiline(&mut state.prompt)
+                            .id(prompt_id)
+                            .desired_width(field_w)
+                            .margin(theme.field_pad)
+                            .desired_rows(rows)
+                            .hint_text(tr("ask about the graph…"))
+                            .show(ui);
+                        // The caret, as a byte index, for the next frame's `@`.
+                        if let Some(range) = out.cursor_range {
+                            let chars = range.primary.index.0;
+                            state.caret = state
+                                .prompt
+                                .char_indices()
+                                .nth(chars)
+                                .map_or(state.prompt.len(), |(b, _)| b);
+                        }
                     });
             });
             // The send/stop control sits at the right edge, after the field.
@@ -1057,6 +1125,80 @@ fn context_chips(ui: &mut Ui, theme: &Theme, state: &mut PanelState) {
 /// Posts the prompt as one turn — `POST /ai/ask {chat, prompt, context}` — and
 /// clears the field and the context chips. A blank or whitespace-only prompt
 /// sends nothing and keeps the field as it is. Returns whether a turn was sent.
+/// The candidates the open `@` token matches, best first, with the session's
+/// recency filled in. Empty when no `@` token is open under the caret.
+fn open_mentions(state: &PanelState) -> Vec<Candidate> {
+    let caret = state.caret.min(state.prompt.len());
+    let Some(m) = mention::active(&state.prompt, caret) else {
+        return Vec::new();
+    };
+    let mut sources = state.sources.clone();
+    for c in &mut sources {
+        c.recent = state.mention_uses.get(&c.token).copied().unwrap_or(0);
+    }
+    mention::rank(&m.query, &sources).into_iter().cloned().collect()
+}
+
+/// Replaces the open `@` token with `@token ` and remembers the insert for the
+/// recency ranking; the caret moves to just after it on the next frame.
+fn insert_mention(state: &mut PanelState, token: &str) {
+    let caret = state.caret.min(state.prompt.len());
+    let Some(m) = mention::active(&state.prompt, caret) else {
+        return;
+    };
+    let (text, after) = mention::splice(&state.prompt, &m, caret, token);
+    state.prompt = text;
+    state.caret = after;
+    state.pending_caret = Some(after);
+    state.mention_sel = 0;
+    *state.mention_uses.entry(token.to_string()).or_default() += 1;
+}
+
+/// The completion list: one row per candidate (up to [`classes::MENTION_ROWS`]),
+/// the highlighted row first. A click inserts the row.
+fn mention_list(ui: &mut Ui, theme: &Theme, state: &mut PanelState, mentions: &[Candidate]) {
+    let sel = state.mention_sel.min(mentions.len().saturating_sub(1));
+    let mut chosen = None;
+    let list = ui
+        .vertical(|ui| {
+            for (i, c) in mentions.iter().take(classes::MENTION_ROWS).enumerate() {
+                let text = format!("{}  {}", c.label, kind_word(c.kind));
+                let row = ui.selectable_label(
+                    i == sel,
+                    RichText::new(text).font(theme.font_body.clone()),
+                );
+                if row.clicked() {
+                    chosen = Some(c.token.clone());
+                }
+            }
+        })
+        .response;
+    list.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Label, true, tr("mention"))
+    });
+    if let Some(token) = chosen {
+        insert_mention(state, &token);
+    }
+}
+
+fn kind_word(kind: mention::Kind) -> String {
+    match kind {
+        mention::Kind::Node => tr("mention node").to_string(),
+        mention::Kind::Property => tr("mention property").to_string(),
+        mention::Kind::File => tr("mention file").to_string(),
+        mention::Kind::Overlay => tr("mention overlay").to_string(),
+    }
+}
+
+/// Moves the editor's caret to char index of `text` (the end of `text`).
+fn place_caret(ctx: &egui::Context, id: Id, text: &str) {
+    use egui::text::{CCursor, CCursorRange};
+    let mut edit = TextEdit::load_state(ctx, id).unwrap_or_default();
+    let at = text.chars().count();
+    edit.cursor.set_char_range(Some(CCursorRange::one(CCursor::new(at))));
+    edit.store(ctx, id);
+}
+
 fn send_prompt(door: &dyn Call, state: &mut PanelState) -> bool {
     if !prompt_is_sendable(&state.prompt) {
         return false;

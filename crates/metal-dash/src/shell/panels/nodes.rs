@@ -544,6 +544,12 @@ impl PanelState {
     /// pixel geometry, so a kittest can reach the `R22.4` `+ create button`
     /// popover with a graph in hand.
     #[cfg(test)]
+    /// Test-only: the open graph's reply (the `graph` object `GET /graph` gives).
+    #[cfg(test)]
+    pub(crate) fn set_graph_for_test(&mut self, graph: serde_json::Value) {
+        self.graph = Some(graph);
+    }
+
     pub(crate) fn set_selected_graph_for_test(&mut self, id: &str) {
         self.selected_graph = Some(id.to_string());
     }

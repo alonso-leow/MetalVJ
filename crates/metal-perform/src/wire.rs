@@ -56,8 +56,11 @@
 //! crate before choosing (see the `Adalight` note).
 
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
+use std::io::{Read, Write};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream, ToSocketAddrs, UdpSocket};
+use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+use std::sync::mpsc::{sync_channel, SyncSender};
+use std::sync::Arc;
 use std::path::Path;
 use web_time::{Duration, Instant};
 
@@ -359,14 +362,38 @@ impl WireSocket {
     fn opened_for(node: &metal_graph::Node) -> String {
         if node.kind == crate::artnet::ARTNET_KIND {
             format!("artnet {:?}", crate::artnet::ArtNetConfig::from_node(node))
+        } else if node.kind == OSC_KIND {
+            format!("osc {:?}", read_config::<OscConfig>(node))
+        } else if node.kind == HTTP_KIND {
+            format!("http {:?}", read_config::<UrlConfig>(node))
+        } else if node.kind == JSON_KIND {
+            format!("json {:?}", read_config::<UrlConfig>(node))
         } else {
             format!("sacn {:?}", SacnConfig::from_node(node))
         }
     }
 
+    /// A socket with no sACN/Art-Net bookkeeping: the per-change protocols.
+    fn plain(wire: Box<dyn Wire + Send>, opened: String, universe: u16, shown: serde_json::Value) -> WireSocket {
+        WireSocket { wire, opened, universe, shown, last_slots: None, last_sent_at: None }
+    }
+
     fn open_for(node: &metal_graph::Node) -> std::io::Result<WireSocket> {
         if node.kind == crate::artnet::ARTNET_KIND {
             WireSocket::artnet(crate::artnet::ArtNetConfig::from_node(node))
+        } else if node.kind == OSC_KIND {
+            let cfg = read_config::<OscConfig>(node);
+            let wire = Osc::new(&cfg)?;
+            let shown = json!({ "host": cfg.host, "prefix": cfg.prefix });
+            Ok(WireSocket::plain(Box::new(wire), format!("osc {cfg:?}"), 0, shown))
+        } else if node.kind == HTTP_KIND {
+            let cfg = read_config::<UrlConfig>(node);
+            let wire = HttpChannels { poster: HttpPoster::new(http_url(&cfg.url)?)? };
+            Ok(WireSocket::plain(Box::new(wire), format!("http {cfg:?}"), 0, json!({ "url": cfg.url })))
+        } else if node.kind == JSON_KIND {
+            let cfg = read_config::<UrlConfig>(node);
+            let wire = JsonState { poster: HttpPoster::new(http_url(&cfg.url)?)? };
+            Ok(WireSocket::plain(Box::new(wire), format!("json {cfg:?}"), 0, json!({ "url": cfg.url })))
         } else {
             WireSocket::new(SacnConfig::from_node(node))
         }
@@ -386,6 +413,12 @@ impl WireSocket {
 /// [`drive_frame`] (signal row) or [`drive_sampled`] (frame heads).
 pub fn is_net_dmx(kind: &str) -> bool {
     kind == "out.sacn" || kind == crate::artnet::ARTNET_KIND
+}
+
+/// Whether `kind` is a signal-row output [`drive_frame`] drives: the DMX ones
+/// plus the per-change protocols (OSC, HTTP, JSON).
+pub fn is_signal_out(kind: &str) -> bool {
+    is_net_dmx(kind) || kind == OSC_KIND || kind == HTTP_KIND || kind == JSON_KIND
 }
 
 /// The live wire status of one node, for the properties panel
@@ -610,7 +643,7 @@ pub fn drive_frame(
     let live: HashSet<&str> = graph
         .nodes
         .iter()
-        .filter(|n| is_net_dmx(&n.kind) && !frame_driven(n))
+        .filter(|n| is_signal_out(&n.kind) && !frame_driven(n))
         .map(|n| n.id.as_str())
         .collect();
     sockets.retain(|id, _| live.contains(id.as_str()));
@@ -620,7 +653,7 @@ pub fn drive_frame(
     for node in graph
         .nodes
         .iter()
-        .filter(|n| is_net_dmx(&n.kind) && !n.bypass && !frame_driven(n))
+        .filter(|n| is_signal_out(&n.kind) && !n.bypass && !frame_driven(n))
     {
         let opened = WireSocket::opened_for(node);
         let needs_new = match sockets.get(&node.id) {
@@ -649,15 +682,23 @@ pub fn drive_frame(
             continue;
         }
         let signal = metal_schema::read_signal(&row);
-        let Some(slots) = fixture::drive_head(root, head, Some(graph), cover, &signal) else {
+        let slots = if node.kind == JSON_KIND {
+            Some(json_state_slots(&signal))
+        } else {
+            fixture::drive_head(root, head, Some(graph), cover, &signal)
+        };
+        let Some(slots) = slots else {
             continue;
         };
 
         let changed = socket.last_slots.as_deref() != Some(slots.as_slice());
-        let stale = socket
-            .last_sent_at
-            .map(|t| now.duration_since(t) >= KEEPALIVE)
-            .unwrap_or(true);
+        // sACN and Art-Net repeat an unchanged frame (§6.7.1); an HTTP, JSON or
+        // OSC call is one request per change, as the catalog describes it.
+        let stale = if is_net_dmx(&node.kind) {
+            socket.last_sent_at.map(|t| now.duration_since(t) >= KEEPALIVE).unwrap_or(true)
+        } else {
+            socket.last_sent_at.is_none()
+        };
         if changed || stale {
             if !socket.wire.send(socket.universe, &slots) {
                 errors += 1;
@@ -684,7 +725,7 @@ pub fn frame_driven(node: &metal_graph::Node) -> bool {
             .get("heads")
             .and_then(|h| h.as_array())
             .is_some_and(|h| !h.is_empty()),
-        "out.serial" => true,
+        "out.serial" | DDP_KIND => true,
         _ => false,
     }
 }
@@ -884,13 +925,25 @@ impl SerialConfig {
 /// strip's own `order`. The graph's `forced` colour (blackout) wins over the
 /// frame.
 fn strip_slots(cfg: &SerialConfig, forced: Option<[f32; 3]>, frame: &[u8], w: u32, h: u32) -> Vec<(u16, u8)> {
-    let n = cfg.count();
+    pixel_slots(cfg.count(), &cfg.sample, forced, frame, w, h)
+}
+
+/// `n` LEDs' RGB slots from the frame, one per `sample` point (or spread across
+/// the middle row when `sample` is empty). Shared by `out.serial` and `out.ddp`.
+fn pixel_slots(
+    n: usize,
+    sample: &[Option<[f32; 2]>],
+    forced: Option<[f32; 3]>,
+    frame: &[u8],
+    w: u32,
+    h: u32,
+) -> Vec<(u16, u8)> {
     let mut slots = Vec::with_capacity(n * 3);
     for i in 0..n {
-        let at = if cfg.sample.is_empty() {
+        let at = if sample.is_empty() {
             Some([(i as f32 + 0.5) / n as f32, 0.5])
         } else {
-            cfg.sample.get(i).copied().flatten()
+            sample.get(i).copied().flatten()
         };
         let rgb = forced.unwrap_or_else(|| crate::venue::sample_rgb(frame, w, h, at));
         for (c, v) in rgb.iter().enumerate() {
@@ -1859,6 +1912,12 @@ pub fn drive_sampled_bus_with(
             let heads = SampledSacn::from_node(node).heads;
             let profiles = profiles.get_or_insert_with(|| fixture::load_with(root, &fixture::extra_dirs(root)));
             (format!("artnet {cfg:?}"), cfg.port_address(), head_slots(&heads, profiles, forced, frame, w, h))
+        } else if node.kind == DDP_KIND {
+            let cfg = DdpConfig::from_node(node);
+            if cfg.dest().is_none() || cfg.count() == 0 {
+                continue;
+            }
+            (format!("ddp {cfg:?}"), 0, pixel_slots(cfg.count(), &cfg.sample, forced, frame, w, h))
         } else {
             let cfg = SerialConfig::from_node(node);
             if cfg.port.trim().is_empty() || cfg.count() == 0 {
@@ -1873,6 +1932,8 @@ pub fn drive_sampled_bus_with(
             } else if node.kind == crate::artnet::ARTNET_KIND {
                 crate::artnet::ArtNet::new(&crate::artnet::ArtNetConfig::from_node(node))
                     .map(|s| Box::new(s) as Box<dyn Wire + Send>)
+            } else if node.kind == DDP_KIND {
+                Ddp::new(&DdpConfig::from_node(node)).map(|s| Box::new(s) as Box<dyn Wire + Send>)
             } else {
                 Adalight::open(&SerialConfig::from_node(node)).map(|s| Box::new(s) as Box<dyn Wire + Send>)
             };
@@ -2003,6 +2064,425 @@ pub fn drive_device_with<'a>(
         Some((px, w, h)) => drive_sampled_bus_with(graph, &px, w, h, root, rows, wires, bus, now),
         None => 0,
     }
+}
+
+// ---------------------------------------------------------------------------
+// out.ddp, out.osc, out.http, out.json — the four protocols after sACN
+// ---------------------------------------------------------------------------
+
+/// The catalog kinds this section implements.
+pub const DDP_KIND: &str = "out.ddp";
+pub const OSC_KIND: &str = "out.osc";
+pub const HTTP_KIND: &str = "out.http";
+pub const JSON_KIND: &str = "out.json";
+
+/// DDP's own UDP port (the Distributed Display Protocol spec).
+const DDP_PORT: u16 = 4048;
+/// OSC's conventional UDP port, when a host names none.
+const OSC_PORT: u16 = 8000;
+/// DDP: a datagram carries at most this many data bytes (480 RGB pixels).
+const DDP_CHUNK: usize = 1440;
+const DDP_HEADER: usize = 10;
+const DDP_VERSION: u8 = 0x40;
+const DDP_PUSH: u8 = 0x01;
+/// The 8-bit RGB data type (`DDP_TYPE_RGB24` in the spec's type field).
+const DDP_TYPE_RGB8: u8 = 0x0B;
+/// The default output device id.
+const DDP_DEST_DEFAULT: u8 = 1;
+/// How long one HTTP request may take to connect, write or answer.
+const HTTP_TIMEOUT: Duration = Duration::from_millis(1000);
+/// Requests queued behind the HTTP worker; a full queue drops the new one.
+const HTTP_QUEUE: usize = 4;
+
+/// Reads a node's own config into `T`, the "anything that does not parse is
+/// the default" reading the other wires take.
+fn read_config<T: serde::de::DeserializeOwned + Default>(node: &metal_graph::Node) -> T {
+    if node.config.is_empty() {
+        return T::default();
+    }
+    serde_json::from_str(&node.config.to_json_str()).unwrap_or_default()
+}
+
+/// `host[:port]` as a socket address, with `default_port` when none is named.
+fn host_port(raw: &str, default_port: u16) -> Option<SocketAddr> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    raw.parse::<SocketAddr>()
+        .ok()
+        .or_else(|| format!("{raw}:{default_port}").parse().ok())
+}
+
+// --- out.ddp ---------------------------------------------------------------
+
+/// `out.ddp`'s config: `{"host": "10.0.0.7[:4048]", "pixels": 60,
+/// "sample": [[x, y] | null, …]}`. Frame-driven like `out.serial` (each LED
+/// samples the picture), so it takes an image input.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct DdpConfig {
+    /// The controller's address. Empty: the node is idle.
+    #[serde(default)]
+    pub host: String,
+    #[serde(default)]
+    pub pixels: Option<usize>,
+    #[serde(default)]
+    pub sample: Vec<Option<[f32; 2]>>,
+}
+
+impl DdpConfig {
+    pub fn from_node(node: &metal_graph::Node) -> DdpConfig {
+        read_config(node)
+    }
+
+    /// How many pixels a frame drives.
+    pub fn count(&self) -> usize {
+        self.pixels.unwrap_or(self.sample.len()).min(MAX_STRIP)
+    }
+
+    /// The UDP destination, `None` when `host` is empty or unparseable.
+    pub fn dest(&self) -> Option<SocketAddr> {
+        host_port(&self.host, DDP_PORT)
+    }
+}
+
+/// The DDP datagrams for one frame of RGB bytes: at most [`DDP_CHUNK`] data
+/// bytes each, the offset in bytes, the push flag on the last one only. A
+/// `sequence` of 1..=15 numbers the frame (0 means "not used").
+pub fn ddp_packets(sequence: u8, rgb: &[u8]) -> Vec<Vec<u8>> {
+    let chunks: Vec<&[u8]> = rgb.chunks(DDP_CHUNK).collect();
+    let last = chunks.len().saturating_sub(1);
+    chunks
+        .iter()
+        .enumerate()
+        .map(|(i, data)| {
+            let mut p = Vec::with_capacity(DDP_HEADER + data.len());
+            p.push(DDP_VERSION | if i == last { DDP_PUSH } else { 0 });
+            p.push(sequence);
+            p.push(DDP_TYPE_RGB8);
+            p.push(DDP_DEST_DEFAULT);
+            p.extend_from_slice(&((i * DDP_CHUNK) as u32).to_be_bytes());
+            p.extend_from_slice(&(data.len() as u16).to_be_bytes());
+            p.extend_from_slice(data);
+            p
+        })
+        .collect()
+}
+
+/// The `n` pixels' RGB bytes from 1-based slots (pixel `i` is slots
+/// `3i+1..=3i+3`); a slot no value names is dark.
+fn pixel_bytes(n: usize, slots: &[(u16, u8)]) -> Vec<u8> {
+    let mut rgb = vec![0u8; n * 3];
+    for &(address, byte) in slots {
+        if let Some(b) = (address as usize).checked_sub(1).and_then(|i| rgb.get_mut(i)) {
+            *b = byte;
+        }
+    }
+    rgb
+}
+
+/// `out.ddp`'s wire: a UDP socket to one controller. Never blocks: the socket
+/// is non-blocking, a datagram the OS refuses counts as a failed send.
+pub struct Ddp {
+    socket: UdpSocket,
+    dest: SocketAddr,
+    pixels: usize,
+    sequence: u8,
+}
+
+impl Ddp {
+    pub fn new(cfg: &DdpConfig) -> std::io::Result<Ddp> {
+        let dest = cfg
+            .dest()
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "out.ddp needs a host"))?;
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
+        socket.set_nonblocking(true)?;
+        Ok(Ddp { socket, dest, pixels: cfg.count(), sequence: 0 })
+    }
+}
+
+impl Wire for Ddp {
+    /// `slots` are the strip's RGB bytes ([`pixel_slots`]); `universe` is unused.
+    fn send(&mut self, _universe: u16, slots: &[(u16, u8)]) -> bool {
+        let rgb = pixel_bytes(self.pixels, slots);
+        self.sequence = self.sequence % 15 + 1;
+        let mut ok = true;
+        for packet in ddp_packets(self.sequence, &rgb) {
+            ok &= matches!(self.socket.send_to(&packet, self.dest), Ok(n) if n == packet.len());
+        }
+        ok
+    }
+}
+
+// --- out.osc ---------------------------------------------------------------
+
+/// `out.osc`'s config: `{"host": "10.0.0.5[:8000]", "prefix": "/dmx"}`. Each
+/// channel is one OSC message `<prefix>/<address>` with a float 0..1.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OscConfig {
+    #[serde(default)]
+    pub host: String,
+    #[serde(default = "default_osc_prefix")]
+    pub prefix: String,
+}
+
+fn default_osc_prefix() -> String {
+    "/dmx".to_string()
+}
+
+impl Default for OscConfig {
+    fn default() -> OscConfig {
+        OscConfig { host: String::new(), prefix: default_osc_prefix() }
+    }
+}
+
+/// An OSC 1.0 string: its bytes, a NUL, padded to a multiple of four.
+fn osc_string(s: &str, out: &mut Vec<u8>) {
+    out.extend_from_slice(s.as_bytes());
+    out.push(0);
+    while out.len() % 4 != 0 {
+        out.push(0);
+    }
+}
+
+/// One OSC message with a single `float32` argument (type tag `,f`).
+pub fn osc_message(address: &str, value: f32) -> Vec<u8> {
+    let mut m = Vec::new();
+    osc_string(address, &mut m);
+    osc_string(",f", &mut m);
+    m.extend_from_slice(&value.to_be_bytes());
+    m
+}
+
+/// An OSC bundle that runs now (timetag 1): `#bundle`, the timetag, then each
+/// message as an int32 size and its bytes.
+pub fn osc_bundle(messages: &[Vec<u8>]) -> Vec<u8> {
+    let mut b = b"#bundle\0".to_vec();
+    b.extend_from_slice(&1u64.to_be_bytes());
+    for m in messages {
+        b.extend_from_slice(&(m.len() as i32).to_be_bytes());
+        b.extend_from_slice(m);
+    }
+    b
+}
+
+/// `out.osc`'s wire: one UDP datagram per change, a bundle of one message per
+/// channel.
+pub struct Osc {
+    socket: UdpSocket,
+    dest: SocketAddr,
+    prefix: String,
+}
+
+impl Osc {
+    pub fn new(cfg: &OscConfig) -> std::io::Result<Osc> {
+        let dest = host_port(&cfg.host, OSC_PORT)
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "out.osc needs a host"))?;
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
+        socket.set_nonblocking(true)?;
+        Ok(Osc { socket, dest, prefix: cfg.prefix.trim_end_matches('/').to_string() })
+    }
+}
+
+impl Wire for Osc {
+    fn send(&mut self, _universe: u16, slots: &[(u16, u8)]) -> bool {
+        if slots.is_empty() {
+            return true;
+        }
+        let messages: Vec<Vec<u8>> = slots
+            .iter()
+            .map(|(address, byte)| osc_message(&format!("{}/{address}", self.prefix), *byte as f32 / 255.0))
+            .collect();
+        let packet = osc_bundle(&messages);
+        matches!(self.socket.send_to(&packet, self.dest), Ok(n) if n == packet.len())
+    }
+}
+
+// --- out.http and out.json: one HTTP POST per change -----------------------
+
+/// `out.http` and `out.json`'s config: `{"url": "http://host[:port]/path"}`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct UrlConfig {
+    #[serde(default)]
+    pub url: String,
+}
+
+/// A plain `http://host[:port]/path` URL, split for the request line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpUrl {
+    pub host: String,
+    pub port: u16,
+    pub path: String,
+}
+
+impl HttpUrl {
+    /// `None` for anything but an `http://` URL with a host (TLS is not
+    /// spoken here: the lamps and bridges this reaches are on the LAN).
+    pub fn parse(raw: &str) -> Option<HttpUrl> {
+        let rest = raw.trim().strip_prefix("http://")?;
+        let (authority, path) = match rest.find('/') {
+            Some(i) => (&rest[..i], &rest[i..]),
+            None => (rest, "/"),
+        };
+        if authority.is_empty() {
+            return None;
+        }
+        let (host, port) = match authority.rsplit_once(':') {
+            Some((h, p)) => (h, p.parse().ok()?),
+            None => (authority, 80),
+        };
+        if host.is_empty() {
+            return None;
+        }
+        Some(HttpUrl { host: host.to_string(), port, path: path.to_string() })
+    }
+}
+
+fn http_url(raw: &str) -> std::io::Result<HttpUrl> {
+    HttpUrl::parse(raw).ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "needs an http://host[:port]/path url")
+    })
+}
+
+/// One HTTP/1.1 POST with a JSON body, on its own connection. `Ok` only for a
+/// 2xx answer; anything else is the error the worker counts.
+fn post_once(url: &HttpUrl, body: &[u8]) -> std::io::Result<()> {
+    let addr = (url.host.as_str(), url.port)
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no address for the host"))?;
+    let mut stream = TcpStream::connect_timeout(&addr, HTTP_TIMEOUT)?;
+    stream.set_read_timeout(Some(HTTP_TIMEOUT))?;
+    stream.set_write_timeout(Some(HTTP_TIMEOUT))?;
+    write!(
+        stream,
+        "POST {} HTTP/1.1\r\nHost: {}:{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        url.path,
+        url.host,
+        url.port,
+        body.len()
+    )?;
+    stream.write_all(body)?;
+    stream.flush()?;
+    let mut reply = Vec::new();
+    stream.read_to_end(&mut reply)?;
+    let status = std::str::from_utf8(&reply)
+        .ok()
+        .and_then(|t| t.split_whitespace().nth(1))
+        .and_then(|c| c.parse::<u16>().ok())
+        .unwrap_or(0);
+    if (200..300).contains(&status) {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!("HTTP status {status}")))
+    }
+}
+
+/// The POST side of an HTTP node: a worker thread does the blocking I/O so the
+/// frame never waits on a bulb. [`HttpPoster::post`] queues a body without
+/// blocking; a full queue refuses it (`false`, counted by the caller). A
+/// failed request bumps `failed`.
+pub struct HttpPoster {
+    tx: SyncSender<Vec<u8>>,
+    failed: Arc<AtomicU64>,
+}
+
+impl HttpPoster {
+    pub fn new(url: HttpUrl) -> std::io::Result<HttpPoster> {
+        let (tx, rx) = sync_channel::<Vec<u8>>(HTTP_QUEUE);
+        let failed = Arc::new(AtomicU64::new(0));
+        let counter = Arc::clone(&failed);
+        std::thread::Builder::new().name("out-http".into()).spawn(move || {
+            for body in rx {
+                if post_once(&url, &body).is_err() {
+                    counter.fetch_add(1, AtomicOrdering::Relaxed);
+                }
+            }
+        })?;
+        Ok(HttpPoster { tx, failed })
+    }
+
+    /// Queues one body; `false` when the queue is full.
+    pub fn post(&self, body: Vec<u8>) -> bool {
+        self.tx.try_send(body).is_ok()
+    }
+
+    /// Requests the worker could not complete so far.
+    pub fn failures(&self) -> u64 {
+        self.failed.load(AtomicOrdering::Relaxed)
+    }
+}
+
+/// `out.http`'s body: the channel values as `[address, value]` pairs.
+/// `{"channels":[[1,255],[2,0]]}`.
+pub fn channels_body(slots: &[(u16, u8)]) -> Vec<u8> {
+    let pairs: Vec<serde_json::Value> = slots.iter().map(|(a, v)| json!([a, v])).collect();
+    json!({ "channels": pairs }).to_string().into_bytes()
+}
+
+/// `out.http`'s wire: a POST of the head's channel values per change.
+pub struct HttpChannels {
+    pub poster: HttpPoster,
+}
+
+impl Wire for HttpChannels {
+    fn send(&mut self, _universe: u16, slots: &[(u16, u8)]) -> bool {
+        self.poster.post(channels_body(slots))
+    }
+}
+
+/// The WLED JSON state for slots 1 = brightness, 2..=4 = red, green, blue:
+/// `{"on":true,"bri":128,"seg":[{"col":[[255,0,0]]}]}`. The state endpoint of a
+/// WLED controller (`/json/state`) takes this shape.
+pub fn wled_state_body(slots: &[(u16, u8)]) -> Vec<u8> {
+    let at = |a: u16| slots.iter().find(|s| s.0 == a).map_or(0, |s| s.1);
+    let (bri, r, g, b) = (at(1), at(2), at(3), at(4));
+    format!(
+        r#"{{"on":{on},"bri":{bri},"seg":[{{"col":[[{r},{g},{b}]]}}]}}"#,
+        on = bri > 0
+    )
+    .into_bytes()
+}
+
+/// `out.json`'s wire: a WLED-style state POST per change.
+pub struct JsonState {
+    pub poster: HttpPoster,
+}
+
+impl Wire for JsonState {
+    fn send(&mut self, _universe: u16, slots: &[(u16, u8)]) -> bool {
+        self.poster.post(wled_state_body(slots))
+    }
+}
+
+/// `out.json`'s channel values for a signal: brightness from `level`, and the
+/// colour from `hue`/`sat` at full value (white when `sat` is 0).
+pub fn json_state_slots(signal: &metal_schema::Signal) -> Vec<(u16, u8)> {
+    let bri = (signal.level.clamp(0.0, 1.0) * 255.0).round() as u8;
+    let [r, g, b] = if signal.sat > 0.0 {
+        hsv_to_rgb(signal.hue, signal.sat.clamp(0.0, 1.0), 1.0)
+    } else {
+        [255, 255, 255]
+    };
+    vec![(1, bri), (2, r), (3, g), (4, b)]
+}
+
+/// HSV to 8-bit RGB; `h` is a fraction of a turn (wraps), `s` and `v` in 0..1.
+pub fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [u8; 3] {
+    let h6 = h.rem_euclid(1.0) * 6.0;
+    let c = v * s;
+    let x = c * (1.0 - ((h6 % 2.0) - 1.0).abs());
+    let m = v - c;
+    let (r, g, b) = match h6 as u32 {
+        0 => (c, x, 0.0),
+        1 => (x, c, 0.0),
+        2 => (0.0, c, x),
+        3 => (0.0, x, c),
+        4 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    let q = |f: f32| ((f + m).clamp(0.0, 1.0) * 255.0).round() as u8;
+    [q(r), q(g), q(b)]
 }
 
 #[cfg(test)]
@@ -3561,3 +4041,254 @@ mod venue_tests {
         let _ = metal_vfs::remove_dir_all(&root);
     }
 }
+
+#[cfg(test)]
+mod net_out_tests {
+    use super::*;
+    use std::net::{TcpListener, UdpSocket as StdUdpSocket};
+
+    fn receiver() -> (StdUdpSocket, u16) {
+        let recv = StdUdpSocket::bind("127.0.0.1:0").unwrap();
+        recv.set_read_timeout(Some(Duration::from_millis(1000))).unwrap();
+        let port = recv.local_addr().unwrap().port();
+        (recv, port)
+    }
+
+    /// Reads one HTTP request off `stream`: the head, then `Content-Length` bytes.
+    fn read_request(stream: &mut std::net::TcpStream) -> String {
+        let mut buf = Vec::new();
+        let mut chunk = [0u8; 512];
+        loop {
+            let n = stream.read(&mut chunk).unwrap();
+            buf.extend_from_slice(&chunk[..n]);
+            let Some(end) = buf.windows(4).position(|w| w == b"\r\n\r\n") else { continue };
+            let head = String::from_utf8_lossy(&buf[..end]).to_string();
+            let len: usize = head
+                .lines()
+                .find_map(|l| l.strip_prefix("Content-Length: "))
+                .unwrap()
+                .trim()
+                .parse()
+                .unwrap();
+            if buf.len() >= end + 4 + len {
+                return String::from_utf8_lossy(&buf[..end + 4 + len]).to_string();
+            }
+        }
+    }
+
+    /// A one-shot HTTP server on loopback: returns its port and the request it
+    /// reads, once answered with `200`.
+    fn one_shot_server() -> (u16, std::thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = std::thread::spawn(move || {
+            // A request that never comes is an empty answer, not a hung test.
+            listener.set_nonblocking(true).unwrap();
+            let deadline = Instant::now() + Duration::from_secs(3);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(_) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(5)),
+                    Err(_) => return String::new(),
+                }
+            };
+            stream.set_nonblocking(false).unwrap();
+            let request = read_request(&mut stream);
+            stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+            request
+        });
+        (port, handle)
+    }
+
+    #[test]
+    fn ddp_splits_a_frame_into_1440_byte_chunks_with_the_push_on_the_last() {
+        let rgb: Vec<u8> = (0..1500u32).map(|i| i as u8).collect();
+        let packets = ddp_packets(3, &rgb);
+        assert_eq!(packets.len(), 2, "1500 bytes is one full chunk and a 60-byte tail");
+        let (first, last) = (&packets[0], &packets[1]);
+        assert_eq!(first.len(), 10 + 1440);
+        assert_eq!(&first[0..4], &[0x40, 3, 0x0B, 1], "version 1, sequence, RGB8, destination 1, no push");
+        assert_eq!(&first[4..8], &[0, 0, 0, 0], "offset 0");
+        assert_eq!(&first[8..10], &1440u16.to_be_bytes(), "length 1440");
+        assert_eq!(&first[10..], &rgb[..1440]);
+        assert_eq!(last.len(), 10 + 60);
+        assert_eq!(&last[0..4], &[0x41, 3, 0x0B, 1], "the last packet carries the push flag");
+        assert_eq!(&last[4..8], &1440u32.to_be_bytes(), "offset 1440");
+        assert_eq!(&last[8..10], &60u16.to_be_bytes());
+        assert_eq!(&last[10..], &rgb[1440..]);
+    }
+
+    #[test]
+    fn a_ddp_node_sends_its_sampled_pixels_as_one_push_datagram() {
+        let root = std::env::temp_dir().join(format!("fw-ddp-{}", std::process::id()));
+        let (recv, port) = receiver();
+        let mut g = metal_graph::Graph::new("device-ddp", "t", metal_graph::Domain::Live);
+        g.add_node("out", "output.device", [0.0, 0.0]);
+        let n = g.add_node("ddp", DDP_KIND, [0.0, 100.0]);
+        g.node_mut(&n).unwrap().config = metal_graph::Config::from_json_str(&format!(
+            r#"{{"host": "127.0.0.1:{port}", "sample": [[0.25, 0.5], [0.75, 0.5]]}}"#
+        ))
+        .unwrap();
+        // Left half red, right half blue: pixel 0 red, pixel 1 blue.
+        let (w, h) = (8u32, 4u32);
+        let mut frame = Vec::new();
+        for _ in 0..h {
+            for x in 0..w {
+                let c = if x < w / 2 { [255u8, 0, 0] } else { [0, 0, 255] };
+                frame.extend_from_slice(&[c[0], c[1], c[2], 255]);
+            }
+        }
+        let mut wires = HashMap::new();
+        assert_eq!(drive_sampled(&g, &frame, w, h, &root, &mut wires, Instant::now()), 0);
+        let mut buf = [0u8; 64];
+        let (n, _) = recv.recv_from(&mut buf).expect("the DDP datagram");
+        assert_eq!(n, 10 + 6);
+        assert_eq!(&buf[0..4], &[0x41, 1, 0x0B, 1], "one push datagram, sequence 1");
+        assert_eq!(&buf[10..16], &[255, 0, 0, 0, 0, 255], "red then blue, RGB order");
+    }
+
+    #[test]
+    fn osc_message_is_address_type_tag_and_a_big_endian_float_each_padded_to_four() {
+        let m = osc_message("/dmx/1", 1.0);
+        assert_eq!(
+            m,
+            vec![b'/', b'd', b'm', b'x', b'/', b'1', 0, 0, b',', b'f', 0, 0, 0x3f, 0x80, 0, 0],
+            "address and ',f' padded to 8 and 4 bytes, then 1.0f32"
+        );
+    }
+
+    #[test]
+    fn an_osc_bundle_is_the_header_then_each_message_with_its_size() {
+        let msgs = vec![osc_message("/dmx/1", 0.0), osc_message("/dmx/2", 0.5)];
+        let b = osc_bundle(&msgs);
+        assert_eq!(&b[0..8], b"#bundle\0");
+        assert_eq!(&b[8..16], &1u64.to_be_bytes(), "timetag: now");
+        assert_eq!(&b[16..20], &(msgs[0].len() as i32).to_be_bytes());
+        assert_eq!(&b[20..20 + msgs[0].len()], msgs[0].as_slice());
+        assert_eq!(b.len(), 16 + 2 * (4 + 16));
+    }
+
+    #[test]
+    fn an_osc_node_sends_one_bundle_per_change_to_its_host() {
+        let (recv, port) = receiver();
+        let mut wire = Osc::new(&OscConfig { host: format!("127.0.0.1:{port}"), prefix: "/dmx/".into() }).unwrap();
+        assert!(wire.send(0, &[(1, 255), (2, 0)]));
+        let mut buf = [0u8; 256];
+        let (n, _) = recv.recv_from(&mut buf).unwrap();
+        assert_eq!(&buf[..8], b"#bundle\0");
+        assert_eq!(n, 16 + 2 * (4 + 16));
+        assert_eq!(&buf[20..28], b"/dmx/1\0\0", "the trailing slash of the prefix is not doubled");
+        assert_eq!(&buf[32..36], &1.0f32.to_be_bytes(), "slot 255 is 1.0");
+    }
+
+    #[test]
+    fn an_http_url_splits_into_host_port_and_path() {
+        assert_eq!(
+            HttpUrl::parse("http://192.168.1.20:8080/json/state"),
+            Some(HttpUrl { host: "192.168.1.20".into(), port: 8080, path: "/json/state".into() })
+        );
+        assert_eq!(
+            HttpUrl::parse("http://bulb.local"),
+            Some(HttpUrl { host: "bulb.local".into(), port: 80, path: "/".into() })
+        );
+        assert_eq!(HttpUrl::parse("https://bulb.local/"), None, "no TLS here");
+        assert_eq!(HttpUrl::parse("http://"), None);
+    }
+
+    #[test]
+    fn channel_values_go_out_as_an_address_value_pair_list() {
+        assert_eq!(channels_body(&[(1, 255), (2, 0)]), br#"{"channels":[[1,255],[2,0]]}"#.to_vec());
+    }
+
+    #[test]
+    fn a_wled_state_body_carries_brightness_and_the_colour() {
+        assert_eq!(
+            wled_state_body(&[(1, 128), (2, 255), (3, 0), (4, 0)]),
+            br#"{"on":true,"bri":128,"seg":[{"col":[[255,0,0]]}]}"#.to_vec()
+        );
+        assert_eq!(
+            wled_state_body(&[(1, 0), (2, 0), (3, 0), (4, 0)]),
+            br#"{"on":false,"bri":0,"seg":[{"col":[[0,0,0]]}]}"#.to_vec(),
+            "brightness 0 turns the state off"
+        );
+    }
+
+    #[test]
+    fn hsv_turns_the_primaries_into_their_rgb() {
+        assert_eq!(hsv_to_rgb(0.0, 1.0, 1.0), [255, 0, 0]);
+        assert_eq!(hsv_to_rgb(1.0 / 3.0, 1.0, 1.0), [0, 255, 0]);
+        assert_eq!(hsv_to_rgb(2.0 / 3.0, 1.0, 1.0), [0, 0, 255]);
+        assert_eq!(hsv_to_rgb(0.5, 0.0, 1.0), [255, 255, 255], "no saturation is white");
+    }
+
+    #[test]
+    fn an_http_post_puts_the_body_on_the_wire_and_counts_a_2xx_as_sent() {
+        let (port, server) = one_shot_server();
+        let poster = HttpPoster::new(HttpUrl::parse(&format!("http://127.0.0.1:{port}/x")).unwrap()).unwrap();
+        assert!(poster.post(channels_body(&[(7, 9)])));
+        let request = server.join().unwrap();
+        assert!(request.starts_with("POST /x HTTP/1.1\r\n"), "{request}");
+        assert!(request.contains("Content-Type: application/json\r\n"));
+        assert!(request.ends_with(r#"{"channels":[[7,9]]}"#), "{request}");
+        // Give the worker a moment to record its answer, then no failure.
+        std::thread::sleep(Duration::from_millis(50));
+        assert_eq!(poster.failures(), 0);
+    }
+
+    #[test]
+    fn a_node_whose_host_refuses_counts_a_failure_not_a_panic() {
+        // Port 1 on loopback is closed: the connect fails and the worker counts it.
+        let poster = HttpPoster::new(HttpUrl::parse("http://127.0.0.1:1/").unwrap()).unwrap();
+        assert!(poster.post(b"{}".to_vec()));
+        for _ in 0..100 {
+            if poster.failures() > 0 {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(poster.failures(), 1);
+    }
+
+    #[test]
+    fn a_json_node_in_the_signal_walk_posts_its_wled_state_on_change() {
+        let (port, server) = one_shot_server();
+        let root = std::env::temp_dir().join(format!("fw-json-{}", std::process::id()));
+        let mut g = metal_graph::Graph::new("g", "t", metal_graph::Domain::Live);
+        let out = g.add_node("out", JSON_KIND, [0.0, 0.0]);
+        g.node_mut(&out).unwrap().config =
+            metal_graph::Config::from_json_str(&format!(r#"{{"url": "http://127.0.0.1:{port}/json/state"}}"#)).unwrap();
+        g.add_edge(metal_graph::Endpoint::new("src", "row"), metal_graph::Endpoint::new(&out, "signal"));
+        let mut row = vec![0.0f32; metal_schema::EFFECTS_WIDTH];
+        let mut sig: Vec<f32> = metal_schema::SIGNAL_FLOATS.iter().map(|s| s.default).collect();
+        row.extend(sig);
+        // `read_signal` reads the signal block from the row's end: level sits at
+        // `len - EFFECTS_WIDTH - SIGNAL_WIDTH`.
+        let at = row.len() - metal_schema::EFFECTS_WIDTH - metal_schema::SIGNAL_WIDTH;
+        row[at] = 0.8;
+        let mut rows = HashMap::new();
+        rows.insert("src".to_string(), row);
+        let head = fixture::Head { fixture: "none".into(), universe: None, address: None };
+        let mut sockets = HashMap::new();
+        let errors = drive_frame(
+            &g,
+            &head,
+            &root,
+            None,
+            &HashMap::new(),
+            &rows,
+            &[],
+            &mut sockets,
+            &mut HashMap::new(),
+            &(|_cfg| {
+                Box::new(metal_ble::Recorder::new().0.with_status(metal_ble::LinkStatus::Failed("test".into())))
+                    as Box<dyn metal_ble::Link>
+            }),
+            Instant::now(),
+        );
+        assert_eq!(errors, 0);
+        let request = server.join().unwrap();
+        assert!(request.starts_with("POST /json/state HTTP/1.1\r\n"), "{request}");
+        assert!(request.contains(r#""bri":204"#), "level 0.8 is 204 of 255: {request}");
+    }
+}
+

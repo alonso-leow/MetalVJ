@@ -6794,6 +6794,30 @@
       ]
     },
     {
+      "id": "g2-overlay-glitch-hit",
+      "tags": [
+        "overlay_control"
+      ],
+      "user": "Tirá un glitch en los materiales, justo en el golpe.",
+      "steps": [
+        {
+          "assistant": "Disparo una ráfaga de glitch sobre los materiales.",
+          "tool_calls": [
+            {
+              "name": "overlay_control",
+              "arguments": {
+                "op": "glitch"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "El glitch de material pegó en el golpe.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
       "id": "g2-colour-apply-models",
       "tags": [
         "colour_apply"

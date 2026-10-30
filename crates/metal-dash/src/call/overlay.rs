@@ -170,6 +170,16 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
                 }
             }
         }
+        // Material glitch trigger (rule 12): a one-shot burst of `mat_glitch`
+        // on every generator that draws a material, like an accent hit.
+        // `hold: true` keeps it on until `op: "glitch-release"` (the grid's
+        // hold edge).
+        "glitch" => {
+            ctx.state.overlays.hit_glitch(time, body["hold"].as_bool().unwrap_or(false));
+        }
+        "glitch-release" => {
+            ctx.state.overlays.release_glitch();
+        }
         "stop-solid" => {
             let device = body["device"].as_str().unwrap_or(PREVIEW);
             ctx.state.overlays.stop_solid_color(device);
@@ -527,6 +537,25 @@ mod tests {
     /// A malformed `rgb` (wrong length, out-of-range byte) is refused before
     /// anything is armed — the same "reject before drawing" posture `play`'s
     /// own guards take.
+    #[test]
+    fn a_glitch_op_fires_a_burst_and_release_ends_a_hold() {
+        let (mut paint, mut state, mut sim, author) = fixture();
+        let mut ctx = Ctx {
+            state: &mut state,
+            paint: paint.as_mut(),
+            sim: &mut sim,
+            author: &author,
+        };
+        overlay(&mut ctx, &body(json!({ "op": "glitch" }))).expect("glitch");
+        let t = ctx.state.time();
+        assert!(ctx.state.overlays.glitch_level(t) > 0.0, "the burst is in the air");
+        assert_eq!(ctx.state.overlays.glitch_level(t + 5.0), 0.0, "and gone a few seconds later");
+        overlay(&mut ctx, &body(json!({ "op": "glitch", "hold": true }))).expect("hold");
+        assert_eq!(ctx.state.overlays.glitch_level(ctx.state.time() + 60.0), 1.0, "a hold stays on");
+        overlay(&mut ctx, &body(json!({ "op": "glitch-release" }))).expect("release");
+        assert_eq!(ctx.state.overlays.glitch_level(ctx.state.time() + 60.0), 0.0);
+    }
+
     #[test]
     fn a_solid_op_with_bad_rgb_is_refused() {
         let (mut paint, mut state, mut sim, author) = fixture();

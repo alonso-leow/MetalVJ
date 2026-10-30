@@ -2542,6 +2542,9 @@ impl AgentHarness {
         if let Some(looping) = args.get("loop").and_then(Value::as_bool) {
             body["loop"] = json!(looping);
         }
+        if let Some(hold) = args.get("hold").and_then(Value::as_bool) {
+            body["hold"] = json!(hold);
+        }
         let door = self.door()?;
         door.json("POST", "/overlay", Some(body))
             .map_err(|(status, msg)| format!("/overlay answered {status}: {msg}"))
@@ -2645,8 +2648,10 @@ impl AgentHarness {
     /// the layer and movement; `solid` stays with `solid_color`.
     fn overlay_control(&self, args: &Value) -> Result<Value, String> {
         let op = Self::require_str(args, "op")?;
-        if !matches!(op, "play" | "stop" | "stop-all" | "stop-solid") {
-            return Err(format!("op is play / stop / stop-all / stop-solid, not {op}"));
+        if !matches!(op, "play" | "stop" | "stop-all" | "stop-solid" | "glitch" | "glitch-release") {
+            return Err(format!(
+                "op is play / stop / stop-all / stop-solid / glitch / glitch-release, not {op}"
+            ));
         }
         let mut body = json!({ "op": op });
         for key in ["device", "layer", "movement"] {
@@ -3652,6 +3657,21 @@ mod tests {
             .execute(&call("overlay_control", json!({ "op": "solid" })))
             .unwrap_err();
         assert!(err.contains("solid"), "{err}");
+    }
+
+    /// The material glitch trigger: `glitch` (one-shot, or `hold`) and
+    /// `glitch-release` post to `POST /overlay` like every other op.
+    #[test]
+    fn overlay_control_posts_the_material_glitch_ops() {
+        let door = std::sync::Arc::new(ScriptedDoor::new());
+        let mut h = with_door(&door);
+        h.execute(&call("overlay_control", json!({ "op": "glitch" }))).expect("glitch");
+        assert_eq!(posted(&door, "POST", "/overlay"), Some(json!({ "op": "glitch" })));
+        h.execute(&call("overlay_control", json!({ "op": "glitch", "hold": true }))).expect("hold");
+        h.execute(&call("overlay_control", json!({ "op": "glitch-release" }))).expect("release");
+        let calls = door.calls.lock().unwrap();
+        let last: Value = serde_json::from_slice(&calls.last().unwrap().2).unwrap();
+        assert_eq!(last, json!({ "op": "glitch-release" }));
     }
 
     /// G2: `colour_apply` posts the colourist body `POST /colour/apply` takes:

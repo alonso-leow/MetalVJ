@@ -97,6 +97,41 @@ impl Blackout {
     }
 }
 
+/// How long a one-shot material glitch burst lasts, in seconds.
+pub const GLITCH_HIT_SECS: f32 = 0.35;
+
+/// A material glitch burst, show-wide: a one-shot hit decays over
+/// [`GLITCH_HIT_SECS`]; a held one stays at full until released. It lifts
+/// `mat_glitch` of every generator row (see [`Overlays::lift_glitch`]).
+pub struct GlitchHit {
+    pub started: f32,
+    pub hold: bool,
+}
+
+impl GlitchHit {
+    /// The gate level `0..=1` at `time`; 0 when over.
+    pub fn level(&self, time: f32) -> f32 {
+        let elapsed = time - self.started;
+        if elapsed < 0.0 {
+            return 0.0;
+        }
+        if self.hold {
+            return 1.0;
+        }
+        (1.0 - elapsed / GLITCH_HIT_SECS).clamp(0.0, 1.0)
+    }
+
+    fn describe(&self, time: f32) -> Value {
+        json!({
+            "type": "glitch",
+            "started": self.started,
+            "hold": self.hold,
+            "active": self.level(time) > 0.0,
+            "level": self.level(time),
+        })
+    }
+}
+
 /// A solid color overlay: a fixed color for a duration.
 pub struct SolidColorOverlay {
     pub device: String,
@@ -236,6 +271,7 @@ pub struct Overlays {
     running: Vec<Play>,
     blackouts: Vec<Blackout>,
     solid_colors: Vec<SolidColorOverlay>,
+    glitch: Option<GlitchHit>,
 }
 
 /// One device's overlays at one instant, so the render path can carry the
@@ -290,11 +326,51 @@ impl Overlays {
     /// operator has to be able to get back to the stack they know with one
     /// gesture rather than by remembering what they armed.
     pub fn stop_all(&mut self) -> usize {
-        let n = self.running.len() + self.blackouts.len() + self.solid_colors.len();
+        let n = self.running.len()
+            + self.blackouts.len()
+            + self.solid_colors.len()
+            + usize::from(self.glitch.is_some());
+        self.glitch = None;
         self.running.clear();
         self.blackouts.clear();
         self.solid_colors.clear();
         n
+    }
+
+    /// Fires a material glitch burst at `started`: a one-shot hit, or with
+    /// `hold` one that stays on until [`Self::release_glitch`].
+    pub fn hit_glitch(&mut self, started: f32, hold: bool) {
+        self.glitch = Some(GlitchHit { started, hold });
+    }
+
+    /// Ends a held glitch. True if one was armed (a one-shot hit decays by itself).
+    pub fn release_glitch(&mut self) -> bool {
+        self.glitch.take().is_some()
+    }
+
+    /// The glitch gate level at `time`, 0 when none is in the air.
+    pub fn glitch_level(&self, time: f32) -> f32 {
+        self.glitch.as_ref().map_or(0.0, |g| g.level(time))
+    }
+
+    /// Raises the `material` group's `mat_glitch` of `row` to the glitch
+    /// level at `time`. A row without the group, or no glitch in the air,
+    /// is untouched. It never lowers what the row already asks for.
+    pub fn lift_glitch(&self, row: &mut [f32], time: f32) {
+        let level = self.glitch_level(time);
+        if level <= 0.0 {
+            return;
+        }
+        let Some(local) = metal_schema::MATERIAL_FLOATS.iter().position(|s| s.name == "mat_glitch") else {
+            return;
+        };
+        let Some(at) = row.len().checked_sub(metal_schema::EFFECTS_WIDTH) else {
+            return;
+        };
+        let at = at + metal_schema::CHAIN_FLOATS + metal_schema::N_ADVANCED + local;
+        if let Some(slot) = row.get_mut(at) {
+            *slot = slot.max(level);
+        }
     }
 
     /// Start a blackout on a device for the given duration (in seconds).
@@ -442,6 +518,9 @@ impl Overlays {
             .retain(|p| p.at(time).is_some() && alive(&p.device, &p.layer));
         self.blackouts.retain(|b| b.is_active(time));
         self.solid_colors.retain(|c| c.is_active(time));
+        if self.glitch.as_ref().is_some_and(|g| g.level(time) <= 0.0) {
+            self.glitch = None;
+        }
     }
 
     /// What is in the air, for `/state`.
@@ -449,6 +528,7 @@ impl Overlays {
         let mut all: Vec<Value> = self.running.iter().map(|p| p.describe(time)).collect();
         all.extend(self.blackouts.iter().map(|b| b.describe(time)));
         all.extend(self.solid_colors.iter().map(|c| c.describe(time)));
+        all.extend(self.glitch.iter().map(|g| g.describe(time)));
         json!(all)
     }
 }
@@ -977,6 +1057,37 @@ mod tests {
         let mut only = vec![Layer::new("l0-0", "one", 0)];
         o2.on("preview", 0.25).apply(&air, 1, &mut only);
         assert_eq!(only[0].mask, None);
+    }
+
+    /// A glitch hit lifts `mat_glitch` and decays; a held one stays until
+    /// released; neither lowers a row that already asks for more.
+    #[test]
+    fn a_glitch_hit_lifts_mat_glitch_and_decays_and_a_hold_stays() {
+        let local = metal_schema::MATERIAL_FLOATS.iter().position(|s| s.name == "mat_glitch").unwrap();
+        let at = metal_schema::CHAIN_FLOATS + metal_schema::N_ADVANCED + local;
+        let row0 = vec![0.0f32; 4 + metal_schema::EFFECTS_WIDTH];
+        let glitch = |o: &Overlays, t: f32| {
+            let mut r = row0.clone();
+            o.lift_glitch(&mut r, t);
+            r[4 + at]
+        };
+        let mut o = Overlays::default();
+        assert_eq!(glitch(&o, 1.0), 0.0, "nothing in the air leaves the row");
+        o.hit_glitch(1.0, false);
+        assert!((glitch(&o, 1.0) - 1.0).abs() < 1e-6);
+        let mid = glitch(&o, 1.0 + GLITCH_HIT_SECS / 2.0);
+        assert!(mid > 0.4 && mid < 0.6, "decaying: {mid}");
+        assert_eq!(glitch(&o, 1.0 + GLITCH_HIT_SECS + 0.1), 0.0, "the hit is over");
+        o.hit_glitch(2.0, true);
+        assert_eq!(glitch(&o, 60.0), 1.0, "a hold stays on");
+        let mut r = row0.clone();
+        r[4 + at] = 2.0;
+        o.lift_glitch(&mut r, 60.0);
+        assert_eq!(r[4 + at], 2.0, "never lowers");
+        assert!(o.release_glitch());
+        assert_eq!(glitch(&o, 60.0), 0.0);
+        o.hit_glitch(3.0, true);
+        assert_eq!(o.stop_all(), 1, "stop-all takes the glitch off too");
     }
 
     /// Nothing playing must cost nothing on a path that runs per layer per

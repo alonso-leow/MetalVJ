@@ -3943,6 +3943,13 @@ fn run_outs(
                     save = true;
                 }
             }
+            Out::Glitch { hold, on } => {
+                let body = match (hold, on) {
+                    (_, false) => json!({ "op": "glitch-release" }),
+                    (hold, true) => json!({ "op": "glitch", "hold": hold }),
+                };
+                let _ = door.json("POST", "/overlay", Some(body));
+            }
             Out::Octave(step) => {
                 for role in state.layout.roles.values_mut() {
                     if let crate::surface::Role::Piano { base, keys } = role {
@@ -4375,7 +4382,7 @@ fn paint_cell(
     // The pointer's gesture: a hold button (and `rec`, `drop rec`, `fn`) on
     // its press/release edges, everything else once per click.
     let edges = match &cell.kind {
-        CellKind::Role { role } => matches!(role, Role::Rec | Role::DropRec | Role::Fn { .. }),
+        CellKind::Role { role } => matches!(role, Role::Rec | Role::DropRec | Role::Fn { .. } | Role::Glitch { hold: true }),
         _ => holds(state, cell),
     };
     let gesture = if edges {

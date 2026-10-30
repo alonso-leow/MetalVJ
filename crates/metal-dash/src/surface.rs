@@ -649,6 +649,131 @@ impl Layout {
     }
 }
 
+/// One of the grid's saved layouts (`grid_layouts` in settings): a named
+/// [`Layout`] — a free grid or a box's face taken as its template — and the
+/// buttons its face's controls hold, parked here while another is up.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Saved {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub surface: Layout,
+    /// The face's controllers (`hw:…`, `key:…` in `grid_controllers`).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub controllers: BTreeMap<String, serde_json::Value>,
+}
+
+/// The grid's layouts, one of them up. The one up lives in `grid_surface`
+/// (and its face's controllers in `grid_controllers`); its entry here is the
+/// copy taken when another came up.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Layouts {
+    #[serde(default)]
+    pub active: String,
+    #[serde(default)]
+    pub list: Vec<Saved>,
+}
+
+impl Layouts {
+    /// The stored value, read leniently: an unreadable one is no layouts, a
+    /// nameless or repeated entry is dropped, and `active` names one that is
+    /// there when any is.
+    pub fn from_value(v: &serde_json::Value) -> Layouts {
+        let mut l = serde_json::from_value::<Layouts>(v.clone()).unwrap_or_default();
+        let mut seen = BTreeSet::new();
+        l.list.retain(|s| !s.id.is_empty() && !s.name.trim().is_empty() && seen.insert(s.id.clone()));
+        for s in &mut l.list {
+            s.surface = s.surface.clone().clamped();
+        }
+        if l.get(&l.active).is_none() {
+            l.active = l.list.first().map(|s| s.id.clone()).unwrap_or_default();
+        }
+        l
+    }
+
+    /// Why a posted value cannot be stored, if it cannot.
+    pub fn check(v: &serde_json::Value) -> Result<(), String> {
+        if !v.is_object() {
+            return Err("must be an object".into());
+        }
+        let l = serde_json::from_value::<Layouts>(v.clone()).map_err(|e| e.to_string())?;
+        let mut seen = BTreeSet::new();
+        for (i, s) in l.list.iter().enumerate() {
+            if s.id.is_empty() {
+                return Err(format!("list[{i}] has no id"));
+            }
+            if !seen.insert(s.id.as_str()) {
+                return Err(format!("list[{i}]: id {:?} is taken", s.id));
+            }
+            if s.name.trim().is_empty() {
+                return Err(format!("list[{i}] has no name"));
+            }
+            Layout::check(&s.surface.to_value()).map_err(|e| format!("list[{i}].surface: {e}"))?;
+        }
+        if !l.list.is_empty() && !seen.contains(l.active.as_str()) {
+            return Err(format!("active {:?} is not in the list", l.active));
+        }
+        Ok(())
+    }
+
+    pub fn to_value(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
+
+    pub fn get(&self, id: &str) -> Option<&Saved> {
+        self.list.iter().find(|s| s.id == id)
+    }
+
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut Saved> {
+        self.list.iter_mut().find(|s| s.id == id)
+    }
+
+    /// The layout up.
+    pub fn current(&self) -> Option<&Saved> {
+        self.get(&self.active)
+    }
+
+    /// A fresh id and a fresh name `name_of(n)` (`Custom Grid 3`), each the
+    /// lowest one not taken.
+    pub fn fresh(&self, name_of: impl Fn(usize) -> String) -> (String, String) {
+        let id = (1..).map(|n| format!("grid-{n}")).find(|id| self.get(id).is_none());
+        let name = (1..).map(name_of).find(|name| !self.list.iter().any(|s| s.name == *name));
+        (id.expect("an unbounded range has a free id"), name.expect("an unbounded range has a free name"))
+    }
+
+    /// Adds `surface` as a new layout called `name` (not up yet), answering
+    /// its id.
+    pub fn create(&mut self, name: &str, surface: Layout, name_of: impl Fn(usize) -> String) -> String {
+        let (id, fresh) = self.fresh(name_of);
+        let name = if name.trim().is_empty() { fresh } else { name.trim().to_string() };
+        self.list.push(Saved { id: id.clone(), name, surface, controllers: BTreeMap::new() });
+        id
+    }
+
+    /// Renames `id`; an empty name changes nothing. Answers whether it did.
+    pub fn rename(&mut self, id: &str, name: &str) -> bool {
+        let name = name.trim();
+        match self.get_mut(id) {
+            Some(s) if !name.is_empty() && s.name != name => {
+                s.name = name.to_string();
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Deletes `id`, never the last one. Answers the layout to bring up when
+    /// `id` was the one up (its neighbour), `None` otherwise or when refused.
+    pub fn remove(&mut self, id: &str) -> Option<String> {
+        if self.list.len() < 2 {
+            return None;
+        }
+        let at = self.list.iter().position(|s| s.id == id)?;
+        self.list.remove(at);
+        (self.active == id).then(|| self.list[at.min(self.list.len() - 1)].id.clone())
+    }
+}
+
 /// Whether `key` is a cell made for a box's face rather than one of the
 /// grid's own.
 pub fn is_face_cell(key: &str) -> bool {
@@ -1466,5 +1591,50 @@ mod tests {
             s.role(&l, "f", &Role::Folder, Gesture::Click, 0.0, 0),
             vec![Out::Library(LibraryIntent::ToggleFolders)]
         );
+    }
+
+    #[test]
+    fn layouts_are_created_renamed_and_deleted_never_the_last() {
+        let name = |n: usize| format!("Custom Grid {n}");
+        let mut ls = Layouts::default();
+        let free = ls.create("", Layout::default(), name);
+        ls.active = free.clone();
+        let mut face = Layout::default();
+        face.apply_device(&metal_midi::devices::device("flkey-mini").unwrap());
+        let hw = ls.create("", face, name);
+        assert_eq!(ls.get(&free).unwrap().name, "Custom Grid 1");
+        assert_eq!(ls.get(&hw).unwrap().name, "Custom Grid 2");
+        assert_eq!(ls.get(&hw).unwrap().surface.device.as_deref(), Some("flkey-mini"));
+        assert!(ls.rename(&hw, "  Club rig "));
+        assert!(!ls.rename(&hw, " "), "an empty name changes nothing");
+        assert_eq!(ls.get(&hw).unwrap().name, "Club rig");
+        // A name let go is taken again; the id stays the layout's.
+        assert_eq!(ls.fresh(name), ("grid-3".into(), "Custom Grid 2".into()));
+
+        let back = Layouts::from_value(&ls.to_value());
+        assert_eq!(back, ls, "round-trips");
+        assert!(Layouts::check(&ls.to_value()).is_ok());
+
+        assert_eq!(ls.remove(&free), Some(hw.clone()), "deleting the one up brings up its neighbour");
+        ls.active = hw.clone();
+        assert_eq!(ls.remove(&hw), None, "the last layout stays");
+        assert_eq!(ls.list.len(), 1);
+    }
+
+    #[test]
+    fn stored_layouts_are_read_leniently_and_checked_strictly() {
+        let v = serde_json::json!({ "active": "gone", "list": [
+            { "id": "a", "name": "A", "surface": { "cols": 99 } },
+            { "id": "a", "name": "again" },
+            { "id": "b", "name": " " },
+        ] });
+        let l = Layouts::from_value(&v);
+        assert_eq!(l.list.len(), 1, "a repeated id and a blank name go");
+        assert_eq!(l.active, "a", "the one up is one that is there");
+        assert_eq!(l.list[0].surface.cols, MAX_DIM);
+        assert!(Layouts::check(&v).is_err());
+        assert!(Layouts::check(&serde_json::json!({ "active": "x", "list": [{ "id": "a", "name": "A" }] })).is_err());
+        assert!(Layouts::check(&serde_json::json!({ "active": "a", "list": [{ "id": "a", "name": "A", "surface": { "rows": 0 } }] })).is_err());
+        assert!(Layouts::from_value(&serde_json::json!(null)).list.is_empty());
     }
 }

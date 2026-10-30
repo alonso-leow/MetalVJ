@@ -205,6 +205,12 @@ pub struct PanelState {
     /// The control surface's stored half (`grid_surface`): fixed cols × rows,
     /// order, pages, control cells, MIDI bindings, recorded loops.
     pub(crate) layout: crate::surface::Layout,
+    /// The grid's saved layouts (`grid_layouts`), the one up being `layout`.
+    pub(crate) layouts: crate::surface::Layouts,
+    /// The name popup open over the grid: on a new layout, or `rename`.
+    layout_name: Option<LayoutName>,
+    /// The layout the delete popup asks about.
+    layout_delete: Option<String>,
     /// Its live half: held, frozen, recording, playing.
     pub(crate) surface: crate::surface::Surface,
     /// What this frame's gestures asked the grid to do, run once the cells
@@ -319,6 +325,17 @@ fn switch_row(ui: &mut Ui, theme: &Theme, on: &mut bool) -> Response {
     response
 }
 
+/// The name popup's draft: the layout it names and the text typed.
+#[derive(Clone, Debug)]
+struct LayoutName {
+    id: String,
+    text: String,
+    /// Opened on a layout just made (`name the layout`), not by `rename`.
+    fresh: bool,
+    /// The field takes the keyboard on the popup's first frame.
+    focus: bool,
+}
+
 /// 2026-09-22 (afternoon): the `video`-drop popover's draft. `path`/`name` are
 /// the dropped card's; `target` is the `output.device` (or `mask`) id the
 /// operator picked as the destination, and `mask: true` marks that the id
@@ -376,6 +393,9 @@ impl Default for PanelState {
             new_video: None,
             grid_spans: BTreeMap::new(),
             layout: crate::surface::Layout::default(),
+            layouts: crate::surface::Layouts::default(),
+            layout_name: None,
+            layout_delete: None,
             surface: crate::surface::Surface::default(),
             grid_outs: Vec::new(),
             pad_inputs: Vec::new(),
@@ -425,6 +445,12 @@ impl PanelState {
             self.grid_spans = parse_spans(&reply["grid_spans"]);
             self.controllers = parse_controllers(&reply["grid_controllers"]);
             self.layout = crate::surface::Layout::from_value(&reply["grid_surface"]);
+            self.layouts = crate::surface::Layouts::from_value(&reply["grid_layouts"]);
+        }
+        // An install with none stored opens on the grid it had, named.
+        if self.layouts.list.is_empty() {
+            let id = self.layouts.create("", self.layout.clone(), layout_default_name);
+            self.layouts.active = id;
         }
     }
 
@@ -2795,6 +2821,8 @@ fn overlays_grid(
     // (or mask) combo it holds is the same `GET /state` listing the grid
     // already resolved.
     create_video_popover(ui, theme, door, state, state_val, open_graph);
+    // The layouts menu's name and delete popups.
+    layout_popups(ui, theme, door, state);
     // A scene cell's `⚙` or right-click opens the one controller editor as a
     // popup anchored near that cell.
     controller_editor_popup(ui, theme, door, state);
@@ -3066,7 +3094,7 @@ fn page_bar(
     ui.scope_builder(UiBuilder::new().max_rect(middle).layout(Layout::left_to_right(Align::Center)), |ui| {
         // What does not fit is cut, never laid over `+` and `›`.
         ui.set_clip_rect(middle.intersect(ui.clip_rect()));
-        device_menu(ui, theme, door, state);
+        layouts_menu(ui, theme, door, state);
         // Walks a box's controls from the top (one at a time, `skip` or stop).
         if state.face_learn.is_none() && state.layout.device.is_some() {
             if ui.button(RichText::new(tr("learn the face")).font(theme.font_small.clone())).clicked() {
@@ -3134,48 +3162,230 @@ fn face_learn_prompt(state: &PanelState) -> Option<String> {
     })
 }
 
-/// The box the grid takes the shape of: the free grid, or one of the known
-/// controllers (the one plugged in is marked) with every key, pad, knob and
-/// button where its panel has them. Hovering one says what mode the box
-/// must be in for its controls to answer.
-fn device_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState) {
+/// The grid's layouts: the one up names the button, each other brings
+/// itself up. `create a new layout` opens a free grid, `create a new layout
+/// from hardware ▸` a known controller's face as its template (the one
+/// plugged in is marked; hovering one says what mode the box must be in);
+/// either asks for its name. `rename` and `delete` act on the one up.
+fn layouts_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState) {
     let small = |t: String| RichText::new(t).font(theme.font_small.clone());
-    let current = state.layout.device.as_deref().and_then(metal_midi::devices::device);
-    let label = current.as_ref().map_or_else(|| tr("free grid").to_string(), |d| tr_dyn(d.name).to_string());
+    let label = state.layouts.current().map_or_else(|| layout_default_name(1), |s| s.name.clone());
     let ports = crate::input::midi_ports();
     let (response, _) = plain_menu(ui, theme, RichText::new(format!("{label} ▾")), |ui| {
-        if ui.selectable_label(current.is_none(), small(tr("free grid").into())).clicked() {
-            forget_face_controllers(door, state);
-            state.layout.clear_device();
-            state.grid_note = Some(tr("the grid is free again").to_string());
-            save_layout(door, state);
-            ui.close();
-        }
-        let mut maker = "";
-        for d in metal_midi::devices::catalogue() {
-            // A heading per maker, the generic layouts last.
-            if d.maker != maker {
-                maker = d.maker;
-                ui.separator();
-                ui.label(RichText::new(tr_dyn(maker)).font(theme.font_small.clone()).color(theme.ink_weak));
-            }
-            let shown = tr_dyn(d.name).to_string();
-            let name = if ports.iter().any(|p| d.is_port(p)) {
-                trf("{name} · connected", &[("name", &shown)])
-            } else {
-                shown
+        for saved in state.layouts.list.clone() {
+            let up = saved.id == state.layouts.active;
+            let item = ui.selectable_label(up, small(saved.name.clone()));
+            let item = match saved.surface.device.as_deref().and_then(metal_midi::devices::device) {
+                Some(d) => item.on_hover_text(tr_dyn(d.name)),
+                None => item.on_hover_text(tr("free grid")),
             };
-            let picked = state.layout.device.as_deref() == Some(d.id);
-            if ui.selectable_label(picked, small(name)).on_hover_text(tr_dyn(d.note)).clicked() {
-                forget_face_controllers(door, state);
-                state.layout.apply_device(&d);
-                state.grid_note = Some(trf("the grid is a {name}", &[("name", &d.name)]));
-                save_layout(door, state);
+            if item.clicked() {
+                if !up {
+                    switch_layout(door, state, &saved.id);
+                    state.grid_note = Some(trf("{name} is up", &[("name", &saved.name)]));
+                }
                 ui.close();
             }
         }
+        ui.separator();
+        if plain_item(ui, theme, small(tr("Create a new layout").into())).clicked() {
+            create_layout(door, state, crate::surface::Layout::default());
+            ui.close();
+        }
+        let _ = plain_menu(ui, theme, small(tr("Create a new layout from hardware").into()), |ui| {
+            let mut maker = "";
+            for d in metal_midi::devices::catalogue() {
+                // A heading per maker, the generic layouts last.
+                if d.maker != maker {
+                    if !maker.is_empty() {
+                        ui.separator();
+                    }
+                    maker = d.maker;
+                    ui.label(RichText::new(tr_dyn(maker)).font(theme.font_small.clone()).color(theme.ink_weak));
+                }
+                let shown = tr_dyn(d.name).to_string();
+                let name = if ports.iter().any(|p| d.is_port(p)) {
+                    trf("{name} · connected", &[("name", &shown)])
+                } else {
+                    shown
+                };
+                if ui.button(small(name)).on_hover_text(tr_dyn(d.note)).clicked() {
+                    let mut face = crate::surface::Layout::default();
+                    face.apply_device(&d);
+                    create_layout(door, state, face);
+                    ui.close();
+                }
+            }
+        });
+        ui.separator();
+        if plain_item(ui, theme, small(tr("Rename").into())).clicked() {
+            if let Some(cur) = state.layouts.current() {
+                state.layout_name =
+                    Some(LayoutName { id: cur.id.clone(), text: cur.name.clone(), fresh: false, focus: true });
+            }
+            ui.close();
+        }
+        let last = state.layouts.list.len() < 2;
+        let delete = ui
+            .add_enabled(!last, egui::Button::new(small(tr("Delete").into())).frame(true))
+            .on_disabled_hover_text(tr("the last layout stays"));
+        if delete.clicked() {
+            state.layout_delete = Some(state.layouts.active.clone());
+            ui.close();
+        }
     });
-    response.on_hover_text(tr("the controller the grid takes the shape of"));
+    response.on_hover_text(tr("the grid's layouts: each a setup of its own"));
+}
+
+/// `Custom Grid {n}`: what a new layout is called until it is named.
+fn layout_default_name(n: usize) -> String {
+    trf("Custom Grid {n}", &[("n", &n)])
+}
+
+/// Copies the layout up (its surface and its face's controllers) into its
+/// entry, so the list holds every layout whole.
+fn stash_layout(state: &mut PanelState) {
+    let face: BTreeMap<String, Value> =
+        state.controllers.iter().filter(|(k, _)| is_hw_controller(k)).map(|(k, v)| (k.clone(), v.clone())).collect();
+    let layout = state.layout.clone();
+    let active = state.layouts.active.clone();
+    if let Some(saved) = state.layouts.get_mut(&active) {
+        saved.surface = layout;
+        saved.controllers = face;
+    }
+}
+
+/// Brings up `id` in place of the layout up (which is stashed first unless
+/// it is gone): its surface, its face's controllers, a fresh live half.
+fn bring_up_layout(state: &mut PanelState, id: &str) {
+    let Some(saved) = state.layouts.get(id).cloned() else { return };
+    state.controllers.retain(|k, _| !is_hw_controller(k));
+    state.controllers.extend(saved.controllers);
+    state.layout = saved.surface;
+    state.layouts.active = saved.id;
+    state.surface = crate::surface::Surface::default();
+    state.grid_selected = None;
+    state.grid_learn = None;
+    state.slot_learn = None;
+    state.face_learn = None;
+    state.face_learn_last = None;
+}
+
+fn switch_layout(door: &dyn Call, state: &mut PanelState, id: &str) {
+    stash_layout(state);
+    bring_up_layout(state, id);
+    save_layouts(door, state);
+}
+
+/// Adds `surface` as a new layout, brings it up and asks for its name.
+fn create_layout(door: &dyn Call, state: &mut PanelState, surface: crate::surface::Layout) {
+    stash_layout(state);
+    let id = state.layouts.create("", surface, layout_default_name);
+    bring_up_layout(state, &id);
+    save_layouts(door, state);
+    let name = state.layouts.current().map(|s| s.name.clone()).unwrap_or_default();
+    state.grid_note = Some(trf("{name} is up", &[("name", &name)]));
+    state.layout_name = Some(LayoutName { id, text: name, fresh: true, focus: true });
+}
+
+/// Posts the layout up, its controllers and the whole list in one
+/// `POST /settings`, adopting what the reply carries.
+fn save_layouts(door: &dyn Call, state: &mut PanelState) {
+    stash_layout(state);
+    let body = json!({
+        "grid_surface": state.layout.to_value(),
+        "grid_controllers": Value::Object(state.controllers.clone().into_iter().collect()),
+        "grid_layouts": state.layouts.to_value(),
+    });
+    match door.json("POST", "/settings", Some(body)) {
+        Ok(reply) => {
+            if reply["grid_surface"].is_object() {
+                state.layout = crate::surface::Layout::from_value(&reply["grid_surface"]);
+            }
+            if reply["grid_controllers"].is_object() {
+                state.controllers = parse_controllers(&reply["grid_controllers"]);
+            }
+            if reply["grid_layouts"].is_object() {
+                let layouts = crate::surface::Layouts::from_value(&reply["grid_layouts"]);
+                if !layouts.list.is_empty() {
+                    state.layouts = layouts;
+                }
+            }
+        }
+        Err((_, why)) => state.grid_note = Some(trf("the layouts were not saved: {why}", &[("why", &why)])),
+    }
+}
+
+/// The name popup (a new layout's, or `rename`'s) and the delete popup,
+/// small windows over the grid.
+fn layout_popups(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState) {
+    let small = |t: String| RichText::new(t).font(theme.font_small.clone());
+    if let Some(draft) = state.layout_name.as_mut() {
+        let title = if draft.fresh { tr("Name the layout") } else { tr("Rename layout") };
+        let (mut save, mut cancel, mut open) = (false, false, true);
+        egui::Window::new(title)
+            .id(Id::new("shell/region/lanes/layout-name"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .open(&mut open)
+            .show(ui.ctx(), |ui| {
+                ui.set_min_width(theme.text_input_width * 1.5);
+                let field = ui.add(
+                    egui::TextEdit::singleline(&mut draft.text)
+                        .hint_text(tr("layout name"))
+                        .desired_width(theme.text_input_width * 1.5),
+                );
+                if draft.focus {
+                    field.request_focus();
+                    draft.focus = false;
+                }
+                let named = !draft.text.trim().is_empty();
+                save |= named && field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                ui.horizontal(|ui| {
+                    save |= ui.add_enabled(named, egui::Button::new(small(tr("save").into()))).clicked();
+                    cancel |= ui.button(small(tr("cancel").into())).clicked();
+                });
+            });
+        if save {
+            let (id, text) = (draft.id.clone(), draft.text.clone());
+            if state.layouts.rename(&id, &text) {
+                save_layouts(door, state);
+            }
+        }
+        if save || cancel || !open {
+            state.layout_name = None;
+        }
+    }
+    if let Some(id) = state.layout_delete.clone() {
+        let name = state.layouts.get(&id).map(|s| s.name.clone()).unwrap_or_default();
+        let (mut delete, mut cancel, mut open) = (false, false, true);
+        egui::Window::new(tr("Delete layout"))
+            .id(Id::new("shell/region/lanes/layout-delete"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .open(&mut open)
+            .show(ui.ctx(), |ui| {
+                ui.label(small(trf("Delete {name}? Its bindings and loops go with it.", &[("name", &name)])));
+                ui.horizontal(|ui| {
+                    delete |= ui.button(small(tr("delete").into())).clicked();
+                    cancel |= ui.button(small(tr("cancel").into())).clicked();
+                });
+            });
+        if delete && state.layouts.list.len() > 1 {
+            // The one up goes with its face's controllers: its neighbour
+            // comes up in their place.
+            if let Some(next) = state.layouts.remove(&id) {
+                bring_up_layout(state, &next);
+            }
+            save_layouts(door, state);
+            state.grid_note = Some(trf("{name} was deleted", &[("name", &name)]));
+        }
+        if delete || cancel || !open {
+            state.layout_delete = None;
+        }
+    }
 }
 
 /// `does ▸`: the surface's jobs (`fn dial`, `rec`, `page ›`, …) for a box's
@@ -3204,12 +3414,6 @@ fn job_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState,
 fn slot_of_controller(state: &PanelState, key: &str) -> Option<usize> {
     let (id, _) = key.strip_prefix("hw:")?.rsplit_once(':')?;
     state.layout.slots.iter().position(|s| s.id == id)
-}
-
-/// The buttons a box's controls and its keys held go with its face.
-fn forget_face_controllers(door: &dyn Call, state: &mut PanelState) {
-    let face: Vec<String> = state.controllers.keys().filter(|k| is_hw_controller(k)).map(|k| format!("ctrl:{k}")).collect();
-    drop_controllers(door, state, &face);
 }
 
 /// A box's slot with no cell in it on this page, painted unnamed as the
@@ -8207,9 +8411,14 @@ fn without_an_open_graph_create_button_says_so() {
         harness.run();
         harness.get_by_label("lanes / overlays").click();
         harness.run();
-        harness.get_by_label_contains("free grid").click();
+        harness.get_by_label("Custom Grid 1 ▾").click();
+        harness.run();
+        harness.get_by_label("Create a new layout from hardware").click();
         harness.run();
         harness.get_by_label("Novation FLkey Mini").click();
+        harness.run();
+        assert!(harness.query_by_label("Name the layout").is_some(), "a new layout asks for its name");
+        harness.get_by_label("cancel").click();
         harness.run();
         let posted = recorder.calls.borrow().iter().any(|(m, p, params)| {
             m == "POST" && p == "/settings" && body_of(params)["grid_surface"]["device"] == json!("flkey-mini")
@@ -8284,6 +8493,80 @@ fn without_an_open_graph_create_button_says_so() {
         );
     }
 
+    /// The layouts menu: a box's face is made a new layout from its
+    /// template and named in the popup; going back to the first parks the
+    /// face's controllers with it, and they come back with it; `Rename`
+    /// renames the one up; `Delete` brings up the one left.
+    #[test]
+    fn layouts_are_made_from_hardware_named_switched_and_deleted() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        harness.get_by_label("Custom Grid 1 ▾").click();
+        harness.run();
+        assert!(harness.query_by_label("Novation FLkey Mini").is_none(), "the boxes wait in their submenu");
+        harness.get_by_label("Create a new layout from hardware").click();
+        harness.run();
+        harness.get_by_label("Novation FLkey Mini").click();
+        harness.run();
+        harness.state_mut().lanes_state_mut().layout_name.as_mut().expect("the name popup").text = "Club rig".into();
+        harness.get_by_label("save").click();
+        harness.run();
+        let ctrl = json!({ "graph": "g", "name": "", "mode": "switch", "targets": [{ "node": "n", "on": true }] });
+        {
+            let state = harness.state_mut().lanes_state_mut();
+            assert_eq!(state.layouts.list.len(), 2);
+            assert_eq!(state.layouts.current().unwrap().name, "Club rig");
+            assert_eq!(state.layout.device.as_deref(), Some("flkey-mini"));
+            state.controllers.insert("hw:pad-1:0".into(), ctrl.clone());
+        }
+        harness.get_by_label("Club rig ▾").click();
+        harness.run();
+        harness.get_by_label("Custom Grid 1").click();
+        harness.run();
+        {
+            let state = harness.state_mut().lanes_state_mut();
+            assert!(state.layout.device.is_none(), "the free grid is back");
+            assert!(!state.controllers.contains_key("hw:pad-1:0"), "the face's buttons are parked");
+        }
+        let stored = recorder.calls.borrow().iter().rev().find_map(|(m, p, params)| {
+            (m == "POST" && p == "/settings").then(|| body_of(params)).filter(|b| b["grid_layouts"].is_object())
+        });
+        let stored = stored.expect("the layouts are posted");
+        assert_eq!(stored["grid_layouts"]["active"], json!("grid-1"));
+        assert_eq!(stored["grid_layouts"]["list"][1]["controllers"]["hw:pad-1:0"], ctrl);
+
+        harness.get_by_label("Custom Grid 1 ▾").click();
+        harness.run();
+        harness.get_by_label("Club rig").click();
+        harness.run();
+        assert_eq!(harness.state_mut().lanes_state_mut().controllers.get("hw:pad-1:0"), Some(&ctrl), "and come back");
+
+        harness.get_by_label("Club rig ▾").click();
+        harness.run();
+        harness.get_by_label("Rename").click();
+        harness.run();
+        harness.state_mut().lanes_state_mut().layout_name.as_mut().expect("the rename popup").text = "Hotel".into();
+        harness.get_by_label("save").click();
+        harness.run();
+        assert_eq!(harness.state_mut().lanes_state_mut().layouts.current().unwrap().name, "Hotel");
+
+        harness.get_by_label("Hotel ▾").click();
+        harness.run();
+        harness.get_by_label("Delete").click();
+        harness.run();
+        harness.get_by_label("delete").click();
+        harness.run();
+        let state = harness.state_mut().lanes_state_mut();
+        assert_eq!(state.layouts.list.len(), 1);
+        assert_eq!(state.layouts.current().unwrap().name, "Custom Grid 1");
+        assert!(state.layout.device.is_none() && !state.controllers.contains_key("hw:pad-1:0"));
+    }
+
     /// `learn the face` takes each control as the operator touches it: a
     /// knob's further turns and a button's release do not move the walk on,
     /// and the last step sets the piano from its lowest key.
@@ -8317,7 +8600,7 @@ fn without_an_open_graph_create_button_says_so() {
             state.layout.apply_device(&metal_midi::devices::device("generic-25-keys").unwrap());
         }
         harness.run();
-        harness.get_by_label_contains("25 keys + 8 pads").click();
+        harness.get_by_label("Custom Grid 1 ▾").click();
         harness.run();
         // The walk starts from a control's menu (`learn the face` there).
         harness.state_mut().lanes_state_mut().face_learn = Some(0);

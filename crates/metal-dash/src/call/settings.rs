@@ -22,10 +22,10 @@ use crate::call::{CallError, Ctx, Params};
 /// The keys this layer owns. A new key means a new preference that grew this
 /// slice (`O.16`'s naming/token sections, …) and added its own key *and* its
 /// own tests here — never a second file.
-const KEYS: [&str; 17] = [
+const KEYS: [&str; 18] = [
     "shell_mode", "language", "tick_level", "grid_spans", "grid_page", "grid_controllers",
     "shell_view", "colour_rule", "export_dir", "fps_cap", "file_tags", "ingest_proxy",
-    "ui_scale", "theme", "grid_surface", "tone_mode", "tone_sample_s",
+    "ui_scale", "theme", "grid_surface", "grid_layouts", "tone_mode", "tone_sample_s",
 ];
 
 pub use crate::frame_cap::{DEFAULT_FPS_CAP, FPS_CAPS};
@@ -195,6 +195,10 @@ fn defaults() -> Map<String, Value> {
     // rows, the cells' order and pages, the control cells, the MIDI bindings
     // and the recorded loops. A fresh install is an 8 × 4 grid, nothing bound.
     m.insert("grid_surface".into(), crate::surface::Layout::default().to_value());
+    // The grid's saved layouts (`surface::Layouts`): each a named surface and
+    // its face's controllers; the one up is `grid_surface`. A fresh install
+    // has none stored — the panel names the grid it opens on `Custom Grid 1`.
+    m.insert("grid_layouts".into(), crate::surface::Layouts::default().to_value());
     // The header's Edit|Show toggle; a fresh install opens on the editor.
     m.insert("shell_view".into(), json!("edit"));
     // Where the overlays grid's colour built-ins paint: a group name
@@ -394,6 +398,21 @@ fn post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<Value, Str
             "grid_surface".into(),
             crate::surface::Layout::from_value(surface).to_value(),
         );
+        changed = true;
+    }
+    if let Some(layouts) = body.get("grid_layouts") {
+        // The whole list, replaced, the same contract as `grid_surface`.
+        crate::surface::Layouts::check(layouts).map_err(|e| format!("grid_layouts: {e}"))?;
+        let parsed = crate::surface::Layouts::from_value(layouts);
+        if let Some((key, _)) = parsed
+            .list
+            .iter()
+            .flat_map(|s| s.controllers.iter().map(move |(k, v)| (format!("{}.{k}", s.id), v)))
+            .find(|(_, v)| !valid_controller(v))
+        {
+            return Err(format!("grid_layouts: controller {key} must be a controller object"));
+        }
+        next.insert("grid_layouts".into(), parsed.to_value());
         changed = true;
     }
     if let Some(ctrls) = body.get("grid_controllers") {
@@ -642,6 +661,37 @@ mod tests {
         assert_eq!(reply_at(&p).expect("re-read")["grid_page"], json!(-4));
         assert!(post_at(&p, &json!({ "grid_page": "two" })).is_err());
         assert_eq!(reply_at(&p).expect("still")["grid_page"], json!(-4));
+    }
+
+    /// The grid's layouts: none stored on a fresh install, a list (each with
+    /// its face's controllers) round-trips, and a nameless entry, an `active`
+    /// not in the list or a bad parked controller is refused.
+    #[test]
+    fn grid_layouts_round_trip_and_refuse_bad_entries() {
+        let p = tmp_named("grid-layouts");
+        assert_eq!(reply_at(&p).expect("fresh")["grid_layouts"]["list"], json!([]));
+        let ctrl = json!({ "graph": "g", "name": "", "mode": "switch", "targets": [{ "node": "n", "on": true }] });
+        let saved = post_at(
+            &p,
+            &json!({ "grid_layouts": { "active": "grid-2", "list": [
+                { "id": "grid-1", "name": "Custom Grid 1", "surface": { "cols": 4 } },
+                { "id": "grid-2", "name": "Club rig", "surface": { "device": "flkey-mini" },
+                  "controllers": { "hw:pad-1:0": ctrl } },
+            ] } }),
+        )
+        .expect("save");
+        assert_eq!(saved["grid_layouts"]["active"], json!("grid-2"));
+        assert_eq!(saved["grid_layouts"]["list"][0]["surface"]["cols"], json!(4));
+        assert_eq!(saved["grid_layouts"]["list"][1]["controllers"]["hw:pad-1:0"], ctrl);
+        for bad in [
+            json!({ "grid_layouts": { "active": "a", "list": [{ "id": "a", "name": "" }] } }),
+            json!({ "grid_layouts": { "active": "b", "list": [{ "id": "a", "name": "A" }] } }),
+            json!({ "grid_layouts": { "active": "a", "list": [{ "id": "a", "name": "A", "controllers": { "hw:x:0": { "graph": 7 } } }] } }),
+            json!({ "grid_layouts": [] }),
+        ] {
+            assert!(post_at(&p, &bad).is_err(), "{bad} is refused");
+        }
+        assert_eq!(reply_at(&p).expect("re-read")["grid_layouts"]["list"][1]["name"], json!("Club rig"));
     }
 
     /// The control surface: a fresh install is 8 × 4 with nothing bound, a

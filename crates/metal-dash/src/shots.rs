@@ -187,6 +187,22 @@ fn shots_library() {
     shot(&mut hs, &dir, "library-04-confirm-switch-song");
 }
 
+/// The grid's layouts menu: closed, open, the hardware submenu, the name popup.
+#[test]
+fn shots_grid_layouts() {
+    let Some(dir) = out_dir() else { return };
+    let door = realistic_door();
+    let w = crate::shell::DESKTOP_VIEWPORT.0 as f32;
+    let mut hs = harness(Box::new(Rc::clone(&door)), w, 1400.0);
+    hs.run_steps(4);
+    hs.get_by_label("Custom Grid 1 ▾").click();
+    shot(&mut hs, &dir, "layouts-01-menu");
+    hs.get_by_label("Create a new layout from hardware").hover();
+    shot(&mut hs, &dir, "layouts-02-hardware");
+    hs.get_by_label("Novation FLkey Mini").click();
+    shot(&mut hs, &dir, "layouts-03-name-popup");
+}
+
 /// Every lanes / overlays state.
 #[test]
 fn shots_lanes_and_overlays() {

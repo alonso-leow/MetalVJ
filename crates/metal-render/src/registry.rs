@@ -531,4 +531,77 @@ mod tests {
             assert_eq!(m.id(), s.id);
         }
     }
+
+    /// Models that expose a part but do not yet draw a material on it (the
+    /// surface picture only). Each is a known gap; a new one fails the test
+    /// until it is listed here on purpose, and a fixed one must leave it.
+    const MATERIAL_GAPS: &[&str] = &[
+        "corals",
+        "flutedglass",
+        "halftonedots",
+        "halftonecmyk",
+        "heatmap",
+        "liquidmetal",
+        "imagedithering",
+        "sheettexture",
+        "water",
+    ];
+
+    /// Every model that exposes a part a material can be laid on takes a
+    /// material on each part: at `mat_mix` 1 the frame changes, and clearing
+    /// the part restores the unpainted frame byte for byte. The list is
+    /// computed from `all_models()`, not written out, so a new surfaced model
+    /// is covered the day it is registered.
+    #[test]
+    fn every_surfaced_model_takes_and_clears_a_material_on_each_part() {
+        use crate::model::{MaterialSpec, SurfaceSpec};
+        const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let gpu = crate::gpu::Gpu::new_headless();
+        let (w, h) = (96u32, 96u32);
+        let mut covered = Vec::new();
+        let mut gaps = Vec::new();
+        for mut model in all_models() {
+            let parts = model.surfaces();
+            if parts.is_empty() {
+                continue;
+            }
+            let floats = model.schema().defaults();
+            let (texture, view) = crate::gpu::offscreen_target(&gpu.device, w, h, FORMAT);
+            let draw = |model: &mut dyn Model| {
+                let ctx = Ctx {
+                    device: &gpu.device,
+                    queue: &gpu.queue,
+                    time: 1.0,
+                    width: w,
+                    height: h,
+                    fondo_alpha: false,
+                    detail: 1.0,
+                };
+                model.render(&ctx, &floats, &view, FORMAT);
+                crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &texture, w, h)
+            };
+            let id = model.id();
+            let plain = draw(&mut *model);
+            let mut ok = true;
+            for part in parts {
+                let material = || SurfaceSpec {
+                    image: None,
+                    material: Some(MaterialSpec { kind: 0.0, mix: 1.0, scale: 1.0, ..Default::default() }),
+                };
+                model.set_surface(part, Some(material()));
+                let painted = draw(&mut *model);
+                ok &= plain != painted;
+                model.set_surface(part, None);
+                let restored = draw(&mut *model);
+                ok &= plain == restored;
+            }
+            if ok {
+                covered.push(id);
+            } else {
+                gaps.push(id);
+            }
+        }
+        assert!(!covered.is_empty(), "no model exposes a surface");
+        assert_eq!(gaps, MATERIAL_GAPS, "models with a surface but no working material (covered: {covered:?})");
+    }
 }

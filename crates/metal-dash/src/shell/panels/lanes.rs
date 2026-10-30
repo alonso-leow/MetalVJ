@@ -3984,11 +3984,12 @@ fn holds(state: &PanelState, cell: &Cell) -> bool {
 
 /// Whether a controller cell paints as a fader (it has a parameter target).
 fn controller_is_fader(state: &PanelState, key: &str) -> bool {
-    state
-        .controllers
-        .get(key)
-        .and_then(|c| c["targets"].as_array())
-        .is_some_and(|ts| ts.iter().any(|t| t["param"].is_string()))
+    !is_scene(state, key)
+        && state
+            .controllers
+            .get(key)
+            .and_then(|c| c["targets"].as_array())
+            .is_some_and(|ts| ts.iter().any(|t| t["param"].is_string()))
 }
 
 /// Runs one gesture on a content cell — the one place a click, a hardware
@@ -4025,6 +4026,7 @@ fn fire_cell(now: f64, door: &dyn Call, state: &mut PanelState, cell: &Cell, g: 
         // edge — the value applies only while pressed.
         CellKind::Switch { id, kind } => fire_switch(door, id, kind == "hold", cell.on, g),
         CellKind::Fixture { id, hold } | CellKind::Rig { id, hold } => fire_switch(door, id, *hold, cell.on, g),
+        CellKind::Controller { key } if is_scene(state, key) => fire_scene(door, state, key, g),
         CellKind::Controller { key } => match g {
             Gesture::Value(v) => {
                 if let ControllerFace::Fader { node, param, min, max, .. } = controller_face(door, state, key) {
@@ -4507,6 +4509,10 @@ fn controller_face(door: &dyn Call, state: &PanelState, key: &str) -> Controller
     let Some(ctrl) = state.controllers.get(key) else {
         return ControllerFace::Button;
     };
+    // A scene is a plain button: its floats are a snapshot, not a fader.
+    if is_scene(state, key) {
+        return ControllerFace::Button;
+    }
     let graph = ctrl["graph"].as_str().unwrap_or(key).to_string();
     let targets = ctrl["targets"].as_array().cloned().unwrap_or_default();
     // The first target whose node and param still exist: one deleted (its
@@ -4751,6 +4757,183 @@ fn apply_scene(door: &dyn Call, state: &PanelState, key: &str, inverse: bool) {
             );
         }
     }
+}
+
+/// Whether `key` is a **scene**: a saved controller flagged `scene: true`. A
+/// scene is the same entry in the same `grid_controllers` map as a controller
+/// button; it differs only in what its targets are (one per float of the
+/// chosen top parent nodes) and in what a press does ([`fire_scene`]).
+fn is_scene(state: &PanelState, key: &str) -> bool {
+    state.controllers.get(key).is_some_and(|c| c["scene"].as_bool() == Some(true))
+}
+
+/// The key a new scene of `graph` lives under: `scene:<graph>:<n>`, the first
+/// `n` not yet taken.
+fn new_scene_key(state: &PanelState, graph: &str) -> String {
+    (1..).map(|n| format!("scene:{graph}:{n}")).find(|k| !state.controllers.contains_key(k)).expect("an unused scene key")
+}
+
+/// The nodes a graph's cables feed (the `to` end of an edge). A scene lists
+/// only the graph's top parents, so these are the children it leaves out.
+fn fed_nodes(graph: &Value) -> std::collections::BTreeSet<String> {
+    graph["graph"]["edges"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e["to"]["node"].as_str().map(str::to_string))
+        .collect()
+}
+
+/// `node`'s float parameters as the scene reads them: each with its live value
+/// (else its default), and the value it **holds** — `None` when it is on auto
+/// (driven by weights, a source or a binding).
+fn node_floats(door: &dyn Call, graph: &str, node: &str) -> Vec<(super::dials::Float, Option<f32>)> {
+    let io = get(door, "GET", "/graph/io", &[("id", graph.to_string()), ("node", node.to_string())]).unwrap_or(Value::Null);
+    let params = io["params"].as_array().cloned().unwrap_or_default();
+    super::dials::floats(&io)
+        .into_iter()
+        .map(|f| {
+            let held = params
+                .iter()
+                .find(|p| p["name"].as_str() == Some(f.name.as_str()))
+                .and_then(|p| p["value"].as_f64())
+                .map(|v| v as f32);
+            (f, held)
+        })
+        .collect()
+}
+
+/// Whether the scene at `key` already lists a float of `node`.
+fn scene_has_node(state: &PanelState, key: &str, node: &str) -> bool {
+    state
+        .controllers
+        .get(key)
+        .and_then(|c| c["targets"].as_array())
+        .is_some_and(|ts| ts.iter().any(|t| t["node"].as_str() == Some(node)))
+}
+
+/// Toggles one top parent `node` in the scene: picking it captures every float
+/// it has now (one target per float, the live value), unpicking drops them all.
+fn toggle_scene_node(door: &dyn Call, state: &mut PanelState, key: &str, graph: &str, node: &str) {
+    let picked = scene_has_node(state, key, node);
+    let captured: Vec<Value> = if picked {
+        Vec::new()
+    } else {
+        node_floats(door, graph, node)
+            .into_iter()
+            .map(|(f, _)| json!({ "node": node, "param": f.name, "value": f.value }))
+            .collect()
+    };
+    let Some(targets) = state.controllers.get_mut(key).and_then(|c| c["targets"].as_array_mut()) else {
+        return;
+    };
+    if picked {
+        targets.retain(|t| t["node"].as_str() != Some(node));
+    } else {
+        targets.extend(captured);
+    }
+    save_controllers(door, state);
+}
+
+/// `⚙` › `capture again`: every target's value is read again from its node's
+/// current floats, so the scene keeps its own floats and takes the new numbers.
+fn capture_scene_again(door: &dyn Call, state: &mut PanelState, key: &str) {
+    let Some(ctrl) = state.controllers.get(key).cloned() else { return };
+    let graph = ctrl["graph"].as_str().unwrap_or(key).to_string();
+    let mut targets = ctrl["targets"].as_array().cloned().unwrap_or_default();
+    for t in &mut targets {
+        let (Some(node), Some(param)) = (t["node"].as_str(), t["param"].as_str()) else { continue };
+        if let Some((f, _)) = node_floats(door, &graph, node).into_iter().find(|(f, _)| f.name == param) {
+            t["value"] = json!(f.value);
+        }
+    }
+    if let Some(entry) = state.controllers.get_mut(key) {
+        entry["targets"] = json!(targets);
+    }
+    save_controllers(door, state);
+}
+
+/// Whether the scene is on: it holds the `before` snapshot a press wrote.
+fn scene_on(state: &PanelState, key: &str) -> bool {
+    state.controllers.get(key).is_some_and(|c| c["before"].is_array())
+}
+
+/// A press turns the scene on or off. A `switch` scene toggles on a click; a
+/// `hold` scene is on while pressed (`Down`, released on `Up`). Each direction
+/// is one burst of `POST /graph/node {op: "param"}`, one per float — no ticks,
+/// no fade.
+fn fire_scene(door: &dyn Call, state: &mut PanelState, key: &str, g: crate::surface::Gesture) {
+    use crate::surface::Gesture;
+    let hold = controller_mode(state, key) == "hold";
+    match g {
+        Gesture::Down | Gesture::Click if hold => {
+            state.lit_controllers.insert(key.to_string());
+            if !scene_on(state, key) {
+                apply_scene_floats(door, state, key);
+            }
+        }
+        Gesture::Up if hold => {
+            state.lit_controllers.remove(key);
+            restore_scene_floats(door, state, key);
+        }
+        Gesture::Click => {
+            if scene_on(state, key) {
+                state.lit_controllers.remove(key);
+                restore_scene_floats(door, state, key);
+            } else {
+                state.lit_controllers.insert(key.to_string());
+                apply_scene_floats(door, state, key);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Sets every target of the scene at `key` to its captured value. Before each
+/// write the float's held value is read (`null` when it was on auto) and kept on
+/// the scene as `before`, so [`restore_scene_floats`] can put it back.
+fn apply_scene_floats(door: &dyn Call, state: &mut PanelState, key: &str) {
+    let Some(ctrl) = state.controllers.get(key).cloned() else { return };
+    let graph = ctrl["graph"].as_str().unwrap_or(key).to_string();
+    let mut read: std::collections::HashMap<String, Vec<(super::dials::Float, Option<f32>)>> = Default::default();
+    let mut before = Vec::new();
+    for t in ctrl["targets"].as_array().into_iter().flatten() {
+        let (Some(node), Some(param)) = (t["node"].as_str(), t["param"].as_str()) else { continue };
+        let floats = read.entry(node.to_string()).or_insert_with(|| node_floats(door, &graph, node));
+        let held = floats.iter().find(|(f, _)| f.name == param).and_then(|(_, h)| *h);
+        before.push(json!({ "node": node, "param": param, "value": held }));
+        let value = t["value"].as_f64().unwrap_or(0.0);
+        let _ = door.json(
+            "POST",
+            "/graph/node",
+            Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": value })),
+        );
+    }
+    if let Some(entry) = state.controllers.get_mut(key) {
+        entry["before"] = json!(before);
+    }
+    save_controllers(door, state);
+}
+
+/// Puts every float back as [`apply_scene_floats`] found it: a float that held
+/// a number gets that number, one that was on auto gets `null`, which releases
+/// it to auto again. Then the `before` snapshot is cleared (the scene is off).
+fn restore_scene_floats(door: &dyn Call, state: &mut PanelState, key: &str) {
+    let Some(before) = state.controllers.get(key).and_then(|c| c["before"].as_array()).cloned() else { return };
+    let graph = state.controllers.get(key).and_then(|c| c["graph"].as_str()).unwrap_or(key).to_string();
+    for b in &before {
+        let Some(node) = b["node"].as_str() else { continue };
+        let Some(param) = b["param"].as_str() else { continue };
+        let _ = door.json(
+            "POST",
+            "/graph/node",
+            Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": b["value"] })),
+        );
+    }
+    if let Some(entry) = state.controllers.get_mut(key).and_then(|c| c.as_object_mut()) {
+        entry.remove("before");
+    }
+    save_controllers(door, state);
 }
 
 /// The sizes a cell offers (`surface::SPANS`: whole cells, the halves and
@@ -5367,6 +5550,21 @@ fn add_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState,
             );
         }
     }
+    // `scene` — the same editor, but a new entry flagged `scene`: it lists the
+    // open graph's top parents only and captures their floats as they pick.
+    if let Some(gid) = open_graph {
+        if plain_item(ui, theme, RichText::new(tr("scene"))).clicked() {
+            let key = new_scene_key(state, gid);
+            state.controllers.insert(
+                key.clone(),
+                json!({ "graph": gid, "name": "", "mode": "switch", "targets": [], "scene": true }),
+            );
+            save_controllers(door, state);
+            state.editing_controller = Some(key);
+            state.controller_edit_pos = Some(ui.cursor().min);
+            ui.close();
+        }
+    }
     // `add loop` — the loop lengths; each opens an empty sequence view limited
     // to that many ticks, with no ingestion (`IngestLane::start_loop`).
     let _ = plain_menu(ui, theme, RichText::new(tr("add loop")), |ui| {
@@ -5509,6 +5707,12 @@ fn controller_editor(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
             commit_controller_name(door, state, key);
             state.editing_controller = None;
         }
+        // A scene's `capture again` re-reads its floats from the nodes now.
+        if is_scene(state, key)
+            && ui.button(RichText::new(tr("capture again")).font(theme.font_small.clone())).clicked()
+        {
+            capture_scene_again(door, state, key);
+        }
         if state.controllers.contains_key(&controller_key(key))
             && ui
                 .button(RichText::new(tr("delete controller")).font(theme.font_small.clone()))
@@ -5596,10 +5800,14 @@ fn controller_mode_header(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &m
 /// that is a target carries its `on` checkbox. Params are not booleans and
 /// carry the grid's one fader instead.
 fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, key: &str, graph: &str) {
-    let nodes: Vec<(String, Option<String>, String, Value)> = get(door, "GET", "/graph", &[("id", graph.to_string())])
-        .and_then(|g| g["graph"]["nodes"].as_array().cloned())
-        .unwrap_or_default()
-        .iter()
+    let scene = is_scene(state, key);
+    let graph_json = get(door, "GET", "/graph", &[("id", graph.to_string())]).unwrap_or(Value::Null);
+    // A scene lists only its top parents: the nodes no cable feeds.
+    let fed = fed_nodes(&graph_json);
+    let nodes: Vec<(String, Option<String>, String, Value)> = graph_json["graph"]["nodes"]
+        .as_array()
+        .into_iter()
+        .flatten()
         .filter_map(|n| {
             Some((
                 n["id"].as_str()?.to_string(),
@@ -5608,6 +5816,7 @@ fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pane
                 n["config"].clone(),
             ))
         })
+        .filter(|(id, ..)| !scene || !fed.contains(id))
         .collect();
     if nodes.is_empty() {
         ui.label(RichText::new(tr("— the graph has no nodes —")).font(theme.font_small.clone()).color(theme.ink_weak));
@@ -5620,6 +5829,12 @@ fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pane
         // gets no chevron at all — `gen.*` floats included).
         let io = get(door, "GET", "/graph/io", &[("id", graph.to_string()), ("node", id.clone())]).unwrap_or(Value::Null);
         let floats = super::dials::floats(&io);
+        if scene {
+            if !floats.is_empty() {
+                scene_node_row(ui, theme, door, state, key, graph, &id, &title, &floats, assigned.contains(&id));
+            }
+            continue;
+        }
         let expanded = state.expanded_nodes.contains(&id);
         // A palette/colour node is not a boolean: its pick captures the
         // node's own colours as a `{node, colors|rgb}` target the button
@@ -5665,8 +5880,52 @@ fn controller_list(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pane
         });
     }
     // The venue half of the same list: a group folder row over its fixtures,
-    // an ungrouped fixture a peer row beside the node rows.
-    fixture_controller_rows(ui, theme, door, state, key, graph);
+    // an ungrouped fixture a peer row beside the node rows. A scene holds
+    // floats only, so it has no venue half.
+    if !scene {
+        fixture_controller_rows(ui, theme, door, state, key, graph);
+    }
+}
+
+/// One top parent row of a scene's editor: the chevron (when it has floats),
+/// the name — a pick captures or drops all its floats — and, expanded, the same
+/// [`controller_param_row`] each float has in a controller. No `on` checkbox: a
+/// scene's floats are values, not booleans.
+#[allow(clippy::too_many_arguments)]
+fn scene_node_row(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    key: &str,
+    graph: &str,
+    id: &str,
+    title: &str,
+    floats: &[super::dials::Float],
+    assigned: bool,
+) {
+    let expanded = state.expanded_nodes.contains(id);
+    let picked = scene_has_node(state, key, id);
+    let row = node_folder_row(ui, theme, title, Some(expanded), assigned, picked, None);
+    if row.toggle {
+        if expanded {
+            state.expanded_nodes.remove(id);
+        } else {
+            state.expanded_nodes.insert(id.to_string());
+        }
+    }
+    if row.name {
+        toggle_scene_node(door, state, key, graph, id);
+    }
+    let expanded = if row.toggle { !expanded } else { expanded };
+    if !expanded {
+        return;
+    }
+    ui.indent(("shell/region/lanes/controller-node", id), |ui| {
+        for p in floats {
+            controller_param_row(ui, theme, door, state, key, graph, id, p);
+        }
+    });
 }
 
 /// One parameter row of the editor: the name (a pick that toggles the
@@ -6558,6 +6817,153 @@ fn picking_a_target_twice_does_not_duplicate_it() {
     add_controller_target(recorder.as_ref(), &mut state, "g1", t.clone());
     add_controller_target(recorder.as_ref(), &mut state, "g1", t);
     assert_eq!(state.controllers["g1"]["targets"].as_array().unwrap().len(), 1);
+}
+
+// -- Scenes: a controller flagged `scene`, one target per float of its top parents
+
+/// A graph `g1` with `gen-1` (a top parent) feeding `fx-1`, and `gen-1`'s one
+/// float `scale` read as `held` (`null` = on auto) at a live value of `0.25`.
+fn scene_feature_door(held: Value) -> std::rc::Rc<FakeDoor> {
+    let recorder = std::rc::Rc::new(FakeDoor::new());
+    recorder.respond("GET", "/settings", json!({ "grid_spans": {}, "grid_controllers": {} }));
+    recorder.respond(
+        "GET",
+        "/graph",
+        json!({ "graph": {
+            "id": "g1",
+            "nodes": [
+                { "id": "gen-1", "kind": "gen.turing", "label": "", "config": {} },
+                { "id": "fx-1", "kind": "fx.blur", "label": "", "config": {} }
+            ],
+            "edges": [{ "id": "e1", "from": { "node": "gen-1", "port": "image" }, "to": { "node": "fx-1", "port": "image" } }]
+        } }),
+    );
+    recorder.respond(
+        "GET",
+        "/graph/io",
+        json!({ "params": [{ "name": "scale", "min": 0.0, "max": 1.0, "default": 0.5, "kind": "float", "live": 0.25, "value": held }] }),
+    );
+    recorder
+}
+
+/// The bodies of every `POST /graph/node` the door saw, in order.
+fn posted_node_ops(recorder: &FakeDoor) -> Vec<Value> {
+    recorder
+        .calls
+        .borrow()
+        .iter()
+        .filter(|(m, p, _)| m == "POST" && p == "/graph/node")
+        .map(|(_, _, params)| body_of(params))
+        .collect()
+}
+
+/// A scene entry under `key`, on `g1`, with the given targets.
+fn scene_entry(state: &mut PanelState, key: &str, targets: Value) {
+    state.controllers.insert(
+        key.into(),
+        json!({ "graph": "g1", "name": "", "mode": "switch", "targets": targets, "scene": true }),
+    );
+}
+
+/// Picking a top parent captures each of its floats at the live value, one
+/// target per float.
+#[test]
+fn a_scene_captures_each_float_of_a_picked_node_at_its_live_value() {
+    let recorder = scene_feature_door(Value::Null);
+    let mut state = PanelState::default();
+    scene_entry(&mut state, "scene:g1:1", json!([]));
+    toggle_scene_node(recorder.as_ref(), &mut state, "scene:g1:1", "g1", "gen-1");
+    assert_eq!(
+        state.controllers["scene:g1:1"]["targets"],
+        json!([{ "node": "gen-1", "param": "scale", "value": 0.25 }])
+    );
+    toggle_scene_node(recorder.as_ref(), &mut state, "scene:g1:1", "g1", "gen-1");
+    assert_eq!(state.controllers["scene:g1:1"]["targets"], json!([]), "a second pick drops the node's floats");
+}
+
+/// Only the top parents are listed: a node a cable feeds (`fx-1`) is a child
+/// whose floats the scene does not offer.
+#[test]
+fn a_scene_lists_only_the_top_parent_nodes() {
+    let recorder = scene_feature_door(Value::Null);
+    let graph = get(recorder.as_ref(), "GET", "/graph", &[("id", "g1".to_string())]).expect("the graph");
+    let fed = fed_nodes(&graph);
+    assert!(fed.contains("fx-1"), "the cable feeds fx-1: it is a child");
+    assert!(!fed.contains("gen-1"), "gen-1 is a top parent and stays listed");
+}
+
+/// A press sets every float to its captured value, and remembers what each
+/// held before (`null` for auto); the next press puts the auto float back to
+/// auto, not to a frozen number.
+#[test]
+fn a_scene_press_sets_the_floats_and_restores_an_auto_float_to_auto() {
+    let recorder = scene_feature_door(Value::Null);
+    let mut state = PanelState::default();
+    scene_entry(&mut state, "scene:g1:1", json!([{ "node": "gen-1", "param": "scale", "value": 0.9 }]));
+    fire_scene(recorder.as_ref(), &mut state, "scene:g1:1", crate::surface::Gesture::Click);
+    assert!(scene_on(&state, "scene:g1:1"));
+    assert_eq!(
+        state.controllers["scene:g1:1"]["before"],
+        json!([{ "node": "gen-1", "param": "scale", "value": null }])
+    );
+    fire_scene(recorder.as_ref(), &mut state, "scene:g1:1", crate::surface::Gesture::Click);
+    let ops = posted_node_ops(&recorder);
+    assert_eq!(ops.len(), 2, "one write on, one write off");
+    assert_eq!((ops[0]["op"].clone(), ops[0]["name"].clone(), ops[0]["value"].clone()), (json!("param"), json!("scale"), json!(0.9)));
+    assert_eq!(ops[1]["value"], Value::Null, "the auto float is released back to auto");
+    assert!(!scene_on(&state, "scene:g1:1"));
+}
+
+/// A float that held a number goes back to that number when the scene turns off.
+#[test]
+fn a_scene_restores_a_held_float_to_its_previous_number() {
+    let recorder = scene_feature_door(json!(0.4));
+    let mut state = PanelState::default();
+    scene_entry(&mut state, "scene:g1:1", json!([{ "node": "gen-1", "param": "scale", "value": 0.9 }]));
+    apply_scene_floats(recorder.as_ref(), &mut state, "scene:g1:1");
+    restore_scene_floats(recorder.as_ref(), &mut state, "scene:g1:1");
+    let ops = posted_node_ops(&recorder);
+    let restored = ops.last().expect("the restore write")["value"].as_f64().map(|v| v as f32);
+    assert_eq!(restored, Some(0.4), "the float returns to the number it held");
+}
+
+/// The scene's entry is the controller map's own entry, so a `POST /settings`
+/// round trip keeps its flag, its targets and its `before` snapshot.
+#[test]
+fn a_scene_persists_through_the_one_settings_write() {
+    let recorder = scene_feature_door(Value::Null);
+    let mut state = PanelState::default();
+    scene_entry(&mut state, "scene:g1:1", json!([{ "node": "gen-1", "param": "scale", "value": 0.25 }]));
+    state.controllers.get_mut("scene:g1:1").expect("the scene").as_object_mut().expect("an object")
+        .insert("before".into(), json!([{ "node": "gen-1", "param": "scale", "value": 0.4 }]));
+    save_controllers(recorder.as_ref(), &mut state);
+    let posted = recorder
+        .calls
+        .borrow()
+        .iter()
+        .filter(|(m, p, _)| m == "POST" && p == "/settings")
+        .map(|(_, _, params)| body_of(params))
+        .last()
+        .expect("the save posts /settings");
+    let stored = parse_controllers(&posted["grid_controllers"]);
+    assert_eq!(stored.get("scene:g1:1"), state.controllers.get("scene:g1:1"));
+    assert_eq!(stored["scene:g1:1"]["scene"], json!(true));
+}
+
+/// The `+` menu offers `scene` beside `controller button`; picking it adds a
+/// scene entry on the open graph and opens its editor.
+#[test]
+fn the_plus_menu_adds_a_scene_on_the_open_graph() {
+    let recorder = fixture_button_door();
+    let mut harness = open_overlays_with_graph(&recorder, Some("g1"));
+    the_overlays_plus(&harness).scroll_to_me();
+    harness.run();
+    the_overlays_plus(&harness).click();
+    harness.run();
+    harness.get_by_label("scene").click();
+    harness.run();
+    let scenes: Vec<_> = harness.state_mut().lanes_state_mut().controllers.iter().filter(|(_, c)| c["scene"] == json!(true)).map(|(k, _)| k.clone()).collect();
+    assert_eq!(scenes, vec!["scene:g1:1".to_string()]);
 }
 
 /// A controller is **one scene cell**: any mix of targets still builds exactly

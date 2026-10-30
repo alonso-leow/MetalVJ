@@ -3,6 +3,7 @@
 "settings" = "ajustes"
 "ui" = "ui"
 "theme" = "tema"
+"theme style" = "estilo del tema"
 "language" = "idioma"
 "interface scale" = "escala de interfaz"
 "borders per surface type" = "bordes por tipo de superficie"

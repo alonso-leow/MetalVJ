@@ -166,6 +166,11 @@ pub struct PanelState {
     theme_dirty: bool,
     /// The stored palettes the Theme dropdown lists, read once per open.
     theme_palettes: Vec<(String, Vec<[f32; 3]>)>,
+    /// The house look the settings hold (`call::settings::THEME_STYLES`), and
+    /// the one a change set that the shell has not read yet
+    /// ([`PanelState::take_style_change`]).
+    theme_style: String,
+    style_change: Option<String>,
     /// D1: the Fixtures section's edit scratch. `fixtures_edit` is the id
     /// being edited (`None` means "add"); the rest are the form's typed
     /// values, seeded from a row's `edit` and cleared on `cancel` or a
@@ -219,6 +224,8 @@ impl Default for PanelState {
             theme_colors: Vec::new(),
             theme_dirty: false,
             theme_palettes: Vec::new(),
+            theme_style: String::new(),
+            style_change: None,
             fixtures_edit: None,
             fixtures_kind: "wash".to_string(),
             fixtures_name: String::new(),
@@ -312,6 +319,9 @@ impl PanelState {
                 self.theme_palettes = read_palettes(door);
                 self.pick_theme(name, None);
             }
+            if let Some(style) = reply["theme_style"].as_str() {
+                self.set_style(style);
+            }
             self.apply_language(&reply);
         }
     }
@@ -331,6 +341,26 @@ impl PanelState {
     /// mean the house look.
     pub(crate) fn take_theme_change(&mut self) -> Option<Vec<[f32; 3]>> {
         std::mem::take(&mut self.theme_dirty).then(|| self.theme_colors.clone())
+    }
+
+    /// The palette colours the settings hold: the shell lays them over a new
+    /// base look when only the style changed.
+    pub(crate) fn theme_colors(&self) -> &[[f32; 3]] {
+        &self.theme_colors
+    }
+
+    /// `Some(style)` once after `theme_style` changed (`phosphor`/`daylight`),
+    /// read or written; the shell swaps its base look to it.
+    pub(crate) fn take_style_change(&mut self) -> Option<String> {
+        self.style_change.take()
+    }
+
+    /// Adopts `style` as the house look when it differs from the one held.
+    fn set_style(&mut self, style: &str) {
+        if style != self.theme_style {
+            self.theme_style = style.to_string();
+            self.style_change = Some(style.to_string());
+        }
     }
 
     /// Adopt the reply's `language`, if it names one the shell knows: the
@@ -867,6 +897,22 @@ fn palette_swatches(ui: &mut Ui, theme: &Theme, colors: &[[f32; 3]]) {
 /// their colours) that recolours the whole client; "default" is the house look.
 fn section_theme(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState) {
     section_heading(ui, theme, tr("theme"));
+    // The house look: phosphor (dark) or daylight (light). A pick is persisted
+    // through the settings route, which answers the style that landed.
+    ui.horizontal_wrapped(|ui| {
+        ui.label(RichText::new(tr("theme style")).font(theme.font_small.clone()).color(theme.ink_weak));
+        let mut style = state.theme_style.clone();
+        let options = [("phosphor".to_string(), "phosphor"), ("daylight".to_string(), "daylight")];
+        if crate::shell::components::dropdown(ui, theme, "shell/region/settings/theme-style", &mut style, &options)
+            .changed()
+        {
+            if let Ok(reply) = door.json("POST", "/settings", Some(json!({ "theme_style": style }))) {
+                if let Some(landed) = reply["theme_style"].as_str() {
+                    state.set_style(landed);
+                }
+            }
+        }
+    });
     if state.theme_palettes.is_empty() {
         state.theme_palettes = read_palettes(door);
     }
@@ -2125,5 +2171,19 @@ mod tests {
         let body = call.expect("the camera button posts POST /agent/tool");
         assert_eq!(body["name"], json!("discover_fixture"));
         assert_eq!(body["allow_ask"], json!(true));
+    }
+
+    /// The house look is taken once per change: a style the settings already
+    /// hold does not fire again, and a new one fires exactly once.
+    #[test]
+    fn a_style_change_is_taken_once_and_only_when_it_differs() {
+        let mut state = PanelState::default();
+        state.set_style("phosphor");
+        assert_eq!(state.take_style_change().as_deref(), Some("phosphor"), "the first read is a change");
+        state.set_style("phosphor");
+        assert_eq!(state.take_style_change(), None, "the same style is no change");
+        state.set_style("daylight");
+        assert_eq!(state.take_style_change().as_deref(), Some("daylight"));
+        assert_eq!(state.take_style_change(), None, "taken once");
     }
 }

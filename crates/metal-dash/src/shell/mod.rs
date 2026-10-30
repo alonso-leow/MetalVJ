@@ -982,7 +982,16 @@ impl Shell {
         self.settings.refresh(door_read);
         // The Theme setting changed (or loaded): rebuild the theme from its
         // palette and push it into egui, so the whole client recolours.
-        if let Some(colors) = self.settings.take_theme_change() {
+        // The house look (`theme_style`) changed: its base comes from the name,
+        // and the palette the settings hold is laid over it, so a style swap
+        // keeps a palette the operator picked.
+        let style = self.settings.take_style_change();
+        if let Some(base) = style.as_deref().and_then(Theme::from_name) {
+            self.base_theme = base;
+        }
+        let palette = self.settings.take_theme_change();
+        if style.is_some() || palette.is_some() {
+            let colors = palette.unwrap_or_else(|| self.settings.theme_colors().to_vec());
             self.theme = if colors.is_empty() { self.base_theme.clone() } else { self.base_theme.with_palette(&colors) };
             self.theme.apply(ui.ctx());
         }

@@ -22,10 +22,15 @@ use crate::call::{CallError, Ctx, Params};
 /// The keys this layer owns. A new key means a new preference that grew this
 /// slice (`O.16`'s naming/token sections, …) and added its own key *and* its
 /// own tests here — never a second file.
-const KEYS: [&str; 18] = [
+/// The house looks a `theme_style` may name: `classes::Theme::from_name`
+/// reads each one.
+pub const THEME_STYLES: [&str; 2] = ["phosphor", "daylight"];
+
+const KEYS: [&str; 19] = [
     "shell_mode", "language", "tick_level", "grid_spans", "grid_page", "grid_controllers",
     "shell_view", "colour_rule", "export_dir", "fps_cap", "file_tags", "ingest_proxy",
     "ui_scale", "theme", "grid_surface", "grid_layouts", "tone_mode", "tone_sample_s",
+    "theme_style",
 ];
 
 pub use crate::frame_cap::{DEFAULT_FPS_CAP, FPS_CAPS};
@@ -173,6 +178,9 @@ fn load_at(path: impl AsRef<std::path::Path>) -> Map<String, Value> {
 fn defaults() -> Map<String, Value> {
     let mut m = Map::new();
     m.insert("shell_mode".into(), json!("auto"));
+    // The house look: `phosphor` (dark) or `daylight` (light), the names
+    // `classes::Theme::from_name` reads.
+    m.insert("theme_style".into(), json!("phosphor"));
     m.insert("language".into(), json!("en"));
     // The minimum a fresh install can always afford; `fine` is one pick away.
     // The vocabulary is `metal_schema::TickRate`'s, so the route and the digester
@@ -341,6 +349,16 @@ fn post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<Value, Str
             return Err(format!("unknown shell_mode: {s}"));
         }
         next.insert("shell_mode".into(), json!(s));
+        changed = true;
+    }
+    if let Some(style) = body.get("theme_style") {
+        let s = style
+            .as_str()
+            .ok_or_else(|| "theme_style must be a string".to_string())?;
+        if !THEME_STYLES.contains(&s) {
+            return Err(format!("unknown theme_style: {s}"));
+        }
+        next.insert("theme_style".into(), json!(s));
         changed = true;
     }
     if let Some(language) = body.get("language") {
@@ -882,6 +900,20 @@ mod tests {
             "a refused body must leave the stored map alone"
         );
         let _ = std::fs::remove_file(&p);
+    }
+
+    /// The house look: `theme_style` defaults to `phosphor`, round-trips
+    /// `daylight` through the route, and a name outside [`THEME_STYLES`] is
+    /// refused with nothing written.
+    #[test]
+    fn the_theme_style_defaults_to_phosphor_and_round_trips_daylight() {
+        let p = tmp_named("theme-style");
+        assert_eq!(reply_at(&p).expect("fresh install answers")["theme_style"], json!("phosphor"));
+        let day = post_at(&p, &json!({ "theme_style": "daylight" })).expect("save");
+        assert_eq!(day["theme_style"], json!("daylight"));
+        assert_eq!(reply_at(&p).expect("re-read")["theme_style"], json!("daylight"));
+        assert!(post_at(&p, &json!({ "theme_style": "neon" })).is_err());
+        assert_eq!(reply_at(&p).expect("still daylight")["theme_style"], json!("daylight"));
     }
 
     /// The ingest proxy toggle: it defaults to on (a dropped clip builds its

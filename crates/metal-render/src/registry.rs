@@ -537,7 +537,6 @@ mod tests {
     /// until it is listed here on purpose, and a fixed one must leave it.
     const MATERIAL_GAPS: &[&str] = &[
         "corals",
-        "halftonedots",
         "halftonecmyk",
         "heatmap",
         "liquidmetal",

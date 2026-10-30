@@ -58,7 +58,8 @@ pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     1,
     include_str!("../../shaders/halftonedots.wgsl"),
     &["imagen"],
-);
+)
+.with_material();
 
 crate::scaffold_model!(Halftonedots, DEF);
 

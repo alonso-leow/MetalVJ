@@ -21,6 +21,100 @@
 use egui::style::HandleShape;
 use egui::{Color32, CornerRadius, FontFamily, FontId, Margin, Shadow, Stroke, TextStyle, Vec2};
 
+/// A kind of surface the shell paints a border around. The settings page
+/// picks a [`Border`] weight for each; `key` is the word `data/settings.json`
+/// stores it under.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Surface {
+    /// A panel region's frame.
+    Panel,
+    /// The header bar.
+    Header,
+    /// A raised card or an outlined properties group.
+    Card,
+    /// A control's own outline (colour fields and swatches).
+    Control,
+}
+
+impl Surface {
+    pub const ALL: [Surface; 4] = [Surface::Panel, Surface::Header, Surface::Card, Surface::Control];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Surface::Panel => "panel",
+            Surface::Header => "header",
+            Surface::Card => "card",
+            Surface::Control => "control",
+        }
+    }
+}
+
+/// How heavy a surface's border is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Border {
+    None,
+    Hairline,
+    Bold,
+}
+
+impl Border {
+    pub const ALL: [Border; 3] = [Border::None, Border::Hairline, Border::Bold];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Border::None => "none",
+            Border::Hairline => "hairline",
+            Border::Bold => "bold",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Border> {
+        Border::ALL.into_iter().find(|b| b.name() == s)
+    }
+
+    /// How many hairlines wide the rule is.
+    fn hairlines(self) -> f32 {
+        match self {
+            Border::None => 0.0,
+            Border::Hairline => 1.0,
+            Border::Bold => 2.0,
+        }
+    }
+}
+
+/// The border weight of every [`Surface`]; the default is the hairline
+/// everywhere, which is the look before the setting existed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Borders([Border; 4]);
+
+impl Default for Borders {
+    fn default() -> Self {
+        Borders([Border::Hairline; 4])
+    }
+}
+
+impl Borders {
+    pub fn get(&self, surface: Surface) -> Border {
+        self.0[surface as usize]
+    }
+
+    pub fn set(&mut self, surface: Surface, border: Border) {
+        self.0[surface as usize] = border;
+    }
+
+    /// Reads a settings reply's `borders` object; a missing or unknown entry
+    /// keeps the default.
+    pub fn from_value(v: &serde_json::Value) -> Borders {
+        let mut out = Borders::default();
+        for surface in Surface::ALL {
+            if let Some(b) = v[surface.key()].as_str().and_then(Border::parse) {
+                out.set(surface, b);
+            }
+        }
+        out
+    }
+}
+
 /// Every visual decision of the shell, as data.
 ///
 /// Fields are grouped the way `theme.css` groups its variables: surfaces,
@@ -196,6 +290,8 @@ pub struct Theme {
     /// source dropdown, and the width/height ratio its empty slot holds.
     pub poster_width: f32,
     pub poster_ratio: f32,
+    /// The border weight per surface type (`settings` key `borders`).
+    pub borders: Borders,
     /// Tallest the `+ node` catalog menu grows before it scrolls, in
     /// points — a popup egui does not bound to the viewport by itself, and
     /// the catalog is longer than a phone is tall.
@@ -666,6 +762,7 @@ impl Theme {
             graph_hover_preview: 200.0,
             poster_width: 240.0,
             poster_ratio: 1.7778,
+            borders: Borders::default(),
             menu_max_height: 360.0,
             image_tint: Color32::WHITE,
             text_input_width: 96.0,
@@ -885,6 +982,7 @@ impl Theme {
             graph_hover_preview: 200.0,
             poster_width: 240.0,
             poster_ratio: 1.7778,
+            borders: Borders::default(),
             menu_max_height: 360.0,
             image_tint: Color32::WHITE,
             text_input_width: 96.0,
@@ -1180,6 +1278,7 @@ impl Theme {
             graph_hover_preview: 280.0,
             poster_width: 320.0,
             poster_ratio: 1.7778,
+            borders: Borders::default(),
             menu_max_height: 480.0,
             image_tint: Color32::WHITE,
             text_input_width: 140.0,
@@ -1347,6 +1446,21 @@ impl Theme {
     pub fn color_of(&self, rgb: [f32; 3]) -> Color32 {
         let byte = |v: f32| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
         Color32::from_rgb(byte(rgb[0]), byte(rgb[1]), byte(rgb[2]))
+    }
+
+    /// The border stroke of a `surface`: the rule at the weight the settings
+    /// chose for it (none paints nothing).
+    pub fn border_stroke(&self, surface: Surface) -> Stroke {
+        match self.borders.get(surface) {
+            Border::None => Stroke::NONE,
+            b => Stroke::new(self.hairline * b.hairlines(), self.rule),
+        }
+    }
+
+    /// This theme with the border weights `borders`.
+    pub fn with_borders(mut self, borders: Borders) -> Theme {
+        self.borders = borders;
+        self
     }
 
     /// The hairline rule as a stroke.
@@ -1624,7 +1738,7 @@ impl Theme {
     pub fn card_frame(&self) -> egui::Frame {
         egui::Frame::new()
             .fill(self.tube_raised)
-            .stroke(self.rule_stroke())
+            .stroke(self.border_stroke(Surface::Card))
             .inner_margin(self.card_margin())
             .corner_radius(self.corner_radius())
             .shadow(self.card_shadow())
@@ -2078,6 +2192,31 @@ pub fn arrangement_forced(theme: &Theme, viewport: Vec2, mode: ShellMode) -> Arr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A border weight reaches the stroke a surface paints: none draws
+    /// nothing, bold is twice the hairline, and one surface's pick leaves the
+    /// others alone.
+    #[test]
+    fn a_border_pick_changes_only_its_surface_stroke() {
+        let base = Theme::phosphor();
+        assert_eq!(base.border_stroke(Surface::Card), base.rule_stroke());
+        let mut b = Borders::default();
+        b.set(Surface::Card, Border::None);
+        b.set(Surface::Panel, Border::Bold);
+        let t = base.clone().with_borders(b);
+        assert_eq!(t.border_stroke(Surface::Card), Stroke::NONE);
+        assert_eq!(t.border_stroke(Surface::Panel).width, base.hairline * 2.0);
+        assert_eq!(t.border_stroke(Surface::Header), base.rule_stroke());
+        assert_eq!(t.card_frame().stroke, Stroke::NONE);
+    }
+
+    #[test]
+    fn borders_read_from_a_settings_reply() {
+        let b = Borders::from_value(&serde_json::json!({ "card": "bold", "header": "none", "panel": "wavy" }));
+        assert_eq!(b.get(Surface::Card), Border::Bold);
+        assert_eq!(b.get(Surface::Header), Border::None);
+        assert_eq!(b.get(Surface::Panel), Border::Hairline, "an unknown word keeps the default");
+    }
 
     #[test]
     fn the_two_house_themes_differ_in_colour_and_spacing() {

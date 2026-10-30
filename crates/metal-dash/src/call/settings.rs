@@ -26,11 +26,17 @@ use crate::call::{CallError, Ctx, Params};
 /// reads each one.
 pub const THEME_STYLES: [&str; 2] = ["phosphor", "daylight"];
 
-const KEYS: [&str; 19] = [
+/// The surface types a `borders` entry may name, and the weights it may give
+/// one: `classes::Surface::key` / `classes::Border::name` read the same words
+/// (a test there keeps the two lists equal).
+pub const BORDER_SURFACES: [&str; 4] = ["panel", "header", "card", "control"];
+pub const BORDER_WEIGHTS: [&str; 3] = ["none", "hairline", "bold"];
+
+const KEYS: [&str; 20] = [
     "shell_mode", "language", "tick_level", "grid_spans", "grid_page", "grid_controllers",
     "shell_view", "colour_rule", "export_dir", "fps_cap", "file_tags", "ingest_proxy",
     "ui_scale", "theme", "grid_surface", "grid_layouts", "tone_mode", "tone_sample_s",
-    "theme_style",
+    "theme_style", "borders",
 ];
 
 pub use crate::frame_cap::{DEFAULT_FPS_CAP, FPS_CAPS};
@@ -181,6 +187,12 @@ fn defaults() -> Map<String, Value> {
     // The house look: `phosphor` (dark) or `daylight` (light), the names
     // `classes::Theme::from_name` reads.
     m.insert("theme_style".into(), json!("phosphor"));
+    // The border weight per surface type, `{ "<surface>": "<weight>" }`: a
+    // fresh install draws every surface with the hairline rule.
+    m.insert(
+        "borders".into(),
+        Value::Object(BORDER_SURFACES.iter().map(|s| ((*s).into(), json!("hairline"))).collect()),
+    );
     m.insert("language".into(), json!("en"));
     // The minimum a fresh install can always afford; `fine` is one pick away.
     // The vocabulary is `metal_schema::TickRate`'s, so the route and the digester
@@ -359,6 +371,30 @@ fn post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<Value, Str
             return Err(format!("unknown theme_style: {s}"));
         }
         next.insert("theme_style".into(), json!(s));
+        changed = true;
+    }
+    if let Some(borders) = body.get("borders") {
+        // A partial map is merged over the stored one, so `{ "card": "none" }`
+        // changes one surface and leaves the rest.
+        let obj = borders
+            .as_object()
+            .ok_or_else(|| "borders must be an object".to_string())?;
+        let mut merged = next
+            .get("borders")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        for (surface, weight) in obj {
+            if !BORDER_SURFACES.contains(&surface.as_str()) {
+                return Err(format!("unknown border surface: {surface} (one of {})", BORDER_SURFACES.join(", ")));
+            }
+            let w = weight
+                .as_str()
+                .filter(|w| BORDER_WEIGHTS.contains(w))
+                .ok_or_else(|| format!("borders.{surface} must be one of {}", BORDER_WEIGHTS.join(", ")))?;
+            merged.insert(surface.clone(), json!(w));
+        }
+        next.insert("borders".into(), Value::Object(merged));
         changed = true;
     }
     if let Some(language) = body.get("language") {
@@ -900,6 +936,37 @@ mod tests {
             "a refused body must leave the stored map alone"
         );
         let _ = std::fs::remove_file(&p);
+    }
+
+    /// The route's border vocabulary is the shell's `classes` words, word for word.
+    #[test]
+    fn the_border_vocabulary_matches_the_shell_classes() {
+        use crate::shell::classes::{Border, Surface};
+        let surfaces: Vec<&str> = Surface::ALL.iter().map(|s| s.key()).collect();
+        assert_eq!(surfaces, BORDER_SURFACES);
+        let weights: Vec<&str> = Border::ALL.iter().map(|b| b.name()).collect();
+        assert_eq!(weights, BORDER_WEIGHTS);
+    }
+
+    /// The border weights default to the hairline everywhere, merge per
+    /// surface and refuse an unknown surface or weight.
+    #[test]
+    fn borders_default_to_hairline_merge_per_surface_and_refuse_bad_words() {
+        let p = tmp_named("borders");
+        let fresh = reply_at(&p).expect("fresh install answers");
+        for s in BORDER_SURFACES {
+            assert_eq!(fresh["borders"][s], json!("hairline"), "{s}");
+        }
+        let one = post_at(&p, &json!({ "borders": { "card": "none" } })).expect("save");
+        assert_eq!(one["borders"]["card"], json!("none"));
+        assert_eq!(one["borders"]["panel"], json!("hairline"));
+        let two = post_at(&p, &json!({ "borders": { "panel": "bold" } })).expect("save");
+        assert_eq!(two["borders"]["card"], json!("none"), "an earlier pick survives");
+        assert_eq!(reply_at(&p).expect("re-read")["borders"]["panel"], json!("bold"));
+        assert!(post_at(&p, &json!({ "borders": { "sidebar": "none" } })).is_err());
+        assert!(post_at(&p, &json!({ "borders": { "card": "dotted" } })).is_err());
+        assert!(post_at(&p, &json!({ "borders": "none" })).is_err());
+        assert_eq!(reply_at(&p).expect("still")["borders"]["card"], json!("none"));
     }
 
     /// The house look: `theme_style` defaults to `phosphor`, round-trips

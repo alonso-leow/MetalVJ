@@ -23,7 +23,7 @@ use egui::{Id, Response, RichText, TextEdit, Ui};
 use serde_json::{json, Value};
 
 use crate::call::Call;
-use crate::shell::classes::{ShellMode, Theme};
+use crate::shell::classes::{Border, Borders, ShellMode, Surface, Theme};
 use crate::shell::components::{nav_list, panel_frame, section_heading, Icon};
 use crate::shell::i18n::{self, tr, tr_dyn, tr_key, trf, Lang};
 use crate::shell::panels::pairing;
@@ -171,6 +171,10 @@ pub struct PanelState {
     /// ([`PanelState::take_style_change`]).
     theme_style: String,
     style_change: Option<String>,
+    /// The border weight per surface type (`borders`), and the set a change
+    /// left for the shell to read ([`PanelState::take_borders_change`]).
+    borders: Borders,
+    borders_change: Option<Borders>,
     /// D1: the Fixtures section's edit scratch. `fixtures_edit` is the id
     /// being edited (`None` means "add"); the rest are the form's typed
     /// values, seeded from a row's `edit` and cleared on `cancel` or a
@@ -226,6 +230,8 @@ impl Default for PanelState {
             theme_palettes: Vec::new(),
             theme_style: String::new(),
             style_change: None,
+            borders: Borders::default(),
+            borders_change: None,
             fixtures_edit: None,
             fixtures_kind: "wash".to_string(),
             fixtures_name: String::new(),
@@ -322,6 +328,9 @@ impl PanelState {
             if let Some(style) = reply["theme_style"].as_str() {
                 self.set_style(style);
             }
+            if reply["borders"].is_object() {
+                self.set_borders(Borders::from_value(&reply["borders"]));
+            }
             self.apply_language(&reply);
         }
     }
@@ -353,6 +362,20 @@ impl PanelState {
     /// read or written; the shell swaps its base look to it.
     pub(crate) fn take_style_change(&mut self) -> Option<String> {
         self.style_change.take()
+    }
+
+    /// `Some(borders)` once after the border weights changed, read or written;
+    /// the shell lays them over its theme.
+    pub(crate) fn take_borders_change(&mut self) -> Option<Borders> {
+        self.borders_change.take()
+    }
+
+    /// Adopts `borders` when they differ from the ones held.
+    fn set_borders(&mut self, borders: Borders) {
+        if borders != self.borders {
+            self.borders = borders;
+            self.borders_change = Some(borders);
+        }
     }
 
     /// Adopts `style` as the house look when it differs from the one held.
@@ -528,13 +551,17 @@ fn section_icon(section: Section) -> Icon {
     }
 }
 
-/// Placeholder footer: a disabled row per future preference, named and
-/// dated. **`add_enabled(false)`, not a plain label** — these must look like
-/// the controls they will become and be visibly unclickable, the exact
-/// affordance `more ▾`'s disabled provider item (`S.U8`) used and the reason
-/// clicking one does nothing.
-const UI_PLACEHOLDERS: [(&str, &str); 1] = [
-    (tr_key("borders per surface type"), "O.16"),
+/// The settings words for a surface type and a border weight.
+const SURFACE_LABELS: [(Surface, &str); 4] = [
+    (Surface::Panel, tr_key("panel")),
+    (Surface::Header, tr_key("header")),
+    (Surface::Card, tr_key("card")),
+    (Surface::Control, tr_key("control")),
+];
+const BORDER_LABELS: [(Border, &str); 3] = [
+    (Border::None, tr_key("none")),
+    (Border::Hairline, tr_key("hairline")),
+    (Border::Bold, tr_key("bold")),
 ];
 
 fn section_ui(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState) {
@@ -672,21 +699,31 @@ fn section_ui(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelStat
             });
     });
 
-    ui.label(
-        RichText::new(tr("— designed below, no batch open yet —"))
-            .font(theme.font_small.clone())
-            .color(theme.ink_weak),
-    );
-
-    for (label, batch) in UI_PLACEHOLDERS {
-        ui.add_enabled(
-            false,
-            egui::Button::new(
-                RichText::new(format!("{} — {batch}", tr(label)))
-                    .font(theme.font_small.clone())
-                    .color(theme.ink_weak),
-            ),
-        );
+    section_heading(ui, theme, tr("borders per surface type"));
+    for (surface, label) in SURFACE_LABELS {
+        ui.horizontal_wrapped(|ui| {
+            ui.label(RichText::new(tr(label)).font(theme.font_small.clone()).color(theme.ink_weak));
+            let mut weight = state.borders.get(surface).name().to_string();
+            let options: Vec<(String, &str)> =
+                BORDER_LABELS.iter().map(|(b, l)| (b.name().to_string(), tr(l))).collect();
+            if crate::shell::components::dropdown(
+                ui,
+                theme,
+                ("shell/region/settings/border", surface.key()),
+                &mut weight,
+                &options,
+            )
+            .changed()
+            {
+                if let Ok(reply) =
+                    door.json("POST", "/settings", Some(json!({ "borders": { surface.key(): weight } })))
+                {
+                    if reply["borders"].is_object() {
+                        state.set_borders(Borders::from_value(&reply["borders"]));
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -2171,6 +2208,59 @@ mod tests {
         let body = call.expect("the camera button posts POST /agent/tool");
         assert_eq!(body["name"], json!("discover_fixture"));
         assert_eq!(body["allow_ask"], json!(true));
+    }
+
+    /// The border weights are taken once per change: the default set is no
+    /// change and a set that differs fires exactly once.
+    #[test]
+    fn a_border_change_is_taken_once_and_only_when_it_differs() {
+        let mut state = PanelState::default();
+        state.set_borders(Borders::default());
+        assert_eq!(state.take_borders_change(), None, "hairline everywhere is the default");
+        let mut b = Borders::default();
+        b.set(Surface::Card, Border::None);
+        state.set_borders(b);
+        assert_eq!(state.take_borders_change(), Some(b));
+        assert_eq!(state.take_borders_change(), None, "taken once");
+    }
+
+    /// Picking a weight in the Interface section posts only that surface to
+    /// `POST /settings` and adopts what the door answers.
+    #[test]
+    fn picking_a_border_weight_posts_that_surface_and_adopts_the_reply() {
+        use egui_kittest::kittest::Queryable;
+        let door = std::rc::Rc::new(crate::shell::FakeDoor::new());
+        door.respond(
+            "POST",
+            "/settings",
+            json!({ "borders": { "panel": "hairline", "header": "hairline", "card": "none", "control": "hairline" } }),
+        );
+        let theme = Theme::phosphor();
+        let t = theme.clone();
+        let d = std::rc::Rc::clone(&door);
+        let mut h = egui_kittest::Harness::builder().with_size(egui::Vec2 { x: 720.0, y: 560.0 }).build_ui_state(
+            move |ui, state: &mut PanelState| section_ui(ui, &t, d.as_ref(), state),
+            PanelState::default(),
+        );
+        theme.apply(&h.ctx);
+        h.run();
+        let card = tr_key("card");
+        let row = h.get_all_by_value("hairline").nth(SURFACE_LABELS.iter().position(|(_, l)| *l == card).unwrap());
+        row.expect("a hairline dropdown per surface").click();
+        h.run();
+        h.get_by_label("none").click();
+        h.run();
+        let posted: Vec<Value> = door
+            .calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/settings")
+            .map(|(_, _, params)| serde_json::from_slice(&params.body).unwrap())
+            .collect();
+        assert_eq!(posted, vec![json!({ "borders": { "card": "none" } })]);
+        let got = h.state_mut().take_borders_change().expect("the reply is adopted");
+        assert_eq!(got.get(Surface::Card), Border::None);
+        assert_eq!(got.get(Surface::Panel), Border::Hairline);
     }
 
     /// The house look is taken once per change: a style the settings already

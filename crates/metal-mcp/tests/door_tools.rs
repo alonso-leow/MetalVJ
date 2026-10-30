@@ -46,7 +46,8 @@ fn fw_dash_bin() -> PathBuf {
     bin
 }
 
-/// A fresh data root: the example venue, two outputs, a live graph with a
+/// A fresh data root: the example venue, two outputs, the live collection
+/// (`col-main`, the only live graph the boot keeps) with a
 /// source, a material and a script node, a device graph of its own for
 /// `edit_layer`, a delete-me graph, a saved switch, the shader corpus the
 /// tools read, and the operator's `devices` permission granted
@@ -79,8 +80,8 @@ fn fixture(root: &Path) {
     // The live graph the graph tools operate on: an output device fed by a
     // generator, plus a second generator, a `mat.*` and a `script.*` node.
     std::fs::write(
-        root.join("graphs/authoring.json"),
-        json!({"id": "authoring", "name": "authoring", "domain": "live",
+        root.join("graphs/col-main.json"),
+        json!({"id": "col-main", "name": "col-main", "domain": "live",
             "nodes": [
                 {"id": "out-a", "kind": "output.device", "pos": [0, 0], "label": "",
                     "bypass": false, "solo": false, "config": {"mode": {"kind": "own"}}},
@@ -91,6 +92,8 @@ fn fixture(root: &Path) {
                 {"id": "mat-a", "kind": "mat.wood", "pos": [-150, 0], "label": "",
                     "bypass": false, "solo": false, "config": {}},
                 {"id": "script-a", "kind": "script.py", "pos": [-450, 0], "label": "",
+                    "bypass": false, "solo": false, "config": {}},
+                {"id": "net-a", "kind": "out.artnet", "pos": [150, 0], "label": "",
                     "bypass": false, "solo": false, "config": {}}
             ],
             "edges": [{"id": "e0", "from": {"node": "gen-a", "port": "image"},
@@ -113,7 +116,7 @@ fn fixture(root: &Path) {
     // without disturbing the graph the other calls share.
     std::fs::write(
         root.join("graphs/scratch.json"),
-        json!({"id": "scratch", "name": "scratch", "domain": "live",
+        json!({"id": "scratch", "name": "scratch", "domain": "offline",
             "nodes": [{"id": "n-0", "kind": "gen.domain", "pos": [0, 0], "label": "",
                 "bypass": false, "solo": false, "config": {}}],
             "edges": [], "ids": {"next": {"comp": 1, "gen": 1, "out": 1}}})
@@ -124,17 +127,30 @@ fn fixture(root: &Path) {
     // `add_switch`) names a button that really exists.
     std::fs::write(
         root.join("switches.json"),
-        json!([{"id": "seeded", "name": "Seeded", "kind": "toggle", "graph": "authoring",
+        json!([{"id": "seeded", "name": "Seeded", "kind": "toggle", "graph": "col-main",
             "set": [{"node": "gen-a", "on": true}]}])
         .to_string(),
     )
     .unwrap();
+    // A one-triangle glTF (three positions, a data-URI buffer) for
+    // `venue_asset_import`, written into the fixture root only (rule 8).
+    std::fs::create_dir_all(root.join("assets")).unwrap();
+    std::fs::write(root.join("assets/tri.gltf"), TRIANGLE_GLTF).unwrap();
     std::fs::write(
         root.join("ai_tools.json"),
         json!({"permissions": {"dispositivos": "allow"}}).to_string(),
     )
     .unwrap();
 }
+
+/// A minimal glTF 2.0 file: one mesh, one triangle, positions in a data URI.
+const TRIANGLE_GLTF: &str = r#"{"asset":{"version":"2.0"},"scene":0,
+  "scenes":[{"nodes":[0]}],"nodes":[{"mesh":0}],
+  "meshes":[{"primitives":[{"attributes":{"POSITION":0}}]}],
+  "accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3",
+    "min":[0,0,0],"max":[1,1,0]}],
+  "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36}],
+  "buffers":[{"byteLength":36,"uri":"data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAA"}]}"#;
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("fw-door-{name}-{}", std::process::id()));
@@ -351,6 +367,7 @@ const SKIP: &[(&str, &str)] = &[
     ("add_fixture_node", "needs the venue projected first (project_venue, skipped)"),
     ("blend_edges", "needs a projector pinned to a surface (calibrate_projector, skipped)"),
     ("export_control", "cancels a running export: with none running the route refuses"),
+    ("fire_trigger", "fires a trigger learned from a live MIDI or OSC input (`learn` waits for a real input event); the fixture has none"),
     ("raster", "compiles and rasterises a shader on the GPU: real time"),
     ("bake_clip", "renders a clip: real time"),
     ("sleep", "blocks for `ms`; nothing to smoke"),
@@ -389,22 +406,22 @@ fn smoke_args(name: &str, schema: &Value) -> Option<Value> {
     }
     let overrides = match name {
         "list_tools" => json!({}),
-        "get_env" => json!({"graph": "authoring"}),
-        "list_nodes" => json!({"graph": "authoring"}),
+        "get_env" => json!({"graph": "col-main"}),
+        "list_nodes" => json!({"graph": "col-main"}),
         "search_nodes" => json!({"q": "gen"}),
-        "create_node" => json!({"graph": "authoring", "kind": "gen.domain"}),
-        "delete_node" => json!({"graph": "scratch", "id": "n-0"}),
-        "connect_nodes" => json!({"graph": "authoring",
+        "create_node" => json!({"graph": "col-main", "kind": "gen.domain"}),
+        "delete_node" => json!({"graph": "col-main", "id": "gen-b"}),
+        "connect_nodes" => json!({"graph": "col-main",
             "from": {"node": "gen-a", "port": "row"},
             "to": {"node": "script-a", "port": "control"}}),
-        "get_params" => json!({"graph": "authoring", "id": "out-a"}),
-        "set_params" => json!({"graph": "authoring", "id": "out-a", "patch": {"label": "smoke"}}),
+        "get_params" => json!({"graph": "col-main", "id": "out-a"}),
+        "set_params" => json!({"graph": "col-main", "id": "out-a", "patch": {"label": "smoke"}}),
         "read_shader" => json!({"id": "level"}),
-        "take_graph" => json!({"graph": "authoring"}),
-        "release_graph" => json!({"graph": "authoring"}),
-        "graph_owner" => json!({"graph": "authoring"}),
+        "take_graph" => json!({"graph": "col-main"}),
+        "release_graph" => json!({"graph": "col-main"}),
+        "graph_owner" => json!({"graph": "col-main"}),
         "save_shader" => json!({"id": "smoke-level", "wgsl": LEVEL_WGSL}),
-        "save_script" => json!({"graph": "authoring", "node": "script-a", "source": "0.0"}),
+        "save_script" => json!({"graph": "col-main", "node": "script-a", "source": "0.0"}),
         "create_mask_grid" => json!({"outputs": ["wall"], "rows": 2, "cols": 2}),
         "test_mask_grid" => json!({"outputs": ["wall"]}),
         "edit_mask" => json!({"device_id": "wall", "name": "smoke",
@@ -420,7 +437,7 @@ fn smoke_args(name: &str, schema: &Value) -> Option<Value> {
         "capture_camera_frame" => json!({"w": 64, "h": 36}),
         "edit_layer" => json!({"op": "add", "device": "stage", "model": "domain"}),
         "list_switches" => json!({}),
-        "read_script" => json!({"graph": "authoring", "node": "script-a"}),
+        "read_script" => json!({"graph": "col-main", "node": "script-a"}),
         "set_fixture" => json!({"venue": "bar", "kind": "wash", "address": 20}),
         "dmx_bus" => json!({"priority": 10, "mode": "htp"}),
         "perf_report" => json!({}),
@@ -429,21 +446,59 @@ fn smoke_args(name: &str, schema: &Value) -> Option<Value> {
             "list": [{"id": "grid-1", "name": "Custom Grid 1", "surface": {"cols": 4}}]}}),
         "export_status" => json!({}),
         "list_palettes" => json!({}),
+        "list_kinds" => json!({}),
+        "add_effect" => json!({"graph": "col-main", "node": "gen-a", "effect": "blur",
+            "state": "fixed", "amount": 0.4}),
+        "remove_effect" => json!({"graph": "col-main", "node": "gen-a", "effect": "blur"}),
+        "edit_output" => json!({"op": "add", "id": "smoke-out", "label": "Smoke",
+            "width": 320, "height": 180}),
+        "resolve_draft" => json!({"venue": "bar", "decision": "reject"}),
+        "edit_venue_object" => json!({"venue": "bar", "object": "smoke-crate", "kind": "stage",
+            "name": "Smoke", "at": [0, 0, 0], "size": [1, 1, 1]}),
+        "add_screen" => json!({"venue": "bar", "screen": {"name": "Smoke", "width_m": 2,
+            "height_m": 1, "pixels": [640, 320], "kind": "display"}}),
+        "add_projection" => json!({"venue": "bar", "projector": "proj-1", "name": "bar projector"}),
+        "set_surface_form" => json!({"venue": "bar", "surface": "back-wall", "form": "plane"}),
+        "set_venue_sectors" => json!({"venue": "bar", "surface": "back-wall", "source": "points",
+            "ratio": 1.0, "points": [[0, 0], [1, 0], [1, 1], [0, 1]]}),
+        "move_venue_item" => json!({"venue": "bar", "item": "lamp", "at": [0.5, 0.5, 0]}),
+        "projection_area" => json!({"venue": "bar", "projector": "proj-1"}),
+        "venue_scene" => json!({"id": "bar"}),
+        "add_stage" => json!({"venue": "bar", "stage": "smoke-stage", "at": [0, 0, 0], "size": [1, 1, 1]}),
+        "add_truss" => json!({"venue": "bar", "truss": "smoke-truss", "at": [0, 2, 0], "size": [2, 0.1, 0.1]}),
+        "add_dummy" => json!({"venue": "bar", "dummy": "smoke-dummy", "at": [0, 0, 0]}),
+        "venue_spline" => json!({"venue": "bar", "object": "smoke-spline",
+            "path": [[0, 0, 0], [1, 0, 0], [1, 1, 0]]}),
+        "place_mask_in_space" => json!({"venue": "bar", "mask": "smoke-mask", "on": "back-wall",
+            "points": [[0, 0], [1, 0], [1, 1], [0, 1]]}),
+        "venue_boolean" => json!({"venue": "bar", "a": "counter", "b": "table-log", "operation": "union"}),
+        "venue_hit" => json!({"venue": "bar", "origin": [0, 1, 2], "dir": [0, 0, -1]}),
+        "venue_report" => json!({"venue": "bar"}),
+        "venue_view" => json!({"venue": "bar"}),
+        "venue_assets_search" => json!({"query": "chair"}),
+        "play_sequence" => json!({"op": "stop-all"}),
+        "edit_loops" => json!({"op": "tap"}),
+        "transport" => json!({"action": "toggle_pause"}),
+        "overlay_control" => json!({"op": "stop-all"}),
+        "colour_apply" => json!({"graph": "col-main", "group": "all", "rgb": [1, 0, 0]}),
+        "focus" => json!({"items": [{"kind": "node", "id": "gen-a", "graph": "col-main"}]}),
+        "venue_asset_import" => json!({"venue": "bar", "object": "smoke-gltf", "licence": "CC0",
+            "path": "placeholder.gltf"}),
         "set_switch" => json!({"id": "seeded", "op": "on"}),
         "get_tick_level" => json!({}),
         "set_tick_level" => json!({"tick_level": "base"}),
-        "add_switch" => json!({"id": "smoke", "kind": "toggle", "graph": "authoring",
+        "add_switch" => json!({"id": "smoke", "kind": "toggle", "graph": "col-main",
             "set": [{"node": "out-a", "on": true}]}),
         "remove_switch" => json!({"id": "smoke"}),
         "blackout" => json!({"on": false}),
         "solid_color" => json!({"rgb": [0, 0, 0], "duration_seconds": 1}),
-        "embed_ai" => json!({"graph": "authoring", "node": "gen-a",
+        "embed_ai" => json!({"graph": "col-main", "node": "gen-a",
             "ai": "ai.colourist", "on": false}),
-        "attach_source" => json!({"graph": "authoring", "node": "out-a",
+        "attach_source" => json!({"graph": "col-main", "node": "out-a",
             "port": "image", "kind": "gen.domain"}),
-        "insert_node" => json!({"graph": "authoring", "after": "gen-a", "kind": "fx.level"}),
-        "get_io" => json!({"graph": "authoring", "node": "out-a"}),
-        "set_material" => json!({"graph": "authoring", "node": "mat-a", "part": "*"}),
+        "insert_node" => json!({"graph": "col-main", "after": "gen-a", "kind": "fx.level"}),
+        "get_io" => json!({"graph": "col-main", "node": "out-a"}),
+        "set_material" => json!({"graph": "col-main", "node": "mat-a", "part": "*"}),
         "list_scenes" => json!({}),
         "list_dataset" => json!({}),
         "list_video_io" => json!({}),
@@ -502,10 +557,13 @@ fn every_hardware_free_tool_answers_a_smoke_call() {
             skipped.push(name.to_string());
             continue;
         }
-        let Some(args) = smoke_args(name, &tool["inputSchema"]) else {
+        let Some(mut args) = smoke_args(name, &tool["inputSchema"]) else {
             uncovered.push(name.to_string());
             continue;
         };
+        if name == "venue_asset_import" {
+            args["path"] = json!(data.join("assets/tri.gltf"));
+        }
         // Keep the required-argument shape check: every required key is present.
         for key in tool["inputSchema"]["required"].as_array().into_iter().flatten() {
             assert!(

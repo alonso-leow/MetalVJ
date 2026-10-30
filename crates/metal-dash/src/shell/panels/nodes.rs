@@ -309,6 +309,17 @@ pub struct PanelState {
     /// — the model order the grid was laid out in, so a `gen.<id>` finds
     /// its tile by the same index the server drew it at (rule 5).
     model_names: Vec<String>,
+    /// The studio's row of each model, in `model_names` order
+    /// (`GET /author/render/state` `rows`): the base a node's own floats are
+    /// laid over to make the row its tile is drawn from.
+    model_rows: Vec<Vec<f32>>,
+    /// Where each float of a `gen.*` kind sits in its row, `(name, index)`
+    /// (`GET /catalog` `params`).
+    row_slots: HashMap<String, Vec<(String, usize)>>,
+    /// One picture per `gen.*` node, drawn from that node's own row
+    /// (`GET /author/render/solo.jpg?row=`); the grid's cell is the fallback
+    /// until it lands.
+    node_tiles: HashMap<String, crate::shell::frames::Frame>,
     /// The canvas's own last-painted rect — test-only in effect (a kittest
     /// pointer test needs a real point inside the canvas, not the whole
     /// region's outer frame, to know a click landed past the toolbar), the
@@ -405,6 +416,9 @@ impl Default for PanelState {
             gallery_visible: false,
             gallery_clock: 0.0,
             model_names: Vec::new(),
+            model_rows: Vec::new(),
+            row_slots: HashMap::new(),
+            node_tiles: HashMap::new(),
             last_canvas_rect: None,
             hover_edge: None,
             picked: Vec::new(),
@@ -687,12 +701,83 @@ fn ensure_loaded(door: &dyn Call, state: &mut PanelState) {
         return;
     }
     state.opened = true;
+    state.model_rows = models
+        .as_ref()
+        .and_then(|v| v["rows"].as_array())
+        .map(|rows| {
+            rows.iter()
+                .map(|r| r.as_array().into_iter().flatten().map(|x| x.as_f64().unwrap_or(0.0) as f32).collect())
+                .collect()
+        })
+        .unwrap_or_default();
+    state.row_slots = row_slots_of(get(door, "GET", "/catalog", &[]).as_ref());
     state.model_names = models
         .and_then(|v| v["names"].as_array().cloned())
         .unwrap_or_default()
         .iter()
         .filter_map(|v| v.as_str().map(str::to_string))
         .collect();
+}
+
+/// The float slots of every `gen.*` kind in a `GET /catalog` reply: each
+/// float param's name and its position in the model's row.
+fn row_slots_of(catalog: Option<&Value>) -> HashMap<String, Vec<(String, usize)>> {
+    let mut out = HashMap::new();
+    for entry in catalog.and_then(|c| c["catalog"].as_array()).into_iter().flatten() {
+        let Some(kind) = entry["kind"].as_str().filter(|k| k.starts_with("gen.")) else { continue };
+        let slots = entry["params"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|p| p["kind"] == json!("float"))
+            .filter_map(|p| Some((p["name"].as_str()?.to_string(), p["index"].as_u64()? as usize)))
+            .collect();
+        out.insert(kind.to_string(), slots);
+    }
+    out
+}
+
+/// The row a `gen.*` node's tile is drawn from: its model's studio row with
+/// the node's own floats laid over it — the effective value the last frame
+/// used (`GET /graph/live`), else the float it holds (`config.floats`).
+/// Colour slots and the camera stay the studio's: the node config holds
+/// neither (a colour slot cannot be held yet, the camera is no param).
+fn node_row(state: &PanelState, node: &Value) -> Option<Vec<f32>> {
+    let kind = node["kind"].as_str()?;
+    let model = kind.strip_prefix("gen.")?;
+    let at = state.model_names.iter().position(|n| n == model)?;
+    let mut row = state.model_rows.get(at)?.clone();
+    let held = node["config"]["floats"].as_object();
+    let live = state.live.as_ref().and_then(|l| l["nodes"][node["id"].as_str()?]["in"].as_object());
+    for (name, slot) in state.row_slots.get(kind).into_iter().flatten() {
+        let value = live
+            .and_then(|l| l.get(name))
+            .or_else(|| {
+                metal_schema::param_aliases::alias_keys(name).find_map(|k| held.and_then(|h| h.get(k)))
+            })
+            .and_then(Value::as_f64);
+        if let (Some(v), Some(cell)) = (value, row.get_mut(*slot)) {
+            *cell = v as f32;
+        }
+    }
+    Some(row)
+}
+
+/// Asks for the picture of every `gen.*` node from its own row. Each node's
+/// frame is rate-limited on its own by `gap`.
+fn fetch_node_tiles(ctx: &egui::Context, door: &dyn Call, state: &mut PanelState, gap: std::time::Duration) {
+    let nodes = state.graph.as_ref().and_then(|g| g["graph"]["nodes"].as_array()).cloned().unwrap_or_default();
+    for node in &nodes {
+        let (Some(id), Some(row)) = (node["id"].as_str(), node_row(state, node)) else { continue };
+        let model = node["kind"].as_str().and_then(|k| k.strip_prefix("gen.")).unwrap_or_default();
+        let query = [
+            ("model", model.to_string()),
+            ("w", TILE_W.to_string()),
+            ("h", TILE_H.to_string()),
+            ("row", row.iter().map(f32::to_string).collect::<Vec<_>>().join(",")),
+        ];
+        state.node_tiles.entry(id.to_string()).or_default().picture(ctx, door, "/author/render/solo.jpg", &query, gap);
+    }
 }
 
 /// `GET /graphs`, then [`load_graph`] whichever id the picker should show —
@@ -2335,6 +2420,7 @@ fn canvas(
         };
         // G5: the grid is a texture on the painter's device when the window
         // shares it; the JPEG route answers otherwise.
+        fetch_node_tiles(ui.ctx(), door, state, gap);
         state
             .tiles
             .picture(ui.ctx(), door, "/author/render/grid.jpg", &query, gap)
@@ -2985,7 +3071,13 @@ fn paint_tile(
 ) {
     let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
     painter.rect_filled(r, theme.corner_radius(), theme.node_field);
-    if let Some((tex, _)) = tiles {
+    // The node's own picture, drawn from its row, once it has landed.
+    let own = node_id_at(state, [num(p, "x"), num(p, "y")])
+        .and_then(|id| state.node_tiles.get(&id))
+        .and_then(|f| f.current_picture());
+    if let Some((tex, _)) = own {
+        painter.image(tex, r, EguiRect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), theme.image_tint);
+    } else if let Some((tex, _)) = tiles {
         // The tile's uv is found from the node's own position, the same join
         // `node_tile_at` makes for the old painter: the rect's `x`/`y` are
         // the node's `pos`.
@@ -4381,6 +4473,13 @@ fn node_tile_at(state: &PanelState, pos: [f32; 2]) -> Option<EguiRect> {
     Some(tile_uv(index, state.model_names.len()))
 }
 
+/// The id of the `gen.*` node whose `pos` is exactly `pos` (see [`node_tile_at`]).
+fn node_id_at(state: &PanelState, pos: [f32; 2]) -> Option<String> {
+    let nodes = state.graph.as_ref()?["graph"]["nodes"].as_array()?;
+    let node = nodes.iter().find(|n| pt(n, "pos") == pos)?;
+    node["kind"].as_str()?.starts_with("gen.").then(|| node["id"].as_str().map(str::to_string))?
+}
+
 fn node_record(state: &PanelState, id: &str) -> Option<Value> {
     let nodes = state.graph.as_ref()?["graph"]["nodes"].as_array()?;
     nodes.iter().find(|n| n["id"].as_str() == Some(id)).cloned()
@@ -5064,6 +5163,68 @@ mod tests {
                 "issues": []
             }),
         );
+    }
+
+    /// A `gen.*` node's tile is requested with the node's own row, not the
+    /// model's studio row: its held float lands in the float's slot, the
+    /// rest of the row stays the studio's.
+    #[test]
+    fn a_generator_tile_is_requested_with_the_nodes_own_row() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond(
+            "GET",
+            "/graphs",
+            json!({ "graphs": [{ "id": "empty-1", "name": "empty-1", "domain": "live" }] }),
+        );
+        recorder.respond(
+            "GET",
+            "/graph",
+            json!({
+                "graph": { "id": "empty-1", "domain": "live", "nodes": [
+                    { "id": "gen-0", "kind": "gen.turing", "pos": [0.0, 0.0], "label": "", "bypass": false,
+                      "solo": false, "config": { "floats": { "scale": 7.5 } } }
+                ] },
+                "primitives": [],
+                "issues": []
+            }),
+        );
+        recorder.respond(
+            "GET",
+            "/author/render/state",
+            json!({ "names": ["turing"], "rows": [[0.25, 1.0, 0.5, 0.75]] }),
+        );
+        recorder.respond(
+            "GET",
+            "/catalog",
+            json!({ "catalog": [{ "kind": "gen.turing", "params": [
+                { "name": "scale", "kind": "float", "index": 1 },
+                { "name": "tint", "kind": "colour", "index": 2 }
+            ] }] }),
+        );
+        recorder.respond_bytes(
+            "GET",
+            "/author/render/solo.jpg",
+            "image/jpeg",
+            crate::paint::encode_jpeg(&[0u8; 4 * 4 * 4], 4, 4),
+        );
+        let mut harness = shell_harness(Box::new(std::rc::Rc::clone(&recorder)));
+        settle(&mut harness);
+        let rows: Vec<String> = recorder
+            .calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "GET" && p == "/author/render/solo.jpg")
+            .filter_map(|(_, _, params)| params.query.get("row").cloned())
+            .collect();
+        assert!(!rows.is_empty(), "the node's tile is asked for");
+        assert!(rows.iter().all(|r| r == "0.25,7.5,0.5,0.75"), "{rows:?}");
+        let model = recorder
+            .calls
+            .borrow()
+            .iter()
+            .find(|(_, p, _)| p == "/author/render/solo.jpg")
+            .and_then(|(_, _, params)| params.query.get("model").cloned());
+        assert_eq!(model.as_deref(), Some("turing"));
     }
 
     fn source_jpg_calls(recorder: &FakeDoor) -> usize {

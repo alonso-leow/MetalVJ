@@ -61,7 +61,9 @@ impl Author {
                 None,
                 std::path::PathBuf::from("data/tracks/untitled.track.json"),
             )),
+            #[cfg(feature = "gpu")]
             grid_memo: Mutex::new(None),
+            #[cfg(feature = "gpu")]
             solo_memo: Mutex::new(None),
         }
     }
@@ -463,13 +465,14 @@ pub fn node_manifest() -> Result<std::sync::Arc<metal_schema::Manifest>, String>
     // `/catalog` asks on every refresh, and parsing the ~1 MB `schema.json`
     // each time was most of its cost, under the shell's lock. The parse is
     // kept while the file keeps its mtime and length.
-    type Sig = (std::path::PathBuf, (std::time::SystemTime, u64));
+    // The mtime as its `Debug` text: the browser's clock type is not `std`'s.
+    type Sig = (std::path::PathBuf, (String, u64));
     static MEMO: std::sync::Mutex<Option<(Sig, std::sync::Arc<metal_schema::Manifest>)>> =
         std::sync::Mutex::new(None);
     let path = output::data_root().join("schema.json");
     let stamp = metal_vfs::metadata(&path)
         .ok()
-        .and_then(|m| Some((m.modified().ok()?, m.len())));
+        .and_then(|m| Some((format!("{:?}", m.modified().ok()?), m.len())));
     let sig = stamp.map(|s| (path.clone(), s));
     if let (Some(sig), Ok(g)) = (sig.as_ref(), MEMO.lock()) {
         if let Some((kept, manifest)) = g.as_ref() {

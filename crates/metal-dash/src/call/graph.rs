@@ -310,12 +310,18 @@ fn enqueue_clip_ingest(g: &metal_graph::Graph, id: &str) {
     let cfg: Value = serde_json::from_str(&n.config.to_json_str()).unwrap_or(Value::Null);
     if n.kind == "reel.batch" {
         for path in reel_batch_paths(&cfg, &crate::output::data_root()) {
+            #[cfg(feature = "gpu")]
             crate::call::author::ingest::enqueue(&path);
+            #[cfg(not(feature = "gpu"))]
+            let _ = path;
         }
         return;
     }
     if let Some(path) = cfg.get("file").or_else(|| cfg.get("clip")).and_then(Value::as_str) {
+        #[cfg(feature = "gpu")]
         crate::call::author::ingest::enqueue(path);
+        #[cfg(not(feature = "gpu"))]
+        let _ = path;
     }
 }
 

@@ -78,7 +78,7 @@ pub fn state(ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
     let payload = json!({
         "assets": crate::asset_list(paint),
         "reel": state.reels.report(),
-        "ingest": crate::call::author::ingest::jobs(),
+        "ingest": ingest_jobs(),
         "on_air": on_air,
         "running": state.paused_at.is_none(),
         "learning": learning,
@@ -1513,3 +1513,15 @@ pub fn listen_probe(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> 
 
 /// How long the probe listens (plan Design 6: "2 s of flux").
 pub const PROBE_SECONDS: f32 = 2.0;
+
+/// The ingest queue for the transmit payload; the browser build has none.
+fn ingest_jobs() -> Value {
+    #[cfg(feature = "gpu")]
+    {
+        crate::call::author::ingest::jobs()
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        json!([])
+    }
+}

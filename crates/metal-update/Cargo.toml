@@ -36,10 +36,13 @@ thiserror = { workspace = true }
 # HTTPS for the GitHub API and the release asset. Pinned to the 3.4.1 line the
 # lockfile already resolved; `rustls` (not `native-tls`) keeps the TLS provider
 # the rest of the tree uses (ring + webpki-roots, no system CA story to own).
-ureq = { version = "3", default-features = false, features = ["rustls"] }
 # Asset digests. GitHub's `digest` field is `sha256:<hex>`. Pure Rust, already
 # in the lockfile (`metal-ml`).
 sha2 = "0.10"
 
 [dev-dependencies]
 tempfile = "3"
+
+# Native only: the browser reloads instead of updating (`http::*` answer so).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "3", default-features = false, features = ["rustls"] }

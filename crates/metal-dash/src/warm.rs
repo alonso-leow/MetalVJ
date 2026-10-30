@@ -30,6 +30,13 @@ pub fn request(index: usize) {
 
 /// Starts the worker. It warms one queued model per lock, skipping any the
 /// renderer already has warm.
+/// The browser has no second thread to warm on (the painter is not `Send`
+/// there): a model warms on its first draw.
+#[cfg(target_arch = "wasm32")]
+pub fn spawn(_shared: Arc<Mutex<Shared>>) {}
+
+/// The native worker (see above).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn spawn(shared: Arc<Mutex<Shared>>) {
     std::thread::Builder::new()
         .name("warm".into())

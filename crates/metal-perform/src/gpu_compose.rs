@@ -201,7 +201,16 @@ impl GpuCx {
             wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
         );
         self.queue.submit(Some(enc.finish()));
+        // The browser cannot block on a map (and its GPU handles are not `Send`):
+        // a deferred readback there is empty, and callers draw from the texture.
+        #[cfg(target_arch = "wasm32")]
+        {
+            drop(buffer);
+            return Box::new(Vec::new);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         let device = self.device.clone();
+        #[cfg(not(target_arch = "wasm32"))]
         Box::new(move || {
             let (tx, rx) = std::sync::mpsc::channel();
             buffer.slice(..).map_async(wgpu::MapMode::Read, move |r| {

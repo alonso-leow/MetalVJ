@@ -195,7 +195,7 @@ impl Codec {
     pub fn encode(self, rgba: &[u8], w: u32, h: u32) -> Bytes {
         match self {
             Codec::Jpeg(q) => Bytes { kind: "image/jpeg", body: crate::paint::encode_jpeg_q(rgba, w, h, q) },
-            Codec::Qoi => Bytes { kind: "image/qoi", body: crate::remote_layers::encode_qoi_frame(rgba, w, h) },
+            Codec::Qoi => Bytes { kind: "image/qoi", body: qoi_frame(rgba, w, h) },
             Codec::Rgba => Bytes { kind: "application/octet-stream", body: rgba.to_vec() },
         }
     }
@@ -995,5 +995,18 @@ mod window_tests {
             let after = t.elapsed().as_secs_f64() * 1000.0 / n as f64;
             println!("MEASURE window preview {w}x{h}: JPEG path {before:.1} ms, texture path {after:.1} ms");
         }
+    }
+}
+
+/// A QOI picture; the browser build has no remote layers, so it sends raw RGBA.
+fn qoi_frame(rgba: &[u8], w: u32, h: u32) -> Vec<u8> {
+    #[cfg(all(feature = "desktop", any(feature = "gpu", feature = "glow")))]
+    {
+        crate::remote_layers::encode_qoi_frame(rgba, w, h)
+    }
+    #[cfg(not(all(feature = "desktop", any(feature = "gpu", feature = "glow"))))]
+    {
+        let _ = (w, h);
+        rgba.to_vec()
     }
 }

@@ -537,7 +537,6 @@ mod tests {
     /// until it is listed here on purpose, and a fixed one must leave it.
     const MATERIAL_GAPS: &[&str] = &[
         "corals",
-        "water",
     ];
 
     /// Every model that exposes a part a material can be laid on takes a

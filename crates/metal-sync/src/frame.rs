@@ -358,9 +358,9 @@ impl FrameProtocol {
             let from = req["from"].as_u64().unwrap_or(0);
             crate::pull::stream_asset(&mut send, &self.club.data_root, rel, from).await?;
         } else {
-            let frame = if let Some(song) = req["song"].as_str() {
-                let (root, song) = (self.club.data_root.clone(), song.to_string());
-                tokio::task::spawn_blocking(move || crate::pull::answer_listing(&root, &song)).await?
+            let frame = if let Some((kind, name)) = crate::pull::Kind::of_ask(&req) {
+                let (root, name) = (self.club.data_root.clone(), name.to_string());
+                tokio::task::spawn_blocking(move || crate::pull::answer_bundle(&root, kind, &name)).await?
             } else if req["outputs"] == json!(true) {
                 let port = self.club.dash_port;
                 tokio::task::spawn_blocking(move || answer_outputs_locally(port)).await?

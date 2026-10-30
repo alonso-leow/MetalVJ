@@ -245,6 +245,24 @@ fn networked(
             }
             None => (400, json!({ "error": "missing song" })),
         },
+        ("GET", "/graph/pull") | ("GET", "/model/pull") => {
+            let (kind, field) = if path == "/graph/pull" { (crate::pull::Kind::Graph, "graph") } else { (crate::pull::Kind::Model, "model") };
+            match arg(body, query, field) {
+                Some(name) => (200, net.pull_status(&kind.key(&name))),
+                None => (400, json!({ "error": format!("missing ?{field}=") })),
+            }
+        }
+        ("POST", "/graph/pull") | ("POST", "/model/pull") => {
+            let (kind, field) = if path == "/graph/pull" { (crate::pull::Kind::Graph, "graph") } else { (crate::pull::Kind::Model, "model") };
+            match arg(body, query, field) {
+                Some(name) => {
+                    let (net, task) = (net.clone(), name.clone());
+                    rt.spawn(async move { net.pull(kind, &task).await });
+                    (202, json!({ "pulling": name }))
+                }
+                None => (400, json!({ "error": format!("missing {field}") })),
+            }
+        }
         ("GET", "/frame") => {
             let ask = if let Some(d) = param(query, "device") {
                 FrameAsk::Device(d)

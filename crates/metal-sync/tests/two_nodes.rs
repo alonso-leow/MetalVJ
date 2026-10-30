@@ -655,3 +655,40 @@ async fn a_song_pulls_from_a_paired_peer_and_nothing_else() {
         assert_eq!(bytes.len(), 10, "{rel}: a refusal carries no body");
     }
 }
+
+/// A device graph and a model folder pull on demand the way a song does:
+/// only the named bundle comes, and a graph that is not a device graph is not
+/// served.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_device_graph_and_a_model_pull_from_a_paired_peer() {
+    use metal_sync::pull::Kind;
+    let a = node("bar", fake_dash(), "[]").await;
+    let b = node("stage", 1, "[]").await;
+    a.lookup.add_endpoint_info(b.addr.clone());
+    b.lookup.add_endpoint_info(a.addr.clone());
+    std::fs::create_dir_all(a.data().join("graphs")).unwrap();
+    std::fs::create_dir_all(a.data().join("models/bp")).unwrap();
+    std::fs::write(a.data().join("graphs/device-ph.json"), b"{\"nodes\":[]}").unwrap();
+    std::fs::write(a.data().join("graphs/main.json"), b"{}").unwrap();
+    std::fs::write(a.data().join("models/bp/m.onnx"), vec![7u8; 200_000]).unwrap();
+
+    let (status, v) = b.net.request(a.addr.clone()).await;
+    assert_eq!(status, 200, "{v}");
+    let pending = a.net.club.book.lock().unwrap().pending(Instant::now());
+    let code = pending[0]["code"].as_str().unwrap().to_string();
+    assert_eq!(b.net.confirm(&code).await.0, 200);
+
+    b.net.pull(Kind::Graph, "device-ph").await;
+    let st = b.net.pull_status(&Kind::Graph.key("device-ph"));
+    assert_eq!(st["state"], "done", "{st}");
+    assert_eq!(read(&b.data().join("graphs/device-ph.json")).as_deref(), Some(&b"{\"nodes\":[]}"[..]));
+    b.net.pull(Kind::Graph, "main").await;
+    assert_eq!(b.net.pull_status(&Kind::Graph.key("main"))["state"], "missing", "a non-device graph is not served");
+    assert!(!b.data().join("graphs/main.json").exists());
+
+    b.net.pull(Kind::Model, "bp").await;
+    let st = b.net.pull_status(&Kind::Model.key("bp"));
+    assert_eq!(st["state"], "done", "{st}");
+    assert_eq!(st["got_bytes"], st["total_bytes"], "{st}");
+    assert_eq!(read(&b.data().join("models/bp/m.onnx")).map(|v| v.len()), Some(200_000));
+}

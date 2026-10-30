@@ -86,7 +86,79 @@ pub fn servable(rel: &str) -> bool {
     }
     match rel.split_once('/') {
         Some(("audio" | "digest", name)) => !name.is_empty() && !name.contains('/'),
+        // A device graph and its owner stamp, directly under `graphs/`.
+        Some(("graphs", name)) => name.starts_with("device-") && (name.ends_with(".json") || name.ends_with(".owner")) && !name.contains('/'),
+        // A model file, or one folder of them (`models/basic-pitch/x.onnx`).
+        Some(("models", rest)) => {
+            let parts: Vec<&str> = rest.split('/').collect();
+            parts.len() <= 2 && parts.iter().all(|p| !p.is_empty())
+        }
         _ => false,
+    }
+}
+
+/// What an on-demand pull moves. The song bundle is the first; device graphs
+/// and models follow the same listing, stream and hash check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Song,
+    /// `graphs/device-<id>.json` (+ `.owner`), the name being `device-<id>`.
+    Graph,
+    /// `models/<name>` — one file, or every file of a folder of that name.
+    Model,
+}
+
+impl Kind {
+    /// The wire ask for `name`.
+    pub fn ask(self, name: &str) -> Value {
+        match self {
+            Kind::Song => json!({ "song": name }),
+            Kind::Graph => json!({ "graph": name }),
+            Kind::Model => json!({ "model": name }),
+        }
+    }
+
+    /// The ask on the wire, whichever kind it is.
+    pub fn of_ask(req: &Value) -> Option<(Kind, &str)> {
+        [("song", Kind::Song), ("graph", Kind::Graph), ("model", Kind::Model)]
+            .into_iter()
+            .find_map(|(k, kind)| req[k].as_str().map(|n| (kind, n)))
+    }
+
+    /// The key a pull's progress is filed under: a song by its name, the rest
+    /// prefixed with their kind.
+    pub fn key(self, name: &str) -> String {
+        match self {
+            Kind::Song => name.to_string(),
+            Kind::Graph => format!("graph:{name}"),
+            Kind::Model => format!("model:{name}"),
+        }
+    }
+
+    /// The files of `name`'s bundle, relative to the data root; some may not
+    /// exist on a given node.
+    pub fn names(self, data_root: &Path, name: &str) -> Vec<String> {
+        match self {
+            Kind::Song => bundle_names(name),
+            Kind::Graph => vec![format!("graphs/{name}.json"), format!("graphs/{name}.owner")],
+            Kind::Model => {
+                let dir = data_root.join("models").join(name);
+                if dir.is_dir() {
+                    let mut files: Vec<String> = std::fs::read_dir(&dir)
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .filter(|e| e.path().is_file())
+                        .filter_map(|e| e.file_name().into_string().ok())
+                        .map(|f| format!("models/{name}/{f}"))
+                        .collect();
+                    files.sort();
+                    files
+                } else {
+                    vec![format!("models/{name}")]
+                }
+            }
+        }
     }
 }
 
@@ -99,8 +171,14 @@ pub fn hash_file(path: &Path) -> std::io::Result<String> {
 
 /// The bundle this node holds for `song`.
 pub fn local_bundle(data_root: &Path, song: &str) -> Vec<Entry> {
-    bundle_names(song)
+    local_files(data_root, Kind::Song, song)
+}
+
+/// The bundle this node holds for `name` of `kind`: only files a stream may serve.
+pub fn local_files(data_root: &Path, kind: Kind, name: &str) -> Vec<Entry> {
+    kind.names(data_root, name)
         .into_iter()
+        .filter(|rel| servable(rel))
         .filter_map(|rel| {
             let path = data_root.join(&rel);
             let meta = std::fs::metadata(&path).ok().filter(|m| m.is_file())?;
@@ -112,10 +190,15 @@ pub fn local_bundle(data_root: &Path, song: &str) -> Vec<Entry> {
 
 /// The answer to a `{"song": …}` ask: this node's bundle for the song.
 pub fn answer_listing(data_root: &Path, song: &str) -> Frame {
-    if !is_song(song) {
-        return Frame { status: 400, body: json!({ "error": "not a song name" }).to_string().into_bytes() };
+    answer_bundle(data_root, Kind::Song, song)
+}
+
+/// The answer to a `{"song"|"graph"|"model": …}` ask.
+pub fn answer_bundle(data_root: &Path, kind: Kind, name: &str) -> Frame {
+    if !is_song(name) {
+        return Frame { status: 400, body: json!({ "error": "not a plain name" }).to_string().into_bytes() };
     }
-    let files = local_bundle(data_root, song);
+    let files = local_files(data_root, kind, name);
     Frame { status: 200, body: json!({ "files": files }).to_string().into_bytes() }
 }
 
@@ -203,14 +286,21 @@ impl Net {
     /// Pull `song`'s bundle from the first paired peer that holds it. Records
     /// its progress; never panics on a bad peer.
     pub async fn pull_song(&self, song: &str) {
-        self.progress(song, |p| *p = Pull::new(song, "searching"));
-        match self.pull_inner(song).await {
-            Ok(Some(())) => self.progress(song, |p| p.state = "done".into()),
-            Ok(None) => self.progress(song, |p| p.state = "missing".into()),
+        self.pull(Kind::Song, song).await
+    }
+
+    /// The same for a device graph (`device-<id>`) or a model (`models/<name>`).
+    /// Progress is filed under [`Kind::key`].
+    pub async fn pull(&self, kind: Kind, name: &str) {
+        let key = kind.key(name);
+        self.progress(&key, |p| *p = Pull::new(name, "searching"));
+        match self.pull_inner(kind, name).await {
+            Ok(Some(())) => self.progress(&key, |p| p.state = "done".into()),
+            Ok(None) => self.progress(&key, |p| p.state = "missing".into()),
             Err(e) => {
-                tracing::warn!(%song, error = %format!("{e:#}"), "song pull failed");
+                tracing::warn!(%name, error = %format!("{e:#}"), "pull failed");
                 let msg = format!("{e:#}");
-                self.progress(song, |p| {
+                self.progress(&key, |p| {
                     p.state = "failed".into();
                     p.error = Some(msg);
                 });
@@ -218,24 +308,25 @@ impl Net {
         }
     }
 
-    async fn pull_inner(&self, song: &str) -> Result<Option<()>> {
-        if !is_song(song) {
-            bail!("not a song name: {song:?}");
+    async fn pull_inner(&self, kind: Kind, name: &str) -> Result<Option<()>> {
+        if !is_song(name) {
+            bail!("not a plain name: {name:?}");
         }
+        let key = kind.key(name);
         let root = self.club.data_root.clone();
         let mine = {
-            let (root, song) = (root.clone(), song.to_string());
-            tokio::task::spawn_blocking(move || local_bundle(&root, &song)).await?
+            let (root, name) = (root.clone(), name.to_string());
+            tokio::task::spawn_blocking(move || local_files(&root, kind, &name)).await?
         };
         let peers: Vec<(String, String)> = {
             let book = self.club.book.lock().expect("pair book poisoned");
             book.peers().iter().map(|(n, id)| (n.clone(), id.clone())).collect()
         };
         let mut chosen = None;
-        for (name, id) in peers {
+        for (peer, id) in peers {
             let Ok(eid) = id.parse::<iroh::EndpointId>() else { continue };
             let addr = addr_for(&self.club, eid);
-            let req = json!({ "song": song }).to_string();
+            let req = kind.ask(name).to_string();
             let Ok(bytes) = exchange(&self.endpoint, addr.clone(), ALPN, req.as_bytes()).await else { continue };
             let Some(frame) = Frame::decode(&bytes) else { continue };
             if frame.status != 200 {
@@ -244,11 +335,11 @@ impl Net {
             let listed: Value = serde_json::from_slice(&frame.body).unwrap_or(Value::Null);
             let files: Vec<Entry> = serde_json::from_value(listed["files"].clone()).unwrap_or_default();
             if !files.is_empty() {
-                chosen = Some((name, addr, files));
+                chosen = Some((peer, addr, files));
                 break;
             }
         }
-        let Some((name, addr, files)) = chosen else { return Ok(None) };
+        let Some((peer, addr, files)) = chosen else { return Ok(None) };
 
         let need: Vec<Entry> = files
             .into_iter()
@@ -256,9 +347,9 @@ impl Net {
             .collect();
         let total: u64 = need.iter().map(|f| f.size).sum();
         let count = need.len();
-        self.progress(song, |p| {
+        self.progress(&key, |p| {
             p.state = "pulling".into();
-            p.from = Some(name.clone());
+            p.from = Some(peer.clone());
             p.files = count;
             p.done_files = 0;
             p.total_bytes = total;
@@ -266,10 +357,10 @@ impl Net {
             p.error = None;
         });
         for f in &need {
-            self.fetch(&addr, &root, song, f).await?;
-            self.progress(song, |p| p.done_files += 1);
+            self.fetch(&addr, &root, &key, f).await?;
+            self.progress(&key, |p| p.done_files += 1);
         }
-        self.club.log("song_pull", json!({ "song": song, "from": name, "files": count, "bytes": total }));
+        self.club.log("song_pull", json!({ "song": name, "kind": format!("{kind:?}"), "from": peer, "files": count, "bytes": total }));
         Ok(Some(()))
     }
 
@@ -366,5 +457,33 @@ mod tests {
         assert!(names.contains(&"audio/song.8hz.npy".to_string()));
         assert!(names.contains(&"digest/song.32hz.npy".to_string()));
         assert!(names.iter().all(|n| servable(n)));
+    }
+
+    #[test]
+    fn device_graphs_and_models_are_servable_and_nothing_near_them() {
+        assert!(servable("graphs/device-ab12.json"));
+        assert!(servable("graphs/device-ab12.owner"));
+        assert!(!servable("graphs/main.json"), "only device graphs are pulled on demand");
+        assert!(!servable("graphs/nested/device-x.json"));
+        assert!(servable("models/basic-pitch/model.onnx"));
+        assert!(servable("models/x.onnx"));
+        assert!(!servable("models/a/b/c.onnx"));
+        assert!(!servable("models/../settings.json"));
+        assert!(!servable("models/"));
+    }
+
+    #[test]
+    fn a_model_folder_lists_its_files_and_a_graph_its_json_and_owner() {
+        let dir = std::env::temp_dir().join(format!("fw-pull-kinds-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("models/bp")).unwrap();
+        std::fs::write(dir.join("models/bp/m.onnx"), b"m").unwrap();
+        std::fs::write(dir.join("models/bp/n.txt"), b"n").unwrap();
+        let mut got: Vec<String> = local_files(&dir, Kind::Model, "bp").into_iter().map(|e| e.rel).collect();
+        got.sort();
+        assert_eq!(got, ["models/bp/m.onnx", "models/bp/n.txt"]);
+        assert_eq!(Kind::Graph.names(&dir, "device-1"), ["graphs/device-1.json", "graphs/device-1.owner"]);
+        assert_eq!(Kind::of_ask(&json!({ "graph": "device-1" })), Some((Kind::Graph, "device-1")));
+        assert_eq!(Kind::Model.key("bp"), "model:bp");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

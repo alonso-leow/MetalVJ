@@ -71,6 +71,20 @@ mkfifo. Callers already treat a failed spawn as "no result", so the shell runs
 without them. Not covered: `metal-ml` (`curl`, tone feature only, not in the
 Android graph) and `metal-render` example bins.
 
+Every program the sources name, each answering "unavailable on this platform
+(Android has no child processes)" there (a test computes this list from the
+sources and checks it against this paragraph): `curl`, `df`, `ffmpeg`,
+`ffplay`, `ffprobe`, `mkfifo`, `node`, `pactl`, `python3`, `rustc`, `sh`,
+`sleep`, `tar`, `true`, `xdg-open` (`sh`, `sleep` and `true` are test helpers).
+Programs chosen at run time (`Command::new(program)`: the MCP server command,
+timecode tools, the script interpreter) take the same refusal.
+
+**On-demand pulls.** A phone with no `songs/`, `models/` or device graph asks a
+paired peer for it over `fw/frame/1`: `POST /song/pull?song=`,
+`/graph/pull?graph=device-<id>`, `/model/pull?model=<name>` (status by `GET`).
+Same listing, resumable stream and blake3 check for all three; only `audio/`,
+`digest/`, `graphs/device-*` and `models/` are served.
+
 **Video on Android.** Clip playback no longer needs ffmpeg; HAP encoding
 still does.
 

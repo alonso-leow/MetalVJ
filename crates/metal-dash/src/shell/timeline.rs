@@ -1144,4 +1144,46 @@ mod tests {
         cache.retain(&[]);
         assert!(cache.0.lock().unwrap().is_empty(), "a track no longer shown is dropped");
     }
+
+    /// A scene card released on the timeline body lands at the pointer's tick:
+    /// a fresh lane's playhead is at 0, so a drop out on the body keeps a
+    /// later tick of its own rather than the playhead.
+    #[test]
+    fn a_drop_on_the_timeline_body_lands_at_the_pointer_tick() {
+        use egui_kittest::kittest::Queryable;
+        let theme = Theme::phosphor();
+        let sink: std::rc::Rc<std::cell::RefCell<Option<usize>>> = Default::default();
+        let area: std::rc::Rc<std::cell::RefCell<Option<Rect>>> = Default::default();
+        let (out, body_at) = (sink.clone(), area.clone());
+        let mut ingest = IngestLane::default();
+        let mut harness = egui_kittest::Harness::new_ui(move |ui| {
+            let card = ui.add(egui::Label::new("scene card").sense(Sense::click_and_drag()));
+            card.dnd_set_drag_payload(FileDrag {
+                name: "scene card".to_string(),
+                path: "/clips/a.mp4".to_string(),
+                kind: "video".to_string(),
+                seconds: Some(3.0),
+                scene: None,
+            });
+            let body = ui.available_rect_before_wrap();
+            *body_at.borrow_mut() = Some(body);
+            let painted = ui.scope_builder(egui::UiBuilder::new().max_rect(body), |ui| {
+                paint(ui, &theme, &mut ingest, &|_| Vec::new(), body.height())
+            });
+            if let Some(drop) = painted.inner.dropped {
+                *out.borrow_mut() = Some(drop.tick);
+            }
+        });
+        harness.run();
+        let from = harness.get_by_label("scene card").rect().center();
+        let to = area.borrow().expect("the timeline painted").center();
+        harness.drag_at(from);
+        harness.run();
+        harness.hover_at(to);
+        harness.run();
+        harness.drop_at(to);
+        harness.run();
+        let tick = sink.borrow().expect("a release on the body is a drop");
+        assert!(tick > 0, "the drop lands past the playhead at 0, got tick {tick}");
+    }
 }

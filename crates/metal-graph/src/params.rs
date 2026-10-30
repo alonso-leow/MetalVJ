@@ -909,6 +909,26 @@ fn walk(graph: &Graph, start: &str, up: bool) -> Vec<(NodeId, usize)> {
 // the one writer of a held value
 // ---------------------------------------------------------------------------
 
+/// One held write of a batch: `(node, name, value)`, `None` releases it.
+pub type HeldUpdate = (String, String, Option<f32>);
+
+/// Writes every update in `updates` through [`set_held`], in order, all or
+/// nothing: the batch is applied to a copy first, so a refused value leaves
+/// `graph` untouched. The one writer behind `POST /graph/node {op: "params"}`
+/// and the agent's `set_param_batch`, so a scene press saves once.
+pub fn set_held_all(
+    graph: &mut Graph,
+    updates: &[HeldUpdate],
+    catalog: &[NodeKind],
+) -> Result<(), String> {
+    let mut next = graph.clone();
+    for (node, name, value) in updates {
+        set_held(&mut next, node, name, *value, catalog)?;
+    }
+    *graph = next;
+    Ok(())
+}
+
 /// Sets (or, with `None`, releases) the value `node` holds for parameter
 /// `name` — the one writer behind `POST /graph/node {op: "param"}`, the AI's
 /// `set_param` and a single float through `set_params`. Refuses an unknown

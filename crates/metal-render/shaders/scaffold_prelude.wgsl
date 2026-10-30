@@ -34,6 +34,8 @@ struct ScaffoldU {
     tw: vec4<f32>,
     // the model's own floats, packed 4 to a vec4 in declaration order
     own: array<vec4<f32>, 12>,
+    // the picture part's material (MaterialU in material.wgsl); mix 0 is off
+    mat: MaterialU,
 };
 
 @group(0) @binding(0) var<uniform> P: ScaffoldU;
@@ -90,7 +92,8 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
     p = kit_mirror(p, P.tw.z);
     p = kit_warp(p, P.tw.x, P.tw.y, t);
 
-    let m = scaffold_shade(p, in.uv);
+    var m = scaffold_shade(p, in.uv);
+    m = vec4<f32>(p_material(m.rgb, p, in.uv), m.a);
     let cov = clamp(m.a, 0.0, 1.0);
     let lvl = P.c.x;
     let bg = backdrop_from_uv(P.background, in.uv, aspect) * lvl;

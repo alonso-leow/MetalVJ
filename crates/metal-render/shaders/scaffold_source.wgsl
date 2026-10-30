@@ -43,3 +43,14 @@ fn p_src_at_uv(uv: vec2<f32>) -> vec4<f32> {
 }
 
 fn p_src(p: vec2<f32>) -> vec4<f32> { return p_src_at_uv(p_src_uv(p)); }
+
+// The picture part's material on a flat 2D surface: the point is (uv, 0), the
+// normal and the view face the camera, so the material tints and lights the
+// whole picture the same way. Off (mat_mix 0) returns the colour untouched.
+fn p_material(c: vec3<f32>, p: vec2<f32>, uv: vec2<f32>) -> vec3<f32> {
+    if (P.mat.b.x <= 0.0) { return c; }
+    let z = vec3<f32>(0.0, 0.0, 1.0);
+    let sh = material_apply(P.mat, p_src_tex, p_src_smp, c, vec3<f32>(uv, 0.0), z, uv, z, p_time());
+    let sheen = (1.0 - sh.roughness) * sh.metalness * 0.25;
+    return max(sh.albedo + vec3<f32>(sheen), vec3<f32>(0.0));
+}

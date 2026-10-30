@@ -60,13 +60,18 @@ use std::sync::OnceLock;
 use crate::model::{Ctx, FloatSpec, Model, Schema, SurfaceSpec};
 use crate::shared::fullscreen::Fullscreen;
 use crate::shared::kit::{self, Cam2d, Look, Twist};
-use crate::shared::surface::Part;
+use crate::shared::surface::{MaterialU, Part};
 use crate::shared::ColorSlotGpu;
 
 pub const MAX_OWN: usize = 48;
 pub const MAX_SLOTS: usize = 3;
 
 const PRELUDE_WGSL: &str = include_str!("../../shaders/scaffold_prelude.wgsl");
+const SURFACE_WGSL: &str = include_str!("../../shaders/surface.wgsl");
+const MATERIAL_WGSL: &str = include_str!("../../shaders/material.wgsl");
+/// `p_material` for a def with no picture part: the colour as it came.
+const NO_MATERIAL_WGSL: &str =
+    "fn p_material(c: vec3<f32>, p: vec2<f32>, uv: vec2<f32>) -> vec3<f32> { return c; }";
 const SOURCE_WGSL: &str = include_str!("../../shaders/scaffold_source.wgsl");
 
 /// Builds a model `Schema` in the scaffold's block order:
@@ -154,6 +159,9 @@ pub struct ScaffoldDef {
     /// The model's [`Model::render_scale`]; `1.0` unless set with
     /// [`ScaffoldDef::with_render_scale`].
     pub render_scale: f32,
+    /// Whether the picture part also wears the row's `material` group (see
+    /// [`ScaffoldDef::with_material`]).
+    pub material: bool,
     src: OnceLock<String>,
 }
 
@@ -175,6 +183,7 @@ impl ScaffoldDef {
             wgsl,
             surfaces: &[],
             render_scale: 1.0,
+            material: false,
             src: OnceLock::new(),
         }
     }
@@ -184,6 +193,16 @@ impl ScaffoldDef {
     /// particle or step.
     pub const fn with_render_scale(mut self, scale: f32) -> ScaffoldDef {
         self.render_scale = scale;
+        self
+    }
+
+    /// The model's final colour wears the part's material (`mat_*`), on the
+    /// flat 2D contract: `material_apply` sees the object position `(uv, 0)`
+    /// and the normal `(0, 0, 1)`, so the material tints and lights the
+    /// whole picture uniformly. Needs a source part; mix 0 changes nothing.
+    pub const fn with_material(mut self) -> ScaffoldDef {
+        assert!(!self.surfaces.is_empty(), "a material needs the picture part");
+        self.material = true;
         self
     }
 
@@ -207,6 +226,7 @@ impl ScaffoldDef {
             wgsl,
             surfaces,
             render_scale: 1.0,
+            material: false,
             src: OnceLock::new(),
         }
     }
@@ -228,8 +248,17 @@ impl ScaffoldDef {
                     ["x", "y", "z", "w"][i % 4]
                 ));
             }
-            let src = if self.surfaces.is_empty() { "" } else { SOURCE_WGSL };
-            format!("{}\n{}\n{}\n{}\n{}", kit::WGSL, PRELUDE_WGSL, src, acc, self.wgsl)
+            let src = if self.surfaces.is_empty() { NO_MATERIAL_WGSL } else { SOURCE_WGSL };
+            format!(
+                "{}\n{}\n{}\n{}\n{}\n{}\n{}",
+                kit::WGSL,
+                SURFACE_WGSL,
+                MATERIAL_WGSL,
+                PRELUDE_WGSL,
+                src,
+                acc,
+                self.wgsl
+            )
         })
     }
 }
@@ -245,6 +274,8 @@ struct Uniform {
     c: [f32; 4],
     tw: [f32; 4],
     own: [[f32; 4]; MAX_OWN / 4],
+    /// The picture part's material (`MaterialU`); all zero is off.
+    mat: MaterialU,
 }
 
 pub struct Scaffold {
@@ -261,8 +292,8 @@ impl Scaffold {
     }
 
     /// Hands the source picture (if the def declares one) to the shader. A
-    /// scaffold model is a 2D field, not a surface: only the picture half of the
-    /// spec is kept, the material half is ignored.
+    /// scaffold model is a 2D field, not a surface: the material half is kept
+    /// but only a def built `with_material` draws it.
     pub fn set_surface(&mut self, part: &str, spec: Option<SurfaceSpec>) {
         if self.def.surfaces.first() == Some(&part) {
             self.surface.set(spec);
@@ -310,6 +341,7 @@ impl Scaffold {
             c: [lk.background_level, lk.tone, lk.saturation, ctx.detail],
             tw: [tw.warp_amount, tw.warp_freq, tw.mirror, tw.pulse],
             own,
+            mat: if d.material { self.surface.uniform } else { MaterialU::default() },
         };
         if d.surfaces.is_empty() {
             self.pass.draw(ctx, target, format, &u);

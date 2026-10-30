@@ -66,7 +66,8 @@ pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     2,
     include_str!("../../shaders/flutedglass.wgsl"),
     &["imagen"],
-);
+)
+.with_material();
 
 crate::scaffold_model!(Flutedglass, DEF);
 

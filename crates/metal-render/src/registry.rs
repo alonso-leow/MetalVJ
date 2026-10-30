@@ -602,6 +602,8 @@ mod tests {
             }
         }
         assert!(!covered.is_empty(), "no model exposes a surface");
+        // `geoterrain` draws through `line2d`, whose strokes wear the material.
+        assert!(covered.contains(&"geoterrain"), "geoterrain's strokes take a material");
         assert_eq!(gaps, MATERIAL_GAPS, "models with a surface but no working material (covered: {covered:?})");
     }
 }

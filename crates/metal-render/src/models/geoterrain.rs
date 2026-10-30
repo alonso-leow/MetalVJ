@@ -5,9 +5,10 @@
 
 use glam::Vec2;
 
-use crate::model::{color, background, spec, Block, Built, Ctx, FloatSpec, Model, Schema};
+use crate::model::{color, background, spec, Block, Built, Ctx, FloatSpec, Model, Schema, SurfaceSpec};
 use crate::shared::backdrop::Backdrop;
 use crate::shared::line2d::{Line2dPipeline, Strip, Vertex};
+use crate::shared::surface::PartSet;
 use crate::shared::ColorSlotGpu;
 
 const FLOATS: &[FloatSpec] = &[
@@ -23,14 +24,17 @@ pub static SCHEMA: Schema = Schema {
     blocks: &[Block::Floats(FLOATS), color("spiral"), background(), crate::model::SIGNAL_FLOATS_BLOCK, crate::model::EFFECTS_FLOATS_BLOCK, crate::model::EFFECTS_COLOR_BLOCK],
 };
 
+const SURFACES: &[&str] = &["strokes"];
+
 pub struct Geoterrain {
     pipeline: Built<Line2dPipeline>,
     backdrop: Built<Backdrop>,
+    surfaces: PartSet<1>,
 }
 
 impl Geoterrain {
     pub fn new() -> Geoterrain {
-        Geoterrain { pipeline: Built::default(), backdrop: Built::default() }
+        Geoterrain { pipeline: Built::default(), backdrop: Built::default(), surfaces: PartSet::new(SURFACES) }
     }
 }
 
@@ -49,6 +53,14 @@ impl Model for Geoterrain {
 
     fn backdrop(&self) -> bool {
         true
+    }
+
+    fn surfaces(&self) -> &'static [&'static str] {
+        self.surfaces.surfaces()
+    }
+
+    fn set_surface(&mut self, part: &str, spec: Option<SurfaceSpec>) {
+        self.surfaces.set(part, spec);
     }
 
     fn render(
@@ -101,6 +113,14 @@ impl Model for Geoterrain {
             strips.push(Strip { start, len: vertices.len() as u32 - start });
         }
 
-        pipeline.draw(ctx, target, &vertices, &strips, color);
+        self.surfaces.sync(ctx.device, ctx.queue);
+        pipeline.draw_part(
+            ctx,
+            target,
+            &vertices,
+            &strips,
+            color,
+            Some((self.surfaces.uniform(0), self.surfaces.slot(0))),
+        );
     }
 }

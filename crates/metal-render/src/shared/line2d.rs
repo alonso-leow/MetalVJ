@@ -4,6 +4,7 @@
 
 use wgpu::util::DeviceExt;
 
+use super::surface::{layout_entries, MaterialU, SurfaceSlot};
 use super::ColorSlotGpu;
 use crate::model::Ctx;
 
@@ -26,11 +27,14 @@ impl Vertex {
 struct Uniform {
     color: ColorSlotGpu,
     misc: [f32; 4],
+    part: MaterialU,
 }
 
 pub struct Line2dPipeline {
     pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
+    /// The picture slot a draw without a part binds: the 1x1 fallback texel.
+    fallback: std::cell::OnceCell<SurfaceSlot>,
 }
 
 /// One continuous triangle strip: `verts[start..start+len]` pulled from the
@@ -45,21 +49,28 @@ impl Line2dPipeline {
         let shader = super::build_shader(
             device,
             "line2d",
-            include_str!("../../shaders/line2d.wgsl"),
+            &format!(
+                "{}\n{}\n{}",
+                include_str!("../../shaders/surface.wgsl"),
+                include_str!("../../shaders/material.wgsl"),
+                include_str!("../../shaders/line2d.wgsl"),
+            ),
         );
 
+        let mut entries = vec![wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }];
+        entries.extend(layout_entries(1));
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("line2d bind group layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
+            entries: &entries,
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -103,7 +114,7 @@ impl Line2dPipeline {
             cache: None,
         });
 
-        Line2dPipeline { pipeline, bind_group_layout }
+        Line2dPipeline { pipeline, bind_group_layout, fallback: std::cell::OnceCell::new() }
     }
 
     /// Draws each strip in `strips` from one shared vertex buffer built out
@@ -121,7 +132,31 @@ impl Line2dPipeline {
         strips: &[Strip],
         color: ColorSlotGpu,
     ) {
-        let uniform = Uniform { color, misc: [ctx.aspect(), 0.0, 0.0, 0.0] };
+        self.draw_part(ctx, target, vertices, strips, color, None);
+    }
+
+    /// [`Self::draw`] with the strokes' surface: the part's material uniform
+    /// and picture slot (`shared::surface::PartSet`, already synced). The
+    /// material tints the stroke colour through `material_apply` on a flat
+    /// 2D contract: the point is `(uv, 0)` and the normal faces the camera.
+    /// `None`, or a part with no material and no picture, is the plain draw.
+    pub fn draw_part(
+        &self,
+        ctx: &Ctx,
+        target: &wgpu::TextureView,
+        vertices: &[Vertex],
+        strips: &[Strip],
+        color: ColorSlotGpu,
+        part: Option<(MaterialU, &SurfaceSlot)>,
+    ) {
+        let (part_u, slot) = match part {
+            Some((u, slot)) => (u, slot),
+            None => (
+                MaterialU::default(),
+                self.fallback.get_or_init(|| SurfaceSlot::new(ctx.device, ctx.queue)),
+            ),
+        };
+        let uniform = Uniform { color, misc: [ctx.aspect(), ctx.time, 0.0, 0.0], part: part_u };
         let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("line2d uniform"),
             contents: bytemuck::bytes_of(&uniform),
@@ -130,7 +165,11 @@ impl Line2dPipeline {
         let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("line2d bind group"),
             layout: &self.bind_group_layout,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }],
+            entries: &{
+                let mut e = vec![wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }];
+                e.extend(super::surface::bind_entries(&[slot]));
+                e
+            },
         });
 
         // Created ahead of the render pass so its lifetime plainly covers

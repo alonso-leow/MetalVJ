@@ -8093,6 +8093,300 @@
           "tool_calls": []
         }
       ]
+    },
+    {
+      "id": "turn-perf-report-1",
+      "tags": [
+        "perf_report"
+      ],
+      "user": "¿Va fluido el programa ahora mismo?",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "perf_report",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Miro el informe de rendimiento del monitor.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-perf-report-2",
+      "tags": [
+        "perf_report"
+      ],
+      "user": "Quiero ver si hay tirones de cuadros.",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "perf_report",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Te paso los tiempos de cuadro del monitor.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-grid-layouts-get-1",
+      "tags": [
+        "get_grid_layouts"
+      ],
+      "user": "¿Qué disposiciones de grilla tengo guardadas?",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "get_grid_layouts",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Leo las disposiciones de la grilla y cuál está activa.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-grid-layouts-get-2",
+      "tags": [
+        "get_grid_layouts"
+      ],
+      "user": "¿Qué controladores tiene la grilla activa?",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "get_grid_layouts",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Miro la disposición activa y sus controladores.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-grid-layouts-set-1",
+      "tags": [
+        "set_grid_layouts"
+      ],
+      "user": "Dejá la grilla activa como Club rig con el cuadro de 4 columnas.",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "set_grid_layouts",
+              "arguments": {
+                "grid_layouts": {
+                  "active": "grid-1",
+                  "list": [
+                    {
+                      "id": "grid-1",
+                      "name": "Club rig",
+                      "surface": {
+                        "cols": 4
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Guardé la disposición Club rig y quedó activa.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-grid-layouts-set-2",
+      "tags": [
+        "set_grid_layouts"
+      ],
+      "user": "Renombrá la grilla a Escenario.",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "set_grid_layouts",
+              "arguments": {
+                "grid_layouts": {
+                  "active": "grid-1",
+                  "list": [
+                    {
+                      "id": "grid-1",
+                      "name": "Escenario",
+                      "surface": {
+                        "cols": 4
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Renombré la disposición a Escenario.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-export-status-1",
+      "tags": [
+        "export_status"
+      ],
+      "user": "¿Cómo va la exportación?",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "export_status",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Miro el progreso de la exportación.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-export-status-2",
+      "tags": [
+        "export_status"
+      ],
+      "user": "¿Terminó el video que estaba exportando?",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "export_status",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Consulto el estado de la exportación.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-export-control-1",
+      "tags": [
+        "export_control"
+      ],
+      "user": "Cancelá la exportación, me equivoqué de rango.",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "export_control",
+              "arguments": {
+                "op": "cancel"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Cancelé la exportación y borré el archivo a medias.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-export-control-2",
+      "tags": [
+        "export_control"
+      ],
+      "user": "Frená el video que se está exportando.",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "export_control",
+              "arguments": {
+                "op": "cancel"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Frené la exportación en curso.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-list-palettes-1",
+      "tags": [
+        "list_palettes"
+      ],
+      "user": "¿Qué paletas de color tengo guardadas?",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "list_palettes",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Listo las paletas guardadas.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "turn-list-palettes-2",
+      "tags": [
+        "list_palettes"
+      ],
+      "user": "Mostrame las paletas antes de cambiar una.",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "list_palettes",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Traigo la biblioteca de paletas.",
+          "tool_calls": []
+        }
+      ]
     }
   ]
 }

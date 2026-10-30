@@ -220,6 +220,12 @@ impl PanelState {
     /// same trade `set_confirm_open` above makes for a form the test does
     /// not want to simulate clicks into.
     #[cfg(test)]
+    /// The rows of the folder listing the panel last read (`GET /fs`), for the
+    /// chat's `@` completion; empty until the library has been painted.
+    pub(crate) fn mention_files(&self) -> Vec<Value> {
+        self.fs.as_ref().and_then(|f| f["files"].as_array().cloned()).unwrap_or_default()
+    }
+
     pub(crate) fn set_cwd(&mut self, path: &str) {
         self.cwd = PathBuf::from(path);
         self.fs = None;

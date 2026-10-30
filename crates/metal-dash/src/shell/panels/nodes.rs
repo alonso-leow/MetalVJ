@@ -309,6 +309,9 @@ pub struct PanelState {
     /// — the model order the grid was laid out in, so a `gen.<id>` finds
     /// its tile by the same index the server drew it at (rule 5).
     model_names: Vec<String>,
+    /// Every kind's property names (`GET /catalog` `params`), for the chat's
+    /// `node@property` completion.
+    kind_params: HashMap<String, Vec<String>>,
     /// The canvas's own last-painted rect — test-only in effect (a kittest
     /// pointer test needs a real point inside the canvas, not the whole
     /// region's outer frame, to know a click landed past the toolbar), the
@@ -405,6 +408,7 @@ impl Default for PanelState {
             gallery_visible: false,
             gallery_clock: 0.0,
             model_names: Vec::new(),
+            kind_params: HashMap::new(),
             last_canvas_rect: None,
             hover_edge: None,
             picked: Vec::new(),
@@ -528,6 +532,11 @@ impl PanelState {
     /// switch at worst (this reads before `nodes::paint` runs for the
     /// current frame, see `regions.rs::paint_top_row`), which a graph
     /// switch — an infrequent, deliberate action — never makes visible.
+    /// Every kind's property names, as the catalog listed them at boot.
+    pub(crate) fn kind_param_names(&self) -> &HashMap<String, Vec<String>> {
+        &self.kind_params
+    }
+
     pub(crate) fn selected_graph(&self) -> Option<&str> {
         self.selected_graph.as_deref()
     }
@@ -693,12 +702,27 @@ fn ensure_loaded(door: &dyn Call, state: &mut PanelState) {
         return;
     }
     state.opened = true;
+    state.kind_params = kind_params_of(get(door, "GET", "/catalog", &[]).as_ref());
     state.model_names = models
         .and_then(|v| v["names"].as_array().cloned())
         .unwrap_or_default()
         .iter()
         .filter_map(|v| v.as_str().map(str::to_string))
         .collect();
+}
+
+/// The property names of every kind in a `GET /catalog` reply.
+fn kind_params_of(catalog: Option<&Value>) -> HashMap<String, Vec<String>> {
+    catalog
+        .and_then(|c| c["catalog"].as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|e| {
+            let names: Vec<String> =
+                e["params"].as_array()?.iter().filter_map(|p| p["name"].as_str().map(str::to_string)).collect();
+            Some((e["kind"].as_str()?.to_string(), names))
+        })
+        .collect()
 }
 
 /// `GET /graphs`, then [`load_graph`] whichever id the picker should show —

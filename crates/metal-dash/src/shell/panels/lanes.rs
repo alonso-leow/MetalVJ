@@ -3020,6 +3020,13 @@ fn grid_cells(door: &dyn Call, state: &PanelState, state_val: &Value) -> Vec<Cel
         .collect()
 }
 
+impl PanelState {
+    /// The overlays grid's cells as `(key, label)`, for the chat's `@` completion.
+    pub(crate) fn mention_cells(&self) -> Vec<(String, String)> {
+        surface_cells(self).into_iter().map(|c| (c.key, c.label)).collect()
+    }
+}
+
 /// The control cells and the recorded loops, off the stored layout.
 fn surface_cells(state: &PanelState) -> Vec<Cell> {
     let roles = state.layout.roles.iter().map(|(key, role)| Cell {

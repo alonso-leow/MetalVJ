@@ -64,23 +64,6 @@ struct DlaUniform {
 
 @group(0) @binding(0) var<uniform> u: DlaUniform;
 
-// -- the simulation half ----------------------------------------------------
-
-@group(0) @binding(1) var<storage, read_write> occ_rw: array<atomic<u32>>;
-@group(0) @binding(2) var<storage, read_write> bead_rw: array<vec4<f32>>;
-@group(0) @binding(3) var<storage, read_write> walkers_rw: array<Walker>;
-
-// -- the bake half ----------------------------------------------------------
-
-@group(0) @binding(5) var<storage, read> walkers_ro: array<Walker>;
-@group(0) @binding(6) var walker_tex: texture_storage_2d<rgba16float, write>;
-
-// -- the render half --------------------------------------------------------
-
-@group(0) @binding(7) var<storage, read> occ: array<u32>;
-@group(0) @binding(8) var<storage, read> bead: array<vec4<f32>>;
-@group(0) @binding(9) var walker_sample: texture_2d<f32>;
-
 struct Walker {
     pos: vec2<f32>,
     rng: u32,
@@ -134,7 +117,7 @@ fn neighbour_stuck(c: u32) -> bool {
             if (x < 0 || y < 0 || x >= i32(GRID) || y >= i32(GRID)) {
                 continue;
             }
-            if (atomicLoad(&occ_rw[u32(y) * GRID + u32(x)]) > 0u) {
+            if (occ_sim(u32(y) * GRID + u32(x))) {
                 return true;
             }
         }
@@ -153,6 +136,105 @@ fn spawn_walker(r: ptr<function, u32>, radius: f32, alive: u32) -> Walker {
     w.rng = *r;
     w.alive = alive;
     return w;
+}
+
+// One walker's step, shared by the compute entry point and the fragment
+// ping-pong (dla_pp.wgsl) so the two cannot drift: the new walker, and when it
+// froze, which cell it claimed and the bead metadata a first claimant writes.
+struct Walk {
+    w: Walker,
+    // 1 when the walker froze this step
+    stuck: u32,
+    // 1 when the frozen cell was empty (the claimant writes `bead`)
+    fresh: u32,
+    cell: u32,
+    bead: vec4<f32>,
+};
+
+fn walk(i: u32, cur: Walker) -> Walk {
+    var out: Walk;
+    out.stuck = 0u;
+    out.fresh = 0u;
+    out.cell = 0u;
+    out.bead = vec4<f32>(0.0);
+    var r = pcg(cur.rng);
+
+    // Beyond the alive count: parked on the circle, invisible, one step
+    // away from wandering if the operator raises `caminantes` again.
+    let alive = select(0u, 1u, i < u32(u.f1.w));
+    if (alive == 0u) {
+        out.w = spawn_walker(&r, u.f3.y, 0u);
+        return out;
+    }
+    var p = cur.pos;
+
+    // One drunkard step, biased by the row: a drift direction pushes the
+    // whole growth sideways, a swirl bends it into a spiral, and both are
+    // ordinary driven floats so the digest can steer the walk live.
+    let step_len = u.f3.x * u.f3.z;
+    let ang = rand01(&r) * TAU;
+    var move_v = vec2<f32>(cos(ang), sin(ang));
+    let dd = u.f2.z * TAU;
+    move_v = move_v + u.f2.y * vec2<f32>(cos(dd), sin(dd));
+    let radial = p / max(length(p), 0.25);
+    move_v = move_v + u.f2.w * vec2<f32>(-radial.y, radial.x);
+    p = p + step_len * move_v;
+
+    // Wandered off the field: discarded, re-entered at a new angle.
+    if (length(p) > u.f3.y * 1.15) {
+        out.w = spawn_walker(&r, u.f3.y, 1u);
+        return out;
+    }
+
+    let c = cell_of(p);
+    if (neighbour_stuck(c)) {
+        // Touch: frozen. The first claimant of an empty cell writes the
+        // metadata; a later one on the same cell just joins the structure.
+        let age = max(u.f2.x, 1.0);
+        out.stuck = 1u;
+        out.cell = c;
+        if (!occ_sim(c)) {
+            out.fresh = 1u;
+            let jx = (rand01(&r) - 0.5) * 0.6;
+            let jy = (rand01(&r) - 0.5) * 0.6;
+            out.bead = vec4<f32>(jx, jy, age, 0.0);
+        }
+        out.w = spawn_walker(&r, u.f3.y, 1u);
+        return out;
+    }
+
+    var w: Walker;
+    w.pos = p;
+    w.rng = r;
+    w.alive = 1u;
+    out.w = w;
+    return out;
+}
+
+//@compute
+// -- the simulation half ----------------------------------------------------
+
+@group(0) @binding(1) var<storage, read_write> occ_rw: array<atomic<u32>>;
+@group(0) @binding(2) var<storage, read_write> bead_rw: array<vec4<f32>>;
+@group(0) @binding(3) var<storage, read_write> walkers_rw: array<Walker>;
+
+// -- the bake half ----------------------------------------------------------
+
+@group(0) @binding(5) var<storage, read> walkers_ro: array<Walker>;
+@group(0) @binding(6) var walker_tex: texture_storage_2d<rgba16float, write>;
+
+// -- the render half --------------------------------------------------------
+
+@group(0) @binding(7) var<storage, read> occ: array<u32>;
+@group(0) @binding(8) var<storage, read> bead: array<vec4<f32>>;
+@group(0) @binding(9) var walker_sample: texture_2d<f32>;
+
+fn occ_sim(k: u32) -> bool { return atomicLoad(&occ_rw[k]) > 0u; }
+fn occ_view(k: u32) -> bool { return occ[k] > 0u; }
+fn bead_view(k: u32) -> vec4<f32> { return bead[k]; }
+// (position, alive) of walker `i`, as the bake wrote it this frame.
+fn walker_view(i: u32) -> vec4<f32> {
+    return textureLoad(walker_sample, vec2<i32>(i32(i % WALKER_TEX_W), i32(i / WALKER_TEX_W)), 0);
 }
 
 @compute @workgroup_size(64)
@@ -193,59 +275,16 @@ fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (i >= MAX_WALKERS) {
         return;
     }
-    var r = pcg(walkers_rw[i].rng);
-
-    // Beyond the alive count: parked on the circle, invisible, one step
-    // away from wandering if the operator raises `caminantes` again.
-    let alive = select(0u, 1u, i < u32(u.f1.w));
-    if (alive == 0u) {
-        walkers_rw[i] = spawn_walker(&r, u.f3.y, 0u);
-        return;
-    }
-    var p = walkers_rw[i].pos;
-
-    // One drunkard step, biased by the row: a drift direction pushes the
-    // whole growth sideways, a swirl bends it into a spiral, and both are
-    // ordinary driven floats so the digest can steer the walk live.
-    let step_len = u.f3.x * u.f3.z;
-    let ang = rand01(&r) * TAU;
-    var move_v = vec2<f32>(cos(ang), sin(ang));
-    let dd = u.f2.z * TAU;
-    move_v = move_v + u.f2.y * vec2<f32>(cos(dd), sin(dd));
-    let radial = p / max(length(p), 0.25);
-    move_v = move_v + u.f2.w * vec2<f32>(-radial.y, radial.x);
-    p = p + step_len * move_v;
-
-    // Wandered off the field: discarded, re-entered at a new angle.
-    if (length(p) > u.f3.y * 1.15) {
-        walkers_rw[i] = spawn_walker(&r, u.f3.y, 1u);
-        return;
-    }
-
-    let c = cell_of(p);
-    if (neighbour_stuck(c)) {
-        // Touch: frozen. The exchange claims the cell — the first claimant
-        // writes the metadata, a later one on the same cell this step just
-        // joins the structure without overwriting it.
-        let age = max(u.f2.x, 1.0);
-        let prev = atomicExchange(&occ_rw[c], u32(age));
+    let o = walk(i, walkers_rw[i]);
+    if (o.stuck == 1u) {
+        // The exchange claims the cell; the first claimant writes the
+        // metadata.
+        let prev = atomicExchange(&occ_rw[o.cell], u32(max(u.f2.x, 1.0)));
         if (prev == 0u) {
-            bead_rw[c] = vec4<f32>(
-                (rand01(&r) - 0.5) * 0.6,
-                (rand01(&r) - 0.5) * 0.6,
-                age,
-                0.0,
-            );
+            bead_rw[o.cell] = o.bead;
         }
-        walkers_rw[i] = spawn_walker(&r, u.f3.y, 1u);
-        return;
     }
-
-    var w: Walker;
-    w.pos = p;
-    w.rng = r;
-    w.alive = 1u;
-    walkers_rw[i] = w;
+    walkers_rw[i] = o.w;
 }
 
 // The bake: current walker positions copied into the texture the sparks
@@ -260,6 +299,7 @@ fn cs_bake_walkers(@builtin(global_invocation_id) gid: vec3<u32>) {
     let w = walkers_ro[i];
     textureStore(walker_tex, vec2<i32>(i32(i % WALKER_TEX_W), i32(i / WALKER_TEX_W)), vec4<f32>(w.pos, f32(w.alive), 0.0));
 }
+//@end-compute
 
 // -- the field: aggregate dots over the fondo --------------------------------
 
@@ -294,8 +334,8 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
                     continue;
                 }
                 let k = u32(y) * GRID + u32(x);
-                if (occ[k] > 0u) {
-                    let m = bead[k];
+                if (occ_view(k)) {
+                    let m = bead_view(k);
                     let center = cell_center(k) + m.xy * cell_world;
                     let d = length(p - center);
                     // The bead: a smooth round core with a wider, fainter
@@ -339,7 +379,7 @@ fn vs_sparks(
         vec2<f32>(1.0, 1.0),
         vec2<f32>(-1.0, 1.0),
     );
-    let w = textureLoad(walker_sample, vec2<i32>(i32(ii % WALKER_TEX_W), i32(ii / WALKER_TEX_W)), 0);
+    let w = walker_view(ii);
     var out: SparkVOut;
     out.local = corners[vi];
     // Inactive slots collapse to a degenerate quad at the origin: no

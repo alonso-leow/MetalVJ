@@ -200,26 +200,219 @@ struct Sim {
     steps_done: u32,
 }
 
+/// The state of the fragment ping-pong path (a device with no compute
+/// shaders or storage buffers, WebGL2): the grid and the walkers as textures,
+/// stepped by `dla_pp.wgsl`. Format-independent, like [`Core`].
+struct PpCore {
+    walkers: [wgpu::Texture; 2],
+    walker_views: [wgpu::TextureView; 2],
+    _stick: wgpu::Texture,
+    stick_view: wgpu::TextureView,
+    _grid: wgpu::Texture,
+    grid_view: wgpu::TextureView,
+    /// Which of the walker pair holds the current state.
+    cur: usize,
+    seed_walkers: wgpu::RenderPipeline,
+    seed_grid: wgpu::RenderPipeline,
+    step: wgpu::RenderPipeline,
+    claim: wgpu::RenderPipeline,
+    seed_bgl: wgpu::BindGroupLayout,
+    step_bgl: wgpu::BindGroupLayout,
+    claim_bgl: wgpu::BindGroupLayout,
+    field_bgl: wgpu::BindGroupLayout,
+    sparks_bgl: wgpu::BindGroupLayout,
+}
+
 pub struct Dla {
     /// `None` until the first frame; building needs a device and there is
     /// no GPU at build time (`metal-dash`'s stand build names models without
     /// rendering them).
     core: Option<Core>,
+    pp: Option<PpCore>,
     render: Built<Gpu>,
     sim: Sim,
+    /// Step with the fragment ping-pong even where compute exists (the parity
+    /// test runs both on one adapter).
+    force_pingpong: bool,
 }
 
 impl Dla {
     pub fn new() -> Dla {
-        Dla { core: None, render: Built::default(), sim: Sim::default() }
+        Dla { core: None, pp: None, render: Built::default(), sim: Sim::default(), force_pingpong: false }
+    }
+
+    #[cfg(test)]
+    fn pingpong() -> Dla {
+        Dla { force_pingpong: true, ..Dla::new() }
+    }
+
+    fn compute_source() -> String {
+        format!("{VERTEX}\n{}", crate::shared::sim::with_compute(include_str!("../../shaders/dla.wgsl")))
+    }
+
+    fn pingpong_source() -> String {
+        format!(
+            "{VERTEX}\n{}\n{}",
+            crate::shared::sim::without_compute(include_str!("../../shaders/dla.wgsl")),
+            include_str!("../../shaders/dla_pp.wgsl"),
+        )
+    }
+
+    fn build_pp(device: &wgpu::Device) -> PpCore {
+        let shader = build_shader(device, "dla pingpong", &Self::pingpong_source());
+        let tex = |label: &str, w: u32, h: u32, format: wgpu::TextureFormat| {
+            device.create_texture(&wgpu::TextureDescriptor {
+                label: Some(label),
+                size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            })
+        };
+        let walkers = [
+            tex("dla walkers a", WALKER_TEX_W, WALKER_TEX_H, wgpu::TextureFormat::Rgba32Uint),
+            tex("dla walkers b", WALKER_TEX_W, WALKER_TEX_H, wgpu::TextureFormat::Rgba32Uint),
+        ];
+        let walker_views = [
+            walkers[0].create_view(&wgpu::TextureViewDescriptor::default()),
+            walkers[1].create_view(&wgpu::TextureViewDescriptor::default()),
+        ];
+        let stick = tex("dla stick", WALKER_TEX_W, WALKER_TEX_H, wgpu::TextureFormat::Rgba32Uint);
+        let stick_view = stick.create_view(&wgpu::TextureViewDescriptor::default());
+        let grid = tex("dla grid", GRID, GRID, wgpu::TextureFormat::Rgba32Float);
+        let grid_view = grid.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let uniform = |visibility: wgpu::ShaderStages| wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        };
+        let texture = |binding: u32, visibility: wgpu::ShaderStages, sample_type: wgpu::TextureSampleType| {
+            wgpu::BindGroupLayoutEntry {
+                binding,
+                visibility,
+                ty: wgpu::BindingType::Texture {
+                    sample_type,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            }
+        };
+        let float = wgpu::TextureSampleType::Float { filterable: false };
+        let uint = wgpu::TextureSampleType::Uint;
+        let (f, v, vf) = (wgpu::ShaderStages::FRAGMENT, wgpu::ShaderStages::VERTEX, wgpu::ShaderStages::VERTEX_FRAGMENT);
+        let bgl = |label: &str, entries: &[wgpu::BindGroupLayoutEntry]| {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label: Some(label), entries })
+        };
+        let seed_bgl = bgl("dla seed bgl", &[uniform(vf)]);
+        let step_bgl = bgl("dla step bgl", &[uniform(vf), texture(10, f, float), texture(11, f, uint)]);
+        let claim_bgl = bgl("dla claim bgl", &[uniform(vf), texture(12, v, uint)]);
+        let field_bgl = bgl("dla pp field bgl", &[uniform(vf), texture(10, f, float)]);
+        let sparks_bgl = bgl("dla pp sparks bgl", &[uniform(vf), texture(11, v, uint)]);
+
+        let layout = |bgl: &wgpu::BindGroupLayout| {
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("dla pp layout"),
+                bind_group_layouts: &[Some(bgl)],
+                immediate_size: 0,
+            })
+        };
+        let target = |format: wgpu::TextureFormat| {
+            Some(wgpu::ColorTargetState { format, blend: None, write_mask: wgpu::ColorWrites::ALL })
+        };
+        let pass = |label: &str,
+                    layout: &wgpu::PipelineLayout,
+                    vs: &str,
+                    fs: &str,
+                    topology: wgpu::PrimitiveTopology,
+                    targets: &[Option<wgpu::ColorTargetState>]| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(label),
+                layout: Some(layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some(vs),
+                    buffers: &[],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some(fs),
+                    targets,
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState { topology, ..Default::default() },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let tri = wgpu::PrimitiveTopology::TriangleList;
+        let seed_layout = layout(&seed_bgl);
+        let seed_walkers = pass(
+            "dla seed walkers",
+            &seed_layout,
+            "vs_full",
+            "fs_seed_walkers",
+            tri,
+            &[target(wgpu::TextureFormat::Rgba32Uint)],
+        );
+        let seed_grid = pass(
+            "dla seed grid",
+            &seed_layout,
+            "vs_full",
+            "fs_seed_grid",
+            tri,
+            &[target(wgpu::TextureFormat::Rgba32Float)],
+        );
+        let step = pass(
+            "dla step",
+            &layout(&step_bgl),
+            "vs_full",
+            "fs_step_walkers",
+            tri,
+            &[target(wgpu::TextureFormat::Rgba32Uint), target(wgpu::TextureFormat::Rgba32Uint)],
+        );
+        let claim = pass(
+            "dla claim",
+            &layout(&claim_bgl),
+            "vs_claim",
+            "fs_claim",
+            wgpu::PrimitiveTopology::PointList,
+            &[target(wgpu::TextureFormat::Rgba32Float)],
+        );
+        PpCore {
+            walkers,
+            walker_views,
+            _stick: stick,
+            stick_view,
+            _grid: grid,
+            grid_view,
+            cur: 0,
+            seed_walkers,
+            seed_grid,
+            step,
+            claim,
+            seed_bgl,
+            step_bgl,
+            claim_bgl,
+            field_bgl,
+            sparks_bgl,
+        }
     }
 
     fn build_core(device: &wgpu::Device) -> Core {
-        let shader = build_shader(
-            device,
-            "dla",
-            &format!("{VERTEX}\n{}", include_str!("../../shaders/dla.wgsl")),
-        );
+        let shader = build_shader(device, "dla", &Self::compute_source());
 
         let storage = wgpu::BufferUsages::STORAGE;
         let occupancy = device.create_buffer(&wgpu::BufferDescriptor {
@@ -388,16 +581,14 @@ impl Dla {
     fn build_render(
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
-        core: &Core,
+        source: &str,
+        field_bgl: &wgpu::BindGroupLayout,
+        sparks_bgl: &wgpu::BindGroupLayout,
     ) -> Gpu {
-        let shader = build_shader(
-            device,
-            "dla",
-            &format!("{VERTEX}\n{}", include_str!("../../shaders/dla.wgsl")),
-        );
+        let shader = build_shader(device, "dla", source);
         let field_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("dla field layout"),
-            bind_group_layouts: &[Some(&core.field_bgl)],
+            bind_group_layouts: &[Some(field_bgl)],
             immediate_size: 0,
         });
         let field_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -428,7 +619,7 @@ impl Dla {
 
         let sparks_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("dla sparks layout"),
-            bind_group_layouts: &[Some(&core.sparks_bgl)],
+            bind_group_layouts: &[Some(sparks_bgl)],
             immediate_size: 0,
         });
         let sparks_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -474,6 +665,144 @@ impl Dla {
         Gpu { field_pipeline, sparks_pipeline }
     }
 
+    /// The frame on a device with no compute shaders: the same seed, the same
+    /// steps (`walk`), the same field and sparks, over textures.
+    fn render_pingpong(
+        &mut self,
+        ctx: &Ctx,
+        ubuf: &wgpu::Buffer,
+        target: &wgpu::TextureView,
+        format: wgpu::TextureFormat,
+        reseed: bool,
+        steps: u32,
+    ) {
+        let pp = self.pp.get_or_insert_with(|| Self::build_pp(ctx.device));
+        let gpu = self.render.get(format, || {
+            Self::build_render(ctx.device, format, &Self::pingpong_source(), &pp.field_bgl, &pp.sparks_bgl)
+        });
+        let device = ctx.device;
+        let uniform_entry = || wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() };
+        fn view(binding: u32, v: &wgpu::TextureView) -> wgpu::BindGroupEntry<'_> {
+            wgpu::BindGroupEntry { binding, resource: wgpu::BindingResource::TextureView(v) }
+        }
+        let seed_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("dla seed bind group"),
+            layout: &pp.seed_bgl,
+            entries: &[uniform_entry()],
+        });
+        // One step bind group per direction of the walker pair.
+        let step_bg: Vec<wgpu::BindGroup> = (0..2)
+            .map(|from| {
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("dla step bind group"),
+                    layout: &pp.step_bgl,
+                    entries: &[uniform_entry(), view(10, &pp.grid_view), view(11, &pp.walker_views[from])],
+                })
+            })
+            .collect();
+        let claim_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("dla claim bind group"),
+            layout: &pp.claim_bgl,
+            entries: &[uniform_entry(), view(12, &pp.stick_view)],
+        });
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("dla pingpong encoder"),
+        });
+        // One render pass drawing `draw` into `targets`, loading or clearing.
+        let run = |encoder: &mut wgpu::CommandEncoder,
+                   pipeline: &wgpu::RenderPipeline,
+                   bind: &wgpu::BindGroup,
+                   targets: &[&wgpu::TextureView],
+                   load: bool,
+                   draw: (std::ops::Range<u32>, std::ops::Range<u32>)| {
+            let attachments: Vec<Option<wgpu::RenderPassColorAttachment>> = targets
+                .iter()
+                .map(|view| {
+                    Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target: None,
+                        depth_slice: None,
+                        ops: wgpu::Operations {
+                            load: if load { wgpu::LoadOp::Load } else { wgpu::LoadOp::Clear(wgpu::Color::BLACK) },
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })
+                })
+                .collect();
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("dla pingpong pass"),
+                color_attachments: &attachments,
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_pipeline(pipeline);
+            pass.set_bind_group(0, bind, &[]);
+            pass.draw(draw.0, draw.1);
+        };
+
+        if reseed {
+            run(&mut encoder, &pp.seed_grid, &seed_bg, &[&pp.grid_view], false, (0..3, 0..1));
+            run(&mut encoder, &pp.seed_walkers, &seed_bg, &[&pp.walker_views[0]], false, (0..3, 0..1));
+            pp.cur = 0;
+        }
+        for _ in 0..steps {
+            let (from, to) = (pp.cur, 1 - pp.cur);
+            run(
+                &mut encoder,
+                &pp.step,
+                &step_bg[from],
+                &[&pp.walker_views[to], &pp.stick_view],
+                false,
+                (0..3, 0..1),
+            );
+            // Every fresh claim lands in the grid after all walkers have read
+            // it: the step's one-step lag, the same on every adapter.
+            run(&mut encoder, &pp.claim, &claim_bg, &[&pp.grid_view], true, (0..1, 0..MAX_WALKERS));
+            pp.cur = to;
+        }
+        self.sim.steps_done += steps;
+
+        let field_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("dla pp field bind group"),
+            layout: &pp.field_bgl,
+            entries: &[uniform_entry(), view(10, &pp.grid_view)],
+        });
+        let sparks_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("dla pp sparks bind group"),
+            layout: &pp.sparks_bgl,
+            entries: &[uniform_entry(), view(11, &pp.walker_views[pp.cur])],
+        });
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("dla render pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: target,
+                    resolve_target: None,
+                    depth_slice: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_pipeline(&gpu.field_pipeline);
+            pass.set_bind_group(0, &field_bg, &[]);
+            pass.draw(0..3, 0..1);
+            pass.set_pipeline(&gpu.sparks_pipeline);
+            pass.set_bind_group(0, &sparks_bg, &[]);
+            pass.draw(0..6, 0..MAX_WALKERS);
+        }
+        ctx.queue.submit(Some(encoder.finish()));
+        let _ = &pp.walkers; // the views borrow from these; keep them named
+    }
+
     /// Whether to reseed, and how many steps to run — Turing's schedule,
     /// verbatim in shape: reseed on a new seed, on a rewind, or on a seek
     /// beyond [`SEEK_GAP`]; otherwise advance by elapsed time with the
@@ -504,10 +833,6 @@ impl Dla {
 }
 
 impl Model for Dla {
-    fn needs_compute(&self) -> bool {
-        true
-    }
-
     fn id(&self) -> &'static str {
         "dla"
     }
@@ -547,8 +872,14 @@ impl Model for Dla {
             usage: wgpu::BufferUsages::UNIFORM,
         });
 
+        if self.force_pingpong || !crate::gpu::device_has_compute(ctx.device) {
+            self.render_pingpong(ctx, &ubuf, target, format, reseed, steps);
+            return;
+        }
         let core = self.core.get_or_insert_with(|| Self::build_core(ctx.device));
-        let gpu = self.render.get(format, || Self::build_render(ctx.device, format, core));
+        let gpu = self.render.get(format, || {
+            Self::build_render(ctx.device, format, &Self::compute_source(), &core.field_bgl, &core.sparks_bgl)
+        });
 
         let sim_bg = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("dla sim bind group"),
@@ -678,5 +1009,29 @@ mod tests {
         // the edge cells and could stick to the frame itself. Checked at
         // the worst corner of the range, not at the default.
         assert!(2.0 * 1.15 < FIELD, "the kill ring escapes the field the grid covers");
+    }
+
+    /// The fragment ping-pong (what a WebGL2 device runs) draws the same frame
+    /// as the compute path on the same adapter: same seed, same burn-in, same
+    /// steps through one `walk`. Only two walkers claiming neighbouring cells
+    /// in one step can differ (the compute path's documented race).
+    #[test]
+    fn the_pingpong_path_matches_the_compute_frame() {
+        use crate::shared::scaffold::testing::frame;
+        let gpu = crate::gpu::Gpu::new_headless();
+        if !crate::gpu::device_has_compute(&gpu.device) {
+            eprintln!("no compute here: only the ping-pong path exists on this adapter");
+            return;
+        }
+        let f = Dla::new().schema().defaults();
+        let times = [0.3, 0.8, 1.4];
+        let a = frame(&gpu, &mut Dla::new(), &f, &times);
+        let b = frame(&gpu, &mut Dla::pingpong(), &f, &times);
+        let diff: Vec<u8> = a.iter().zip(&b).map(|(x, y)| x.abs_diff(*y)).collect();
+        let mean = diff.iter().map(|d| *d as f32).sum::<f32>() / diff.len() as f32;
+        let max = diff.iter().copied().max().unwrap_or(0);
+        println!("dla parity: mean {mean:.4} max {max}");
+        assert!(a.iter().any(|v| *v > 8), "the frame is not black");
+        assert!(mean < 0.5, "ping-pong drifted from compute: mean {mean:.3} max {max}");
     }
 }

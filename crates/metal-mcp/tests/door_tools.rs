@@ -94,7 +94,7 @@ fn fixture(root: &Path) {
                 {"id": "script-a", "kind": "script.py", "pos": [-450, 0], "label": "",
                     "bypass": false, "solo": false, "config": {}},
                 {"id": "net-a", "kind": "out.artnet", "pos": [150, 0], "label": "",
-                    "bypass": false, "solo": false, "config": {}}
+                    "bypass": false, "solo": false, "config": {"unicast": "127.0.0.1:6454"}}
             ],
             "edges": [{"id": "e0", "from": {"node": "gen-a", "port": "image"},
                 "to": {"node": "out-a", "port": "image"}}],

@@ -4174,6 +4174,52 @@ mod tests {
         );
     }
 
+    /// D4: every corner × orientation × snake combination walks the grid once
+    /// (a permutation of its cells), and the derived channel map numbers those
+    /// cells in exactly that walk, `MATRIX_CHANNELS_PER_PIXEL` apart, from
+    /// `first_channels + 1`. Base is the lowest offset less `first_channels`.
+    #[test]
+    fn every_corner_orientation_and_snake_numbers_the_grid_once() {
+        let corners = [StartCorner::BottomLeft, StartCorner::BottomRight, StartCorner::TopLeft, StartCorner::TopRight];
+        let orientations = [Orientation::Horizontal, Orientation::Vertical];
+        let snakes = [Snake::Off, Snake::On];
+        let mut combos = 0;
+        for corner in corners {
+            for orientation in orientations {
+                for snake in snakes {
+                    combos += 1;
+                    let m = Matrix {
+                        x_pixels: 3,
+                        y_pixels: 2,
+                        start_corner: corner,
+                        orientation,
+                        snake,
+                        first_channels: 2,
+                        ..Matrix::default()
+                    };
+                    let order = m.scan_order();
+                    let mut seen = order.clone();
+                    seen.sort();
+                    seen.dedup();
+                    assert_eq!(order.len(), m.cells(), "{corner:?} {orientation:?} {snake:?}: one visit per cell");
+                    assert_eq!(seen.len(), m.cells(), "{corner:?} {orientation:?} {snake:?}: no cell twice");
+                    let channels = m.pixel_channels();
+                    let stride = MATRIX_CHANNELS_PER_PIXEL as i16;
+                    for (rank, (x, y)) in order.iter().enumerate() {
+                        assert_eq!(
+                            channels[x + y * m.x_pixels],
+                            m.first_channels as i16 + 1 + rank as i16 * stride,
+                            "{corner:?} {orientation:?} {snake:?}: cell ({x},{y}) at walk rank {rank}"
+                        );
+                    }
+                    let min = *channels.iter().min().unwrap();
+                    assert_eq!(m.base(), min - m.first_channels as i16);
+                }
+            }
+        }
+        assert_eq!(combos, 16);
+    }
+
     /// D4: the derived channel map numbers cells consecutively in scan order,
     /// `MATRIX_CHANNELS_PER_PIXEL` channels each, and a slot past 512 wraps
     /// into the next universe.

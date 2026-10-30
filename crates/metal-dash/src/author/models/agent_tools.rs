@@ -2093,6 +2093,22 @@ impl AgentHarness {
             .map_err(|(status, msg)| format!("/frame/export answered {status}: {msg}"))
     }
 
+    /// The export queue (rule 6): `POST /export/queue`, the route the export
+    /// panel's queue posts. `op` is `add` (an `export_video` request),
+    /// `cancel {id}`, `move {id, to}` or `list`.
+    fn export_queue(&self, args: &Value) -> Result<Value, String> {
+        let op = args.get("op").and_then(Value::as_str).ok_or_else(|| "expected `op`".to_string())?;
+        let mut body = json!({ "op": op });
+        for key in ["id", "to", "device", "node", "range", "fps", "codec", "bitrate", "audio", "path"] {
+            if let Some(v) = args.get(key) {
+                body[key] = v.clone();
+            }
+        }
+        let door = self.door()?;
+        door.json("POST", "/export/queue", Some(body))
+            .map_err(|(status, msg)| format!("/export/queue answered {status}: {msg}"))
+    }
+
     /// E1/E3 (rule 6): the offline video export over `POST /export/video`, the
     /// same route the export control posts. `range` is `[start, end)` in
     /// frames; `node`, `fps`, `codec`, `bitrate` and `audio` (`"mix"`,
@@ -2749,6 +2765,7 @@ impl ToolExecutor for AgentHarness {
             "export_frame" => self.export_frame(&call.arguments),
             // E1: the offline video export job.
             "export_video" => self.export_video(&call.arguments),
+            "export_queue" => self.export_queue(&call.arguments),
             "list_video_io" => self.list_video_io(),
             "set_output_sink" => self.set_output_sink(&call.arguments),
             "dmx_bus" => self.dmx_bus(&call.arguments),

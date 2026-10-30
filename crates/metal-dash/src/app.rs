@@ -708,6 +708,7 @@ pub fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         "export_frame" => Some(("POST", "/frame/export")),
         // E1: the offline video export job.
         "export_video" => Some(("POST", "/export/video")),
+        "export_queue" => Some(("POST", "/export/queue")),
         // P-D: Art-Net discovery and the timecode reading.
         "artnet_nodes" => Some(("GET", "/artnet/nodes")),
         "artnet_in_status" => Some(("GET", "/artnet/in")),

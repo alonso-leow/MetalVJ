@@ -248,6 +248,9 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         "set_head_tracking" => vec!["on", "strength"],
         "attach_source" => vec!["graph", "node", "port", "kind", "from", "config"],
         "export_frame" => vec!["device", "node", "dir"],
+        "export_queue" => vec![
+            "op", "id", "to", "device", "node", "range", "fps", "codec", "bitrate", "audio", "path",
+        ],
         "export_video" => vec![
             "device", "node", "range", "fps", "codec", "bitrate", "audio", "path",
         ],

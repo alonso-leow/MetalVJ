@@ -975,6 +975,7 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         "export_frame" => Some(("POST", "/frame/export")),
         // E1: the offline video export job.
         "export_video" => Some(("POST", "/export/video")),
+        "export_queue" => Some(("POST", "/export/queue")),
         "list_video_io" => Some(("GET", "/videoio")),
         // `S.O.1`: real now — its own route, not a placeholder's imagined one.
         "blackout" => Some(("POST", "/overlay/blackout")),

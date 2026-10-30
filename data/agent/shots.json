@@ -8093,6 +8093,92 @@
           "tool_calls": []
         }
       ]
+    },
+    {
+      "id": "queue-two-exports",
+      "tags": [
+        "export_queue"
+      ],
+      "user": "Poné en cola el out-1 completo y después el recorte del estribillo.",
+      "steps": [
+        {
+          "assistant": "Agrego los dos a la cola; corren de a uno.",
+          "tool_calls": [
+            {
+              "name": "export_queue",
+              "arguments": {
+                "op": "add",
+                "device": "out-1",
+                "range": [
+                  0,
+                  900
+                ],
+                "path": "~/Videos/full.mp4"
+              }
+            },
+            {
+              "name": "export_queue",
+              "arguments": {
+                "op": "add",
+                "device": "out-1",
+                "range": [
+                  300,
+                  450
+                ],
+                "path": "~/Videos/chorus.mp4"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "En cola.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "queue-move-and-cancel",
+      "tags": [
+        "export_queue"
+      ],
+      "user": "Pasá el estribillo primero y sacá el completo de la cola.",
+      "steps": [
+        {
+          "assistant": "Miro la cola.",
+          "tool_calls": [
+            {
+              "name": "export_queue",
+              "arguments": {
+                "op": "list"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Muevo el estribillo al frente y cancelo el completo.",
+          "tool_calls": [
+            {
+              "name": "export_queue",
+              "arguments": {
+                "op": "move",
+                "id": "q1-1",
+                "to": 0
+              }
+            },
+            {
+              "name": "export_queue",
+              "arguments": {
+                "op": "cancel",
+                "id": "q1-0"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Hecho.",
+          "tool_calls": []
+        }
+      ]
     }
   ]
 }

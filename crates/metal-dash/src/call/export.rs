@@ -173,7 +173,12 @@ fn slot() -> &'static Mutex<Option<Arc<Shared>>> {
 /// when the file is missing, unreadable or empty (an export always has a
 /// preset to fall back to).
 pub fn load_presets() -> Vec<ExportPreset> {
-    let path = crate::output::data_root().join("export-presets.json");
+    load_presets_at(&crate::output::data_root())
+}
+
+/// [`load_presets`] under `root`.
+pub fn load_presets_at(root: &std::path::Path) -> Vec<ExportPreset> {
+    let path = root.join("export-presets.json");
     match metal_vfs::read(&path) {
         Ok(bytes) => match std::str::from_utf8(&bytes).ok().and_then(|t| parse_presets(t).ok()) {
             Some(p) => p,
@@ -186,11 +191,24 @@ pub fn load_presets() -> Vec<ExportPreset> {
 /// `POST /export/video`: validate, then start the job on its own thread.
 pub fn video(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let body = params.json().ok_or_else(|| CallError::Bad("expected json".into()))?;
-    if let Some(shared) = slot().lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
-        if shared.state.lock().unwrap_or_else(|e| e.into_inner()).state == "running" {
-            return Err(CallError::Conflict("an export is already running".into()));
-        }
+    if running() {
+        return Err(CallError::Conflict("an export is already running".into()));
     }
+    start_job(&body, None)
+}
+
+/// Whether a job is running now.
+fn running() -> bool {
+    slot()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .is_some_and(|s| s.state.lock().unwrap_or_else(|e| e.into_inner()).state == "running")
+}
+
+/// Validates `body` and starts its job on its own thread; `id` is the queue
+/// entry it came from, if any.
+fn start_job(body: &Value, id: Option<String>) -> Result<Value, CallError> {
 
     let device = body["device"].as_str().ok_or_else(|| CallError::Bad("expected device".into()))?;
     let path = body["path"].as_str().ok_or_else(|| CallError::Bad("expected path".into()))?;
@@ -255,8 +273,14 @@ pub fn video(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
 
     let shared = Arc::new(Shared::new(end - start, path.to_string()));
     *slot().lock().unwrap_or_else(|e| e.into_inner()) = Some(shared.clone());
+    *current().lock().unwrap_or_else(|e| e.into_inner()) = id;
 
-    std::thread::spawn(move || run(graph, node, start, end, fps, settings, shared));
+    std::thread::spawn(move || {
+        run(graph, node, start, end, fps, settings, shared);
+        // One at a time: the next queued job starts when this one is over,
+        // whether it finished, was cancelled or failed.
+        advance(&crate::output::data_root(), &start_job);
+    });
     Ok(slot().lock().unwrap_or_else(|e| e.into_inner()).as_ref().expect("just set").snapshot())
 }
 
@@ -363,6 +387,177 @@ pub fn control(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             Ok(shared.snapshot())
         }
         _ => Err(CallError::Bad("op must be cancel".into())),
+    }
+}
+
+// -- the queue ----------------------------------------------------------------
+
+/// One waiting export: the `POST /export/video` body it will run with.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct QueueItem {
+    pub id: String,
+    pub body: Value,
+}
+
+/// The queue file's lock and the running job's queue id.
+fn queue_lock() -> &'static Mutex<()> {
+    static L: OnceLock<Mutex<()>> = OnceLock::new();
+    L.get_or_init(|| Mutex::new(()))
+}
+
+fn current() -> &'static Mutex<Option<String>> {
+    static C: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(None))
+}
+
+fn presets_path(root: &std::path::Path) -> PathBuf {
+    root.join("export-presets.json")
+}
+
+/// The queue in `data/export-presets.json`: the file is either the bare preset
+/// list (as it always was) or `{"presets": [...], "queue": [...]}`.
+pub fn read_queue(root: &std::path::Path) -> Vec<QueueItem> {
+    let Ok(text) = metal_vfs::read_to_string(presets_path(root)) else { return Vec::new() };
+    let Ok(v) = serde_json::from_str::<Value>(&text) else { return Vec::new() };
+    serde_json::from_value(v["queue"].clone()).unwrap_or_default()
+}
+
+/// Writes `queue` back, keeping the presets as they were (the default list when
+/// the file did not exist yet). The file becomes the object form.
+pub fn write_queue(root: &std::path::Path, queue: &[QueueItem]) -> Result<(), CallError> {
+    let presets = match metal_vfs::read_to_string(presets_path(root)).ok().and_then(|t| parse_presets(&t).ok()) {
+        Some(p) => p,
+        None => default_presets(),
+    };
+    let text = serde_json::to_string_pretty(&json!({ "presets": presets, "queue": queue }))
+        .map_err(|e| CallError::Internal(e.to_string()))?;
+    metal_vfs::create_dir_all(root).map_err(|e| CallError::Internal(e.to_string()))?;
+    metal_vfs::write(presets_path(root), text).map_err(|e| CallError::Internal(e.to_string()))
+}
+
+fn next_id() -> String {
+    use std::sync::atomic::AtomicU64;
+    static N: AtomicU64 = AtomicU64::new(0);
+    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    format!("q{t:x}-{}", N.fetch_add(1, Ordering::Relaxed))
+}
+
+/// Appends a job; the request must carry what a run needs.
+pub fn enqueue(root: &std::path::Path, body: &Value) -> Result<QueueItem, CallError> {
+    for key in ["device", "path"] {
+        if body[key].as_str().is_none() {
+            return Err(CallError::Bad(format!("expected {key}")));
+        }
+    }
+    if body["range"].as_array().map(|r| r.len()) != Some(2) {
+        return Err(CallError::Bad("expected range [start,end]".into()));
+    }
+    let _g = queue_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let mut queue = read_queue(root);
+    let item = QueueItem { id: next_id(), body: body.clone() };
+    queue.push(item.clone());
+    write_queue(root, &queue)?;
+    Ok(item)
+}
+
+/// Removes a waiting job. `false` when `id` is not waiting.
+pub fn remove(root: &std::path::Path, id: &str) -> Result<bool, CallError> {
+    let _g = queue_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let mut queue = read_queue(root);
+    let before = queue.len();
+    queue.retain(|q| q.id != id);
+    let gone = queue.len() != before;
+    if gone {
+        write_queue(root, &queue)?;
+    }
+    Ok(gone)
+}
+
+/// Moves a waiting job to position `to` (clamped), 0 being next.
+pub fn reorder(root: &std::path::Path, id: &str, to: usize) -> Result<bool, CallError> {
+    let _g = queue_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let mut queue = read_queue(root);
+    let Some(at) = queue.iter().position(|q| q.id == id) else { return Ok(false) };
+    let item = queue.remove(at);
+    queue.insert(to.min(queue.len()), item);
+    write_queue(root, &queue)?;
+    Ok(true)
+}
+
+/// Starts the head of the queue with `start` when nothing runs. A job whose
+/// request no longer validates is dropped and the next one is tried; returns
+/// the id that started, if any.
+pub fn advance(root: &std::path::Path, start: &dyn Fn(&Value, Option<String>) -> Result<Value, CallError>) -> Option<String> {
+    if running() {
+        return None;
+    }
+    loop {
+        let item = {
+            let _g = queue_lock().lock().unwrap_or_else(|e| e.into_inner());
+            let mut queue = read_queue(root);
+            if queue.is_empty() {
+                *current().lock().unwrap_or_else(|e| e.into_inner()) = None;
+                return None;
+            }
+            let item = queue.remove(0);
+            write_queue(root, &queue).ok()?;
+            item
+        };
+        match start(&item.body, Some(item.id.clone())) {
+            Ok(_) => return Some(item.id),
+            Err(e) => eprintln!("[export] queued job {} dropped: {e:?}", item.id),
+        }
+    }
+}
+
+/// `GET /export/queue`: the waiting jobs and the running one's id.
+pub fn queue_list(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+    Ok(listing(&crate::output::data_root()))
+}
+
+fn listing(root: &std::path::Path) -> Value {
+    json!({
+        "queue": read_queue(root),
+        "running": current().lock().unwrap_or_else(|e| e.into_inner()).clone(),
+        "job": slot().lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|s| s.snapshot()),
+    })
+}
+
+/// `POST /export/queue {op}`: `add` (the default; the body is a
+/// `/export/video` request), `cancel {id}` (a waiting job leaves the queue; the
+/// running one is stopped), `move {id, to}` and `list`.
+pub fn queue_control(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
+    let body = params.json().ok_or_else(|| CallError::Bad("expected json".into()))?;
+    let root = crate::output::data_root();
+    let id = || body["id"].as_str().ok_or_else(|| CallError::Bad("expected id".into()));
+    match body["op"].as_str().unwrap_or("add") {
+        "add" => {
+            let item = enqueue(&root, &body)?;
+            advance(&root, &start_job);
+            let mut out = listing(&root);
+            out["id"] = json!(item.id);
+            Ok(out)
+        }
+        "cancel" => {
+            let id = id()?;
+            if current().lock().unwrap_or_else(|e| e.into_inner()).as_deref() == Some(id) {
+                if let Some(shared) = slot().lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
+                    shared.cancel.store(true, Ordering::Relaxed);
+                }
+            } else if !remove(&root, id)? {
+                return Err(CallError::NotFound);
+            }
+            Ok(listing(&root))
+        }
+        "move" => {
+            let to = body["to"].as_u64().ok_or_else(|| CallError::Bad("expected to".into()))? as usize;
+            if !reorder(&root, id()?, to)? {
+                return Err(CallError::NotFound);
+            }
+            Ok(listing(&root))
+        }
+        "list" => Ok(listing(&root)),
+        _ => Err(CallError::Bad("op must be add, cancel, move or list".into())),
     }
 }
 
@@ -512,6 +707,63 @@ mod tests {
         assert!(text.contains("audio"), "no audio stream: {text:?}");
         assert!(!wav.exists(), "the temp WAV the encoder was handed is cleaned up");
 
+        let _ = metal_vfs::remove_dir_all(&dir);
+    }
+
+    fn job(path: &str) -> Value {
+        json!({ "device": "out-1", "range": [0, 30], "path": path })
+    }
+
+    fn temp(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("fw-export-queue-{tag}-{}", std::process::id()));
+        let _ = metal_vfs::remove_dir_all(&dir);
+        metal_vfs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// FIFO, reorder and cancel on the file in `data/export-presets.json`,
+    /// which keeps its presets (a bare list from before is read and kept).
+    #[test]
+    fn the_queue_is_fifo_reorders_and_cancels_inside_the_presets_file() {
+        let dir = temp("fifo");
+        std::fs::write(dir.join("export-presets.json"), serde_json::to_string(&default_presets()).unwrap()).unwrap();
+        let a = enqueue(&dir, &job("a.mp4")).unwrap();
+        let b = enqueue(&dir, &job("b.mp4")).unwrap();
+        let c = enqueue(&dir, &job("c.mp4")).unwrap();
+        let ids = |d: &PathBuf| read_queue(d).into_iter().map(|q| q.id).collect::<Vec<_>>();
+        assert_eq!(ids(&dir), [a.id.clone(), b.id.clone(), c.id.clone()]);
+        assert!(reorder(&dir, &c.id, 0).unwrap());
+        assert_eq!(ids(&dir), [c.id.clone(), a.id.clone(), b.id.clone()]);
+        assert!(remove(&dir, &a.id).unwrap());
+        assert!(!remove(&dir, &a.id).unwrap(), "a second cancel finds nothing");
+        assert_eq!(ids(&dir), [c.id.clone(), b.id.clone()]);
+        assert_eq!(load_presets_at(&dir), default_presets(), "the presets survive the queue");
+        assert!(enqueue(&dir, &json!({ "device": "x" })).is_err(), "a request without a path or range is refused");
+        let _ = metal_vfs::remove_dir_all(&dir);
+    }
+
+    /// `advance` starts the head, one at a time; a job that no longer validates
+    /// is dropped and the next one runs; it is idempotent on an empty queue.
+    #[test]
+    fn advance_runs_the_head_and_skips_a_job_that_will_not_start() {
+        let dir = temp("advance");
+        let bad = enqueue(&dir, &job("bad.mp4")).unwrap();
+        let good = enqueue(&dir, &job("good.mp4")).unwrap();
+        let after = enqueue(&dir, &job("after.mp4")).unwrap();
+        let started = std::cell::RefCell::new(Vec::new());
+        let fake = |b: &Value, id: Option<String>| -> Result<Value, CallError> {
+            if b["path"] == "bad.mp4" {
+                return Err(CallError::Bad("no graph".into()));
+            }
+            started.borrow_mut().push(id.unwrap());
+            Ok(json!({}))
+        };
+        assert_eq!(advance(&dir, &fake), Some(good.id.clone()));
+        assert_eq!(*started.borrow(), [good.id.clone()]);
+        let left: Vec<String> = read_queue(&dir).into_iter().map(|q| q.id).collect();
+        assert_eq!(left, [after.id.clone()], "{} was dropped, {} started", bad.id, good.id);
+        assert_eq!(advance(&dir, &fake), Some(after.id));
+        assert_eq!(advance(&dir, &fake), None);
         let _ = metal_vfs::remove_dir_all(&dir);
     }
 }

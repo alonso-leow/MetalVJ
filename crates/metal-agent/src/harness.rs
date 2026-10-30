@@ -111,6 +111,7 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     // Plan §9.1 E1: the offline video export — the same `POST /export/video`
     // the export control posts (rule 6). Renders the device graph's generator
     // `node` (or the first authored one) over `range` frames to `path`.
+    ("export_queue", "Queues exports, one runs at a time in order (POST /export/queue {op:\"add\"|\"cancel\"|\"move\"|\"list\", id?, to?, ...an export_video request for add}); add takes the same fields as export_video; cancel stops a waiting job or the running one; move puts a job at position `to` (0 is next).", true),
     ("export_video", "Exports a range of frames from an offline graph to a video, with optional audio (POST /export/video {device, node?, range:[start,end], fps?, codec?, bitrate?, audio?:\"mix\"|\"file:<path>\"|null, path}); replies with the job status.", true),
     ("capture_camera_frame", "One frame from the camera.", true),
     // S.B, over S.A's routes — implemented, but not by this struct: they
@@ -394,7 +395,7 @@ pub fn capability_of(name: &str) -> Option<Capability> {
         | "transport"
         | "fire_trigger"
         | "overlay_control" => Some(Capability::Devices),
-        "save_shader" | "bake_clip" | "attach_digest" | "export_frame" | "export_video"
+        "save_shader" | "bake_clip" | "attach_digest" | "export_frame" | "export_video" | "export_queue"
         | "import_gdtf" => Some(Capability::Files),
         _ => None,
     }

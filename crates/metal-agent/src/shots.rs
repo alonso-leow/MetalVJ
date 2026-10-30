@@ -290,6 +290,8 @@ fn tool_schema(name: &str) -> Option<&'static [&'static str]> {
         // where the file goes; `node`/`fps`/`codec`/`bitrate` fall back to the
         // graph's first generator and the default preset.
         "export_video" => Some(&["device", "range", "path"]),
+        // The export queue: every op names itself.
+        "export_queue" => Some(&["op"]),
         // P-C — `target` optional (a default name / the first loopback).
         "list_video_io" => Some(&[]),
         "set_output_sink" => Some(&["device_id", "kind"]),

@@ -996,8 +996,12 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         // The sequence editor's dataset picker: the list, and one part with `part`.
         "list_dataset" => Some(("GET", "/author/dataset")),
         // D1: the venue's fixtures — the same `POST /venue {op:"fixture"}`
-        // the Settings "Fixtures" page posts (rule 6).
-        "set_fixture" => Some(("POST", "/venue")),
+        // the Settings "Fixtures" page posts (rule 6). The MCP adapter forwards
+        // arguments verbatim (no `op`), so the agent executor adds it.
+        "set_fixture" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        // D3: the universe bus, `POST /outputs {op:"dmx-bus"}`; the executor
+        // adds the `op` for the same reason.
+        "dmx_bus" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         // F9: the per-fixture node's arguments (`fixture`/`colour_from`/
         // `model`) are not the route body, so it runs through the chat's
         // executor like the other in-process tools; it posts `POST /graph/node`

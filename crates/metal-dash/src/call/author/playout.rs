@@ -35,9 +35,9 @@ use super::Ctx;
 /// Where the projects live, one JSON per song.
 pub const PROJECTS: &str = "data/projects";
 /// The width a video clip is decoded at — a preview, not the output.
-const VIDEO_W: u32 = 480;
+const VIDEO_W: u32 = metal_reel::index::WIDTH;
 /// Decoded frames per second — the digest's own tick rate.
-const VIDEO_FPS: f32 = crate::digest::RATE;
+const VIDEO_FPS: f32 = metal_reel::index::FPS;
 
 fn player() -> &'static Mutex<Option<Child>> {
     static P: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
@@ -246,10 +246,9 @@ pub(super) fn hap_proxy(root: &Path, path: &str, on: &mut dyn FnMut(f32)) -> Res
     let slug = hap_slug(path);
     let movie = root.join(format!("{slug}.mov"));
     let index = root.join(format!("{slug}.json"));
-    if let Ok(mut hap) = metal_reel::hap::Hap::open(&movie, &index) {
+    if let Ok(mut hap) = metal_reel::hap::Hap::open(&movie, &index).and_then(|h| if h.index.spec == metal_reel::index::PROXY_SPEC { Ok(h) } else { Err("an older proxy spec".into()) }) {
         if metal_reel::scenes::load_cuts(root, &slug).is_none() {
-            let rows = metal_reel::scenes::hap_rows(&mut hap);
-            if let Err(e) = write_scenes(root, path, &rows, &mut hap) {
+            if let Err(e) = write_scenes(root, path, &mut hap) {
                 eprintln!("[author] scenes of {path}: {e}");
             }
         }
@@ -279,21 +278,30 @@ pub(super) fn hap_proxy(root: &Path, path: &str, on: &mut dyn FnMut(f32)) -> Res
         on,
     )
     .map_err(|e| e.to_string())?;
-    let text = serde_json::to_string(&metal_reel::hap::Index { width, height, packets }).map_err(|e| e.to_string())?;
+    let text = serde_json::to_string(&metal_reel::hap::Index { width, height, packets, spec: metal_reel::index::PROXY_SPEC }).map_err(|e| e.to_string())?;
     metal_vfs::write(&index, text).map_err(|e| e.to_string())?;
     let mut hap = metal_reel::hap::Hap::open(&movie, &index)?;
-    let rows = metal_reel::scenes::hap_rows(&mut hap);
-    if let Err(e) = write_scenes(root, path, &rows, &mut hap) {
+    if let Err(e) = write_scenes(root, path, &mut hap) {
         eprintln!("[author] scenes of {path}: {e}");
     }
     Ok(hap)
 }
 
+/// A scene's poster as the data root names it: `projects/hap/<slug>.scenes/<k>.jpg`.
+/// Stored in the cut list and the scene book; `author::scenes::poster` resolves it.
+pub(crate) fn poster_rel(slug: &str, k: usize) -> String {
+    format!("projects/hap/{slug}.scenes/{k}.jpg")
+}
+
 /// The clip's cut list beside its proxy, with a poster per scene; replaces
 /// whatever list and posters an earlier ingest left.
-fn write_scenes(root: &Path, path: &str, rows: &[[f32; metal_reel::read::COLUMNS]], hap: &mut metal_reel::hap::Hap) -> Result<(), String> {
+///
+/// One cut per clip: a clip an indexed library holds takes the library's
+/// passages (12 fps, `index.json`); any other is cut once, from its proxy.
+fn write_scenes(root: &Path, path: &str, hap: &mut metal_reel::hap::Hap) -> Result<(), String> {
     let slug = hap_slug(path);
-    let mut cuts = metal_reel::scenes::cuts(path, rows, VIDEO_FPS);
+    let mut cuts = metal_reel::scenes::library_cuts(&crate::output::data_root(), path)
+        .unwrap_or_else(|| metal_reel::scenes::cuts(path, &metal_reel::scenes::hap_rows(hap), VIDEO_FPS));
     let _ = metal_vfs::remove_dir_all(root.join(format!("{slug}.scenes")));
     for (k, cut) in cuts.iter_mut().enumerate() {
         let poster = metal_reel::scenes::poster(root, &slug, k);
@@ -302,7 +310,9 @@ fn write_scenes(root: &Path, path: &str, rows: &[[f32; metal_reel::read::COLUMNS
             metal_vfs::create_dir_all(dir).map_err(|e| e.to_string())?;
         }
         metal_vfs::write(&poster, jpeg).map_err(|e| e.to_string())?;
-        cut.poster = Some(poster.to_string_lossy().into_owned());
+        // Data-root relative, so a peer's copy of the cut list (synced under
+        // `projects/hap/*.scenes/*.jpg`) names its own file, not this one's.
+        cut.poster = Some(poster_rel(&slug, k));
     }
     metal_reel::scenes::save_cuts(root, &slug, &cuts)
 }
@@ -679,8 +689,9 @@ mod tests {
         assert!(made.success());
         let root = dir.join("hap");
         let mut hap = hap_proxy(&root, src.to_str().unwrap(), &mut |_| {}).unwrap();
-        assert_eq!(hap.frames(), 16, "2 s at 8 fps");
-        assert_eq!((hap.index.width, hap.index.height), (480, 360));
+        assert_eq!(hap.frames(), 2 * metal_reel::index::FPS as usize, "2 s at the proxy rate");
+        assert_eq!((hap.index.width, hap.index.height), (metal_reel::index::WIDTH, 480));
+        assert_eq!(hap.index.spec, metal_reel::index::PROXY_SPEC);
         let jpeg = hap_jpeg(&mut hap, 5).unwrap();
         assert_eq!(&jpeg[..2], &[0xFF, 0xD8]);
         let again = hap_proxy(&root, src.to_str().unwrap(), &mut |_| {}).unwrap();
@@ -754,7 +765,10 @@ mod tests {
         assert_eq!(scenes.len(), 3, "{listed}");
         assert!((scenes[1]["start"].as_f64().unwrap() - 3.0).abs() < 0.2);
         for s in scenes {
-            assert!(metal_vfs::is_file(&Path::new(s["poster"].as_str().unwrap())));
+            // Named data-root relative; this test's proxy root stands in for `projects/hap`.
+            let rel = s["poster"].as_str().unwrap();
+            let name = rel.strip_prefix("projects/hap/").expect("a data-root relative poster");
+            assert!(metal_vfs::is_file(&root.join(name)));
         }
         let id = scenes[1]["id"].as_str().unwrap().to_string();
         let mut picked = scenes[1].clone();

@@ -53,7 +53,16 @@ pub(crate) fn proxy_is_fresh(root: &Path, path: &str) -> bool {
     let (Some(src), Some(mov), Some(idx)) = (modified(Path::new(path)), modified(&movie), modified(&index)) else {
         return false;
     };
-    mov.min(idx) >= src
+    mov.min(idx) >= src && proxy_spec_is_current(&index)
+}
+
+/// Whether the proxy index at `index` names the current [`metal_reel::index::PROXY_SPEC`].
+/// A proxy made before the spec existed names none (`0`) and is stale.
+pub(crate) fn proxy_spec_is_current(index: &Path) -> bool {
+    metal_vfs::read_to_string(index)
+        .ok()
+        .and_then(|t| serde_json::from_str::<metal_reel::hap::Index>(&t).ok())
+        .is_some_and(|i| i.spec == metal_reel::index::PROXY_SPEC)
 }
 
 /// Drops a stale proxy (`<slug>.mov`, `.json`, `.scenes.json` and the scenes
@@ -171,6 +180,27 @@ pub fn ingest_post(_ctx: &mut super::Ctx, params: &Params) -> Result<Value, Call
 }
 
 #[cfg(test)]
+mod spec_tests {
+    use super::*;
+
+    /// One spec for every proxy: a proxy index with the current spec is fresh,
+    /// and one with the old spec (`0`, or another width) is flagged for rebuild.
+    #[test]
+    fn an_old_spec_proxy_is_flagged_for_rebuild() {
+        let dir = std::env::temp_dir().join(format!("fw-proxy-spec-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let index = dir.join("clip.json");
+        let current = serde_json::json!({ "width": 640, "height": 360, "packets": [], "spec": metal_reel::index::PROXY_SPEC });
+        std::fs::write(&index, current.to_string()).unwrap();
+        assert!(proxy_spec_is_current(&index), "the current spec is read as current");
+        let old = serde_json::json!({ "width": 480, "height": 270, "packets": [] });
+        std::fs::write(&index, old.to_string()).unwrap();
+        assert!(!proxy_spec_is_current(&index), "a proxy with no spec is stale");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -203,7 +233,9 @@ mod tests {
         assert!(!proxy_is_fresh(&root, src.to_str().unwrap()), "nothing built yet");
         touch(&movie, newer);
         assert!(!proxy_is_fresh(&root, src.to_str().unwrap()), "the index is missing");
-        touch(&index, newer);
+        let current = serde_json::json!({ "width": 640, "height": 360, "packets": [], "spec": metal_reel::index::PROXY_SPEC });
+        std::fs::write(&index, current.to_string()).unwrap();
+        std::fs::File::options().write(true).open(&index).unwrap().set_modified(newer).unwrap();
         assert!(proxy_is_fresh(&root, src.to_str().unwrap()), "both present and newer");
 
         touch(&movie, src_time - std::time::Duration::from_secs(1));

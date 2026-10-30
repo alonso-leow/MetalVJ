@@ -250,8 +250,14 @@ pub fn poster(root: &Path, slug: &str, k: usize) -> PathBuf {
 /// The clip's scenes, cut from its descriptor rows at `rate` rows a second.
 /// Posters are the caller's (it holds the frames); `poster` is left `None`.
 pub fn cuts(clip: &str, rows: &[[f32; COLUMNS]], rate: f32) -> Vec<Cut> {
+    cuts_from_passages(clip, &index::cut(rows, rate), rate)
+}
+
+/// The same scenes from passages already cut (a library's `index.json`):
+/// there is one cut pass per clip, and every consumer reads its result.
+pub fn cuts_from_passages(clip: &str, passages: &[Passage], rate: f32) -> Vec<Cut> {
     let slug = slug(clip);
-    index::cut(rows, rate)
+    passages
         .iter()
         .map(|p: &Passage| {
             let start = p.from as f64 / f64::from(rate);
@@ -259,6 +265,24 @@ pub fn cuts(clip: &str, rows: &[[f32; COLUMNS]], rate: f32) -> Vec<Cut> {
             Cut { id: id(&slug, start, end), clip: clip.to_string(), start, end, poster: None, rung: (p.from + p.to) / 2 }
         })
         .collect()
+}
+
+/// The scenes of `clip` when an indexed library under `data` holds it (its
+/// source folder plus the clip's file name, at the library's own rate), so the
+/// scenes sidecar reads the library's cut instead of cutting the clip again.
+pub fn library_cuts(data: &Path, clip: &str) -> Option<Vec<Cut>> {
+    let clip_path = Path::new(clip);
+    let (dir, file) = (clip_path.parent()?, clip_path.file_name()?.to_str()?);
+    for name in index::Library::list(data) {
+        let Ok(lib) = index::Library::load(data, &name) else { continue };
+        if Path::new(&lib.source) != dir {
+            continue;
+        }
+        if let Some(c) = lib.clips.iter().find(|c| c.file == file).filter(|c| !c.passages.is_empty()) {
+            return Some(cuts_from_passages(clip, &c.passages, lib.rate));
+        }
+    }
+    None
 }
 
 /// The descriptor rows of a JPEG ladder (`dir/%06d.jpg`, one-based), every
@@ -384,5 +408,24 @@ mod tests {
         assert_eq!(cuts.len(), 3);
         assert_eq!((cuts[1].start, cuts[1].end, cuts[1].rung), (3.0, 6.0, 36));
         assert!(cuts[1].id.starts_with("a_b-") && cuts[1].id.ends_with("#3000-6000"));
+    }
+}
+
+#[cfg(test)]
+mod library_cut_tests {
+    use super::*;
+
+    /// A clip a library holds is cut once: its scenes are the library's
+    /// passages, with the same ids a cut over the rows would give.
+    #[test]
+    fn a_library_clip_takes_the_librarys_passages_not_a_second_cut() {
+        let rows: Vec<[f32; COLUMNS]> = (0..48).map(|k| { let mut r = [0.1; COLUMNS]; r[11] = if k == 24 { 1.0 } else { 0.0 }; r }).collect();
+        let passages = index::cut(&rows, 12.0);
+        let from_rows = cuts("/v/a.mp4", &rows, 12.0);
+        let from_passages = cuts_from_passages("/v/a.mp4", &passages, 12.0);
+        assert_eq!(from_rows, from_passages);
+        assert!(!from_passages.is_empty());
+        let data = std::env::temp_dir().join(format!("fw-libcut-{}", std::process::id()));
+        assert!(library_cuts(&data, "/v/a.mp4").is_none(), "no library, no library cut");
     }
 }

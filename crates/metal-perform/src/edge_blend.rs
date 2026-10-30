@@ -17,7 +17,8 @@
 //!   as a grey band on a dark frame.
 //!
 //! Config is [`Blend`] on the projector in the venue (never a `Mask` field).
-//! Only projectors with `blend.enabled` and pins on the surface take part; a
+//! Only projectors with `blend.enabled` and a pose on the surface (pins, or a
+//! `view_from_fits` pose) take part; a
 //! venue where none is enabled yields no [`BlendMap`] and the frame is not
 //! touched — byte-identical to before.
 
@@ -132,8 +133,9 @@ fn members(venue: &Venue, surface: &str) -> Vec<Member> {
         .iter()
         .filter(|p| p.blend.enabled)
         .filter_map(|p| {
-            let pins = p.pins.get(surface)?;
-            let to_device = Homography::from_corners(&UNIT, pins)?;
+            // Hand-dragged pins win; with none on this surface the pose
+            // `view_from_fits` recovers from the fits does (P-F).
+            let to_device = venue.surface_homography(&p.output, surface)?;
             let to_surface = to_device.inverse()?;
             Some(Member { output: p.output.clone(), to_device, to_surface, blend: p.blend })
         })
@@ -373,6 +375,45 @@ mod tests {
             // Outside the overlap each projector is at full gain.
             assert!((gain_at(&ma, project(&ha, [0.2, 0.5]).unwrap()) - 1.0).abs() < 1e-6);
             assert!((gain_at(&mb, project(&hb, [0.8, 0.5]).unwrap()) - 1.0).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn pose_only_pair_blends_like_the_pinned_pair() {
+        // Two identical coplanar surfaces. The pinned venue pins both
+        // projectors on each; the pose-only venue pins them on `wall2` alone,
+        // so `wall`'s homography comes from `view_from_fits`.
+        let surface = |id: &str| Surface {
+            id: id.into(),
+            name: id.into(),
+            origin: [0.0, 0.0, 0.0],
+            u: [4.0, 0.0, 0.0],
+            v: [0.0, 2.0, 0.0],
+            material: String::new(),
+            form: Default::default(),
+            sectors: Default::default(),
+        };
+        let mut pinned = side_by_side(true);
+        pinned.surfaces.push(surface("wall2"));
+        for p in pinned.projectors.iter_mut() {
+            let pins = p.pins["wall"];
+            p.pins.insert("wall2".into(), pins);
+        }
+        let mut pose = pinned.clone();
+        for p in pose.projectors.iter_mut() {
+            p.pins.remove("wall");
+        }
+        let (w, h) = (300, 4);
+        for out in ["a", "b"] {
+            let want = blend_map(&pinned, out, w, h).expect("pinned blend");
+            let got = blend_map(&pose, out, w, h).expect("pose-only blend");
+            let worst = want
+                .gain
+                .iter()
+                .zip(&got.gain)
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0f32, f32::max);
+            assert!(worst < 0.02, "{out}: pose-only gain differs by {worst}");
         }
     }
 

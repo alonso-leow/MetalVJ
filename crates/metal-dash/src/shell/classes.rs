@@ -1552,6 +1552,13 @@ impl Theme {
         egui::ecolor::Hsva::new(hue01, 0.55, 0.55, 1.0).into()
     }
 
+    /// The width a scene row's poster is drawn at: the library row's height
+    /// scaled by the overlay cell's aspect, the one reading the scene list and
+    /// its drag ghost share.
+    pub fn scene_thumb_width(&self) -> f32 {
+        self.library_row * self.overlay_cell.x / self.overlay_cell.y.max(1.0)
+    }
+
     /// No fill — `S.U9`'s cable curves are stroked, never filled, and
     /// `egui::epaint::CubicBezierShape::from_points_stroke` still wants a
     /// fill colour to construct one. Not really theme-dependent (every

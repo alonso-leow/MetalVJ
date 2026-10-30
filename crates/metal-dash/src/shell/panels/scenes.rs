@@ -111,6 +111,36 @@ fn thumb(ui: &mut Ui, door: &dyn Call, s: &Value, width: f32) -> Option<egui::Re
     Some(ui.add(egui::Image::from_texture(&tex).fit_to_exact_size(size).sense(Sense::click())))
 }
 
+/// While a scene row is dragged, the whole row follows the pointer as it reads
+/// in the list: its poster and its name, painted through
+/// [`crate::shell::components::drag_ghost`] like the library's file rows, not as
+/// a bare text label.
+#[allow(clippy::too_many_arguments)]
+fn scene_drag_ghost(
+    ui: &Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    s: &Value,
+    id: &str,
+    response: &egui::Response,
+    width: f32,
+    thumb_width: f32,
+    name: &str,
+) {
+    if !response.dragged() {
+        return;
+    }
+    let Some(pointer) = response.interact_pointer_pos() else {
+        return;
+    };
+    crate::shell::components::drag_ghost(ui.ctx(), theme, Id::new(("shell/scenes/drag-ghost", id)), pointer, width, |ui| {
+        ui.horizontal(|ui| {
+            thumb(ui, door, s, thumb_width);
+            ui.label(RichText::new(name).font(theme.font_small.clone()).color(theme.ink));
+        });
+    });
+}
+
 /// `0:03.0–0:06.0 · 3.0 s`.
 fn span(s: &Value) -> String {
     let at = |t: f64| format!("{}:{:04.1}", (t / 60.0).floor() as u64, t % 60.0);
@@ -320,11 +350,8 @@ pub(crate) fn gallery(ui: &mut Ui, theme: &Theme, door: &dyn Call, clip: &str) {
             seconds: Some(end - start),
             scene: Some((id.clone(), start, end)),
         });
-        if response.dragged() {
-            if let Some(p) = response.interact_pointer_pos() {
-                ui.painter().text(p + Vec2::splat(theme.item_gap.x), egui::Align2::LEFT_TOP, format!(" {file}"), theme.font_small.clone(), theme.phosphor);
-            }
-        }
+        let file_name = s["name"].as_str().filter(|n| !n.is_empty()).map_or_else(|| file.clone(), str::to_string);
+        scene_drag_ghost(ui, theme, door, s, &id, &response, row.response.rect.width(), theme.overlay_cell.x, &file_name);
         if previewing.as_deref() == Some(id.as_str()) {
             preview(ui, theme, door, s);
         }
@@ -496,12 +523,39 @@ fn scene_row(ui: &mut Ui, theme: &Theme, door: &dyn Call, s: &Value) -> Option<F
         path: clip.to_string(),
         kind: "video".to_string(),
         seconds: Some(end - start),
-        scene: Some((id, start, end)),
+        scene: Some((id.clone(), start, end)),
     });
-    if response.dragged() {
-        if let Some(p) = response.interact_pointer_pos() {
-            ui.painter().text(p + Vec2::splat(theme.item_gap.x), egui::Align2::LEFT_TOP, format!(" {name}"), theme.font_small.clone(), theme.phosphor);
-        }
-    }
+    scene_drag_ghost(ui, theme, door, s, &id, &response, inner.response.rect.width(), theme.scene_thumb_width(), &name);
     response.clicked().then(|| FileRef { name: file, path: clip.to_string(), kind: "video".to_string() })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use egui_kittest::kittest::Queryable;
+    use serde_json::json;
+
+    /// Dragging a scene row leaves a ghost that carries the scene's name as a
+    /// label: the row's own parts, not a bare painted text.
+    #[test]
+    fn a_dragged_scene_row_shows_its_name_as_a_ghost_label() {
+        let door = crate::shell::FakeDoor::new();
+        let theme = Theme::phosphor();
+        let probe = theme.overlay_cell;
+        let s = json!({ "id": "s1", "name": "Alpha scene", "clip": "/clips/a.mp4", "start": 0.0, "end": 3.0 });
+        let mut harness = egui_kittest::Harness::new_ui(move |ui| {
+            let _ = scene_row(ui, &theme, &door, &s);
+        });
+        harness.run();
+        let at = harness.get_by_label("Alpha scene").rect().center();
+        harness.drag_at(at);
+        harness.run();
+        harness.hover_at(at + probe);
+        harness.run();
+        assert_eq!(
+            harness.get_all_by_label("Alpha scene").count(),
+            2,
+            "the row and its drag ghost both carry the name"
+        );
+    }
 }

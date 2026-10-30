@@ -228,6 +228,9 @@ pub fn allowseed_default() -> Vec<String> {
         // The global scene favourites and their groups (`metal_reel::scenes`):
         // authored, and what `reel.batch` plays on every peer.
         "scenes/favorites.json",
+        // The scene posters the ingest cut for each scene (one JPEG per cut),
+        // named data-root relative in the cut list so every peer reads its own copy.
+        "projects/hap/*.scenes/*.jpg",
         // The global gallery favourites and recents (`metal-dash` `shell::favorites`):
         // one list for the install, the same on every peer.
         "favorites.json",

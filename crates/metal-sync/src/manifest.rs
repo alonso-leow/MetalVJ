@@ -335,12 +335,15 @@ mod tests {
         assert!(!ok("graphs/nested/deep.json"));
     }
 
-    /// The scene favourites ship; their posters (`projects/hap/`) are derived
-    /// and never do.
+    /// The scene favourites ship, and so do their posters (`projects/hap/
+    /// <slug>.scenes/<k>.jpg`, one JPEG per cut, named data-root relative).
+    /// The HAP movies and their indexes stay local: they are derived.
     #[test]
-    fn scene_favourites_sync_and_their_posters_do_not() {
+    fn scene_favourites_and_their_posters_sync_but_the_proxies_do_not() {
         assert!(ok("scenes/favorites.json"));
-        assert!(!ok("projects/hap/clip-0.scenes/0.jpg"));
+        assert!(ok("projects/hap/clip-0.scenes/0.jpg"));
+        assert!(!ok("projects/hap/clip-0.mov"));
+        assert!(!ok("projects/hap/clip-0.json"));
     }
 
     // --- the list is configuration ------------------------------------------

@@ -4897,17 +4897,18 @@ fn apply_scene_floats(door: &dyn Call, state: &mut PanelState, key: &str) {
     let graph = ctrl["graph"].as_str().unwrap_or(key).to_string();
     let mut read: std::collections::HashMap<String, Vec<(super::dials::Float, Option<f32>)>> = Default::default();
     let mut before = Vec::new();
+    let mut updates = Vec::new();
     for t in ctrl["targets"].as_array().into_iter().flatten() {
         let (Some(node), Some(param)) = (t["node"].as_str(), t["param"].as_str()) else { continue };
         let floats = read.entry(node.to_string()).or_insert_with(|| node_floats(door, &graph, node));
         let held = floats.iter().find(|(f, _)| f.name == param).and_then(|(_, h)| *h);
         before.push(json!({ "node": node, "param": param, "value": held }));
         let value = t["value"].as_f64().unwrap_or(0.0);
-        let _ = door.json(
-            "POST",
-            "/graph/node",
-            Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": value })),
-        );
+        updates.push(json!({ "node": node, "name": param, "value": value }));
+    }
+    // One write for the whole scene: `op: "params"` saves the graph once.
+    if !updates.is_empty() {
+        let _ = door.json("POST", "/graph/node", Some(json!({ "op": "params", "graph": graph, "updates": updates })));
     }
     if let Some(entry) = state.controllers.get_mut(key) {
         entry["before"] = json!(before);
@@ -4921,14 +4922,12 @@ fn apply_scene_floats(door: &dyn Call, state: &mut PanelState, key: &str) {
 fn restore_scene_floats(door: &dyn Call, state: &mut PanelState, key: &str) {
     let Some(before) = state.controllers.get(key).and_then(|c| c["before"].as_array()).cloned() else { return };
     let graph = state.controllers.get(key).and_then(|c| c["graph"].as_str()).unwrap_or(key).to_string();
-    for b in &before {
-        let Some(node) = b["node"].as_str() else { continue };
-        let Some(param) = b["param"].as_str() else { continue };
-        let _ = door.json(
-            "POST",
-            "/graph/node",
-            Some(json!({ "op": "param", "graph": graph, "node": node, "name": param, "value": b["value"] })),
-        );
+    let updates: Vec<Value> = before
+        .iter()
+        .filter_map(|b| Some(json!({ "node": b["node"].as_str()?, "name": b["param"].as_str()?, "value": b["value"] })))
+        .collect();
+    if !updates.is_empty() {
+        let _ = door.json("POST", "/graph/node", Some(json!({ "op": "params", "graph": graph, "updates": updates })));
     }
     if let Some(entry) = state.controllers.get_mut(key).and_then(|c| c.as_object_mut()) {
         entry.remove("before");
@@ -6908,9 +6907,10 @@ fn a_scene_press_sets_the_floats_and_restores_an_auto_float_to_auto() {
     );
     fire_scene(recorder.as_ref(), &mut state, "scene:g1:1", crate::surface::Gesture::Click);
     let ops = posted_node_ops(&recorder);
-    assert_eq!(ops.len(), 2, "one write on, one write off");
-    assert_eq!((ops[0]["op"].clone(), ops[0]["name"].clone(), ops[0]["value"].clone()), (json!("param"), json!("scale"), json!(0.9)));
-    assert_eq!(ops[1]["value"], Value::Null, "the auto float is released back to auto");
+    assert_eq!(ops.len(), 2, "one batch on, one batch off");
+    assert_eq!(ops[0]["op"], json!("params"));
+    assert_eq!((ops[0]["updates"][0]["name"].clone(), ops[0]["updates"][0]["value"].clone()), (json!("scale"), json!(0.9)));
+    assert_eq!(ops[1]["updates"][0]["value"], Value::Null, "the auto float is released back to auto");
     assert!(!scene_on(&state, "scene:g1:1"));
 }
 
@@ -6923,7 +6923,7 @@ fn a_scene_restores_a_held_float_to_its_previous_number() {
     apply_scene_floats(recorder.as_ref(), &mut state, "scene:g1:1");
     restore_scene_floats(recorder.as_ref(), &mut state, "scene:g1:1");
     let ops = posted_node_ops(&recorder);
-    let restored = ops.last().expect("the restore write")["value"].as_f64().map(|v| v as f32);
+    let restored = ops.last().expect("the restore write")["updates"][0]["value"].as_f64().map(|v| v as f32);
     assert_eq!(restored, Some(0.4), "the float returns to the number it held");
 }
 

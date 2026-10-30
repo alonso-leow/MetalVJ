@@ -778,6 +778,32 @@ pub fn graph_node(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             }
             Ok(crate::graph_reply(&g, &catalog))
         }
+        // A batch of held values: `{op: "params", graph, updates: [{node,
+        // name, value: number | null}]}`. Every update goes through the one
+        // validated writer (`metal_graph::params::set_held_all`), all or
+        // nothing, and the graph is saved once — a scene press sets 20 floats
+        // in one write, not 20.
+        "params" => {
+            let Some(list) = body["updates"].as_array() else {
+                return Err(CallError::Bad("`updates`: a list of {node, name, value}".into()));
+            };
+            let mut updates = Vec::with_capacity(list.len());
+            for u in list {
+                let Some(node) = u["node"].as_str() else {
+                    return Err(CallError::Bad("each update names its `node`".into()));
+                };
+                let Some(name) = u["name"].as_str() else {
+                    return Err(CallError::Bad("each update names its `name`".into()));
+                };
+                let value = held_value(u.get("value").unwrap_or(&Value::Null))?;
+                updates.push((node.to_string(), name.to_string(), value));
+            }
+            metal_graph::params::set_held_all(&mut g, &updates, &catalog).map_err(CallError::Bad)?;
+            if let Err(e) = crate::save_graph(&g) {
+                return Err(CallError::Bad(e));
+            }
+            Ok(crate::graph_reply(&g, &catalog))
+        }
         // Surface sources (plan "Surface sources and less-friction
         // authoring", step 2). `attach` wires an image source into one image
         // input of a node: an existing node (`from`), a new one of `kind`
@@ -1851,6 +1877,51 @@ mod param_tests {
         .expect("config floats on a generator");
         let held = metal_graph::params::gen_held(crate::load_graph(&ids.graph).unwrap().node(&ids.gen).unwrap());
         assert_eq!(held, HashMap::from([("step".to_string(), 20.0)]), "escala released, paso held, nothing else");
+    }
+
+    /// `POST /graph/node {op: "params"}`: every update lands in one write, and
+    /// one refused value refuses the whole batch — the graph on disk keeps
+    /// every value it had before the batch.
+    #[test]
+    fn op_params_writes_a_batch_all_or_nothing() {
+        let (mut paint, mut state, mut sim, author) = fixture();
+        let mut ctx = Ctx { state: &mut state, paint: paint.as_mut(), sim: &mut sim, author: &author };
+        let (_, ids) = saved_graph("batch");
+        let batch = |ctx: &mut Ctx, updates: Value| {
+            graph_node(ctx, &body(json!({ "op": "params", "graph": ids.graph, "updates": updates })))
+        };
+
+        batch(
+            &mut ctx,
+            json!([
+                { "node": ids.fx, "name": "amount", "value": 0.5 },
+                { "node": ids.gen, "name": "scale", "value": 3.0 },
+                { "node": ids.script, "name": "gain", "value": 0.6 }
+            ]),
+        )
+        .expect("a valid batch");
+        let g = crate::load_graph(&ids.graph).unwrap();
+        assert_eq!(metal_graph::effects::state_of(&g, &ids.fx), metal_schema::EffectState::Fixed(0.5));
+        assert_eq!(metal_graph::params::gen_held(g.node(&ids.gen).unwrap()).get("scale"), Some(&3.0));
+        assert_eq!(g.node(&ids.script).unwrap().config.get("floats").unwrap()[0]["value"], json!(0.6_f32));
+
+        // The second update is out of range: the batch is refused and the
+        // first update, already valid, is not written either.
+        let refused = batch(
+            &mut ctx,
+            json!([
+                { "node": ids.fx, "name": "amount", "value": 0.9 },
+                { "node": ids.gen, "name": "scale", "value": 99.0 }
+            ]),
+        );
+        assert!(matches!(refused, Err(CallError::Bad(_))));
+        let after = crate::load_graph(&ids.graph).unwrap();
+        assert_eq!(metal_graph::effects::state_of(&after, &ids.fx), metal_schema::EffectState::Fixed(0.5), "nothing from a refused batch");
+
+        // A null releases a generator float, as `op: "param"` does.
+        batch(&mut ctx, json!([{ "node": ids.gen, "name": "scale", "value": null }])).expect("release");
+        let released = crate::load_graph(&ids.graph).unwrap();
+        assert!(metal_graph::params::gen_held(released.node(&ids.gen).unwrap()).get("scale").is_none());
     }
 
     /// O.8: a graph another peer owns refuses `take` and every write, the

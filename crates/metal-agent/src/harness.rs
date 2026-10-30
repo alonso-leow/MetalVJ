@@ -255,6 +255,7 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     // two writes, over the same metal-graph functions the routes call.
     ("get_io", "One node's inputs, outputs, parameters (with the binding on each) and every upstream node's variables, each marked used or not by this node (GET /graph/io).", true),
     ("bind_param", "Binds one parameter of a node to one variable of an upstream node — a param edge, from `<port>.<variable>` (e.g. control.rms, control.x, row.escala) to `param:<name>`, mapped onto the parameter's range — replacing whatever drove it; `from: null` unbinds (POST /graph/node op bind).", true),
+    ("set_param_batch", "Sets many held parameter values in one write: updates [{node, name, value}], each as set_param (null releases a generator float). All or nothing: one refused value refuses the whole batch and the graph is saved once (POST /graph/node op params).", true),
     ("set_param", "Sets the value a node holds for one parameter while nothing is bound to it — an effect's amount, a script float, a generator float (null releases a generator float back to the audio drive); out-of-range values are refused (POST /graph/node op param).", true),
     // M4 of the materials lote: a `mat.*` node's part and fixed overrides, over
     // the same `POST /graph/node {op:"config"}` merge its properties page posts
@@ -1175,6 +1176,27 @@ impl Harness {
         Ok(Self::env_reply(&g, &catalog))
     }
 
+    /// `set_param_batch(graph, updates)`: `POST /graph/node {op: "params"}` —
+    /// `metal_graph::params::set_held_all`, all or nothing, saved once.
+    fn set_param_batch(&self, args: &Value) -> Result<Value, String> {
+        let list = args
+            .get("updates")
+            .and_then(Value::as_array)
+            .ok_or("expected `updates`: a list of {node, name, value}")?;
+        let mut updates = Vec::with_capacity(list.len());
+        for u in list {
+            let node = Self::require_str(u, "node")?;
+            let name = Self::require_str(u, "name")?;
+            let value = Self::held_value(u.get("value").unwrap_or(&Value::Null))?;
+            updates.push((node.to_string(), name.to_string(), value));
+        }
+        let mut g = self.require_graph(args)?;
+        let catalog = self.catalog()?;
+        metal_graph::params::set_held_all(&mut g, &updates, &catalog)?;
+        self.save_graph(&g)?;
+        Ok(Self::env_reply(&g, &catalog))
+    }
+
     fn get_params(&self, args: &Value) -> Result<Value, String> {
         let id = Self::require_str(args, "id")?;
         let g = self.require_graph(args)?;
@@ -1737,6 +1759,7 @@ impl ToolExecutor for Harness {
             "get_io" => self.get_io(args),
             "bind_param" => self.bind_param(args),
             "set_param" => self.set_param(args),
+            "set_param_batch" => self.set_param_batch(args),
             "read_shader" => self.read_shader(args),
             "raster" => self.raster(args),
             "save_shader" => self.save_shader(args),
@@ -2639,6 +2662,46 @@ mod tests {
     /// back as the parameter's binding and the variable's `used_by`,
     /// `set_param` holds a value (refusing one out of range), and `set_params`'
     /// `floats` object on a generator is the same writer.
+    /// `set_param_batch` writes every held value through the one writer: a
+    /// refused value refuses the whole batch, and the saved graph keeps the
+    /// floats it had before.
+    #[test]
+    fn set_param_batch_is_all_or_nothing_through_the_saved_graph() {
+        let mut h = fixture("param-batch");
+        let gen = h
+            .execute(&call("create_node", json!({ "graph": "g1", "kind": "gen.turing" })))
+            .unwrap()["node"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let speed_of = |h: &mut Harness, gen: &str| -> f64 {
+            let io = h.execute(&call("get_io", json!({ "graph": "g1", "node": gen }))).unwrap();
+            io["params"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["name"] == "speed")
+                .unwrap()["value"]
+                .as_f64()
+                .unwrap()
+        };
+        h.execute(&call(
+            "set_param_batch",
+            json!({ "graph": "g1", "updates": [{ "node": gen, "name": "speed", "value": 0.4 }] }),
+        ))
+        .unwrap();
+        assert!((speed_of(&mut h, &gen) - 0.4).abs() < 1e-6);
+        let refused = h.execute(&call(
+            "set_param_batch",
+            json!({ "graph": "g1", "updates": [
+                { "node": gen, "name": "speed", "value": 0.9 },
+                { "node": gen, "name": "speed", "value": 7.0 }
+            ] }),
+        ));
+        assert!(refused.is_err(), "an out-of-range value refuses the batch");
+        assert!((speed_of(&mut h, &gen) - 0.4).abs() < 1e-6, "nothing from a refused batch is saved");
+    }
+
     #[test]
     fn param_tools_bind_read_and_hold_through_the_saved_graph() {
         let mut h = fixture("param-tools");

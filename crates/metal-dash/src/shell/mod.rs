@@ -74,6 +74,7 @@ mod regions;
 
 #[cfg(test)]
 mod gates;
+mod mention;
 #[cfg(all(test, any(feature = "gpu", feature = "glow")))]
 mod kittest;
 
@@ -577,6 +578,31 @@ impl Shell {
 
     /// The shell's current selection as a chat context ref `{kind, id, graph,
     /// label}`, or `None` when nothing is selected.
+    /// The `@` candidates the chat composer offers: every node of the open
+    /// graph, with the selected node marked focused. Library files, overlays
+    /// and properties are not offered yet (see the module doc of `mention`).
+    fn mention_candidates(&self) -> Vec<mention::Candidate> {
+        let focus = self.chat_selection().and_then(|s| s["id"].as_str().map(str::to_string));
+        let graph = self.nodes.graph_reply();
+        let Some(nodes) = graph["graph"]["nodes"].as_array() else {
+            return Vec::new();
+        };
+        nodes
+            .iter()
+            .filter_map(|n| {
+                let id = n["id"].as_str()?;
+                let label = n["label"].as_str().filter(|l| !l.is_empty()).unwrap_or(id);
+                Some(mention::Candidate {
+                    token: id.to_string(),
+                    label: label.to_string(),
+                    kind: mention::Kind::Node,
+                    focused: focus.as_deref() == Some(id),
+                    recent: 0,
+                })
+            })
+            .collect()
+    }
+
     fn chat_selection(&self) -> Option<serde_json::Value> {
         match &self.selection {
             Selection::None => None,
@@ -702,6 +728,10 @@ impl Shell {
     /// `library::PanelState::set_add_path` makes for the library panel's
     /// own text field.
     #[cfg(test)]
+    pub(crate) fn harness_prompt_for_test(&self) -> &str {
+        self.chat.prompt_for_test()
+    }
+
     pub(crate) fn set_harness_prompt_for_test(&mut self, text: &str) {
         self.chat.set_prompt_for_test(text);
     }
@@ -1152,6 +1182,7 @@ impl Shell {
                 max,
             )
             .show(ui, |ui| {
+                self.chat.sources = self.mention_candidates();
                 chat::paint(ui, &theme, self.door.as_ref(), &mut self.chat, chat_selection.as_ref());
             });
             // A ref chip clicked in the sidebar: select it on the canvas.

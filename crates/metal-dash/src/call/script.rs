@@ -35,9 +35,16 @@ fn lang_wire(lang: metal_perform::script::Lang) -> &'static str {
     }
 }
 
-/// `GET /script/<node>?graph=<id>` — one script node's `{lang, source}`.
+/// `GET /script/<node>?graph=<id>` — one script node's `{lang, source}`. The
+/// node is the path tail, or `?node=` when the caller (the MCP adapter, which
+/// forwards a tool's arguments as the query) names it that way.
 pub fn get(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
-    let Some(node_id) = params.tail.as_deref().filter(|s| !s.is_empty()) else {
+    let node = params
+        .tail
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .or_else(|| params.param("node").filter(|s| !s.is_empty()));
+    let Some(node_id) = node else {
         return Err(CallError::Bad("which node".into()));
     };
     let Some(gid) = params.param("graph").filter(|s| !s.is_empty()) else {

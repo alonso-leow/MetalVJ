@@ -40,6 +40,7 @@ pub mod http;
 pub mod images;
 pub mod locate;
 pub mod mcp;
+pub mod session;
 pub mod shots;
 pub mod tool_schemas;
 pub mod tools;

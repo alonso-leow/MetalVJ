@@ -996,8 +996,50 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         // The sequence editor's dataset picker: the list, and one part with `part`.
         "list_dataset" => Some(("GET", "/author/dataset")),
         // D1: the venue's fixtures — the same `POST /venue {op:"fixture"}`
-        // the Settings "Fixtures" page posts (rule 6).
-        "set_fixture" => Some(("POST", "/venue")),
+        // the Settings "Fixtures" page posts (rule 6). The MCP adapter forwards
+        // arguments verbatim (no `op`), so the agent executor adds it.
+        "set_fixture" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        // D3: the universe bus, `POST /outputs {op:"dmx-bus"}`; the executor
+        // adds the `op` for the same reason.
+        "dmx_bus" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        // Gap closure: the routes the human panels already read and write.
+        "perf_report" => Some(("GET", "/perf")),
+        "get_grid_layouts" => Some(("GET", "/settings")),
+        "set_grid_layouts" => Some(("POST", "/settings")),
+        "export_status" => Some(("GET", "/export")),
+        "export_control" => Some(("POST", "/export")),
+        "list_palettes" => Some(("GET", "/author/palettes")),
+        // Executor-routed: the chat's executor posts each tool's own route (rule 6).
+        "list_kinds" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "add_effect" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "remove_effect" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "edit_output" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "resolve_draft" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "edit_venue_object" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "add_screen" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "add_projection" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "set_surface_form" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "set_venue_sectors" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "move_venue_item" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "projection_area" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "venue_scene" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "add_stage" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "add_truss" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "add_dummy" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "venue_spline" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "place_mask_in_space" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "venue_boolean" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "venue_hit" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "venue_report" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "venue_view" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "venue_assets_search" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "venue_asset_import" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "play_sequence" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "edit_loops" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "transport" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "overlay_control" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "colour_apply" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "focus" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         // F9: the per-fixture node's arguments (`fixture`/`colour_from`/
         // `model`) are not the route body, so it runs through the chat's
         // executor like the other in-process tools; it posts `POST /graph/node`

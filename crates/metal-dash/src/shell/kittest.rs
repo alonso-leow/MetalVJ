@@ -3293,6 +3293,52 @@ mod tests {
         assert!(asked(), "Enter should post /ai/ask");
     }
 
+    /// `@` opens the completion list over the open graph's nodes; Tab inserts
+    /// the best match (the focused node ranks first, and `ge` matches `gen-1`
+    /// and not `fx-2`) as `@token ` and the caret follows it. Enter, the send
+    /// key, inserts the same token while the list is open and sends nothing.
+    #[test]
+    fn at_then_tab_completes_the_best_node_and_enter_does_not_send() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        let mut harness =
+            harness_with_door(Theme::phosphor(), Box::new(std::rc::Rc::clone(&recorder)));
+        harness.run();
+        harness.state_mut().nodes_state_mut().set_graph_for_test(serde_json::json!({
+            "graph": {"nodes": [
+                {"id": "gen-1", "label": "Generator 1"},
+                {"id": "fx-2", "label": "Fade"},
+            ]}
+        }));
+        harness.state_mut().set_harness_prompt_for_test("@ge");
+        harness.run();
+        harness
+            .ctx
+            .memory_mut(|m| m.request_focus(egui::Id::new("shell/panel/chat/prompt")));
+        harness.run();
+
+        harness.key_press(egui::Key::Tab);
+        harness.run();
+        assert_eq!(harness.state().harness_prompt_for_test(), "@gen-1 ");
+
+        // A second token: Enter inserts the highlighted row and does not send.
+        harness.state_mut().set_harness_prompt_for_test("@fa");
+        harness
+            .ctx
+            .memory_mut(|m| m.request_focus(egui::Id::new("shell/panel/chat/prompt")));
+        harness.run();
+        harness.key_press(egui::Key::Enter);
+        harness.run();
+        assert_eq!(
+            harness.state().harness_prompt_for_test(),
+            "@fx-2 ",
+            "fa matches only the label Fade, which is fx-2"
+        );
+        assert!(
+            !recorder.calls.borrow().iter().any(|(m, p, _)| m == "POST" && p == "/ai/ask"),
+            "Enter with the list open inserts, it does not send"
+        );
+    }
+
     /// The header's `IA` toggle closes the sidebar (docked form, desktop);
     /// clicking it again reopens it.
     #[test]

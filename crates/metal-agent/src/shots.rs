@@ -292,6 +292,12 @@ fn tool_schema(name: &str) -> Option<&'static [&'static str]> {
         "export_video" => Some(&["device", "range", "path"]),
         // P-C — `target` optional (a default name / the first loopback).
         "list_video_io" => Some(&[]),
+        "perf_report" => Some(&[]),
+        "get_grid_layouts" => Some(&[]),
+        "set_grid_layouts" => Some(&["grid_layouts"]),
+        "export_status" => Some(&[]),
+        "export_control" => Some(&["op"]),
+        "list_palettes" => Some(&[]),
         "set_output_sink" => Some(&["device_id", "kind"]),
         // D3 — the universe bus's merge priority/mode: every key optional.
         "dmx_bus" => Some(&[]),

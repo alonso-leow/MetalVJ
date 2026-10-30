@@ -46,6 +46,10 @@ const READONLY: &[&str] = &[
     "artnet_in_status",
     "timecode_status",
     "list_video_io",
+    "perf_report",
+    "get_grid_layouts",
+    "export_status",
+    "list_palettes",
     "venue_report",
     "venue_view",
     "venue_hit",
@@ -111,7 +115,7 @@ fn type_for_key(key: &str) -> &'static str {
         "on" | "relative" | "delete" | "monitor" | "enabled" | "stop" | "as_copy" | "loop" => "boolean",
         "outputs" | "points" | "floats" | "rgb" | "options" | "set" | "items" | "entries" | "palette"
         | "hsb" | "nodes" => "array",
-        "patch" | "segment" | "config" | "matrix" | "definition" => "object",
+        "patch" | "segment" | "config" | "matrix" | "definition" | "grid_layouts" => "object",
         _ => "string",
     }
 }

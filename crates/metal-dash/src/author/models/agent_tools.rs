@@ -2029,6 +2029,58 @@ impl AgentHarness {
         Ok(json!({ "tick_level": reply["tick_level"] }))
     }
 
+    /// Gap closure (rule 6): `GET /perf`, the monitor's frame-time report.
+    fn perf_report(&self) -> Result<Value, String> {
+        self.door()?
+            .json("GET", "/perf", None)
+            .map_err(|(status, msg)| format!("/perf answered {status}: {msg}"))
+    }
+
+    /// Gap closure: the grid's layouts, read from `GET /settings`.
+    fn get_grid_layouts(&self) -> Result<Value, String> {
+        let reply = self
+            .door()?
+            .json("GET", "/settings", None)
+            .map_err(|(status, msg)| format!("/settings answered {status}: {msg}"))?;
+        Ok(json!({ "grid_layouts": reply["grid_layouts"] }))
+    }
+
+    /// Gap closure: replaces the whole layout list through `POST /settings`,
+    /// the write the grid panel's create, rename and delete make.
+    fn set_grid_layouts(&self, args: &Value) -> Result<Value, String> {
+        let layouts = args
+            .get("grid_layouts")
+            .filter(|v| v.is_object())
+            .ok_or("expected `grid_layouts` (an object with `active` and `list`)")?;
+        let reply = self
+            .door()?
+            .json("POST", "/settings", Some(json!({ "grid_layouts": layouts })))
+            .map_err(|(status, msg)| format!("/settings answered {status}: {msg}"))?;
+        Ok(json!({ "grid_layouts": reply["grid_layouts"] }))
+    }
+
+    /// Gap closure: `GET /export`, the running job's progress or idle.
+    fn export_status(&self) -> Result<Value, String> {
+        self.door()?
+            .json("GET", "/export", None)
+            .map_err(|(status, msg)| format!("/export answered {status}: {msg}"))
+    }
+
+    /// Gap closure: `POST /export {op}`, the cancel the export panel posts.
+    fn export_control(&self, args: &Value) -> Result<Value, String> {
+        let op = Self::require_str(args, "op")?;
+        self.door()?
+            .json("POST", "/export", Some(json!({ "op": op })))
+            .map_err(|(status, msg)| format!("/export answered {status}: {msg}"))
+    }
+
+    /// Gap closure: `GET /author/palettes`, the library `set_palette` edits.
+    fn list_palettes(&self) -> Result<Value, String> {
+        self.door()?
+            .json("GET", "/author/palettes", None)
+            .map_err(|(status, msg)| format!("/author/palettes answered {status}: {msg}"))
+    }
+
     /// P-C (rule 6): `GET /videoio`, what the "Send to" row lists.
     fn list_video_io(&self) -> Result<Value, String> {
         self.door()?
@@ -2791,6 +2843,12 @@ impl ToolExecutor for AgentHarness {
             "fire_trigger" => self.fire_trigger(&call.arguments),
             "overlay_control" => self.overlay_control(&call.arguments),
             "colour_apply" => self.colour_apply(&call.arguments),
+            "perf_report" => self.perf_report(),
+            "get_grid_layouts" => self.get_grid_layouts(),
+            "set_grid_layouts" => self.set_grid_layouts(&call.arguments),
+            "export_status" => self.export_status(),
+            "export_control" => self.export_control(&call.arguments),
+            "list_palettes" => self.list_palettes(),
             _ => self.inner.execute(call),
         }
     }

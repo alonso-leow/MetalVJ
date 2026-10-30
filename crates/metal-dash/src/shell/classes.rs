@@ -1908,6 +1908,8 @@ pub const DRAG_CLEARANCE: f32 = 24.0;
 pub const BLEND_CANVAS_HEIGHT: f32 = 96.0;
 pub const BLEND_HATCH_STEP: f32 = 6.0;
 pub const TEST_PATTERN_SECONDS: f64 = 10.0;
+/// The most rows the chat's `@` completion list shows at once.
+pub const MENTION_ROWS: usize = 8;
 
 /// Where a delegable region lives at a given viewport (`O.12.f`,
 /// `plan-sonnet.md` § S.U13). `Grid` means it still paints as its own cell

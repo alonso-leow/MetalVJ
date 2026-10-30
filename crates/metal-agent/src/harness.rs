@@ -281,6 +281,12 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     // P-G — "Export frame": the floating preview's camera button posts the
     // same `POST /frame/export` (rule 6).
     // P-C: video I/O — which sinks work here, and handing a screen to one.
+    ("perf_report", "The running app's frame-time report: the same numbers the F12 monitor shows (GET /perf).", true),
+    ("get_grid_layouts", "The grid's saved layouts and the one up: each layout's id, name, surface and controllers, plus `active` (GET /settings, `grid_layouts`).", true),
+    ("set_grid_layouts", "Replaces the whole list of grid layouts (POST /settings {grid_layouts}): `active` (an id in `list`) and `list` of {id, name, surface, controllers}. The grid panel's create, rename and delete write this same key.", true),
+    ("export_status", "The export job's progress, or idle when none runs (GET /export).", true),
+    ("export_control", "Controls the running export (POST /export {op}): `op` cancel stops it and removes the partial file.", true),
+    ("list_palettes", "The stored colour palettes, the list `set_palette` edits (GET /author/palettes).", true),
     ("list_video_io", "Lists the video outputs (virtual camera, NDI, Spout, Syphon) with their availability and the reason when they are not (GET /videoio).", true),
     ("set_output_sink", "Also sends an output's frame to a virtual camera, NDI, Spout or Syphon (POST /outputs {op: \"sink\"}); an empty `kind` or \"none\" removes it.", true),
     // D3 — the universe bus: the priority/mode per source with which the
@@ -395,7 +401,7 @@ pub fn capability_of(name: &str) -> Option<Capability> {
         | "fire_trigger"
         | "overlay_control" => Some(Capability::Devices),
         "save_shader" | "bake_clip" | "attach_digest" | "export_frame" | "export_video"
-        | "import_gdtf" => Some(Capability::Files),
+        | "import_gdtf" | "export_control" => Some(Capability::Files),
         _ => None,
     }
 }
@@ -1763,7 +1769,9 @@ impl ToolExecutor for Harness {
             | "venue_view" | "venue_assets_search" | "venue_asset_import"
             | "list_video_io" | "set_output_sink" | "dmx_bus" | "import_gdtf" | "capture_output"
             | "play_sequence" | "edit_loops" | "transport" | "fire_trigger" | "overlay_control"
-            | "colour_apply" => Err(format!(
+            | "colour_apply"
+            | "perf_report" | "get_grid_layouts" | "set_grid_layouts" | "export_status" | "export_control"
+            | "list_palettes" => Err(format!(
                 "{} is implemented by metal_dash::author::models::agent_tools::AgentHarness, not by metal_agent::harness::Harness — see this module's doc comment",
                 call.name
             )),
@@ -3182,6 +3190,11 @@ mod capability_tests {
         "attach_source",
         "insert_node",
         "colour_apply",
+        "perf_report",
+        "get_grid_layouts",
+        "set_grid_layouts",
+        "export_status",
+        "list_palettes",
     ];
 
     #[test]

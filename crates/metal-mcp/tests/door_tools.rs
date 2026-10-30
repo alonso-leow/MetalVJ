@@ -341,11 +341,7 @@ fn door_tools_round_trip_through_dash() {
 ///   variable / a held parameter, which the bare fixture graph has none of),
 ///   `add_fixture_node` and `blend_edges` (the venue's fixture/projector state
 ///   the skipped `project_venue`/`calibrate_projector` would set).
-/// - server-side route gaps, not hardware: `read_script` (`GET /script/` takes
-///   the node from the path tail, but the adapter forwards it as a query arg),
-///   `set_fixture` (the route table sends the args verbatim to `POST /venue`
-///   without the `op: "fixture"` the route needs), `dmx_bus` (`tool_route` has
-///   no arm, so `/ai-config` lists no route and the adapter refuses it).
+/// - a running job: `export_control` (`cancel` refuses when no export runs).
 const SKIP: &[(&str, &str)] = &[
     ("look_venue", "needs a live camera frame"),
     ("project_venue", "needs a projector / monitor"),
@@ -354,9 +350,7 @@ const SKIP: &[(&str, &str)] = &[
     ("set_head_tracking", "needs a live camera / sensor"),
     ("add_fixture_node", "needs the venue projected first (project_venue, skipped)"),
     ("blend_edges", "needs a projector pinned to a surface (calibrate_projector, skipped)"),
-    ("read_script", "GET /script/ takes the node from the path tail; the adapter forwards it as a query arg (server-side route gap)"),
-    ("set_fixture", "the route table forwards the args verbatim to POST /venue without the op the route needs (server-side route gap)"),
-    ("dmx_bus", "metal-dash lists no route for it in /ai-config (tool_route has no arm)"),
+    ("export_control", "cancels a running export: with none running the route refuses"),
     ("raster", "compiles and rasterises a shader on the GPU: real time"),
     ("bake_clip", "renders a clip: real time"),
     ("sleep", "blocks for `ms`; nothing to smoke"),
@@ -426,6 +420,15 @@ fn smoke_args(name: &str, schema: &Value) -> Option<Value> {
         "capture_camera_frame" => json!({"w": 64, "h": 36}),
         "edit_layer" => json!({"op": "add", "device": "stage", "model": "domain"}),
         "list_switches" => json!({}),
+        "read_script" => json!({"graph": "authoring", "node": "script-a"}),
+        "set_fixture" => json!({"venue": "bar", "kind": "wash", "address": 20}),
+        "dmx_bus" => json!({"priority": 10, "mode": "htp"}),
+        "perf_report" => json!({}),
+        "get_grid_layouts" => json!({}),
+        "set_grid_layouts" => json!({"grid_layouts": {"active": "grid-1",
+            "list": [{"id": "grid-1", "name": "Custom Grid 1", "surface": {"cols": 4}}]}}),
+        "export_status" => json!({}),
+        "list_palettes" => json!({}),
         "set_switch" => json!({"id": "seeded", "op": "on"}),
         "get_tick_level" => json!({}),
         "set_tick_level" => json!({"tick_level": "base"}),

@@ -1002,6 +1002,13 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         // D3: the universe bus, `POST /outputs {op:"dmx-bus"}`; the executor
         // adds the `op` for the same reason.
         "dmx_bus" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        // Gap closure: the routes the human panels already read and write.
+        "perf_report" => Some(("GET", "/perf")),
+        "get_grid_layouts" => Some(("GET", "/settings")),
+        "set_grid_layouts" => Some(("POST", "/settings")),
+        "export_status" => Some(("GET", "/export")),
+        "export_control" => Some(("POST", "/export")),
+        "list_palettes" => Some(("GET", "/author/palettes")),
         // F9: the per-fixture node's arguments (`fixture`/`colour_from`/
         // `model`) are not the route body, so it runs through the chat's
         // executor like the other in-process tools; it posts `POST /graph/node`

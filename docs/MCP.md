@@ -122,6 +122,52 @@ Two kinds of tool take another path:
   not match the HTTP route body (`which graph`, `no such op`, `expected
   {timeline}`, a missing `model`/`name`), so they run through the executor as
   well. The route table in metal-dash (`tool_route`) names `/agent/tool` for them.
+  `set_fixture` and `dmx_bus` are in this group too: their routes
+  (`POST /venue`, `POST /outputs`) need an `op` the verbatim body does not carry,
+  and the executor adds it. `read_script` reads the node from `?node=` as well
+  as the path tail, so the verbatim `GET` works.
+
+## Tools
+
+Each tool names its route in `GET /ai-config`. The grid, export and palette
+tools were added to close coverage gaps; each reads or writes through the route
+the matching panel uses (rule 6).
+
+| Tool | Route | What it does |
+|---|---|---|
+| `perf_report` | `GET /perf` | The frame-time report the F12 monitor shows. |
+| `get_grid_layouts` | `GET /settings` | The grid's saved layouts (`grid_layouts`): id, name, surface, controllers, and `active`. |
+| `set_grid_layouts` | `POST /settings` | Replaces the whole layout list. The panel's create, create-from-hardware, rename and delete write this key. |
+| `export_status` | `GET /export` | Progress of the export job, or idle. |
+| `export_control` | `POST /export` | `op: cancel` stops the running export and removes the partial file. |
+| `list_palettes` | `GET /author/palettes` | The stored palettes that `set_palette` edits. |
+
+Not given a tool, on purpose: the MIDI input and controller faces (shell and
+hardware only, no door route; a face's controllers are stored in
+`grid_layouts`, which the tools above read and write); export presets
+(`data/export-presets.json`, chosen through `export_video`); and palette
+deletion (destructive, left to the operator).
+
+## Hardware run (needs a person)
+
+Not run by the automated suite. Do this once, with a real projector and camera
+on the venue, and record the result below.
+
+1. Start metal-dash with the venue (`bar` or the real one) and the camera
+   streaming.
+2. `scan_venue`: the camera finds the room. Check the reported surfaces.
+3. `calibrate_projector` for each projector and surface. Check the reported
+   error and the projected pattern.
+4. `look_venue` and `project_venue`: the masks land on the real surfaces.
+
+Notes for whoever runs it: `scan_venue`, `discover_fixture` and
+`calibrate_projector` are exercised in the suite only against a synthetic feed
+(`M5` seam). `solve_head` posts analytic inverse kinematics with no camera feed,
+so its pose is not checked against a real head. `look_venue` and
+`project_venue` have no hardware-free smoke call.
+
+Result: _not yet run._ Record the date, the venue, the projector and camera
+models, and the reported error for each step here.
 
 Image results (`png_base64`, or an `image/*` body) come back as MCP image
 content next to the JSON text. `locate` with `step: "grid"` on a PNG is the
@@ -178,6 +224,11 @@ cargo test -p metal-mcp -- --test-threads=1
 calls `create_mask_grid`, `test_mask_grid` and `edit_venue_surface` through
 metal-mcp stdio and checks the results and the venue file. It kills the child on
 the way out.
+
+`every_hardware_free_tool_answers_a_smoke_call` calls every listed tool that
+needs no hardware once, against the same fixture. Each tool is either smoked,
+skipped with a reason in `SKIP`, or fails the test; a new tool with neither
+fails it.
 
 The schema round-trip test is computed from the catalog; the stdio test
 spawns the built binary and runs `initialize` and `tools/list`; `tests/http.rs`

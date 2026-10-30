@@ -773,4 +773,36 @@ mod tests {
         assert_eq!(source_time(0.0, *plain, 60.0, false), 0.0);
         assert!((source_time(30.0, *plain, 60.0, false) - 30.0).abs() < 1e-9, "a plain video walks its length");
     }
+
+    /// 1f: a `reel.batch` node draws. Two stills at a 1 s interval: the pixels
+    /// at 0.5 s are the first file's (red), at 1.5 s the second's (blue), and a
+    /// file that does not decode draws nothing rather than panicking.
+    #[test]
+    fn a_batch_draws_the_item_its_clock_picks() {
+        let dir = std::env::temp_dir().join(format!("mvj-batch-draw-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for (name, rgb) in [("a.png", [250u8, 10, 10]), ("b.png", [10, 10, 250])] {
+            let mut enc = png::Encoder::new(std::io::BufWriter::new(std::fs::File::create(dir.join(name)).unwrap()), 4, 4);
+            enc.set_color(png::ColorType::Rgba);
+            enc.set_depth(png::BitDepth::Eight);
+            let px: Vec<u8> = (0..16).flat_map(|_| [rgb[0], rgb[1], rgb[2], 255]).collect();
+            enc.write_header().unwrap().write_image_data(&px).unwrap();
+        }
+        std::fs::write(dir.join("broken.png"), b"not a png").unwrap();
+        let node = batch(
+            r#"{"interval":1.0,"items":[{"kind":"image","path":"a.png"},{"kind":"image","path":"b.png"},{"kind":"image","path":"broken.png"}]}"#,
+        );
+        let f = Favorites::default();
+        let draw = |t: f32| {
+            let (entry, local) = now(&node, &f, t).expect("a batch with items has an entry");
+            frame(&dir, &entry, local, 8, 8)
+        };
+        let first = draw(0.5).expect("the first still draws");
+        assert_eq!(first.len(), 8 * 8 * 4);
+        assert!(first.chunks_exact(4).all(|p| p[0] > 200 && p[2] < 40 && p[3] == 255));
+        let second = draw(1.5).expect("the second still draws");
+        assert!(second.chunks_exact(4).all(|p| p[2] > 200 && p[0] < 40));
+        assert!(draw(2.5).is_none(), "an undecodable file draws nothing");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

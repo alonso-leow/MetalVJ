@@ -324,6 +324,8 @@ pub struct Club {
     pub discovered: Mutex<BTreeMap<String, Seen>>,
     /// Song bundles pulled from peers, by song stem (`pull.rs`).
     pub pulls: Mutex<BTreeMap<String, crate::pull::Pull>>,
+    /// The last self-report heard from each peer (`stats.rs`).
+    pub stats: Mutex<crate::stats::StatsBook>,
 }
 
 impl std::fmt::Debug for Club {

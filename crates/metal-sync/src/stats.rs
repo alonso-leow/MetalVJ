@@ -11,9 +11,21 @@
 //! the 20 s rule is tested with an injected clock.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use anyhow::Result;
+use iroh::{
+    endpoint::Connection,
+    protocol::{AcceptError, ProtocolHandler},
+    Endpoint, EndpointId,
+};
 use serde::{Deserialize, Serialize};
+
+use crate::pair::Club;
+
+/// The ALPN a machine sends its self-report on, to each peer every [`TICK`].
+pub const ALPN: &[u8] = b"fw/stats/1";
 
 /// How often a machine sends its own stats to its peers.
 pub const TICK: Duration = Duration::from_secs(5);
@@ -101,6 +113,81 @@ impl StatsBook {
                 v
             })
             .collect()
+    }
+}
+
+/// When a tick is due: at most one per [`TICK`], by an injected clock.
+#[derive(Debug, Default)]
+pub struct Cadence {
+    last: Option<Instant>,
+}
+
+impl Cadence {
+    /// `true` (and the tick restarts from `now`) when none has run or
+    /// [`TICK`] has passed since the last one.
+    pub fn due(&mut self, now: Instant) -> bool {
+        match self.last {
+            Some(t) if now.saturating_duration_since(t) < TICK => false,
+            _ => {
+                self.last = Some(now);
+                true
+            }
+        }
+    }
+}
+
+/// The paint backend and frame rate out of a `GET /perf` body. The backend is
+/// `None` while the snapshot says `unset`, and the rate is `None` without a
+/// `fps` field: neither is ever a made-up zero.
+pub fn perf_fields(body: &[u8]) -> (Option<String>, Option<f32>) {
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return (None, None);
+    };
+    let backend = v["backend"].as_str().filter(|b| *b != "unset").map(str::to_string);
+    let fps = v["fps"].as_f64().map(|f| f as f32);
+    (backend, fps)
+}
+
+/// Pushes `stats` to every peer in the table, one exchange each. A peer that
+/// does not answer is skipped: the next tick tries again.
+pub async fn push(endpoint: &Endpoint, club: &Club, stats: &PeerStats) {
+    let ids: Vec<String> = club.book.lock().expect("pair book poisoned").peers().values().cloned().collect();
+    for id in ids {
+        let Ok(id) = id.parse::<EndpointId>() else { continue };
+        let addr = crate::pair::addr_for(club, id);
+        if let Err(e) = crate::pair::exchange(endpoint, addr, ALPN, &stats.encode()).await {
+            tracing::debug!(error = %format!("{e:#}"), "stats push failed");
+        }
+    }
+}
+
+/// The peer side of `fw/stats/1`: a member's report is recorded under the name
+/// the table gives its node id. A non-member gets a closed connection.
+#[derive(Debug, Clone)]
+pub struct StatsProtocol {
+    pub club: Arc<Club>,
+}
+
+impl ProtocolHandler for StatsProtocol {
+    async fn accept(&self, conn: Connection) -> Result<(), AcceptError> {
+        let from = conn.remote_id();
+        let (name, member) = {
+            let book = self.club.book.lock().expect("pair book poisoned");
+            let name = book.peers().iter().find(|(_, id)| **id == from.to_string()).map(|(n, _)| n.clone());
+            (name, book.is_member(&from.to_string()))
+        };
+        let Some(name) = name.filter(|_| member) else {
+            conn.close(1u32.into(), b"");
+            return Ok(());
+        };
+        let (mut send, mut recv) = conn.accept_bi().await.map_err(|e| AcceptError::from_boxed(e.into()))?;
+        let bytes = recv.read_to_end(4096).await.map_err(|e| AcceptError::from_boxed(e.into()))?;
+        if let Some(stats) = PeerStats::decode(&bytes) {
+            self.club.stats.lock().expect("stats poisoned").record(&name, stats, Instant::now());
+        }
+        send.finish().map_err(|e| AcceptError::from_boxed(e.into()))?;
+        conn.closed().await;
+        Ok(())
     }
 }
 
@@ -252,5 +339,40 @@ mod tests {
         assert_eq!(uptime_from(""), None);
         assert_eq!(temp_from("51250\n"), Some(51.25));
         assert_eq!(temp_from("hot"), None);
+    }
+
+    #[test]
+    fn a_tick_is_due_once_per_five_seconds_by_the_injected_clock() {
+        let t0 = Instant::now();
+        let mut cadence = Cadence::default();
+        assert!(cadence.due(t0), "the first tick is due at once");
+        assert!(!cadence.due(t0 + Duration::from_millis(4_900)));
+        assert!(cadence.due(t0 + TICK), "due again one tick later");
+        assert!(!cadence.due(t0 + TICK + Duration::from_secs(1)), "and not before the next");
+    }
+
+    #[test]
+    fn perf_fields_take_the_backend_and_rate_or_nothing() {
+        let body = br#"{"backend":"metal","fps":59.5,"window_s":5}"#;
+        assert_eq!(perf_fields(body), (Some("metal".to_string()), Some(59.5)));
+        assert_eq!(perf_fields(br#"{"backend":"unset"}"#), (None, None), "unset is unknown");
+        assert_eq!(perf_fields(b"not json"), (None, None));
+    }
+
+    /// The route's reply: one object per peer heard from, with the reading
+    /// fields, `status`, `age_s` and `name`. A stale peer keeps its values.
+    #[test]
+    fn the_peer_view_has_the_route_shape() {
+        let t0 = Instant::now();
+        let mut book = StatsBook::default();
+        book.record("pi", PeerStats { cpu_pct: Some(7.0), ..PeerStats::default() }, t0);
+        let view = book.view(t0 + Duration::from_secs(21));
+        assert_eq!(view.len(), 1);
+        let p = &view[0];
+        assert_eq!(p["name"], "pi");
+        assert_eq!(p["status"], "stale");
+        assert_eq!(p["cpu_pct"], serde_json::json!(7.0));
+        assert!(p["temp_c"].is_null());
+        assert_eq!(p["age_s"], serde_json::json!(21.0));
     }
 }

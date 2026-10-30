@@ -12,6 +12,7 @@ struct U {
     c: vec4<f32>, // brillo, contraste, opacidad, tono
     d: vec4<f32>, // saturacion, has_picture, picture mix, mask texel x
     e: vec4<f32>, // mask texel y, 0, 0, 0
+    mat: MaterialU, // the fill part's material; mat_mix 0 is off
 };
 
 @group(0) @binding(0) var<uniform> u: U;
@@ -66,6 +67,13 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
         } else {
             col = base;
         }
+    }
+    // The fill part's material, on the flat 2D contract: the point is (uv, 0)
+    // and the normal faces the camera, so it seasons the fill uniformly.
+    if (m > 0.0 && u.mat.b.x > 0.0) {
+        let z = vec3<f32>(0.0, 0.0, 1.0);
+        let sh = material_apply(u.mat, pic_tex, pic_samp, col, vec3<f32>(in.uv, 0.0), z, in.uv, z, u.a.y);
+        col = max(sh.albedo + vec3<f32>((1.0 - sh.roughness) * sh.metalness * 0.25), vec3<f32>(0.0));
     }
     let fa = m * u.b.y;
     var out = mix(bg, col, fa);

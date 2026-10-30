@@ -536,7 +536,6 @@ mod tests {
     /// surface picture only). Each is a known gap; a new one fails the test
     /// until it is listed here on purpose, and a fixed one must leave it.
     const MATERIAL_GAPS: &[&str] = &[
-        "corals",
     ];
 
     /// Every model that exposes a part a material can be laid on takes a

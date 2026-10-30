@@ -820,6 +820,7 @@ struct FillUniform {
     c: [f32; 4],
     d: [f32; 4],
     e: [f32; 4],
+    mat: crate::shared::surface::MaterialU,
 }
 
 struct LinePipe {
@@ -975,7 +976,15 @@ pub struct Corales {
 
 fn shader_src() -> &'static str {
     static SRC: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    SRC.get_or_init(|| format!("{}\n{}", kit::WGSL, include_str!("../../shaders/corales.wgsl")))
+    SRC.get_or_init(|| {
+        format!(
+            "{}\n{}\n{}\n{}",
+            kit::WGSL,
+            include_str!("../../shaders/surface.wgsl"),
+            include_str!("../../shaders/material.wgsl"),
+            include_str!("../../shaders/corales.wgsl")
+        )
+    })
 }
 
 impl Corales {
@@ -1164,7 +1173,13 @@ impl Model for Corales {
         let look = kit::Look::from_floats(&floats[off(B_LOOK)..off(B_LOOK) + kit::Look::N]);
         let slot = |blk: usize| ColorSlotGpu::from_floats(&floats[off(blk)..off(blk) + 12]);
         let view = View::new(&cam, time);
-        let mode = clean(own, F_MODO).round() as u32;
+        // A material on the fill needs a fill to wear: with `fill_mode` 0 a
+        // live material lays the solid fill (mode 1) rather than showing nothing.
+        let material = self.surface.uniform.b[0] > 0.0;
+        let mode = match clean(own, F_MODO).round() as u32 {
+            0 if material => 1,
+            m => m,
+        };
 
         self.surface.sync(ctx.device, ctx.queue);
         let sim = self.driver.update(time, (ctx.width, ctx.height), own);
@@ -1206,6 +1221,7 @@ impl Model for Corales {
             c: [look.shine, look.contrast, look.opacity, look.tone],
             d: [look.saturation, if pic.is_fallback() { 0.0 } else { 1.0 }, setting[0], 1.0 / mw as f32],
             e: [1.0 / mh as f32, 0.0, 0.0, 0.0],
+            mat: self.surface.uniform,
         };
         self.fill.draw_textured(ctx, target, format, &u, &[(&mask.view, sampler), (pic.view(), pic.sampler())]);
 

@@ -279,6 +279,49 @@ pub fn kind_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
     }
 }
 
+/// Where `metal-render --bin model-demo` writes its posters: beside the
+/// data root, in the repo's `tools/song-gate/demos`.
+fn demos_dir() -> std::path::PathBuf {
+    crate::output::data_root().join("../tools/song-gate/demos")
+}
+
+/// A model id that is safe to join onto a path: the registry's ids are
+/// lower-case words, so anything else is refused before it touches the disk.
+fn demo_id(params: &Params) -> Result<String, CallError> {
+    let id = params.param("id").unwrap_or_default();
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') {
+        return Err(CallError::Bad("which model".into()));
+    }
+    Ok(id.to_string())
+}
+
+/// `GET /models/demo.jpg?id=`: the model's poster from `model-demo`, as the
+/// file holds it. 404 when the demo was never rendered, so the caller can fall
+/// back to a live tile.
+pub fn demo_jpg(_ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
+    let id = demo_id(params)?;
+    match std::fs::read(demos_dir().join(format!("{id}.jpg"))) {
+        Ok(body) => Ok(Bytes { kind: "image/jpeg", body }),
+        Err(_) => Err(CallError::NotFound),
+    }
+}
+
+/// `GET /models/demo?id=`: the model's name and one-line look, what the
+/// hover poster captions the picture with.
+pub fn demo_info(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
+    let id = demo_id(params)?;
+    let models = metal_render::registry::all_models();
+    let Some(m) = models.iter().find(|m| m.id() == id) else {
+        return Err(CallError::NotFound);
+    };
+    Ok(serde_json::json!({
+        "id": id,
+        "name": m.name(),
+        "look": metal_render::model::look_line(m.as_ref()),
+        "poster": demos_dir().join(format!("{id}.jpg")).is_file(),
+    }))
+}
+
 /// One node's own picture (`render_node`): a generator with only the
 /// effects up to that node, a mask's slice of the output, or the device's
 /// composed frame for an output — for isolating one stage while debugging
@@ -994,6 +1037,25 @@ mod window_tests {
             }
             let after = t.elapsed().as_secs_f64() * 1000.0 / n as f64;
             println!("MEASURE window preview {w}x{h}: JPEG path {before:.1} ms, texture path {after:.1} ms");
+        }
+    }
+}
+
+#[cfg(test)]
+mod demo_tests {
+    use super::*;
+
+    fn params(id: &str) -> Params {
+        Params { query: [("id".to_string(), id.to_string())].into(), body: Vec::new(), tail: None }
+    }
+
+    /// The poster route joins the id onto a path, so only a plain model id
+    /// gets through.
+    #[test]
+    fn the_poster_route_refuses_an_id_that_climbs_out_of_the_demos_dir() {
+        assert_eq!(demo_id(&params("rings")).unwrap(), "rings");
+        for bad in ["", "../secret", "a/b", "a.b"] {
+            assert!(demo_id(&params(bad)).is_err(), "{bad:?}");
         }
     }
 }

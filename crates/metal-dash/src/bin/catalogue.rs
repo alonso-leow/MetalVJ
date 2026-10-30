@@ -93,27 +93,8 @@ fn models() -> Vec<Value> {
     metal_render::registry::all_models()
         .iter()
         .filter(|m| !m.retired())
-        .map(|m| json!({ "id": m.id(), "name": m.name(), "look": look(m.as_ref()) }))
+        .map(|m| json!({ "id": m.id(), "name": m.name(), "look": metal_render::model::look_line(m.as_ref()) }))
         .collect()
-}
-
-/// The one-line `look`. `Model` has no `description()`, so this composes the
-/// facts the trait **does** declare — generative or transmission, backdrop,
-/// camera track — rather than inventing prose. If a model ever grows a
-/// description, this is where it should be read.
-fn look(m: &dyn metal_render::model::Model) -> String {
-    let mut parts = vec![if m.footage() {
-        "transmission: draws over source material"
-    } else {
-        "generative: draws its own picture"
-    }];
-    if m.backdrop() {
-        parts.push("draws its own backdrop");
-    }
-    if m.camera_track() {
-        parts.push("camera-trackable");
-    }
-    parts.join("; ")
 }
 
 fn write_json(path: &Path, value: &Value) {

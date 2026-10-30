@@ -141,6 +141,7 @@ fn part_row(
             node_id,
             &entries,
             &shaders,
+            door,
         );
         picked = pick;
         response
@@ -196,6 +197,7 @@ fn source_menu(
     node_id: &str,
     entries: &[Value],
     shaders: &[String],
+    door: &dyn Call,
 ) -> (egui::Response, Option<Pick>) {
     let image_kinds: Vec<&str> = entries
         .iter()
@@ -269,10 +271,11 @@ fn source_menu(
                 if !models.is_empty() {
                     heading(ui, theme, tr("models"));
                     for (kind, label) in &models {
-                        if ui
-                            .button(small_text(theme, tr_dyn(label)))
-                            .clicked()
-                        {
+                        let button = ui.button(small_text(theme, tr_dyn(label)));
+                        if let Some(id) = kind.strip_prefix("gen.") {
+                            button.clone().on_hover_ui(|ui| super::poster::show(ui, theme, door, id));
+                        }
+                        if button.clicked() {
                             pick = Some(Pick::Kind {
                                 kind: kind.clone(),
                                 config: None,

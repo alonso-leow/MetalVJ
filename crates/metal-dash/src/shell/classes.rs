@@ -192,6 +192,10 @@ pub struct Theme {
     /// while the pointer rests on a `gen.*` entry — the studio grid's own
     /// tile for that model, at a size the operator can read.
     pub graph_hover_preview: f32,
+    /// Width, in points, of the hover poster a model shows in the surface
+    /// source dropdown, and the width/height ratio its empty slot holds.
+    pub poster_width: f32,
+    pub poster_ratio: f32,
     /// Tallest the `+ node` catalog menu grows before it scrolls, in
     /// points — a popup egui does not bound to the viewport by itself, and
     /// the catalog is longer than a phone is tall.
@@ -660,6 +664,8 @@ impl Theme {
             region_min: Vec2::new(220.0, 140.0),
             graph_preview_share: 0.3,
             graph_hover_preview: 200.0,
+            poster_width: 240.0,
+            poster_ratio: 1.7778,
             menu_max_height: 360.0,
             image_tint: Color32::WHITE,
             text_input_width: 96.0,
@@ -877,6 +883,8 @@ impl Theme {
             region_min: Vec2::new(220.0, 140.0),
             graph_preview_share: 0.3,
             graph_hover_preview: 200.0,
+            poster_width: 240.0,
+            poster_ratio: 1.7778,
             menu_max_height: 360.0,
             image_tint: Color32::WHITE,
             text_input_width: 96.0,
@@ -1170,6 +1178,8 @@ impl Theme {
             region_min: Vec2::new(220.0, 140.0),
             graph_preview_share: 0.3,
             graph_hover_preview: 280.0,
+            poster_width: 320.0,
+            poster_ratio: 1.7778,
             menu_max_height: 480.0,
             image_tint: Color32::WHITE,
             text_input_width: 140.0,

@@ -150,11 +150,24 @@ struct Uniform {
     f4: [f32; 4],
 }
 
+/// How the field is stepped. Compute where the device has it; otherwise the
+/// same `seed_value` / `step_value` drawn into the other half of the pair by
+/// a fragment pass (WebGL2).
+enum Stepper {
+    Compute {
+        seed: wgpu::ComputePipeline,
+        step: wgpu::ComputePipeline,
+        bgl: wgpu::BindGroupLayout,
+    },
+    PingPong {
+        seed: wgpu::RenderPipeline,
+        step: wgpu::RenderPipeline,
+    },
+}
+
 struct Gpu {
-    seed_pipeline: wgpu::ComputePipeline,
-    step_pipeline: wgpu::ComputePipeline,
+    stepper: Stepper,
     render_pipeline: wgpu::RenderPipeline,
-    compute_bgl: wgpu::BindGroupLayout,
     render_bgl: wgpu::BindGroupLayout,
     /// Ping-pong pair. Each is written as a storage texture on one step and
     /// read as a sampled one on the next; a single texture cannot be both
@@ -182,69 +195,86 @@ struct Sim {
 pub struct Turing {
     gpu: Built<Gpu>,
     sim: Sim,
+    /// Step with the fragment ping-pong even where compute exists (the parity
+    /// test runs both on one adapter).
+    force_pingpong: bool,
 }
 
 impl Turing {
     pub fn new() -> Turing {
-        Turing { gpu: Built::default(), sim: Sim::default() }
+        Turing { gpu: Built::default(), sim: Sim::default(), force_pingpong: false }
     }
 
-    fn build(device: &wgpu::Device, format: wgpu::TextureFormat) -> Gpu {
-        let shader =
-            crate::shared::build_shader(device, "turing", include_str!("../../shaders/turing.wgsl"));
+    #[cfg(test)]
+    fn pingpong() -> Turing {
+        Turing { force_pingpong: true, ..Turing::new() }
+    }
 
-        let compute_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("turing compute bgl"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::StorageTexture {
-                        access: wgpu::StorageTextureAccess::WriteOnly,
-                        format: FIELD_FORMAT,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-            ],
-        });
-        let compute_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("turing compute layout"),
-            bind_group_layouts: &[Some(&compute_bgl)],
-            immediate_size: 0,
-        });
-        let compute_pipeline = |entry: &str, label: &str| {
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some(label),
-                layout: Some(&compute_layout),
-                module: &shader,
-                entry_point: Some(entry),
-                compilation_options: Default::default(),
-                cache: None,
-            })
+    fn build(device: &wgpu::Device, format: wgpu::TextureFormat, pingpong: bool) -> Gpu {
+        use crate::shared::sim::{with_compute, without_compute};
+        let src = include_str!("../../shaders/turing.wgsl");
+        let src = if pingpong {
+            format!("{}\n{}", without_compute(src), include_str!("../../shaders/turing_pp.wgsl"))
+        } else {
+            with_compute(src)
         };
-        let seed_pipeline = compute_pipeline("cs_seed", "turing seed pipeline");
-        let step_pipeline = compute_pipeline("cs_step", "turing step pipeline");
+        let shader = crate::shared::build_shader(device, "turing", &src);
+
+        let compute = (!pingpong).then(|| {
+            let compute_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("turing compute bgl"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            format: FIELD_FORMAT,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+            let compute_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("turing compute layout"),
+                bind_group_layouts: &[Some(&compute_bgl)],
+                immediate_size: 0,
+            });
+            let compute_pipeline = |entry: &str, label: &str| {
+                device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some(label),
+                    layout: Some(&compute_layout),
+                    module: &shader,
+                    entry_point: Some(entry),
+                    compilation_options: Default::default(),
+                    cache: None,
+                })
+            };
+            let seed_pipeline = compute_pipeline("cs_seed", "turing seed pipeline");
+            let step_pipeline = compute_pipeline("cs_step", "turing step pipeline");
+            Stepper::Compute { seed: seed_pipeline, step: step_pipeline, bgl: compute_bgl }
+        });
 
         // The mesh reads the field in the vertex stage — the height, the
         // normal and both colour ramps all come from the same texel, so
@@ -265,7 +295,7 @@ impl Turing {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 2,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: false },
                         view_dimension: wgpu::TextureViewDimension::D2,
@@ -285,6 +315,42 @@ impl Turing {
             None,
         );
 
+        let stepper = compute.unwrap_or_else(|| {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("turing step layout"),
+                bind_group_layouts: &[Some(&render_bgl)],
+                immediate_size: 0,
+            });
+            let pass = |entry: &str| {
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some(entry),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: Some("vs_full"),
+                        buffers: &[],
+                        compilation_options: Default::default(),
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: Some(entry),
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: FIELD_FORMAT,
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                        compilation_options: Default::default(),
+                    }),
+                    primitive: wgpu::PrimitiveState::default(),
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    multiview_mask: None,
+                    cache: None,
+                })
+            };
+            Stepper::PingPong { seed: pass("fs_seed"), step: pass("fs_step") }
+        });
+
         let make_field = || {
             device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("turing field"),
@@ -297,7 +363,12 @@ impl Turing {
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: FIELD_FORMAT,
-                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::TEXTURE_BINDING,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | if pingpong {
+                        wgpu::TextureUsages::RENDER_ATTACHMENT
+                    } else {
+                        wgpu::TextureUsages::STORAGE_BINDING
+                    },
                 view_formats: &[],
             })
         };
@@ -314,10 +385,8 @@ impl Turing {
         let (index_buffer, index_count) = Self::build_indices(device);
 
         Gpu {
-            seed_pipeline,
-            step_pipeline,
+            stepper,
             render_pipeline,
-            compute_bgl,
             render_bgl,
             field,
             storage_view,
@@ -389,10 +458,6 @@ impl Turing {
 }
 
 impl Model for Turing {
-    fn needs_compute(&self) -> bool {
-        true
-    }
-
     fn id(&self) -> &'static str {
         "turing"
     }
@@ -452,14 +517,29 @@ impl Model for Turing {
             usage: wgpu::BufferUsages::UNIFORM,
         });
 
-        let gpu = self.gpu.get(format, || Self::build(ctx.device, format));
+        let pingpong = self.force_pingpong || !crate::gpu::device_has_compute(ctx.device);
+        let gpu = self.gpu.get(format, || Self::build(ctx.device, format, pingpong));
 
-        // Two compute bind groups, one per direction of the ping-pong.
-        let compute_bg: Vec<wgpu::BindGroup> = (0..2)
-            .map(|from| {
+        // One step bind group per direction of the ping-pong: reading half
+        // `from`, writing the other (a storage view for compute, a render
+        // target for the fragment path).
+        let step_bg: Vec<wgpu::BindGroup> = (0..2)
+            .map(|from| match &gpu.stepper {
+                Stepper::PingPong { .. } => ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("turing step bind group"),
+                    layout: &gpu.render_bgl,
+                    entries: &[
+                        wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::TextureView(&gpu.sampled_view[from]),
+                        },
+                    ],
+                }),
+                Stepper::Compute { bgl, .. } => {
                 ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("turing compute bind group"),
-                    layout: &gpu.compute_bgl,
+                    layout: bgl,
                     entries: &[
                         wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() },
                         wgpu::BindGroupEntry {
@@ -474,6 +554,7 @@ impl Model for Turing {
                         },
                     ],
                 })
+                }
             })
             .collect();
 
@@ -484,26 +565,51 @@ impl Model for Turing {
 
         // One pass per step rather than one pass with many dispatches: the
         // pair swaps roles between steps, and a fresh pass is the plain way
-        // to say "the writes from the last one are visible now".
-        let mut dispatch = |pipeline: &wgpu::ComputePipeline, bind: &wgpu::BindGroup| {
-            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("turing compute pass"),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(pipeline);
-            pass.set_bind_group(0, bind, &[]);
-            pass.dispatch_workgroups(groups, groups, 1);
+        // to say "the writes from the last one are visible now". `from` is
+        // the half read; the other is written.
+        let run = |encoder: &mut wgpu::CommandEncoder, seed: bool, from: usize| match &gpu.stepper {
+            Stepper::Compute { seed: sp, step: tp, .. } => {
+                let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("turing compute pass"),
+                    timestamp_writes: None,
+                });
+                pass.set_pipeline(if seed { sp } else { tp });
+                pass.set_bind_group(0, &step_bg[from], &[]);
+                pass.dispatch_workgroups(groups, groups, 1);
+            }
+            Stepper::PingPong { seed: sp, step: tp } => {
+                let target = gpu.sampled_view[1 - from].clone();
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("turing step pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &target,
+                        resolve_target: None,
+                        depth_slice: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+                pass.set_pipeline(if seed { sp } else { tp });
+                pass.set_bind_group(0, &step_bg[from], &[]);
+                pass.draw(0..3, 0..1);
+            }
         };
 
         if reseed {
-            // Seeding writes field 0, so it runs on the bind group whose
+            // Seeding writes field 0, so it runs on the direction whose
             // destination is field 0 — the one that reads field 1, which it
             // does not touch.
-            dispatch(&gpu.seed_pipeline, &compute_bg[1]);
+            run(&mut encoder, true, 1);
             self.sim.cur = 0;
         }
         for _ in 0..steps {
-            dispatch(&gpu.step_pipeline, &compute_bg[self.sim.cur]);
+            run(&mut encoder, false, self.sim.cur);
             self.sim.cur = 1 - self.sim.cur;
         }
 
@@ -550,5 +656,44 @@ impl Model for Turing {
         }
         ctx.queue.submit(Some(encoder.finish()));
         let _ = &gpu.field; // the views borrow from these; keep them named
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::shared::scaffold::testing::frame;
+
+    /// The fragment ping-pong (what a WebGL2 device runs) draws the same
+    /// frame as the compute path on the same adapter: same seed, same burn-in,
+    /// same steps, both through `seed_value` / `step_value`.
+    #[test]
+    fn the_pingpong_path_matches_the_compute_frame() {
+        let gpu = crate::gpu::Gpu::new_headless();
+        if !crate::gpu::device_has_compute(&gpu.device) {
+            eprintln!("no compute here: only the ping-pong path exists on this adapter");
+            return;
+        }
+        let f = Turing::new().schema().defaults();
+        let times = [0.3, 0.8, 1.4];
+        let a = frame(&gpu, &mut Turing::new(), &f, &times);
+        let b = frame(&gpu, &mut Turing::pingpong(), &f, &times);
+        let diff: Vec<u8> = a.iter().zip(&b).map(|(x, y)| x.abs_diff(*y)).collect();
+        let mean = diff.iter().map(|d| *d as f32).sum::<f32>() / diff.len() as f32;
+        let max = diff.iter().copied().max().unwrap_or(0);
+        println!("turing parity: mean {mean:.4} max {max}");
+        assert!(a.iter().any(|v| *v > 8), "the frame is not black");
+        assert!(mean < 1.0 && max < 48, "ping-pong drifted from compute: mean {mean:.3} max {max}");
+    }
+
+    /// The ping-pong path is a pure function of its time like the compute one:
+    /// the same instant twice is the same frame.
+    #[test]
+    fn the_pingpong_path_is_deterministic() {
+        let gpu = crate::gpu::Gpu::new_headless();
+        let f = Turing::new().schema().defaults();
+        let a = frame(&gpu, &mut Turing::pingpong(), &f, &[0.3, 0.8]);
+        let b = frame(&gpu, &mut Turing::pingpong(), &f, &[0.3, 0.8]);
+        assert_eq!(a, b);
     }
 }

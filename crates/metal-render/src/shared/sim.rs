@@ -11,6 +11,36 @@
 use super::fullscreen::Fullscreen;
 use crate::model::Ctx;
 
+/// `wgsl` without the spans between `//@compute` and `//@end-compute` lines:
+/// the module a device with no compute shaders can build (a storage-texture
+/// binding or a `@compute` entry point in the module fails there even when
+/// unused). The marked span holds the compute-only declarations; the shared
+/// functions around it are the code both paths run.
+pub fn without_compute(wgsl: &str) -> String {
+    let mut out = String::with_capacity(wgsl.len());
+    let mut skipping = false;
+    for line in wgsl.lines() {
+        match line.trim() {
+            "//@compute" => skipping = true,
+            "//@end-compute" => skipping = false,
+            _ if skipping => {}
+            _ => {
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+    }
+    out
+}
+
+/// The same module with the marker comments dropped and the compute spans kept.
+pub fn with_compute(wgsl: &str) -> String {
+    wgsl.lines()
+        .filter(|l| !matches!(l.trim(), "//@compute" | "//@end-compute"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 pub const STATE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
 pub struct PingPong {

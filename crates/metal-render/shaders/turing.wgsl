@@ -26,7 +26,9 @@ struct TurUniform {
 };
 
 @group(0) @binding(0) var<uniform> u: TurUniform;
+//@compute
 @group(0) @binding(1) var dst: texture_storage_2d<rgba16float, write>;
+//@end-compute
 @group(0) @binding(2) var src: texture_2d<f32>;
 
 const EXTENT: f32 = 8.0;   // half-width of the sheet in world units
@@ -75,13 +77,12 @@ fn flow_at(uv: vec2<f32>, time: f32) -> vec2<f32> {
     return steady + curl * clamp(u.f1.z, 0.0, 1.0) * 0.06;
 }
 
-@compute @workgroup_size(8, 8, 1)
-fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
+// The seed and the step are plain functions of a texel, so the compute entry
+// points and the fragment ping-pong (turing_pp.wgsl, for a device without
+// compute) run the same code and cannot drift apart.
+fn seed_value(c: vec2<i32>) -> vec4<f32> {
     let n = i32(u.f4.y);
-    if (i32(gid.x) >= n || i32(gid.y) >= n) {
-        return;
-    }
-    let uv = (vec2<f32>(gid.xy) + 0.5) / f32(n);
+    let uv = (vec2<f32>(c) + 0.5) / f32(n);
     let s = u.f4.x;
 
     // Scattered patches rather than one central blob: the reaction spreads
@@ -90,22 +91,29 @@ fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
     let patches = fbm(uv * 6.0 + s * 37.0, 3);
     let grain = hash21(uv * 512.0 + s * 13.0);
     let v = select(0.0, 0.26 + 0.10 * grain, patches > 0.56);
-    textureStore(dst, vec2<i32>(gid.xy), vec4<f32>(clamp(1.0 - 2.0 * v, 0.0, 1.0), v, 0.0, 1.0));
+    return vec4<f32>(clamp(1.0 - 2.0 * v, 0.0, 1.0), v, 0.0, 1.0);
 }
 
+//@compute
 @compute @workgroup_size(8, 8, 1)
-fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
+fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
     let n = i32(u.f4.y);
     if (i32(gid.x) >= n || i32(gid.y) >= n) {
         return;
     }
-    let uv = (vec2<f32>(gid.xy) + 0.5) / f32(n);
+    textureStore(dst, vec2<i32>(gid.xy), seed_value(vec2<i32>(gid.xy)));
+}
+//@end-compute
+
+fn step_value(cell: vec2<i32>) -> vec4<f32> {
+    let n = i32(u.f4.y);
+    let uv = (vec2<f32>(cell) + 0.5) / f32(n);
 
     // Semi-Lagrangian: read the field from where it came from. The whole
     // stencil is offset by the same velocity, which treats the flow as locally
     // constant — true at these speeds, and it keeps the read count at nine.
     let speed = flow_at(uv, u.f3.w) * clamp(u.f1.x, 0.0, 1.0) * 0.25;
-    let base = vec2<f32>(gid.xy) + vec2<f32>(0.5, 0.5) - speed;
+    let base = vec2<f32>(cell) + vec2<f32>(0.5, 0.5) - speed;
 
     let c  = sample_uv(base, n);
     let l  = sample_uv(base + vec2<f32>(-1.0,  0.0), n);
@@ -130,12 +138,19 @@ fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
     let nu = c.x + (du * lap.x - reaction + feed * (1.0 - c.x)) * DT;
     let nv = c.y + (dv * lap.y + reaction - (feed + kill) * c.y) * DT;
 
-    textureStore(
-        dst,
-        vec2<i32>(gid.xy),
-        vec4<f32>(clamp(nu, 0.0, 1.0), clamp(nv, 0.0, 1.0), 0.0, 1.0),
-    );
+    return vec4<f32>(clamp(nu, 0.0, 1.0), clamp(nv, 0.0, 1.0), 0.0, 1.0);
 }
+
+//@compute
+@compute @workgroup_size(8, 8, 1)
+fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let n = i32(u.f4.y);
+    if (i32(gid.x) >= n || i32(gid.y) >= n) {
+        return;
+    }
+    textureStore(dst, vec2<i32>(gid.xy), step_value(vec2<i32>(gid.xy)));
+}
+//@end-compute
 
 // --- the sheet ------------------------------------------------------------
 

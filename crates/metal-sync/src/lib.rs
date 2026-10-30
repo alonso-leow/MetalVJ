@@ -51,6 +51,7 @@ pub mod pair;
 pub mod pull;
 pub mod reader;
 pub mod state;
+pub mod stats;
 
 pub use land::{Lander, Landing};
 pub use reader::DataReader;

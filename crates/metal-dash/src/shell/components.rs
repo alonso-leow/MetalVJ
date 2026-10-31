@@ -915,8 +915,26 @@ pub fn num_value(
 /// truncated rather than wrapping (a label never pushes its control out of
 /// the row).
 fn row_label(ui: &mut Ui, theme: &Theme, label: &str) {
-    ui.add_sized(
-        [theme.label_width, ui.spacing().interact_size.y],
+    let size = egui::vec2(theme.label_width, ui.spacing().interact_size.y);
+    let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+    // The key cell: the header's grey, a sharp corner and the card's red
+    // glow offset behind it. Painted at the label's own rect, so the row's
+    // layout is unchanged.
+    ui.painter().rect_filled(
+        rect.translate(egui::vec2(theme.hairline * 0.0, theme.hairline * 2.0)),
+        theme.sharp_corner(),
+        theme.glow,
+    );
+    ui.painter()
+        .rect_filled(rect, theme.sharp_corner(), theme.panel_head);
+    ui.painter().rect_stroke(
+        rect,
+        theme.sharp_corner(),
+        theme.rule_stroke(),
+        egui::StrokeKind::Inside,
+    );
+    ui.put(
+        rect,
         egui::Label::new(
             RichText::new(label)
                 .font(theme.font_small.clone())
@@ -942,23 +960,61 @@ pub fn label_row(
         // The value column is what the label leaves — never wider, so a
         // control cannot push the row past the panel.
         let width = ui.available_width().max(0.0);
-        ui.allocate_ui_with_layout(
-            egui::vec2(width, ui.spacing().interact_size.y),
-            egui::Layout::left_to_right(egui::Align::Center),
-            |ui| {
-                ui.set_max_width(width);
-                add(ui)
-            },
-        )
-        .inner
+        egui::Frame::new()
+            .fill(theme.glass_fill())
+            .stroke(theme.line_stroke(theme.hard_ink()))
+            .corner_radius(theme.sharp_corner())
+            .show(ui, |ui| {
+                ui.allocate_ui_with_layout(
+                    egui::vec2(width, ui.spacing().interact_size.y),
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui| {
+                        ui.set_max_width(width);
+                        add(ui)
+                    },
+                )
+                .inner
+            })
+            .inner
     })
     .inner
+}
+
+/// The standard key cell of a properties row: the header's own grey, a sharp
+/// corner, and the card's red shadow, so a column of labels reads as the
+/// table's left spine.
+pub fn key_cell<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
+    egui::Frame::new()
+        .fill(theme.panel_head)
+        .stroke(theme.rule_stroke())
+        .corner_radius(theme.sharp_corner())
+        .inner_margin(theme.card_pad)
+        .shadow(theme.card_shadow())
+        .show(ui, add)
+        .inner
+}
+
+/// The standard payload cell: a black hairline, sharp corners and the
+/// translucent glass wash, so the node canvas grid stays visible behind it.
+pub fn payload_cell<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
+    egui::Frame::new()
+        .fill(theme.glass_fill())
+        .stroke(theme.line_stroke(theme.hard_ink()))
+        .corner_radius(theme.sharp_corner())
+        .inner_margin(theme.card_pad)
+        .show(ui, add)
+        .inner
 }
 
 /// The outlined group every properties section sits in: a quiet grey rule
 /// around the body, `Theme::card_pad` inside, an optional small title on top,
 /// and `Theme::card_gap` after it. Always the panel's full width.
-pub fn card<R>(ui: &mut Ui, theme: &Theme, title: Option<&str>, add: impl FnOnce(&mut Ui) -> R) -> R {
+pub fn card<R>(
+    ui: &mut Ui,
+    theme: &Theme,
+    title: Option<&str>,
+    add: impl FnOnce(&mut Ui) -> R,
+) -> R {
     let out = egui::Frame::new()
         .stroke(theme.border_stroke(Surface::Card))
         .corner_radius(theme.corner_radius())
@@ -966,7 +1022,12 @@ pub fn card<R>(ui: &mut Ui, theme: &Theme, title: Option<&str>, add: impl FnOnce
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             if let Some(title) = title {
-                ui.label(RichText::new(title).font(theme.font_small.clone()).color(theme.ink_weak).strong());
+                ui.label(
+                    RichText::new(title)
+                        .font(theme.font_small.clone())
+                        .color(theme.ink_weak)
+                        .strong(),
+                );
             }
             add(ui)
         })
@@ -1021,16 +1082,23 @@ pub fn card_section<R>(
     add: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     let out = egui::Frame::new()
-        .stroke(theme.border_stroke(Surface::Card))
-        .corner_radius(theme.corner_radius())
+        .fill(theme.glass_fill())
+        .stroke(theme.rule_stroke())
+        .corner_radius(theme.sharp_corner())
         .inner_margin(theme.card_pad)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
+            ui.add_space(theme.item_gap.y);
             let text = format!("{} {label}", if *open { "\u{25be}" } else { "\u{25b8}" });
             let head = ui.add(
-                egui::Label::new(RichText::new(text).font(theme.font_heading.clone()).color(theme.ink_weak))
-                    .truncate()
-                    .sense(egui::Sense::click()),
+                egui::Label::new(
+                    RichText::new(text)
+                        .font(theme.font_heading.clone())
+                        .color(theme.ink)
+                        .strong(),
+                )
+                .truncate()
+                .sense(egui::Sense::click()),
             );
             if head.clicked() {
                 *open = !*open;
@@ -1047,7 +1115,12 @@ pub fn card_section<R>(
 
 /// A key/value row in a card: [`label_row`] by another name, so a new page
 /// reads as "two columns, key then value" and nothing else.
-pub fn kv_row(ui: &mut Ui, theme: &Theme, key: &str, add: impl FnOnce(&mut Ui) -> egui::Response) -> egui::Response {
+pub fn kv_row(
+    ui: &mut Ui,
+    theme: &Theme,
+    key: &str,
+    add: impl FnOnce(&mut Ui) -> egui::Response,
+) -> egui::Response {
     label_row(ui, theme, key, add)
 }
 
@@ -1072,7 +1145,30 @@ pub fn handle_ring(painter: &egui::Painter, theme: &Theme, at: Pos2) {
 
 /// A quiet small-face note line (weak ink), wrapped inside its card.
 pub fn note(ui: &mut Ui, theme: &Theme, text: &str) {
-    ui.add(egui::Label::new(RichText::new(text).font(theme.font_small.clone()).color(theme.ink_weak)).wrap());
+    ui.add(
+        egui::Label::new(
+            RichText::new(text)
+                .font(theme.font_small.clone())
+                .color(theme.ink_weak),
+        )
+        .wrap(),
+    );
+}
+
+/// The properties panel's notice: centred bold text with no fill of its own,
+/// so it floats over the glass/grid behind it rather than reading as a card.
+pub fn notice(ui: &mut Ui, theme: &Theme, text: &str) {
+    ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+        ui.add(
+            egui::Label::new(
+                RichText::new(text)
+                    .font(theme.font_small.clone())
+                    .color(theme.ink)
+                    .strong(),
+            )
+            .wrap(),
+        );
+    });
 }
 
 /// A key/value row whose value is a row of small buttons or toggles that

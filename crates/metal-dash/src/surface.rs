@@ -941,6 +941,112 @@ pub fn pack(spans: &[(usize, usize)], pins: &[Pin], cols: usize, rows: usize) ->
     placed.into_iter().map(|p| p.expect("every span is placed")).collect()
 }
 
+/// Packs like [`pack`], but a cell with an explicit `place` (`[x, y, w, h]` in
+/// sub-cells) keeps it. The free grid's right-click `+` uses this so a new
+/// button lands under the exact empty cell that opened the menu, rather than
+/// at the first free spot in flow order. A place is clamped to the grid; a
+/// cell with no place packs exactly as [`pack`] does.
+pub fn pack_placed(
+    spans: &[(usize, usize)],
+    pins: &[Pin],
+    places: &[Option<[u16; 4]>],
+    cols: usize,
+    rows: usize,
+) -> Vec<Placed> {
+    let (cols, rows) = (cols.max(1), rows.max(1));
+    let fit = |(w, h): (usize, usize)| (w.clamp(1, cols), h.clamp(1, rows));
+    let at_place = |p: [u16; 4], span: (usize, usize)| -> (usize, usize, usize, usize) {
+        let (w, h) = fit(span);
+        let x = (p[0] as usize).min(cols - w);
+        let y = (p[1] as usize).min(rows - h);
+        (x, y, w, h)
+    };
+    let first_fit = |occ: &[bool], w: usize, h: usize| -> Option<(usize, usize)> {
+        (0..=rows - h).find_map(|y| {
+            (0..=cols - w)
+                .find(|&x| (y..y + h).all(|r| (x..x + w).all(|c| !occ[r * cols + c])))
+                .map(|x| (x, y))
+        })
+    };
+    let mark = |occ: &mut [bool], x: usize, y: usize, w: usize, h: usize| {
+        for r in y..y + h {
+            for c in x..x + w {
+                occ[r * cols + c] = true;
+            }
+        }
+    };
+    let mut placed: Vec<Option<Placed>> = vec![None; spans.len()];
+    let mut template = vec![false; cols * rows];
+    for (i, (&span, pin)) in spans.iter().zip(pins).enumerate() {
+        if *pin != Pin::Every {
+            continue;
+        }
+        let (w, h) = fit(span);
+        let (x, y, w, h) = match places[i] {
+            Some(p) => at_place(p, span),
+            None => match first_fit(&template, w, h) {
+                Some((x, y)) => (x, y, w, h),
+                None => continue,
+            },
+        };
+        mark(&mut template, x, y, w, h);
+        placed[i] = Some(Placed {
+            page: 0,
+            x,
+            y,
+            w,
+            h,
+        });
+    }
+    let mut pages: Vec<Vec<bool>> = Vec::new();
+    let take = |pages: &mut Vec<Vec<bool>>, template: &[bool], page: usize| {
+        while pages.len() <= page {
+            pages.push(template.to_vec());
+        }
+    };
+    for (i, (&span, pin)) in spans.iter().zip(pins).enumerate() {
+        let Pin::Page(page) = *pin else { continue };
+        let (w, h) = fit(span);
+        take(&mut pages, &template, page);
+        let (x, y, w, h) = match places[i] {
+            Some(p) => at_place(p, span),
+            None => match first_fit(&pages[page], w, h) {
+                Some((x, y)) => (x, y, w, h),
+                None => continue,
+            },
+        };
+        mark(&mut pages[page], x, y, w, h);
+        placed[i] = Some(Placed { page, x, y, w, h });
+    }
+    let mut page = 0;
+    for (i, &span) in spans.iter().enumerate() {
+        if placed[i].is_some() {
+            continue;
+        }
+        let (w, h) = fit(span);
+        let (x, y, w, h) = match places[i] {
+            Some(p) => at_place(p, span),
+            None => loop {
+                take(&mut pages, &template, page);
+                if let Some((x, y)) = first_fit(&pages[page], w, h) {
+                    break (x, y, w, h);
+                }
+                if !template.contains(&false) || first_fit(&template, w, h).is_none() {
+                    break (0, 0, w, h);
+                }
+                page += 1;
+            },
+        };
+        take(&mut pages, &template, page);
+        mark(&mut pages[page], x, y, w, h);
+        placed[i] = Some(Placed { page, x, y, w, h });
+    }
+    placed
+        .into_iter()
+        .map(|p| p.expect("every span is placed"))
+        .collect()
+}
+
 /// Lays cells out on a box's face. A cell with a `place` holds it — on its
 /// pinned page, or on every page — and keeps that slot from the rest. The
 /// rest fill the free slots in order, page by page: a fader (`value`) the
@@ -1445,6 +1551,23 @@ mod tests {
         assert_eq!((placed[2].x, placed[2].y), (6, 0));
         assert_eq!((placed[3].y, placed[4].y), (2, 4));
         assert!(placed.iter().all(|p| p.page == 0));
+    }
+
+    #[test]
+    fn an_explicit_place_keeps_a_cell_out_of_flow_order() {
+        // Three one-cell cells on a two-wide grid: the middle one is placed
+        // under the empty cell at x=1, y=1 instead of taking the next flow
+        // slot, and the third still flows into the remaining hole.
+        let spans = [(6, 6); 3];
+        let pins = [Pin::Flow; 3];
+        let places = [None, Some([6, 6, 6, 6]), None];
+        let placed = pack_placed(&spans, &pins, &places, 12, 12);
+        assert_eq!((placed[1].x, placed[1].y), (6, 6));
+        assert_eq!((placed[0].x, placed[0].y), (0, 0));
+        assert_eq!((placed[2].x, placed[2].y), (6, 0));
+        // A place is clamped to the grid rather than drawn off it.
+        let placed = pack_placed(&[(6, 6)], &[Pin::Page(2)], &[Some([60, 60, 6, 6])], 12, 12);
+        assert_eq!((placed[0].x, placed[0].y, placed[0].page), (6, 6, 2));
     }
 
     #[test]

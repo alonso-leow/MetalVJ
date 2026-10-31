@@ -876,6 +876,14 @@ pub trait Paint: PaintBound {
             let Some(node) = graph.node(&op.node) else {
                 continue;
             };
+            // A bypassed node renders nothing and passes nothing on: the
+            // engine's plan keeps it so a later un-bypass needs no recompile,
+            // but its tile must not be produced (or read by a downstream
+            // `fx.*`/output) while the flag is set. The UI's bypass gesture and
+            // a grid controller's switch both land on this same flag.
+            if node.bypass {
+                continue;
+            }
             let Some(buf) = op.buffer else { continue };
             // P2: a generator pinned to a surface renders at its own size
             // (`engine::surface_place`); every other node draws at the device.
@@ -2045,6 +2053,33 @@ mod run_tests {
             result.frames.len(),
             1,
             "only the buffer the sink reads should be kept"
+        );
+    }
+
+    /// A bypassed generator produces no frame at all (2026-10-31): the plan
+    /// keeps the op so un-bypassing needs no recompile, but the tile must not
+    /// be rendered or handed to a downstream output while the flag is set.
+    #[test]
+    fn a_bypassed_generator_produces_no_frame() {
+        let mut g = Graph::new("g", "t", Domain::Live);
+        let gen = g.add_node("gen", "gen.turing", [0.0, 0.0]);
+        let out = g.add_node("out", "output.device", [1.0, 0.0]);
+        g.add_edge(Endpoint::new(&gen, "image"), Endpoint::new(&out, "image"));
+        let plan = g.compile();
+
+        let mut stand = crate::stand::Stand::new();
+        let rows: std::collections::HashMap<metal_graph::NodeId, Vec<f32>> =
+            [(gen.clone(), stand.schemas()[0].defaults())]
+                .into_iter()
+                .collect();
+        let live = stand.run(&g, &plan, &rows, &HashMap::new(), &[], 1.0, 16, 9);
+        assert_eq!(live.frames.len(), 1, "the plain generator draws one frame");
+
+        g.node_mut(&gen).unwrap().bypass = true;
+        let dark = stand.run(&g, &plan, &rows, &HashMap::new(), &[], 1.0, 16, 9);
+        assert!(
+            dark.frames.is_empty(),
+            "a bypassed generator must not produce a frame"
         );
     }
 

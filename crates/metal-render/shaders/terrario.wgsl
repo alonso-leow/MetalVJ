@@ -84,7 +84,9 @@ struct StepUniform {
 };
 
 @group(0) @binding(0) var<uniform> u: TerrarioUniform;
+//@compute
 @group(0) @binding(1) var dst: texture_storage_2d<rgba16float, write>;
+//@end-compute
 @group(0) @binding(2) var src: texture_2d<f32>;
 @group(0) @binding(3) var<uniform> st: StepUniform;
 // The sand's material, read by the fragment stage only. At 4/5 so the compute
@@ -214,6 +216,7 @@ fn settle(occ: array<bool, 4>, sun: array<bool, 4>, rest: f32, bias: f32, vibra:
     return map;
 }
 
+//@compute
 @compute @workgroup_size(8, 8, 1)
 fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
     let w = i32(u.a.z);
@@ -226,29 +229,31 @@ fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
     // sand already falling and already piled — see `BURN_IN` on the Rust side.
     textureStore(dst, c, vec4<f32>(0.0, 0.0, 0.0, 0.0));
 }
+//@end-compute
 
-@compute @workgroup_size(8, 8, 1)
-fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
+// One 2x2 block, loaded and permuted. Shared by the compute entry point (one
+// invocation per block, writing its four cells) and the fragment ping-pong
+// (terrario_pp.wgsl: one fragment per cell, recomputing its block), so the two
+// cannot drift.
+struct Block {
+    cell: array<vec4<f32>, 4>,
+    occ: array<bool, 4>,
+    sun: array<bool, 4>,
+    map: array<i32, 4>,
+    mean: f32,
+    base: vec2<i32>,
+};
+
+fn make_block(base: vec2<i32>) -> Block {
     let w = i32(u.a.z);
     let h = i32(u.a.w);
-    let off = i32(st.s.z);
-    // Block origins run from -off so that, on the shifted step, the cells in
-    // row and column 0 are still covered by somebody.
-    let base = vec2<i32>(i32(gid.x) * 2 - off, i32(gid.y) * 2 - off);
-    if (base.x >= w || base.y >= h) {
-        return;
-    }
-
-    let t = st.s.x;
     let salt = st.s.y;
 
     var cell: array<vec4<f32>, 4>;
     var occ: array<bool, 4>;
     var sun: array<bool, 4>;
-    var pos: array<vec2<i32>, 4>;
     for (var k = 0; k < 4; k = k + 1) {
         let p = base + vec2<i32>(k % 2, k / 2);
-        pos[k] = p;
         let s = solid_at(p, w, h);
         sun[k] = s;
         if (s) {
@@ -281,71 +286,103 @@ fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
             count = count + 1.0;
         }
     }
-    let mean = select(0.0, sum / max(count, 1.0), count > 0.0);
-    let mezcla = clamp(u.e.x, 0.0, 1.0);
+    var b: Block;
+    b.cell = cell;
+    b.occ = occ;
+    b.sun = sun;
+    b.map = map;
+    b.mean = select(0.0, sum / max(count, 1.0), count > 0.0);
+    b.base = base;
+    return b;
+}
 
+// What cell `k` of the block holds after the step, for a cell inside the grid.
+fn cell_out(b: Block, k: i32) -> vec4<f32> {
+    let h = i32(u.a.w);
+    let t = st.s.x;
+    let salt = st.s.y;
+    let mezcla = clamp(u.e.x, 0.0, 1.0);
     let sources = clamp(round(u.b.x), 1.0, 10.0);
     let flow = clamp(u.c.x, 0.0, 1.0);
     let half_mouth = max(u.b.w, 0.002) * 0.25 * u.a.z;
     let hue = clamp(u.e.z, 0.0, 1.0);
     let drain = clamp(u.d.w, 0.0, 1.0) * 0.14;
 
+    var cell = b.cell;
+    var sun = b.sun;
+    var map = b.map;
+    let p = b.base + vec2<i32>(k % 2, k / 2);
+    if (sun[k]) {
+        // Written, not skipped. The destination is the other half of a
+        // ping-pong pair, so a cell nobody writes keeps whatever it held
+        // two steps ago — an obstacle turned on under a pile would leave a
+        // ghost of that pile flickering at half the step rate.
+        return vec4<f32>(0.0);
+    }
+    var out = cell[map[k]];
+    let moved = map[k] != k;
+    if (out.x > 0.5) {
+        out.y = mix(out.y, b.mean, mezcla * 0.06);
+        // The motion channel: 1 the instant a grain moves, decaying while
+        // it rests. The render pass lights the falling sand with it, which
+        // is the whole reason a stream reads as a stream and a pile reads
+        // as a pile when they are the same colour.
+        out.w = select(max(out.w * 0.90, 0.0), 1.0, moved);
+    }
+
+    // The mouths. They pour into whatever is empty in the top band, so a
+    // stream that backs up against its own pile stops pouring instead of
+    // overwriting it.
+    if (p.y < 3 && out.x <= 0.5) {
+        let jitter = lattice(vec2<f32>(f32(p.x) + salt * 11.1, f32(p.y) - salt * 4.3));
+        let grain = lattice(vec2<f32>(f32(p.x) - salt * 6.1, f32(p.y) + salt * 8.9 + 23.0));
+        for (var i = 0.0; i < sources; i = i + 1.0) {
+            let mx = mouth_x(i, sources, t, u.a.z);
+            if (abs(f32(p.x) + 0.5 - mx) <= half_mouth && jitter < flow) {
+                var tone = 0.0;
+                if (sources > 1.5) {
+                    tone = (i / (sources - 1.0)) * hue;
+                }
+                out = vec4<f32>(1.0, clamp(tone, 0.0, 1.0), grain, 1.0);
+                break;
+            }
+        }
+    }
+
+    // The drain. Without it the box fills, the rule runs out of holes to
+    // move grains into, and the model becomes a still image of a full box
+    // — legal, and what `drenaje` at 0 is for.
+    if (p.y == h - 1 && out.x > 0.5) {
+        let d = lattice(vec2<f32>(f32(p.x) + salt * 3.3, salt * 1.9 + 77.0));
+        if (d < drain) {
+            out = vec4<f32>(0.0);
+        }
+    }
+    return out;
+}
+
+//@compute
+@compute @workgroup_size(8, 8, 1)
+fn cs_step(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let w = i32(u.a.z);
+    let h = i32(u.a.w);
+    let off = i32(st.s.z);
+    // Block origins run from -off so that, on the shifted step, the cells in
+    // row and column 0 are still covered by somebody.
+    let base = vec2<i32>(i32(gid.x) * 2 - off, i32(gid.y) * 2 - off);
+    if (base.x >= w || base.y >= h) {
+        return;
+    }
+    let b = make_block(base);
     for (var k = 0; k < 4; k = k + 1) {
-        let p = pos[k];
+        let p = base + vec2<i32>(k % 2, k / 2);
         if (p.x < 0 || p.y < 0 || p.x >= w || p.y >= h) {
             continue;
         }
-        if (sun[k]) {
-            // Written, not skipped. The destination is the other half of a
-            // ping-pong pair, so a cell nobody writes keeps whatever it held
-            // two steps ago — an obstacle turned on under a pile would leave a
-            // ghost of that pile flickering at half the step rate.
-            textureStore(dst, p, vec4<f32>(0.0));
-            continue;
-        }
-        var out = cell[map[k]];
-        let moved = map[k] != k;
-        if (out.x > 0.5) {
-            out.y = mix(out.y, mean, mezcla * 0.06);
-            // The motion channel: 1 the instant a grain moves, decaying while
-            // it rests. The render pass lights the falling sand with it, which
-            // is the whole reason a stream reads as a stream and a pile reads
-            // as a pile when they are the same colour.
-            out.w = select(max(out.w * 0.90, 0.0), 1.0, moved);
-        }
-
-        // The mouths. They pour into whatever is empty in the top band, so a
-        // stream that backs up against its own pile stops pouring instead of
-        // overwriting it.
-        if (p.y < 3 && out.x <= 0.5) {
-            let jitter = lattice(vec2<f32>(f32(p.x) + salt * 11.1, f32(p.y) - salt * 4.3));
-            let grain = lattice(vec2<f32>(f32(p.x) - salt * 6.1, f32(p.y) + salt * 8.9 + 23.0));
-            for (var i = 0.0; i < sources; i = i + 1.0) {
-                let mx = mouth_x(i, sources, t, u.a.z);
-                if (abs(f32(p.x) + 0.5 - mx) <= half_mouth && jitter < flow) {
-                    var tone = 0.0;
-                    if (sources > 1.5) {
-                        tone = (i / (sources - 1.0)) * hue;
-                    }
-                    out = vec4<f32>(1.0, clamp(tone, 0.0, 1.0), grain, 1.0);
-                    break;
-                }
-            }
-        }
-
-        // The drain. Without it the box fills, the rule runs out of holes to
-        // move grains into, and the model becomes a still image of a full box
-        // — legal, and what `drenaje` at 0 is for.
-        if (p.y == h - 1 && out.x > 0.5) {
-            let d = lattice(vec2<f32>(f32(p.x) + salt * 3.3, salt * 1.9 + 77.0));
-            if (d < drain) {
-                out = vec4<f32>(0.0);
-            }
-        }
-
-        textureStore(dst, p, out);
+        textureStore(dst, p, cell_out(b, k));
     }
 }
+//@end-compute
 
 // ---------------------------------------------------------------------------
 // looking at it

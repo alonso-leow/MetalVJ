@@ -287,11 +287,24 @@ struct StepUniform {
     s: [f32; 4],
 }
 
+/// Compute where the device has it; otherwise the same `make_block` /
+/// `cell_out` drawn by a fragment pass per cell (WebGL2).
+enum Stepper {
+    Compute {
+        seed: wgpu::ComputePipeline,
+        step: wgpu::ComputePipeline,
+        bgl: wgpu::BindGroupLayout,
+    },
+    PingPong {
+        seed: wgpu::RenderPipeline,
+        step: wgpu::RenderPipeline,
+        bgl: wgpu::BindGroupLayout,
+    },
+}
+
 struct Gpu {
-    seed_pipeline: wgpu::ComputePipeline,
-    step_pipeline: wgpu::ComputePipeline,
+    stepper: Stepper,
     render_pipeline: wgpu::RenderPipeline,
-    compute_bgl: wgpu::BindGroupLayout,
     render_bgl: wgpu::BindGroupLayout,
     /// Ping-pong pair, for the reason Turing has one: a step reads every cell
     /// of the grid and writes every cell of the grid, and one texture cannot
@@ -321,84 +334,107 @@ pub struct Terrario {
     gpu: Built<Gpu>,
     sim: Sim,
     surfaces: PartSet<1>,
+    /// Step with the fragment ping-pong even where compute exists (the parity
+    /// test runs both on one adapter).
+    force_pingpong: bool,
 }
 
 impl Terrario {
     pub fn new() -> Terrario {
-        Terrario { gpu: Built::default(), sim: Sim::default(), surfaces: PartSet::new(SURFACES) }
+        Terrario {
+            gpu: Built::default(),
+            sim: Sim::default(),
+            surfaces: PartSet::new(SURFACES),
+            force_pingpong: false,
+        }
     }
 
-    fn build(device: &wgpu::Device, format: wgpu::TextureFormat) -> Gpu {
+    #[cfg(test)]
+    fn pingpong() -> Terrario {
+        Terrario { force_pingpong: true, ..Terrario::new() }
+    }
+
+    fn build(device: &wgpu::Device, format: wgpu::TextureFormat, pingpong: bool) -> Gpu {
+        use crate::shared::sim::{with_compute, without_compute};
+        let body = include_str!("../../shaders/terrario.wgsl");
+        let body = if pingpong {
+            format!("{}\n{}", without_compute(body), include_str!("../../shaders/terrario_pp.wgsl"))
+        } else {
+            with_compute(body)
+        };
         let module_wgsl = format!(
             "{}\n{}\n{}",
             include_str!("../../shaders/surface.wgsl"),
             include_str!("../../shaders/material.wgsl"),
-            include_str!("../../shaders/terrario.wgsl"),
+            body,
         );
         let shader = crate::shared::build_shader(device, "terrarium", &module_wgsl);
 
-        let compute_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("terrario compute bgl"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+        let compute = (!pingpong).then(|| {
+            let compute_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("terrario compute bgl"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::StorageTexture {
-                        access: wgpu::StorageTextureAccess::WriteOnly,
-                        format: GRID_FORMAT,
-                        view_dimension: wgpu::TextureViewDimension::D2,
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            format: GRID_FORMAT,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-            ],
+                ],
+            });
+            let compute_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("terrario compute layout"),
+                bind_group_layouts: &[Some(&compute_bgl)],
+                immediate_size: 0,
+            });
+            let compute_pipeline = |entry: &str, label: &str| {
+                device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some(label),
+                    layout: Some(&compute_layout),
+                    module: &shader,
+                    entry_point: Some(entry),
+                    compilation_options: Default::default(),
+                    cache: None,
+                })
+            };
+            let seed_pipeline = compute_pipeline("cs_seed", "terrario seed pipeline");
+            let step_pipeline = compute_pipeline("cs_step", "terrario step pipeline");
+            Stepper::Compute { seed: seed_pipeline, step: step_pipeline, bgl: compute_bgl }
         });
-        let compute_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("terrario compute layout"),
-            bind_group_layouts: &[Some(&compute_bgl)],
-            immediate_size: 0,
-        });
-        let compute_pipeline = |entry: &str, label: &str| {
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some(label),
-                layout: Some(&compute_layout),
-                module: &shader,
-                entry_point: Some(entry),
-                compilation_options: Default::default(),
-                cache: None,
-            })
-        };
-        let seed_pipeline = compute_pipeline("cs_seed", "terrario seed pipeline");
-        let step_pipeline = compute_pipeline("cs_step", "terrario step pipeline");
 
         // The frame is one triangle reading the grid with `textureLoad`, not a
         // mesh and not a sampler: a grain has to land on whole cells, and
@@ -478,14 +514,74 @@ impl Terrario {
             cache: None,
         });
 
+        let stepper = compute.unwrap_or_else(|| {
+            let entry = |binding: u32, ty: wgpu::BindingType| wgpu::BindGroupLayoutEntry {
+                binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty,
+                count: None,
+            };
+            let uniform = wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            };
+            let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("terrario step bgl"),
+                entries: &[
+                    entry(0, uniform),
+                    entry(
+                        2,
+                        wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                    ),
+                    entry(3, uniform),
+                ],
+            });
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("terrario step layout"),
+                bind_group_layouts: &[Some(&bgl)],
+                immediate_size: 0,
+            });
+            let pass = |fs: &str| {
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some(fs),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: Some("vs_main"),
+                        buffers: &[],
+                        compilation_options: Default::default(),
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: Some(fs),
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: GRID_FORMAT,
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                        compilation_options: Default::default(),
+                    }),
+                    primitive: wgpu::PrimitiveState::default(),
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    multiview_mask: None,
+                    cache: None,
+                })
+            };
+            Stepper::PingPong { seed: pass("fs_seed"), step: pass("fs_step"), bgl }
+        });
+
         let dims = grid_dims(16.0 / 9.0);
-        let (grid, storage_view, sampled_view) = Self::make_grids(device, dims);
+        let (grid, storage_view, sampled_view) = Self::make_grids(device, dims, pingpong);
 
         Gpu {
-            seed_pipeline,
-            step_pipeline,
+            stepper,
             render_pipeline,
-            compute_bgl,
             render_bgl,
             grid,
             dims,
@@ -497,6 +593,7 @@ impl Terrario {
     fn make_grids(
         device: &wgpu::Device,
         (w, h): (u32, u32),
+        pingpong: bool,
     ) -> ([wgpu::Texture; 2], [wgpu::TextureView; 2], [wgpu::TextureView; 2]) {
         let make_grid = || {
             device.create_texture(&wgpu::TextureDescriptor {
@@ -506,7 +603,12 @@ impl Terrario {
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: GRID_FORMAT,
-                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::TEXTURE_BINDING,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | if pingpong {
+                        wgpu::TextureUsages::RENDER_ATTACHMENT
+                    } else {
+                        wgpu::TextureUsages::STORAGE_BINDING
+                    },
                 view_formats: &[],
             })
         };
@@ -551,10 +653,6 @@ impl Terrario {
 }
 
 impl Model for Terrario {
-    fn needs_compute(&self) -> bool {
-        true
-    }
-
     fn id(&self) -> &'static str {
         "terrarium"
     }
@@ -594,10 +692,11 @@ impl Model for Terrario {
             + (floats[20].clamp(0.0, 1.0) * 100.0).round() as u32;
         // The grid follows the viewport's aspect; a new shape is a new box.
         let dims = grid_dims(ctx.aspect());
+        let pingpong = self.force_pingpong || !crate::gpu::device_has_compute(ctx.device);
         {
-            let gpu = self.gpu.get(format, || Self::build(ctx.device, format));
+            let gpu = self.gpu.get(format, || Self::build(ctx.device, format, pingpong));
             if gpu.dims != dims {
-                let (grid, storage_view, sampled_view) = Self::make_grids(ctx.device, dims);
+                let (grid, storage_view, sampled_view) = Self::make_grids(ctx.device, dims, pingpong);
                 gpu.grid = grid;
                 gpu.storage_view = storage_view;
                 gpu.sampled_view = sampled_view;
@@ -628,7 +727,7 @@ impl Model for Terrario {
             usage: wgpu::BufferUsages::UNIFORM,
         });
 
-        let gpu = self.gpu.get(format, || Self::build(ctx.device, format));
+        let gpu = self.gpu.get(format, || Self::build(ctx.device, format, pingpong));
 
         let mut encoder = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("terrario encoder"),
@@ -645,9 +744,27 @@ impl Model for Terrario {
                 contents: bytemuck::bytes_of(&s),
                 usage: wgpu::BufferUsages::UNIFORM,
             });
+            let (layout, pp) = match &gpu.stepper {
+                Stepper::Compute { bgl, .. } => (bgl, false),
+                Stepper::PingPong { bgl, .. } => (bgl, true),
+            };
+            if pp {
+                return ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("terrario step bind group"),
+                    layout,
+                    entries: &[
+                        wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::TextureView(&gpu.sampled_view[from]),
+                        },
+                        wgpu::BindGroupEntry { binding: 3, resource: sbuf.as_entire_binding() },
+                    ],
+                });
+            }
             ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("terrario compute bind group"),
-                layout: &gpu.compute_bgl,
+                layout,
                 entries: &[
                     wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() },
                     wgpu::BindGroupEntry {
@@ -698,23 +815,49 @@ impl Model for Terrario {
             let mut next = 0usize;
             // One pass per step rather than one pass with many dispatches: the
             // pair swaps roles between steps, and a fresh pass is the plain way
-            // to say the previous one's writes are visible now.
-            let mut dispatch = |pipeline: &wgpu::ComputePipeline, x: u32, y: u32| {
-                let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("terrario compute pass"),
-                    timestamp_writes: None,
-                });
-                pass.set_pipeline(pipeline);
-                pass.set_bind_group(0, &bind_groups[next], &[]);
-                pass.dispatch_workgroups(x, y, 1);
+            // to say the previous one's writes are visible now. `to` is the
+            // half written (only the fragment path needs it here).
+            let mut dispatch = |seed: bool, to: usize, x: u32, y: u32| {
+                match &gpu.stepper {
+                    Stepper::Compute { seed: sp, step: tp, .. } => {
+                        let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                            label: Some("terrario compute pass"),
+                            timestamp_writes: None,
+                        });
+                        pass.set_pipeline(if seed { sp } else { tp });
+                        pass.set_bind_group(0, &bind_groups[next], &[]);
+                        pass.dispatch_workgroups(x, y, 1);
+                    }
+                    Stepper::PingPong { seed: sp, step: tp, .. } => {
+                        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("terrario step pass"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &gpu.sampled_view[to],
+                                resolve_target: None,
+                                depth_slice: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                    store: wgpu::StoreOp::Store,
+                                },
+                            })],
+                            depth_stencil_attachment: None,
+                            timestamp_writes: None,
+                            occlusion_query_set: None,
+                            multiview_mask: None,
+                        });
+                        pass.set_pipeline(if seed { sp } else { tp });
+                        pass.set_bind_group(0, &bind_groups[next], &[]);
+                        pass.draw(0..3, 0..1);
+                    }
+                }
                 next += 1;
             };
             if reseed {
-                dispatch(&gpu.seed_pipeline, seed_groups_x, seed_groups_y);
+                dispatch(true, 0, seed_groups_x, seed_groups_y);
                 self.sim.cur = 0;
             }
             for _ in 0..steps {
-                dispatch(&gpu.step_pipeline, groups_x, groups_y);
+                dispatch(false, 1 - self.sim.cur, groups_x, groups_y);
                 self.sim.cur = 1 - self.sim.cur;
             }
         }
@@ -1003,5 +1146,27 @@ mod tests {
             let restored = draw(&mut model);
             assert_eq!(plain, restored, "clearing {name} did not restore the frame");
         }
+    }
+
+    /// The fragment ping-pong (what a WebGL2 device runs) draws the same frame
+    /// as the compute path on the same adapter.
+    #[test]
+    fn the_pingpong_path_matches_the_compute_frame() {
+        use crate::shared::scaffold::testing::frame;
+        let gpu = crate::gpu::Gpu::new_headless();
+        if !crate::gpu::device_has_compute(&gpu.device) {
+            eprintln!("no compute here: only the ping-pong path exists on this adapter");
+            return;
+        }
+        let f = row();
+        let times = [0.3, 0.8, 1.4];
+        let a = frame(&gpu, &mut Terrario::new(), &f, &times);
+        let b = frame(&gpu, &mut Terrario::pingpong(), &f, &times);
+        let diff: Vec<u8> = a.iter().zip(&b).map(|(x, y)| x.abs_diff(*y)).collect();
+        let mean = diff.iter().map(|d| *d as f32).sum::<f32>() / diff.len() as f32;
+        let max = diff.iter().copied().max().unwrap_or(0);
+        println!("terrario parity: mean {mean:.4} max {max}");
+        assert!(a.iter().any(|v| *v > 8), "the frame is not black");
+        assert!(mean < 0.5, "ping-pong drifted from compute: mean {mean:.3} max {max}");
     }
 }

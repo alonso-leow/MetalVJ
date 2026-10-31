@@ -69,6 +69,11 @@ pub const PARAM_PREFIX: &str = "param:";
 
 /// The key a generator node holds its fixed floats under — see the module doc.
 pub const GEN_HELD_KEY: &str = "floats";
+/// Where a generator holds its colour slots, `{"<slot>": [12 floats]}`.
+pub const GEN_COLOURS_KEY: &str = "colours";
+/// Where a generator holds its camera, `[7 floats]`, and the name of its param.
+pub const GEN_CAMERA_KEY: &str = "camera";
+pub const CAMERA_PARAM: &str = "camera";
 
 /// `param:<name>`, the `to.port` of a binding.
 pub fn param_port(name: &str) -> String {
@@ -108,10 +113,12 @@ pub fn split_var_port(from_port: &str) -> Option<(&str, &str)> {
 #[serde(rename_all = "snake_case")]
 pub enum ParamKind {
     Float,
-    /// A generator's colour slot (four RGB stops). Listed so a panel can show
-    /// the row; binding and holding one is the colour extension point, not
-    /// wired yet.
+    /// A generator's colour slot (four RGB stops, 12 floats). A node holds one
+    /// under `config.colours.<name>` ([`set_held_vec`]); a binding can drive it.
     Colour,
+    /// A generator's camera (pos.xyz, target.xyz, fov: 7 floats). A node holds
+    /// it under `config.camera` ([`set_held_vec`]); it cannot be bound.
+    Camera,
 }
 
 /// One input a node exposes — see the module doc.
@@ -133,6 +140,13 @@ pub struct Param {
     /// for an effect's `amount`, which is not a slot of its own node.
     #[serde(default)]
     pub index: Option<usize>,
+    /// A colour slot's or the camera's resting floats (12 or 7), from the
+    /// model's schema. `None` for a float.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub defaults: Option<Vec<f32>>,
+    /// The vector this node holds for a colour slot or the camera, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub values: Option<Vec<f32>>,
 }
 
 /// Equality is reflexive here: every number in a `Param` is finite by
@@ -143,7 +157,7 @@ impl Eq for Param {}
 
 impl Param {
     fn float(name: &str, min: f32, max: f32, default: f32, index: Option<usize>) -> Param {
-        Param { name: name.to_string(), min, max, default, value: None, kind: ParamKind::Float, index }
+        Param { name: name.to_string(), min, max, default, value: None, kind: ParamKind::Float, index, defaults: None, values: None }
     }
 }
 
@@ -383,6 +397,8 @@ pub fn effect_params(kind: &str) -> Vec<Param> {
                 value: None,
                 kind: ParamKind::Colour,
                 index: None,
+                defaults: None,
+                values: None,
             },
         ];
     }
@@ -455,8 +471,8 @@ fn is_advanced_effect(kind: &str) -> bool {
 /// generator's parameters is written once.
 enum RowBlock<'a> {
     Floats(Vec<(&'a str, f32, f32, f32)>),
-    Colour(&'a str, f32),
-    Other(usize),
+    Colour(&'a str, Vec<f32>),
+    Camera(Vec<f32>),
 }
 
 /// A generator's parameters from its manifest entry: every float of its own
@@ -464,16 +480,20 @@ enum RowBlock<'a> {
 /// **without** the shared `sig_*` block (driven by `out.*` nodes) and the
 /// shared effects block and its `leak_color` slot (driven by `fx.*` nodes).
 pub fn model_params(model: &metal_schema::ManifestModel) -> Vec<Param> {
-    let camera = metal_schema::camera([0.0; 3], [0.0; 3], 0.0).width();
+    let plain_camera = || match metal_schema::camera([0.0; 3], [0.0; 3], 0.0) {
+        metal_schema::Block::Camera(view) => view.to_vec(),
+        _ => Vec::new(),
+    };
     row_params(model.blocks.iter().map(|b| match b {
         metal_schema::ManifestBlock::Floats { fields } => {
             RowBlock::Floats(fields.iter().map(|f| (f.name.as_str(), f.min, f.max, f.default)).collect())
         }
-        metal_schema::ManifestBlock::ColorSlot { name, default } => RowBlock::Colour(
-            name.as_str(),
-            default.as_ref().and_then(|d| d.first().copied()).unwrap_or(metal_schema::WHITE4[0]),
-        ),
-        metal_schema::ManifestBlock::Camera { .. } => RowBlock::Other(camera),
+        metal_schema::ManifestBlock::ColorSlot { name, default } => {
+            RowBlock::Colour(name.as_str(), default.clone().unwrap_or_else(|| metal_schema::WHITE4.to_vec()))
+        }
+        metal_schema::ManifestBlock::Camera { default } => {
+            RowBlock::Camera(default.clone().unwrap_or_else(plain_camera))
+        }
     }))
 }
 
@@ -485,8 +505,8 @@ pub fn schema_params(schema: &metal_schema::Schema) -> Vec<Param> {
         metal_schema::Block::Floats(specs) => {
             RowBlock::Floats(specs.iter().map(|s| (s.name, s.min, s.max, s.default)).collect())
         }
-        metal_schema::Block::ColorSlot(name, start) => RowBlock::Colour(name, start[0]),
-        other => RowBlock::Other(other.width()),
+        metal_schema::Block::ColorSlot(name, start) => RowBlock::Colour(name, start.to_vec()),
+        metal_schema::Block::Camera(view) => RowBlock::Camera(view.to_vec()),
     }))
 }
 
@@ -508,21 +528,37 @@ fn row_params<'a>(blocks: impl Iterator<Item = RowBlock<'a>>) -> Vec<Param> {
                 }
                 at += fields.len();
             }
-            RowBlock::Colour(name, default) => {
+            RowBlock::Colour(name, stops) => {
                 if name != effects_colour {
                     out.push(Param {
                         name: name.to_string(),
                         min: 0.0,
                         max: 1.0,
-                        default,
+                        default: stops.first().copied().unwrap_or(1.0),
                         value: None,
                         kind: ParamKind::Colour,
                         index: Some(at),
+                        defaults: Some(stops),
+                        values: None,
                     });
                 }
                 at += colour_width;
             }
-            RowBlock::Other(width) => at += width,
+            RowBlock::Camera(view) => {
+                let width = view.len();
+                out.push(Param {
+                    name: CAMERA_PARAM.to_string(),
+                    min: f32::MIN,
+                    max: f32::MAX,
+                    default: 0.0,
+                    value: None,
+                    kind: ParamKind::Camera,
+                    index: Some(at),
+                    defaults: Some(view),
+                    values: None,
+                });
+                at += width;
+            }
         }
     }
     out
@@ -628,6 +664,10 @@ pub fn node_params(node: &Node, kind: Option<&NodeKind>) -> Vec<Param> {
         let held = config.get(GEN_HELD_KEY).and_then(Value::as_object);
         for p in out.iter_mut().filter(|p| p.kind == ParamKind::Float) {
             p.value = metal_schema::param_aliases::alias_keys(&p.name).find_map(|k| held.and_then(|h| h.get(k))).and_then(number);
+        }
+        let vectors = gen_held_vecs_of(&config);
+        for p in out.iter_mut().filter(|p| p.kind != ParamKind::Float) {
+            p.values = vectors.get(&p.name).cloned();
         }
     } else if node.kind.starts_with("fx.text.") {
         for p in out.iter_mut() {
@@ -952,9 +992,10 @@ pub fn set_held(
     let Some(param) = find_param(n, kind, name) else {
         return Err(format!("{node} ({}) has no parameter {name:?}", n.kind));
     };
-    if param.kind == ParamKind::Colour {
+    if param.kind != ParamKind::Float {
         return Err(format!(
-            "{node}.{name} is a colour slot — holding a colour per node is not wired yet"
+            "{node}.{name} is a {} — hold it with a list of floats (`set_held_vec`), not a number",
+            if param.kind == ParamKind::Camera { "camera" } else { "colour slot" }
         ));
     }
     if let Some(v) = value {
@@ -1079,6 +1120,84 @@ pub fn set_held(
     Ok(())
 }
 
+/// Holds (or, with `None`, releases) a generator's colour slot (12 floats in
+/// `0..=1`) or its camera (7 finite floats) on `node`: `config.colours.<slot>`
+/// or `config.camera`. The row is pinned over the driven one at render time.
+pub fn set_held_vec(
+    graph: &mut Graph,
+    node: &str,
+    name: &str,
+    value: Option<Vec<f32>>,
+    catalog: &[NodeKind],
+) -> Result<(), String> {
+    let n = graph.node(node).ok_or_else(|| format!("no such node: {node}"))?;
+    if !n.kind.starts_with("gen.") || n.kind == crate::RAMP_KIND {
+        return Err(format!("{node} ({}) holds no colour or camera", n.kind));
+    }
+    let kind = catalog.iter().find(|k| k.kind == n.kind);
+    let Some(param) = find_param(n, kind, name).filter(|p| p.kind != ParamKind::Float) else {
+        return Err(format!("{node} ({}) has no colour slot or camera {name:?}", n.kind));
+    };
+    let width = param.defaults.as_ref().map_or(0, Vec::len);
+    if let Some(v) = &value {
+        if v.len() != width {
+            return Err(format!("{node}.{}: expected {width} floats, got {}", param.name, v.len()));
+        }
+        let ok = v.iter().all(|x| x.is_finite() && (param.kind == ParamKind::Camera || (0.0..=1.0).contains(x)));
+        if !ok {
+            return Err(format!("{node}.{}: every float must be finite{}", param.name, if param.kind == ParamKind::Colour { " and in 0..=1" } else { "" }));
+        }
+    }
+    let mut config = config_json(n);
+    if !config.is_object() {
+        config = json!({});
+    }
+    if param.kind == ParamKind::Camera {
+        match value {
+            Some(v) => config[GEN_CAMERA_KEY] = json!(v),
+            None => {
+                config.as_object_mut().map(|o| o.remove(GEN_CAMERA_KEY));
+            }
+        }
+    } else {
+        let mut held: Map<String, Value> =
+            config.get(GEN_COLOURS_KEY).and_then(Value::as_object).cloned().unwrap_or_default();
+        match value {
+            Some(v) => held.insert(param.name.clone(), json!(v)),
+            None => held.remove(&param.name),
+        };
+        if held.is_empty() {
+            config.as_object_mut().map(|o| o.remove(GEN_COLOURS_KEY));
+        } else {
+            config[GEN_COLOURS_KEY] = Value::Object(held);
+        }
+    }
+    graph.node_mut(node).expect("found above").config = Config::from_value(config);
+    Ok(())
+}
+
+fn gen_held_vecs_of(config: &Value) -> HashMap<String, Vec<f32>> {
+    let floats = |v: &Value| -> Option<Vec<f32>> { v.as_array()?.iter().map(number).collect() };
+    let mut out = HashMap::new();
+    if let Some(slots) = config.get(GEN_COLOURS_KEY).and_then(Value::as_object) {
+        for (k, v) in slots {
+            if let Some(f) = floats(v) {
+                out.insert(k.clone(), f);
+            }
+        }
+    }
+    if let Some(f) = config.get(GEN_CAMERA_KEY).and_then(floats) {
+        out.insert(CAMERA_PARAM.to_string(), f);
+    }
+    out
+}
+
+/// The held colour slots and camera of `node`, by param name (`camera` for the
+/// camera): what the runtime pins over the driven row.
+pub fn gen_held_vecs(node: &Node) -> HashMap<String, Vec<f32>> {
+    gen_held_vecs_of(&config_json(node))
+}
+
 /// The held generator floats of `node` — `config.floats` as an object — by
 /// name. What the runtime pins over the driven row.
 pub fn gen_held(node: &Node) -> HashMap<String, f32> {
@@ -1116,6 +1235,32 @@ mod tests {
 
     fn with_config(g: &mut Graph, id: &str, config: Value) {
         g.node_mut(id).unwrap().config = Config::from_value(config);
+    }
+
+    /// A colour slot and the camera are held as whole lists, read back by
+    /// `node_params`, refused by width and range, and released with `None`.
+    #[test]
+    fn a_colour_and_a_camera_are_held_as_lists_and_released() {
+        let catalog = catalog();
+        let kind = catalog.iter().find(|k| k.kind == "gen.turing").unwrap();
+        let colour = kind.params.iter().find(|p| p.kind == ParamKind::Colour).unwrap().clone();
+        let camera = kind.params.iter().find(|p| p.kind == ParamKind::Camera).expect("a model's camera is a param").clone();
+        assert_eq!(camera.defaults.as_ref().map(Vec::len), Some(7));
+        assert_eq!(colour.defaults.as_ref().map(Vec::len), Some(12));
+        let mut g = Graph::new("g", "t", Domain::Live);
+        let id = g.add_node("gen", "gen.turing", [0.0, 0.0]);
+        set_held_vec(&mut g, &id, &colour.name, Some(vec![0.25; 12]), &catalog).unwrap();
+        set_held_vec(&mut g, &id, "camera", Some(vec![1.0; 7]), &catalog).unwrap();
+        let got = node_params(g.node(&id).unwrap(), Some(kind));
+        let by = |n: &str| got.iter().find(|p| p.name == n).unwrap().values.clone();
+        assert_eq!(by(&colour.name), Some(vec![0.25; 12]));
+        assert_eq!(by("camera"), Some(vec![1.0; 7]));
+        assert!(set_held_vec(&mut g, &id, &colour.name, Some(vec![0.25; 3]), &catalog).is_err(), "wrong width");
+        assert!(set_held_vec(&mut g, &id, &colour.name, Some(vec![2.0; 12]), &catalog).is_err(), "out of 0..1");
+        assert!(set_held(&mut g, &id, &colour.name, Some(0.5), &catalog).is_err(), "a number is not a colour");
+        set_held_vec(&mut g, &id, &colour.name, None, &catalog).unwrap();
+        set_held_vec(&mut g, &id, "camera", None, &catalog).unwrap();
+        assert!(gen_held_vecs(g.node(&id).unwrap()).is_empty());
     }
 
     #[test]

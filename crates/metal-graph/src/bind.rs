@@ -119,6 +119,7 @@ fn compatible(consumer: &str, param: &Param, producer: &Node, var: &Var) -> Resu
     match (param.kind, var.kind) {
         (ParamKind::Float, VarKind::Float) => Ok(()),
         (ParamKind::Colour, VarKind::Colour) => Ok(()),
+        (ParamKind::Camera, _) => Err(format!("{consumer}.{} is the camera — it is held, not bound", param.name)),
         (ParamKind::Colour, _) => Err(format!(
             "{consumer}.{} is a colour slot — bind a colour variable to it (a `color` or `palette` node's `control.<slot>`)",
             param.name

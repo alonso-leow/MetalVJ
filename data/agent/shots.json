@@ -8411,6 +8411,78 @@
           "tool_calls": []
         }
       ]
+    },
+    {
+      "id": "scene-in-one-write",
+      "tags": [
+        "set_param_batch"
+      ],
+      "user": "Set Turing's scale to 3 and its feed to 0.02 in one go.",
+      "steps": [
+        {
+          "assistant": "Both are held floats on the same node, so one all-or-nothing batch writes them and saves the graph once.",
+          "tool_calls": [
+            {
+              "name": "set_param_batch",
+              "arguments": {
+                "graph": "g1",
+                "updates": [
+                  {
+                    "node": "gen-0",
+                    "name": "scale",
+                    "value": 3.0
+                  },
+                  {
+                    "node": "gen-0",
+                    "name": "feed",
+                    "value": 0.02
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "release-and-hold-colour-camera",
+      "tags": [
+        "set_param_batch"
+      ],
+      "user": "Release Turing's scale, and hold its camera looking at the origin from z=4.",
+      "steps": [
+        {
+          "assistant": "`null` releases the float; the camera is held as seven floats (position, target, fov) in the same batch.",
+          "tool_calls": [
+            {
+              "name": "set_param_batch",
+              "arguments": {
+                "graph": "g1",
+                "updates": [
+                  {
+                    "node": "gen-0",
+                    "name": "scale",
+                    "value": null
+                  },
+                  {
+                    "node": "gen-0",
+                    "name": "camera",
+                    "value": [
+                      0,
+                      0,
+                      4,
+                      0,
+                      0,
+                      0,
+                      45
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -992,6 +992,8 @@ mod tests {
                         value: None,
                         kind: crate::params::ParamKind::Float,
                         index: Some(0),
+                        defaults: None,
+                        values: None,
                     },
                     crate::params::Param {
                         name: "stroke".to_string(),
@@ -1001,6 +1003,8 @@ mod tests {
                         value: None,
                         kind: crate::params::ParamKind::Colour,
                         index: Some(1),
+                        defaults: None,
+                        values: None,
                     },
                 ],
                 ..NodeKind::new(

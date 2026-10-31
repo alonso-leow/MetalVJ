@@ -180,6 +180,64 @@ pub(crate) fn post_param(door: &dyn Call, gid: &str, node: &str, name: &str, val
     );
 }
 
+/// Holds `value` (12 floats for a colour slot, 7 for the camera) on the node,
+/// or releases it with `None` — `POST /graph/node {op: "param"}` with a list.
+pub(crate) fn post_vector(door: &dyn Call, gid: &str, node: &str, name: &str, value: Option<&[f32]>) {
+    post(
+        door,
+        "/graph/node",
+        json!({ "op": "param", "graph": gid, "node": node, "name": name, "value": value }),
+    );
+}
+
+/// The colour slots and the camera of a generator, from the same schema
+/// params as the floats: one swatch per colour stop and seven rows for the
+/// camera, each holding the whole vector on a change (`null` releases it).
+fn vector_rows(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, gid: &str, node_id: &str, params: &[Value]) {
+    for p in params.iter().filter(|p| p["kind"] == json!("colour") || p["kind"] == json!("camera")) {
+        let name = p["name"].as_str().unwrap_or("").to_string();
+        let read = |k: &str| -> Option<Vec<f32>> {
+            p[k].as_array().map(|a| a.iter().map(|x| x.as_f64().unwrap_or(0.0) as f32).collect())
+        };
+        let held = read("values");
+        let mut vector = held.clone().or_else(|| read("defaults")).unwrap_or_default();
+        let mut changed = false;
+        if p["kind"] == json!("colour") {
+            section_heading(ui, theme, &name);
+            for (i, stop) in vector.chunks_mut(3).enumerate() {
+                if stop.len() < 3 {
+                    continue;
+                }
+                let mut hsb = metal_notation::color::Hsb::from_rgb(stop[0], stop[1], stop[2]);
+                let label = trf("stop {n}", &[("n", &(i + 1))]);
+                if crate::shell::components::colour_row(ui, theme, &label, &mut hsb).changed() {
+                    stop.copy_from_slice(&hsb.to_rgb());
+                    changed = true;
+                }
+            }
+        } else {
+            section_heading(ui, theme, tr("camera"));
+            let labels = [
+                (tr("camera · position"), "x"), (tr("camera · position"), "y"), (tr("camera · position"), "z"),
+                (tr("camera · target"), "x"), (tr("camera · target"), "y"), (tr("camera · target"), "z"),
+                (tr("camera · fov"), ""),
+            ];
+            for (v, (what, axis)) in vector.iter_mut().zip(labels) {
+                let label = format!("{what} {axis}");
+                changed |= number_row(ui, theme, label.trim(), v, -1000.0..=1000.0, "", 3, true).changed();
+            }
+        }
+        if changed {
+            post_vector(door, gid, node_id, &name, Some(&vector));
+            invalidate(state);
+        }
+        if held.is_some() && ui.button(small_text(theme, trf("release {param}", &[("param", &name)]))).clicked() {
+            post_vector(door, gid, node_id, &name, None);
+            invalidate(state);
+        }
+    }
+}
+
 /// The shape the source table takes once its rows are built — split out so the
 /// kittest tests can hold the used/unused decision without a live door.
 pub(crate) struct SourceRow {
@@ -452,6 +510,8 @@ pub(crate) fn parameters_section(
         }
     }
 
+    vector_rows(ui, theme, door, state, gid, node_id, &params);
+
     // Unbind actions for bound rows.
     for p in params.iter().filter(|p| !p["bound"].is_null()) {
         let name = p["name"].as_str().unwrap_or("").to_string();
@@ -562,3 +622,63 @@ pub(crate) fn io_summary(io: &Value) -> (String, String) {
     (names(&io["inputs"], "from"), names(&io["outputs"], "to"))
 }
 
+
+#[cfg(test)]
+mod vector_tests {
+    use super::*;
+    use crate::shell::FakeDoor;
+    use egui_kittest::kittest::Queryable;
+
+    fn params() -> Vec<Value> {
+        vec![
+            json!({ "name": "tint", "kind": "colour", "index": 2, "defaults": vec![0.5f32; 12], "values": vec![0.25f32; 12] }),
+            json!({ "name": "camera", "kind": "camera", "index": 14, "defaults": [0, 0, 4, 0, 0, 0, 45], "values": [1, 2, 3, 0, 0, 0, 50] }),
+        ]
+    }
+
+    fn draw(door: std::rc::Rc<FakeDoor>) -> egui_kittest::Harness<'static, PanelState> {
+        let theme = Theme::phosphor();
+        let t = theme.clone();
+        let h = egui_kittest::Harness::builder().with_size(egui::Vec2 { x: 600.0, y: 900.0 }).build_ui_state(
+            move |ui, state: &mut PanelState| vector_rows(ui, &t, door.as_ref(), state, "g1", "gen-0", &params()),
+            PanelState::default(),
+        );
+        theme.apply(&h.ctx);
+        h
+    }
+
+    fn posts(door: &FakeDoor) -> Vec<Value> {
+        door.calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/graph/node")
+            .map(|(_, _, params)| serde_json::from_slice(&params.body).unwrap())
+            .collect()
+    }
+
+    /// The form draws a swatch per colour stop and the camera's seven rows
+    /// from the schema's params, and a held vector's release posts `null`.
+    #[test]
+    fn the_form_draws_colour_stops_and_camera_rows_and_release_posts_null() {
+        let door = std::rc::Rc::new(FakeDoor::new());
+        let mut h = draw(std::rc::Rc::clone(&door));
+        h.run();
+        for n in 1..=4 {
+            h.get_by_label(&format!("stop {n}"));
+        }
+        assert_eq!(h.get_all_by_label_contains("camera · position").count(), 3);
+        assert_eq!(h.get_all_by_label_contains("camera · target").count(), 3);
+        h.get_by_label("camera · fov");
+        assert!(posts(&door).is_empty(), "drawing posts nothing");
+        h.get_by_label("release camera").click();
+        h.run();
+        assert_eq!(
+            posts(&door),
+            vec![json!({ "op": "param", "graph": "g1", "node": "gen-0", "name": "camera", "value": null })]
+        );
+        h.get_by_label("release tint").click();
+        h.run();
+        assert_eq!(posts(&door)[1]["name"], json!("tint"));
+        assert_eq!(posts(&door)[1]["value"], json!(null));
+    }
+}

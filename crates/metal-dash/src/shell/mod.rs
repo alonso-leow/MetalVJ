@@ -582,29 +582,18 @@ impl Shell {
 
     /// The shell's current selection as a chat context ref `{kind, id, graph,
     /// label}`, or `None` when nothing is selected.
-    /// The `@` candidates the chat composer offers: every node of the open
-    /// graph, with the selected node marked focused. Library files, overlays
-    /// and properties are not offered yet (see the module doc of `mention`).
+    /// The `@` candidates the chat composer offers: the open graph's nodes,
+    /// `node@property` for each node's properties, the library's files and the
+    /// overlays grid's cells. The selected node (and its properties) is marked
+    /// focused; `mention::rank` does the rest.
     fn mention_candidates(&self) -> Vec<mention::Candidate> {
         let focus = self.chat_selection().and_then(|s| s["id"].as_str().map(str::to_string));
         let graph = self.nodes.graph_reply();
-        let Some(nodes) = graph["graph"]["nodes"].as_array() else {
-            return Vec::new();
-        };
-        nodes
-            .iter()
-            .filter_map(|n| {
-                let id = n["id"].as_str()?;
-                let label = n["label"].as_str().filter(|l| !l.is_empty()).unwrap_or(id);
-                Some(mention::Candidate {
-                    token: id.to_string(),
-                    label: label.to_string(),
-                    kind: mention::Kind::Node,
-                    focused: focus.as_deref() == Some(id),
-                    recent: 0,
-                })
-            })
-            .collect()
+        let mut out = mention::node_candidates(&graph, focus.as_deref());
+        out.extend(mention::property_candidates(&graph, self.nodes.kind_param_names(), focus.as_deref()));
+        out.extend(mention::file_candidates(&self.library.mention_files()));
+        out.extend(mention::cell_candidates(&self.lanes.mention_cells()));
+        out
     }
 
     fn chat_selection(&self) -> Option<serde_json::Value> {

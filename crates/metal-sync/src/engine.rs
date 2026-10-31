@@ -82,7 +82,7 @@ use iroh_mdns_address_lookup::{DiscoveryEvent, MdnsAddressLookup};
 use tokio::sync::mpsc;
 
 use crate::frame::FrameProtocol;
-use crate::land::Landing;
+use crate::land::{Landing, Sender};
 use crate::pair::{Club, EngineCmd, Net, PairBook, PairProtocol, Seen};
 use crate::state::SyncState;
 
@@ -434,20 +434,20 @@ impl SyncEngine {
     /// happened.
     pub async fn land_existing(&self) -> Result<usize> {
         let mut entries = Box::pin(self.doc.get_many(Query::all()).await?);
-        let mut winners: HashMap<Vec<u8>, (u64, iroh_blobs::Hash)> = HashMap::new();
+        let mut winners: HashMap<Vec<u8>, (u64, iroh_blobs::Hash, AuthorId)> = HashMap::new();
         let mut dropped: Vec<(Vec<u8>, u64)> = Vec::new();
         while let Some(entry) = entries.next().await {
             let entry = entry?;
             let key = entry.key().to_vec();
-            let (ts, hash) = (entry.timestamp(), entry.content_hash());
-            match winners.get(&key).copied() {
-                Some((won, _)) if won >= ts => dropped.push((key, ts)),
-                Some((won, _)) => {
+            let (ts, hash, author) = (entry.timestamp(), entry.content_hash(), entry.author());
+            match winners.get(&key).cloned() {
+                Some((won, _, _)) if won >= ts => dropped.push((key, ts)),
+                Some((won, _, _)) => {
                     dropped.push((key.clone(), won));
-                    winners.insert(key, (ts, hash));
+                    winners.insert(key, (ts, hash, author));
                 }
                 None => {
-                    winners.insert(key, (ts, hash));
+                    winners.insert(key, (ts, hash, author));
                 }
             }
         }
@@ -459,12 +459,13 @@ impl SyncEngine {
                 .lww_dropped(serde_json::json!({ "path": path, "timestamp": ts }));
         }
 
-        let mut order: Vec<(u64, Vec<u8>, iroh_blobs::Hash)> =
-            winners.into_iter().map(|(key, (ts, hash))| (ts, key, hash)).collect();
-        order.sort_by_key(|(ts, _, _)| *ts);
+        let mut order: Vec<(u64, Vec<u8>, iroh_blobs::Hash, AuthorId)> =
+            winners.into_iter().map(|(key, (ts, hash, author))| (ts, key, hash, author)).collect();
+        order.sort_by_key(|(ts, _, _, _)| *ts);
         let mut landed = 0;
-        for (ts, key, hash) in order {
-            match self.land_entry(&key, hash, ts).await {
+        for (ts, key, hash, author) in order {
+            let sender = self.sender_of_author(author);
+            match self.land_entry(&key, hash, ts, sender).await {
                 Ok(true) => landed += 1,
                 Ok(false) => {}
                 Err(e) => tracing::warn!(%e, "landing an existing entry failed"),
@@ -479,7 +480,7 @@ impl SyncEngine {
             Box::pin(self.doc.subscribe().await.context("subscribing to the document")?);
         let mut tick = tokio::time::interval(SCAN_INTERVAL);
         // Entries whose bytes have not arrived yet, keyed by content hash.
-        let mut pending: HashMap<iroh_blobs::Hash, (Vec<u8>, u64)> = HashMap::new();
+        let mut pending: HashMap<iroh_blobs::Hash, (Vec<u8>, u64, Sender)> = HashMap::new();
         let mut peers: Vec<String> = Vec::new();
         // What the allowlist looked like on the previous tick — only to notice
         // that it changed (see the module doc, "Reconfiguration under a live
@@ -610,19 +611,20 @@ impl SyncEngine {
                             let hash = entry.content_hash();
                             let ts = entry.timestamp();
                             if content_status == ContentStatus::Complete {
-                                if let Err(e) = self.land_entry(&key, hash, ts).await {
+                                let sender = self.sender_of(&from.to_string());
+                                if let Err(e) = self.land_entry(&key, hash, ts, sender).await {
                                     tracing::warn!(%e, "landing failed");
                                 }
                             } else {
                                 // Bytes still in flight. Reading now would
                                 // write a truncated file.
                                 tracing::debug!(peer = %from, "entry ahead of its content");
-                                pending.insert(hash, (key, ts));
+                                pending.insert(hash, (key, ts, self.sender_of(&from.to_string())));
                             }
                         }
                         Ok(LiveEvent::ContentReady { hash }) => {
-                            if let Some((key, ts)) = pending.remove(&hash) {
-                                if let Err(e) = self.land_entry(&key, hash, ts).await {
+                            if let Some((key, ts, sender)) = pending.remove(&hash) {
+                                if let Err(e) = self.land_entry(&key, hash, ts, sender).await {
                                     tracing::warn!(%e, "landing failed");
                                 }
                             }
@@ -655,12 +657,36 @@ impl SyncEngine {
         Ok(())
     }
 
+    /// Whether the node an entry came from is a member of the club (someone
+    /// we paired with). A node that is not is `Unpaired`, and its writes to a
+    /// graph this machine owns are dropped.
+    fn sender_of(&self, node_id: &str) -> Sender {
+        if self.club.book.lock().expect("pair book poisoned").is_member(node_id) {
+            Sender::Paired
+        } else {
+            Sender::Unpaired
+        }
+    }
+
+    /// The sender of an entry already in the document, known only by its
+    /// author id. An author id is not a node id, so the book cannot name it;
+    /// the document is only shared with the club, so any author but this
+    /// machine's own counts as paired while the club has a member.
+    fn sender_of_author(&self, author: AuthorId) -> Sender {
+        let paired = !self.club.book.lock().expect("pair book poisoned").peers().is_empty();
+        if author != self.author && paired {
+            Sender::Paired
+        } else {
+            Sender::Unpaired
+        }
+    }
+
     /// Fetch one entry's bytes and put them through the landing gate.
     ///
     /// Returns whether anything was written. A hash we already have on disk is
     /// not written again — that is what stops a landed file from being
     /// re-published on the next scan and echoing around the mesh forever.
-    async fn land_entry(&self, key: &[u8], hash: iroh_blobs::Hash, timestamp: u64) -> Result<bool> {
+    async fn land_entry(&self, key: &[u8], hash: iroh_blobs::Hash, timestamp: u64, from: Sender) -> Result<bool> {
         let Some(rel) = path_of(key) else {
             tracing::warn!("a peer sent an entry whose key is not a usable path");
             return Ok(false);
@@ -685,7 +711,7 @@ impl SyncEngine {
             // The allowlist as of *now* — a path excluded since the last tick
             // is refused here, whatever the peer thinks.
             let allow = s.allowlist();
-            s.lander().land(&rel, &bytes, &allow)?
+            s.lander().land(&rel, &bytes, &allow, from)?
         };
 
         match outcome {

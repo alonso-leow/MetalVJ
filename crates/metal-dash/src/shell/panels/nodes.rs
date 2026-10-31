@@ -320,6 +320,9 @@ pub struct PanelState {
     /// (`GET /author/render/solo.jpg?row=`); the grid's cell is the fallback
     /// until it lands.
     node_tiles: HashMap<String, crate::shell::frames::Frame>,
+    /// Every kind's property names (`GET /catalog` `params`), for the chat's
+    /// `node@property` completion.
+    kind_params: HashMap<String, Vec<String>>,
     /// The canvas's own last-painted rect — test-only in effect (a kittest
     /// pointer test needs a real point inside the canvas, not the whole
     /// region's outer frame, to know a click landed past the toolbar), the
@@ -419,6 +422,7 @@ impl Default for PanelState {
             model_rows: Vec::new(),
             row_slots: HashMap::new(),
             node_tiles: HashMap::new(),
+            kind_params: HashMap::new(),
             last_canvas_rect: None,
             hover_edge: None,
             picked: Vec::new(),
@@ -542,6 +546,11 @@ impl PanelState {
     /// switch at worst (this reads before `nodes::paint` runs for the
     /// current frame, see `regions.rs::paint_top_row`), which a graph
     /// switch — an infrequent, deliberate action — never makes visible.
+    /// Every kind's property names, as the catalog listed them at boot.
+    pub(crate) fn kind_param_names(&self) -> &HashMap<String, Vec<String>> {
+        &self.kind_params
+    }
+
     pub(crate) fn selected_graph(&self) -> Option<&str> {
         self.selected_graph.as_deref()
     }
@@ -562,6 +571,11 @@ impl PanelState {
     #[cfg(test)]
     pub(crate) fn set_graph_for_test(&mut self, graph: serde_json::Value) {
         self.graph = Some(graph);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_kind_params_for_test(&mut self, kind: &str, names: &[&str]) {
+        self.kind_params.insert(kind.to_string(), names.iter().map(|n| n.to_string()).collect());
     }
 
     pub(crate) fn set_selected_graph_for_test(&mut self, id: &str) {
@@ -716,7 +730,9 @@ fn ensure_loaded(door: &dyn Call, state: &mut PanelState) {
                 .collect()
         })
         .unwrap_or_default();
-    state.row_slots = row_slots_of(get(door, "GET", "/catalog", &[]).as_ref());
+    let catalog = get(door, "GET", "/catalog", &[]);
+    state.row_slots = row_slots_of(catalog.as_ref());
+    state.kind_params = kind_params_of(catalog.as_ref());
     state.model_names = models
         .and_then(|v| v["names"].as_array().cloned())
         .unwrap_or_default()
@@ -794,6 +810,20 @@ fn fetch_node_tiles(ctx: &egui::Context, door: &dyn Call, state: &mut PanelState
         ];
         state.node_tiles.entry(id.to_string()).or_default().picture(ctx, door, "/author/render/solo.jpg", &query, gap);
     }
+}
+
+/// The property names of every kind in a `GET /catalog` reply.
+fn kind_params_of(catalog: Option<&Value>) -> HashMap<String, Vec<String>> {
+    catalog
+        .and_then(|c| c["catalog"].as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|e| {
+            let names: Vec<String> =
+                e["params"].as_array()?.iter().filter_map(|p| p["name"].as_str().map(str::to_string)).collect();
+            Some((e["kind"].as_str()?.to_string(), names))
+        })
+        .collect()
 }
 
 /// `GET /graphs`, then [`load_graph`] whichever id the picker should show —

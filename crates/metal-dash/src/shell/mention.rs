@@ -48,23 +48,93 @@ pub struct Mention {
 
 /// The `@` token the caret sits in, if any. The `@` must open a word (the start
 /// of the prompt or follow whitespace), and nothing but non-whitespace may sit
-/// between it and the caret. `caret` is a byte index; a caret that is not on a
+/// between it and the caret. A later `@` belongs to the query (`node@property`). `caret` is a byte index; a caret that is not on a
 /// character boundary is not inside a token.
 pub fn active(prompt: &str, caret: usize) -> Option<Mention> {
     if caret > prompt.len() || !prompt.is_char_boundary(caret) {
         return None;
     }
     let before = &prompt[..caret];
-    let at = before.rfind('@')?;
-    let query = &before[at + 1..];
-    if query.chars().any(char::is_whitespace) {
-        return None;
-    }
-    let opens_word = prompt[..at].chars().last().is_none_or(char::is_whitespace);
-    if !opens_word {
-        return None;
-    }
+    // The token is the whole word under the caret: its first character must be
+    // the `@` (so `node@property` is one token, not a mention inside a word).
+    let at = before.rfind(char::is_whitespace).map_or(0, |i| i + before[i..].chars().next().map_or(1, char::len_utf8));
+    let query = before[at..].strip_prefix('@')?;
     Some(Mention { start: at, query: query.to_string() })
+}
+
+/// The nodes of a `GET /graph` reply as candidates; `focus` is the selected id.
+pub fn node_candidates(graph: &serde_json::Value, focus: Option<&str>) -> Vec<Candidate> {
+    graph["graph"]["nodes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|n| {
+            let id = n["id"].as_str()?;
+            let label = n["label"].as_str().filter(|l| !l.is_empty()).unwrap_or(id);
+            Some(Candidate {
+                token: id.to_string(),
+                label: label.to_string(),
+                kind: Kind::Node,
+                focused: focus == Some(id),
+                recent: 0,
+            })
+        })
+        .collect()
+}
+
+/// `node@property` for every property of every node: `params` maps a node kind
+/// to its property names (the catalog's). The property of the focused node is
+/// focused too.
+pub fn property_candidates(
+    graph: &serde_json::Value,
+    params: &std::collections::HashMap<String, Vec<String>>,
+    focus: Option<&str>,
+) -> Vec<Candidate> {
+    let mut out = Vec::new();
+    for n in graph["graph"]["nodes"].as_array().into_iter().flatten() {
+        let (Some(id), Some(kind)) = (n["id"].as_str(), n["kind"].as_str()) else { continue };
+        let name = n["label"].as_str().filter(|l| !l.is_empty()).unwrap_or(id);
+        for prop in params.get(kind).into_iter().flatten() {
+            out.push(Candidate {
+                token: format!("{id}@{prop}"),
+                label: format!("{name}@{prop}"),
+                kind: Kind::Property,
+                focused: focus == Some(id),
+                recent: 0,
+            });
+        }
+    }
+    out
+}
+
+/// The library's files (rows of `GET /fs`, named by `file`). A name with
+/// whitespace cannot sit in a token, so its blanks become `_`.
+pub fn file_candidates(files: &[serde_json::Value]) -> Vec<Candidate> {
+    files
+        .iter()
+        .filter_map(|f| f["file"].as_str().or_else(|| f["name"].as_str()))
+        .map(|name| Candidate {
+            token: name.split_whitespace().collect::<Vec<_>>().join("_"),
+            label: name.to_string(),
+            kind: Kind::File,
+            focused: false,
+            recent: 0,
+        })
+        .collect()
+}
+
+/// The overlays grid's cells as `(key, label)`; the key is the token.
+pub fn cell_candidates(cells: &[(String, String)]) -> Vec<Candidate> {
+    cells
+        .iter()
+        .map(|(key, label)| Candidate {
+            token: key.clone(),
+            label: if label.is_empty() { key.clone() } else { label.clone() },
+            kind: Kind::Overlay,
+            focused: false,
+            recent: 0,
+        })
+        .collect()
 }
 
 /// The candidates that match `query`, best first. An empty query matches
@@ -220,6 +290,57 @@ mod tests {
         let cands = [cand("gen-1@opacity", Kind::Property), cand("fx-9", Kind::Node)];
         let got: Vec<_> = rank("gen@op", &cands).iter().map(|c| c.token.clone()).collect();
         assert_eq!(got, ["gen-1@opacity"]);
+    }
+
+    #[test]
+    fn a_property_token_is_one_mention_with_the_second_at_in_its_query() {
+        let p = "mira @gen-a@sp";
+        assert_eq!(active(p, p.len()), Some(Mention { start: 5, query: "gen-a@sp".into() }));
+        let m = active(p, p.len()).unwrap();
+        assert_eq!(splice(p, &m, p.len(), "gen-a@speed").0, "mira @gen-a@speed ");
+    }
+
+    #[test]
+    fn every_source_becomes_candidates_of_its_kind() {
+        let graph = serde_json::json!({ "graph": { "nodes": [
+            { "id": "gen-a", "kind": "gen.turing", "label": "" },
+            { "id": "fx-1", "kind": "fx.shake", "label": "Shake" }] } });
+        let params = std::collections::HashMap::from([
+            ("gen.turing".to_string(), vec!["speed".to_string(), "scale".to_string()]),
+            ("fx.shake".to_string(), vec!["amount".to_string()]),
+        ]);
+        let nodes = node_candidates(&graph, Some("gen-a"));
+        assert_eq!(nodes.len(), 2);
+        assert!(nodes[0].focused && !nodes[1].focused);
+        let props = property_candidates(&graph, &params, Some("gen-a"));
+        let tokens: Vec<_> = props.iter().map(|c| c.token.as_str()).collect();
+        assert_eq!(tokens, ["gen-a@speed", "gen-a@scale", "fx-1@amount"]);
+        assert!(props[0].focused && !props[2].focused);
+        assert!(props.iter().all(|c| c.kind == Kind::Property));
+        let files = file_candidates(&[serde_json::json!({ "file": "my clip.mp4" })]);
+        assert_eq!((files[0].token.as_str(), files[0].kind), ("my_clip.mp4", Kind::File));
+        let cells = cell_candidates(&[("rec-1".to_string(), String::new())]);
+        assert_eq!((cells[0].label.as_str(), cells[0].kind), ("rec-1", Kind::Overlay));
+    }
+
+    /// All four kinds share one ranking: the query picks across them, the
+    /// focused node's properties lead an empty query, and `gen-a@sp` finds the
+    /// property and not the node.
+    #[test]
+    fn one_ranking_spans_nodes_files_cells_and_properties() {
+        let graph = serde_json::json!({ "graph": { "nodes": [
+            { "id": "gen-a", "kind": "gen.turing", "label": "" }] } });
+        let params = std::collections::HashMap::from([("gen.turing".to_string(), vec!["speed".to_string()])]);
+        let mut all = node_candidates(&graph, Some("gen-a"));
+        all.extend(property_candidates(&graph, &params, Some("gen-a")));
+        all.extend(file_candidates(&[serde_json::json!({ "file": "kick.wav" })]));
+        all.extend(cell_candidates(&[("rec-1".to_string(), "rec".to_string())]));
+        let empty: Vec<_> = rank("", &all).iter().map(|c| c.token.clone()).collect();
+        assert_eq!(&empty[..2], ["gen-a", "gen-a@speed"], "focus first");
+        let got: Vec<_> = rank("gen-a@sp", &all).iter().map(|c| c.token.clone()).collect();
+        assert_eq!(got, ["gen-a@speed"]);
+        let got: Vec<_> = rank("kick", &all).iter().map(|c| c.token.clone()).collect();
+        assert_eq!(got, ["kick.wav"]);
     }
 
     #[test]

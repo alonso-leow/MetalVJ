@@ -52,6 +52,7 @@ pub mod pull;
 pub mod reader;
 pub mod state;
 
-pub use land::{Lander, Landing};
+pub mod session_merge;
+pub use land::{Lander, Landing, Sender};
 pub use reader::DataReader;
 pub use state::SyncState;

@@ -3093,7 +3093,7 @@ fn page_bar(
     for (rect, cell) in [
         (prev, Cell::page(format!("‹ {}/{pages}", page + 1), page.saturating_sub(1))),
         (add, Cell::add()),
-        (next, Cell::page(format!("{}/{pages} ›", page + 1), (page + 1).min(pages - 1))),
+        (next, Cell::page(format!("{}/{pages} ›", page + 1), page + 1)),
     ] {
         paint_cell(ui, theme, door, state, &cell, rect, open_graph, None);
     }
@@ -3869,6 +3869,8 @@ fn surface_input(
                     0 => None,
                     n => Some(Gesture::Steps(n)),
                 },
+                // A push encoder's press.
+                Edge::Press { .. } => Some(Gesture::Click),
                 _ => None,
             }
         } else {
@@ -3929,7 +3931,12 @@ fn run_outs(
             }
             Out::Page(p) => set_stored_page(door, p.min(pages.saturating_sub(1))),
             Out::PageStep(d) => {
-                let to = (page as i64 + d as i64).clamp(0, pages as i64 - 1) as usize;
+                // Stepping on past the last page opens a new, empty one.
+                let to = (page as i64 + d as i64).clamp(0, pages as i64) as usize;
+                if to >= pages {
+                    state.layout.page_count = to + 1;
+                    save = true;
+                }
                 set_stored_page(door, to);
             }
             Out::Library(intent) => super::pads::push_library_intent(ui.ctx(), intent),
@@ -4305,7 +4312,30 @@ fn paint_cell(
             response
         }
         CellKind::Role { role } if role.is_dial() => {
-            let (value, frac) = dial_face(state, &cell.key, role);
+            let (mut value, frac) = dial_face(state, &cell.key, role);
+            // The page dials say which page is up.
+            if matches!(role, Role::FnDial | Role::Navigator) {
+                value = (page + 1).to_string();
+            }
+            // The navigator's `‹` and `›` sit on its sides; the dial takes the
+            // middle. Each button is the page button's own gesture.
+            let mut rect = rect;
+            if matches!(role, Role::Navigator) {
+                let side = theme.gear_size.min(rect.width() / 3.0);
+                let (left, right) = (
+                    Rect::from_min_size(rect.min, Vec2::new(side, rect.height())),
+                    Rect::from_min_size(Pos2::new(rect.right() - side, rect.top()), Vec2::new(side, rect.height())),
+                );
+                rect = Rect::from_min_max(Pos2::new(left.right(), rect.top()), Pos2::new(right.left(), rect.bottom()));
+                for (side_rect, glyph, step) in [(left, "‹", -1), (right, "›", 1)] {
+                    let button = egui::Button::new(RichText::new(glyph).font(theme.font_small.clone())).fill(theme.inset);
+                    let id = ("shell/region/lanes/navigator", &cell.key, step);
+                    if ui.push_id(id, |ui| ui.put(side_rect, button)).inner.clicked() && !editing {
+                        let out = state.surface.role(&state.layout, &cell.key, &Role::Page { step }, Gesture::Click, now, page);
+                        state.grid_outs.extend(out);
+                    }
+                }
+            }
             // A knob turned past half is not a knob pressed.
             let lit = false;
             let mut acc = state.dial_acc.get(&cell.key).copied().unwrap_or(0.0);
@@ -4314,6 +4344,12 @@ fn paint_cell(
             state.dial_acc.insert(cell.key.clone(), acc);
             if steps != 0 && !editing {
                 let out = state.surface.role(&state.layout, &cell.key, role, Gesture::Steps(steps), now, page);
+                state.grid_outs.extend(out);
+            }
+            // A click is the push of a push-encoder: the same gesture a
+            // press on the dial's bound input raises.
+            if response.clicked() && !editing {
+                let out = state.surface.role(&state.layout, &cell.key, role, Gesture::Click, now, page);
                 state.grid_outs.extend(out);
             }
             response
@@ -4420,6 +4456,11 @@ fn paint_cell(
     match &cell.kind {
         CellKind::PageTo(to) => {
             if response.clicked() {
+                // A page past the last one is a new, empty page of the grid.
+                if *to + 1 > state.layout.page_count {
+                    state.layout.page_count = *to + 1;
+                    save_layout(door, state);
+                }
                 set_stored_page(door, *to);
             }
         }
@@ -8916,6 +8957,143 @@ fn without_an_open_graph_create_button_says_so() {
             posted_with(&recorder, "/graph/node", json!({ "op": "flag", "graph": "g", "node": "strobe-node", "field": "bypass", "on": true })),
             "the key fires its button"
         );
+    }
+
+    /// A grid with a speed dial and a navigator, a loop-length and a page the
+    /// MIDI encoders (`cc:30`, `cc:31`) also drive.
+    fn dial_grid() -> std::rc::Rc<FakeDoor> {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 0, "grid_surface": {
+                "page_count": 2,
+                "roles": { "speed-dial-1": { "kind": "speed-dial" }, "navigator-1": { "kind": "navigator" } },
+                "binds": [
+                    { "input": "cc:31", "cell": "speed-dial-1", "dial": "relative" },
+                    { "input": "cc:30", "cell": "navigator-1", "dial": "relative" }
+                ]
+            } }),
+        );
+        recorder
+    }
+
+    fn loop_ticks_posted(r: &FakeDoor) -> Vec<Value> {
+        r.calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/settings")
+            .map(|(_, _, params)| body_of(params))
+            .filter_map(|b| b["grid_surface"]["loop_ticks"].as_u64().map(Value::from))
+            .collect()
+    }
+
+    fn pages_posted(r: &FakeDoor) -> Vec<Value> {
+        r.calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/settings")
+            .filter_map(|(_, _, params)| body_of(params).get("grid_page").cloned())
+            .collect()
+    }
+
+    /// A drag on the speed dial turns it one step per notch and raises the
+    /// same loop-length write a relative MIDI step does; a click on the
+    /// navigator's dial goes back to the first page and its `›` steps on, as
+    /// the encoder bound to it does.
+    #[test]
+    fn a_mouse_on_a_dial_makes_the_same_outs_as_midi() {
+        // The mouse.
+        let mouse = dial_grid();
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&mouse)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        let centre = harness.get_by_label("speed").rect().center();
+        let up = egui::Vec2::Y * -(Theme::phosphor().gear_size * 1.5);
+        harness.drag_at(centre);
+        harness.run();
+        harness.hover_at(centre + up);
+        harness.run();
+        harness.drop_at(centre + up);
+        harness.run();
+        // MIDI: one clockwise relative step.
+        let midi = dial_grid();
+        let mut harness_midi = shell_harness_of_height(Box::new(std::rc::Rc::clone(&midi)), 900.0);
+        harness_midi.run();
+        harness_midi.get_by_label("lanes / overlays").click();
+        harness_midi.run();
+        crate::input::drain_surface();
+        crate::input::push_surface(crate::input::SurfaceEvent {
+            port: "box".into(),
+            input: "cc:31".into(),
+            edge: metal_midi::Edge::Value { value: 1.0 / 127.0, raw: 1 },
+        });
+        harness_midi.run();
+        let (by_mouse, by_midi) = (loop_ticks_posted(&mouse), loop_ticks_posted(&midi));
+        assert!(!by_midi.is_empty(), "a relative step lengthens the loop");
+        assert_eq!(by_mouse, by_midi, "a drag of one notch is one MIDI step");
+
+        // The navigator: its `›`, then the same step from the encoder.
+        harness.get_by_label("›").click();
+        harness.run();
+        assert_eq!(pages_posted(&mouse).last(), Some(&json!(1)));
+        crate::input::drain_surface();
+        crate::input::push_surface(crate::input::SurfaceEvent {
+            port: "box".into(),
+            input: "cc:30".into(),
+            edge: metal_midi::Edge::Value { value: 1.0 / 127.0, raw: 1 },
+        });
+        harness_midi.run();
+        assert_eq!(pages_posted(&midi).last(), Some(&json!(1)), "the encoder steps the page like the button");
+    }
+
+    /// Stepping on from the last page lands on a new, empty page (the page
+    /// count grows and nothing is copied into it), through the navigator's `›`
+    /// and the encoder alike; stepping back from the first stays on it.
+    #[test]
+    fn paging_past_the_last_page_opens_a_new_empty_one() {
+        let recorder = dial_grid();
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 1, "grid_surface": {
+                "page_count": 2,
+                "roles": { "navigator-1": { "kind": "navigator" } },
+                "binds": []
+            } }),
+        );
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        harness.get_by_label("›").click();
+        harness.run();
+        assert_eq!(pages_posted(&recorder).last(), Some(&json!(2)), "page 3 is shown");
+        let grew = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/settings" && body_of(params)["grid_surface"]["page_count"] == json!(3)
+        });
+        assert!(grew, "the new page is stored");
+        let state = harness.state_mut().lanes_state_mut();
+        assert_eq!(state.layout.page_count, 3);
+        assert!(state.layout.pages.values().all(|p| *p < 2), "no cell was copied onto it");
+    }
+
+    /// The page bar's own `›` opens a new page past the last one too.
+    #[test]
+    fn the_page_bar_next_opens_a_new_page_past_the_last() {
+        let recorder = dial_grid();
+        recorder.respond("GET", "/settings", json!({ "grid_page": 1, "grid_surface": { "page_count": 2 } }));
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        harness.get_by_label("2/2 ›").click();
+        harness.run();
+        assert_eq!(pages_posted(&recorder).last(), Some(&json!(2)));
+        assert_eq!(harness.state_mut().lanes_state_mut().layout.page_count, 3);
     }
 
     /// The layouts menu: a box's face is made a new layout from its

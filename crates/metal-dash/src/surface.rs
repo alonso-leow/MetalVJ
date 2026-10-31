@@ -110,6 +110,11 @@ pub enum Role {
     },
     /// Steps the page, one per step.
     FnDial,
+    /// Two cells wide: `‹` and `›` on its sides step the page, the dial in the
+    /// middle turns through pages (past the last one opens a new, empty page)
+    /// and shows which one is up; a click on it goes back to page 1. Like
+    /// every control role it answers on every page.
+    Navigator,
     /// `keys` keys (25 unless a box has more) from `base` (MIDI note number)
     /// — each key is the same input a hardware key of that note is, so it
     /// fires what that note is bound to.
@@ -163,6 +168,7 @@ impl Role {
             Role::SpeedDial,
             Role::Fn { page: None },
             Role::FnDial,
+            Role::Navigator,
             Role::SearchDial,
             Role::Load,
             Role::Folder,
@@ -187,6 +193,7 @@ impl Role {
             Role::Folder => "folder",
             Role::Fn { .. } => "fn",
             Role::FnDial => "fn-dial",
+            Role::Navigator => "navigator",
             Role::Piano { .. } => "piano",
             Role::Page { .. } => "page",
             Role::Octave { .. } => "octave",
@@ -209,6 +216,7 @@ impl Role {
             Role::Fn { page: Some(p) } => format!("fn {}", p + 1),
             Role::Fn { page: None } => "fn".into(),
             Role::FnDial => "fn dial".into(),
+            Role::Navigator => "navigator".into(),
             Role::Piano { .. } => "piano".into(),
             Role::Page { step } if *step < 0 => "page ‹".into(),
             Role::Page { .. } => "page ›".into(),
@@ -228,13 +236,13 @@ impl Role {
 
     /// Knobs: a value turns into steps rather than a press.
     pub fn is_dial(&self) -> bool {
-        matches!(self, Role::SpeedDial | Role::SearchDial | Role::FnDial | Role::Knob { .. })
+        matches!(self, Role::SpeedDial | Role::SearchDial | Role::FnDial | Role::Navigator | Role::Knob { .. })
     }
 
     /// The size a fresh one takes.
     pub fn default_span(&self) -> (f32, f32) {
         match self {
-            Role::Piano { .. } => (2.0, 1.0),
+            Role::Piano { .. } | Role::Navigator => (2.0, 1.0),
             _ => (1.0, 1.0),
         }
     }
@@ -1124,6 +1132,14 @@ impl Surface {
                 }
                 out.push(Out::LoopTicks { key: target, ticks });
             }
+            // A push encoder's press (a mouse click on the dial is the same
+            // gesture): the speed dial plays its loop, the search dial loads
+            // what it is on, the fn dial goes back to the first page.
+            (Role::SpeedDial, Gesture::Down | Gesture::Click) => {
+                out.extend(self.role(layout, key, &Role::Play, Gesture::Click, now, page));
+            }
+            (Role::SearchDial, Gesture::Down | Gesture::Click) => out.push(Out::Library(LibraryIntent::Load)),
+            (Role::FnDial | Role::Navigator, Gesture::Down | Gesture::Click) => out.push(Out::Page(0)),
             (Role::SearchDial, Gesture::Steps(n)) => out.push(Out::Library(LibraryIntent::Step(n))),
             (Role::Load, Gesture::Down | Gesture::Click) => out.push(Out::Library(LibraryIntent::Load)),
             (Role::Folder, Gesture::Down | Gesture::Click) => out.push(Out::Library(LibraryIntent::ToggleFolders)),
@@ -1139,7 +1155,7 @@ impl Surface {
                 }
             }
             (Role::Fn { page: to }, Gesture::Click) => out.push(Out::Page(to.unwrap_or(page + 1))),
-            (Role::FnDial, Gesture::Steps(n)) => out.push(Out::PageStep(n)),
+            (Role::FnDial | Role::Navigator, Gesture::Steps(n)) => out.push(Out::PageStep(n)),
             (Role::Page { step }, Gesture::Down | Gesture::Click) => out.push(Out::PageStep(*step)),
             (Role::Octave { step }, Gesture::Down | Gesture::Click) => out.push(Out::Octave(*step)),
             (Role::Play, Gesture::Down | Gesture::Click) => {
@@ -1309,6 +1325,33 @@ mod tests {
     use super::*;
 
     const SPT: f64 = 0.125;
+
+    /// The navigator is a dial two cells wide that steps pages and goes back
+    /// to the first on a push, like the fn dial; the push encoders do the same
+    /// from a click.
+    #[test]
+    fn the_navigator_steps_pages_and_every_dial_has_a_push() {
+        let l = Layout::default();
+        let mut s = Surface::default();
+        assert!(Role::Navigator.is_dial());
+        assert_eq!(Role::Navigator.default_span(), (2.0, 1.0));
+        assert!(Role::catalogue().contains(&Role::Navigator));
+        assert_eq!(serde_json::to_value(Role::Navigator).unwrap(), serde_json::json!({ "kind": "navigator" }));
+        assert_eq!(s.role(&l, "n", &Role::Navigator, Gesture::Steps(2), 0.0, 3), vec![Out::PageStep(2)]);
+        assert_eq!(s.role(&l, "n", &Role::Navigator, Gesture::Click, 0.0, 3), vec![Out::Page(0)]);
+        assert_eq!(s.role(&l, "fd", &Role::FnDial, Gesture::Click, 0.0, 3), vec![Out::Page(0)]);
+        assert_eq!(
+            s.role(&l, "sd", &Role::SearchDial, Gesture::Click, 0.0, 0),
+            vec![Out::Library(LibraryIntent::Load)]
+        );
+        let mut l = Layout::default();
+        l.loops.insert("loop-1".into(), Loop { name: "a".into(), ticks: 8, events: Vec::new(), playing: false });
+        assert_eq!(
+            s.role(&l, "sp", &Role::SpeedDial, Gesture::Click, 0.0, 0),
+            vec![Out::LoopToggle("loop-1".into())],
+            "the speed dial's push plays its loop"
+        );
+    }
 
     #[test]
     fn spans_are_the_eight_sizes_in_sixths() {

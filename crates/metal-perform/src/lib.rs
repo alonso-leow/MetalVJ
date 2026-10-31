@@ -63,6 +63,7 @@ pub mod output;
 pub mod overlay;
 pub mod pattern;
 pub mod paint;
+pub mod worker_proto;
 pub mod reel;
 pub mod reel_batch;
 pub mod router;

@@ -235,6 +235,47 @@ impl GpuCx {
         })
     }
 
+    /// [`Self::readback_deferred`] without blocking anywhere: the copy is
+    /// queued now and `done` is called with the RGBA8 bytes once the buffer
+    /// maps (an empty `Vec` when it does not). The caller keeps the device
+    /// polling (natively) or yields to the event loop (the browser, where
+    /// `done` runs from a promise and nothing may wait).
+    pub fn readback_with(&self, f: &GpuFrame, done: impl FnOnce(Vec<u8>) + Send + 'static) {
+        let (w, h) = (f.width(), f.height());
+        let bpr = (w * 4).next_multiple_of(256);
+        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("async readback"),
+            size: (bpr * h) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("async readback") });
+        enc.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo { texture: f.texture(), mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buffer,
+                layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(bpr), rows_per_image: Some(h) },
+            },
+            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        );
+        self.queue.submit(Some(enc.finish()));
+        let held = buffer.clone();
+        buffer.slice(..).map_async(wgpu::MapMode::Read, move |r| {
+            if r.is_err() {
+                return done(Vec::new());
+            }
+            let Ok(data) = held.slice(..).get_mapped_range() else { return done(Vec::new()) };
+            let row = (w * 4) as usize;
+            let mut out = Vec::with_capacity(row * h as usize);
+            for y in 0..h as usize {
+                out.extend_from_slice(&data[y * bpr as usize..y * bpr as usize + row]);
+            }
+            drop(data);
+            held.unmap();
+            done(out);
+        });
+    }
+
     /// `src` (a `w x h` texture of this device in [`FRAME_FORMAT`], such as a
     /// renderer's canvas) copied into a frame of the pool: a GPU copy, queued
     /// in order, nothing read back.

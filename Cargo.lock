@@ -4043,6 +4043,7 @@ dependencies = [
  "jni 0.21.1",
  "jpeg-decoder",
  "jpeg-encoder",
+ "js-sys",
  "metal-agent",
  "metal-config",
  "metal-forge",

@@ -336,3 +336,27 @@ clock). Read from `GET /author/play`: `at` (the audio clock) and `playhead_s`
 **Sync port.** `FW_SYNC_PORT` (default 7901) sets metal-sync's control port
 for the host metal-dash (`call/author/playout.rs`, `monitor.rs`) and the
 in-process node on the phone. The emulator forwards stay on 17900/17901.
+
+## Browser: the preview painter in a Web Worker
+
+`web/wasm/worker.js` runs the same wasm module as the page. At startup, once
+(the backend rule), `web_worker::try_worker` checks for `Worker` and
+`OffscreenCanvas`, transfers a canvas to the worker
+(`transferControlToOffscreen`), and waits for the worker's answer about its
+device (WebGPU, else WebGL2, on that canvas: `metal_render::gpu::web_worker`).
+All present: the page's painter is a `WorkerPaint`, whose pixel draws go over
+`postMessage` and come back as frames landed in a mailbox (one request in flight
+per model and size; the stand-in's figure answers until the first frame lands,
+the newest landed frame after). Any piece missing, or no answer in 15 s: the
+page paints inline as before. The desktop's preview thread (`shell/frames.rs`)
+is unchanged and native only.
+
+The wire and the fallback decision are in `metal_perform::worker_proto` and are
+tested natively (header and float round trip, reply encoding, mailbox, mode
+choice). `cargo check` for wasm32 and `scripts/build-wasm.sh` pass.
+
+**Not run: a real browser.** Needs a person: that the worker boots a device on
+the transferred canvas (WebGPU and WebGL2 in a worker), the `OffscreenCanvas`
+transfer, the non-blocking readback (`GpuCx::readback_with` polled with a yield),
+the frame cadence under load, and the models that need compute shaders (they
+reply "no frame" and stay on the stand-in's figure).

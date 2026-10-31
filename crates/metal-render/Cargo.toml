@@ -56,7 +56,7 @@ egui-winit = "0.36"
 wgpu = { version = "30", features = ["webgl", "fragile-send-sync-non-atomic-wasm"] }
 # The canvas a WebGL2 context is created on (`gpu::web`).
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "OffscreenCanvas"] }
 
 [[bin]]
 name = "metal-render"

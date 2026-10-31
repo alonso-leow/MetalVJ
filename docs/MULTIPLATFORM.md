@@ -71,6 +71,20 @@ mkfifo. Callers already treat a failed spawn as "no result", so the shell runs
 without them. Not covered: `metal-ml` (`curl`, tone feature only, not in the
 Android graph) and `metal-render` example bins.
 
+Every program the sources name, each answering "unavailable on this platform
+(Android has no child processes)" there (a test computes this list from the
+sources and checks it against this paragraph): `curl`, `df`, `ffmpeg`,
+`ffplay`, `ffprobe`, `mkfifo`, `node`, `pactl`, `python3`, `rustc`, `sh`,
+`sleep`, `tar`, `true`, `xdg-open` (`sh`, `sleep` and `true` are test helpers).
+Programs chosen at run time (`Command::new(program)`: the MCP server command,
+timecode tools, the script interpreter) take the same refusal.
+
+**On-demand pulls.** A phone with no `songs/`, `models/` or device graph asks a
+paired peer for it over `fw/frame/1`: `POST /song/pull?song=`,
+`/graph/pull?graph=device-<id>`, `/model/pull?model=<name>` (status by `GET`).
+Same listing, resumable stream and blake3 check for all three; only `audio/`,
+`digest/`, `graphs/device-*` and `models/` are served.
+
 **Video on Android.** Clip playback no longer needs ffmpeg; HAP encoding
 still does.
 
@@ -339,3 +353,27 @@ clock). Read from `GET /author/play`: `at` (the audio clock) and `playhead_s`
 **Sync port.** `FW_SYNC_PORT` (default 7901) sets metal-sync's control port
 for the host metal-dash (`call/author/playout.rs`, `monitor.rs`) and the
 in-process node on the phone. The emulator forwards stay on 17900/17901.
+
+## Browser: the preview painter in a Web Worker
+
+`web/wasm/worker.js` runs the same wasm module as the page. At startup, once
+(the backend rule), `web_worker::try_worker` checks for `Worker` and
+`OffscreenCanvas`, transfers a canvas to the worker
+(`transferControlToOffscreen`), and waits for the worker's answer about its
+device (WebGPU, else WebGL2, on that canvas: `metal_render::gpu::web_worker`).
+All present: the page's painter is a `WorkerPaint`, whose pixel draws go over
+`postMessage` and come back as frames landed in a mailbox (one request in flight
+per model and size; the stand-in's figure answers until the first frame lands,
+the newest landed frame after). Any piece missing, or no answer in 15 s: the
+page paints inline as before. The desktop's preview thread (`shell/frames.rs`)
+is unchanged and native only.
+
+The wire and the fallback decision are in `metal_perform::worker_proto` and are
+tested natively (header and float round trip, reply encoding, mailbox, mode
+choice). `cargo check` for wasm32 and `scripts/build-wasm.sh` pass.
+
+**Not run: a real browser.** Needs a person: that the worker boots a device on
+the transferred canvas (WebGPU and WebGL2 in a worker), the `OffscreenCanvas`
+transfer, the non-blocking readback (`GpuCx::readback_with` polled with a yield),
+the frame cadence under load, and the models that need compute shaders (they
+reply "no frame" and stay on the stand-in's figure).

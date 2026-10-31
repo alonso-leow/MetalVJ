@@ -174,6 +174,8 @@ pub mod preview;
 pub mod store;
 #[cfg(target_arch = "wasm32")]
 mod web;
+#[cfg(target_arch = "wasm32")]
+mod web_worker;
 
 #[derive(Parser)]
 #[command(
@@ -403,6 +405,12 @@ fn serve_forever(
     // Both are once, then idempotent.
     adopt_device_graphs_at(&crate::output::data_root());
     crate::merge_device_collections_at(&crate::output::data_root());
+    // Libraries move onto the one clip slug and the one proxy folder; once, then
+    // a no-op (the old index and picks are kept as `.bak-slug`).
+    let moved = metal_reel::index::migrate_to_one_slug(&crate::output::data_root());
+    if moved > 0 {
+        eprintln!("[reel] {moved} library clip(s) moved onto the path slug and projects/hap/");
+    }
     // Conjunto C: the studio's renderers and state, built once up front for
     // the same reason `paint` is — a machine with no usable GPU adapter has
     // to say so here, not partway through serving `/author/`. G5: on the
@@ -975,6 +983,7 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         "export_frame" => Some(("POST", "/frame/export")),
         // E1: the offline video export job.
         "export_video" => Some(("POST", "/export/video")),
+        "export_queue" => Some(("POST", "/export/queue")),
         "list_video_io" => Some(("GET", "/videoio")),
         // `S.O.1`: real now — its own route, not a placeholder's imagined one.
         "blackout" => Some(("POST", "/overlay/blackout")),
@@ -1942,7 +1951,7 @@ mod tests {
             "audio.live, audio.file and clock.timecode (P-D)"
         );
         assert_eq!(count(NodeFamily::Reel), 2, "reel.clip and reel.batch");
-        assert_eq!(count(NodeFamily::Still), 1);
+        assert_eq!(count(NodeFamily::Still), 2, "still and the solid colour");
         assert_eq!(count(NodeFamily::Text), 1);
         assert_eq!(count(NodeFamily::Capture), 1);
         assert_eq!(count(NodeFamily::Router), 1);

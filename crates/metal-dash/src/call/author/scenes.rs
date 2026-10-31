@@ -50,13 +50,23 @@ pub fn post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
 
 pub fn poster(_ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
     let path = params.param("path").unwrap_or_default();
-    let p = Path::new(path);
-    let inside = p.starts_with(HAP) && p.extension().is_some_and(|x| x == "jpg") && !path.contains("..");
+    let p = resolve_poster(path);
+    let inside = (path.starts_with("projects/hap/") || p.starts_with(HAP)) && p.extension().is_some_and(|x| x == "jpg") && !path.contains("..");
     if !inside {
         return Err(CallError::Bad("not a poster".into()));
     }
-    let body = metal_vfs::read(p).map_err(|_| CallError::NotFound)?;
+    let body = metal_vfs::read(&p).map_err(|_| CallError::NotFound)?;
     Ok(Bytes { kind: "image/jpeg", body })
+}
+
+/// A poster named as the cut list stores it (`projects/hap/…`, relative to
+/// the data root) resolves under this install's data root; an absolute path
+/// written before that rule is kept as it is.
+pub(crate) fn resolve_poster(path: &str) -> std::path::PathBuf {
+    if path.starts_with("projects/hap/") {
+        return crate::output::data_root().join(path);
+    }
+    Path::new(path).to_path_buf()
 }
 
 /// `POST /author/scenes/export {clip, start, end, name?}`: trims `[start, end)`
@@ -223,6 +233,16 @@ pub(crate) fn apply_at(path: &Path, body: &Value) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A poster the cut list names data-root relative resolves under this
+    /// install's data root; an absolute one from before that rule stays as is.
+    #[test]
+    fn a_relative_poster_resolves_under_the_data_root() {
+        let rel = super::super::playout::poster_rel("clip-ab12", 3);
+        assert_eq!(rel, "projects/hap/clip-ab12.scenes/3.jpg");
+        assert_eq!(resolve_poster(&rel), crate::output::data_root().join(&rel));
+        assert_eq!(resolve_poster("/old/absolute/0.jpg"), std::path::PathBuf::from("/old/absolute/0.jpg"));
+    }
 
     fn temp(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("fw-scenes-{name}-{}", std::process::id()));

@@ -138,6 +138,12 @@ impl eframe::App for App {
 /// the CPU stand-in for everything. On a WebGL2 device the models that need
 /// compute shaders draw on the stand-in, one by one (`Paint::painter_of`).
 async fn choose_painter() -> (Box<dyn Paint>, String) {
+    // Once, at startup: the preview painter in a Web Worker when the browser
+    // has `Worker`, `OffscreenCanvas` and a device in the worker; else inline.
+    if let Some(paint) = crate::web_worker::try_worker().await {
+        let label = paint.describe();
+        return (Box::new(paint), label);
+    }
     if let Some(gpu) = metal_render::gpu::web().await {
         let renderer = metal_render::headless::Renderer::with_gpu(gpu);
         let paint = metal_perform::paint::Gpu::from_renderer(renderer);
@@ -158,6 +164,11 @@ pub fn start() -> Result<(), JsValue> {
     std::panic::set_hook(Box::new(|info| {
         web_sys::console::error_1(&format!("metalvj panic: {info}").into());
     }));
+    // The same module also runs inside the preview worker (`worker.js`): there
+    // is no page to start, only `worker_boot` / `worker_draw` to be called.
+    if web_sys::window().is_none() {
+        return Ok(());
+    }
     let canvas = web_sys::window()
         .and_then(|w| w.document())
         .and_then(|d| d.get_element_by_id(CANVAS_ID))

@@ -2145,6 +2145,22 @@ impl AgentHarness {
             .map_err(|(status, msg)| format!("/frame/export answered {status}: {msg}"))
     }
 
+    /// The export queue (rule 6): `POST /export/queue`, the route the export
+    /// panel's queue posts. `op` is `add` (an `export_video` request),
+    /// `cancel {id}`, `move {id, to}` or `list`.
+    fn export_queue(&self, args: &Value) -> Result<Value, String> {
+        let op = args.get("op").and_then(Value::as_str).ok_or_else(|| "expected `op`".to_string())?;
+        let mut body = json!({ "op": op });
+        for key in ["id", "to", "device", "node", "range", "fps", "codec", "bitrate", "audio", "path"] {
+            if let Some(v) = args.get(key) {
+                body[key] = v.clone();
+            }
+        }
+        let door = self.door()?;
+        door.json("POST", "/export/queue", Some(body))
+            .map_err(|(status, msg)| format!("/export/queue answered {status}: {msg}"))
+    }
+
     /// E1/E3 (rule 6): the offline video export over `POST /export/video`, the
     /// same route the export control posts. `range` is `[start, end)` in
     /// frames; `node`, `fps`, `codec`, `bitrate` and `audio` (`"mix"`,
@@ -2700,19 +2716,25 @@ impl AgentHarness {
     /// the layer and movement; `solid` stays with `solid_color`.
     fn overlay_control(&self, args: &Value) -> Result<Value, String> {
         let op = Self::require_str(args, "op")?;
-        if !matches!(op, "play" | "stop" | "stop-all" | "stop-solid" | "glitch" | "glitch-release") {
+        if !matches!(
+            op,
+            "play" | "stop" | "stop-all" | "stop-solid" | "glitch" | "glitch-release" | "to-timeline" | "color-clip"
+        ) {
             return Err(format!(
-                "op is play / stop / stop-all / stop-solid / glitch / glitch-release, not {op}"
+                "op is play / stop / stop-all / stop-solid / glitch / glitch-release / to-timeline / color-clip, not {op}"
             ));
         }
         let mut body = json!({ "op": op });
-        for key in ["device", "layer", "movement"] {
+        for key in ["device", "layer", "movement", "timeline", "segment"] {
             if let Some(v) = args.get(key).and_then(Value::as_str) {
                 body[key] = json!(v);
             }
         }
         if let Some(looping) = args.get("loop").and_then(Value::as_bool) {
             body["loop"] = json!(looping);
+        }
+        if let Some(hold) = args.get("hold").and_then(Value::as_bool) {
+            body["hold"] = json!(hold);
         }
         let door = self.door()?;
         door.json("POST", "/overlay", Some(body))
@@ -2806,6 +2828,7 @@ impl ToolExecutor for AgentHarness {
             "export_frame" => self.export_frame(&call.arguments),
             // E1: the offline video export job.
             "export_video" => self.export_video(&call.arguments),
+            "export_queue" => self.export_queue(&call.arguments),
             "list_video_io" => self.list_video_io(),
             "set_output_sink" => self.set_output_sink(&call.arguments),
             "dmx_bus" => self.dmx_bus(&call.arguments),
@@ -2887,6 +2910,11 @@ fn find_segment_json(tl: &timeline::Timeline, track: &str, id: &str) -> Option<V
             .and_then(|s| serde_json::to_value(s).ok()),
         "text" => tl
             .text_track
+            .iter()
+            .find(|s| s.id == id)
+            .and_then(|s| serde_json::to_value(s).ok()),
+        "color" => tl
+            .color_track
             .iter()
             .find(|s| s.id == id)
             .and_then(|s| serde_json::to_value(s).ok()),

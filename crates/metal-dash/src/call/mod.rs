@@ -1127,6 +1127,21 @@ pub static ROUTES: &[Route] = &[
         prefix: false,
         handler: Handler::Json(export::control),
     },
+    // The export queue (plan §9.1): FIFO in `data/export-presets.json`, one job
+    // at a time; `POST` adds, cancels, reorders or lists. The AI's
+    // `export_queue` tool posts here (rule 6).
+    Route {
+        method: "GET",
+        path: "/export/queue",
+        prefix: false,
+        handler: Handler::Json(export::queue_list),
+    },
+    Route {
+        method: "POST",
+        path: "/export/queue",
+        prefix: false,
+        handler: Handler::Json(export::queue_control),
+    },
     // §9.4 V2: the WGSL editor's one writer and its reads. The operator's
     // editor and the AI's `save_shader` tool both post here (rule 6), so a
     // shader one saves and a shader the other saves pass the same naga gate

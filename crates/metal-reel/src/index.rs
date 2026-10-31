@@ -71,6 +71,13 @@ pub const FPS: f32 = 12.0;
 /// How wide a rung is, in pixels. Height follows the source's aspect.
 pub const WIDTH: u32 = 640;
 
+/// The one proxy spec: every HAP proxy is [`FPS`] rungs a second at [`WIDTH`]
+/// pixels across, and the cut list is cut from those rows. The app's own
+/// proxies (`metal-dash`'s scene playout) and the library build both read this,
+/// so a clip has one movie and one cut list. A proxy whose index names another
+/// spec (or none, `0`) is stale and is rebuilt through the ingest job.
+pub const PROXY_SPEC: u32 = 2;
+
 /// ffmpeg's `-q:v`, where 2 is best and 31 is worst.
 pub const QUALITY: u8 = 4;
 
@@ -99,6 +106,13 @@ const EXTENSIONS: [&str; 10] =
 
 /// Where libraries live under the data directory.
 pub const DIR: &str = "reels";
+
+/// A clip's HAP proxy and its index: the one folder every proxy lives in,
+/// `<data>/projects/hap/<slug>.mov`, whoever made it (the editor's ingest or a
+/// library build).
+pub fn proxy_paths(data: &Path, slug: &str) -> (PathBuf, PathBuf) {
+    crate::hap::Hap::paths(&data.join("projects"), slug)
+}
 
 /// How many rungs are decoded and described at once.
 ///
@@ -338,6 +352,11 @@ impl Library {
         data.join(DIR).join(name)
     }
 
+    /// The data root this library lives under (`<data>/reels/<name>`).
+    pub fn data(&self) -> PathBuf {
+        self.root.parent().and_then(Path::parent).map(Path::to_path_buf).unwrap_or_default()
+    }
+
     pub fn load(data: &Path, name: &str) -> Result<Library, String> {
         let root = Library::dir(data, name);
         let text = metal_vfs::read_to_string(root.join("index.json"))
@@ -375,7 +394,7 @@ impl Library {
 
     /// 2026-10-01: the clip's HAP proxy, when it was written whole.
     pub fn hap(&self, clip: &Clip) -> Option<crate::hap::Hap> {
-        let (movie, index) = crate::hap::Hap::paths(&self.root, &clip.id);
+        let (movie, index) = proxy_paths(&self.data(), &clip.id);
         crate::hap::Hap::open(&movie, &index).ok().filter(|h| h.frames() == clip.rungs())
     }
 
@@ -458,7 +477,6 @@ pub fn build(
     metal_vfs::create_dir_all(root.join("frames")).map_err(|e| e.to_string())?;
 
     let mut clips: Vec<Clip> = Vec::new();
-    let mut used: Vec<String> = Vec::new();
     let total = files.len();
 
     for (i, path) in files.iter().enumerate() {
@@ -466,8 +484,9 @@ pub fn build(
             .file_name()
             .map(|f| f.to_string_lossy().to_string())
             .unwrap_or_default();
-        let id = unique(&slug(&file), &used);
-        used.push(id.clone());
+        // One slug for a clip everywhere: its path's, as the editor's proxy and
+        // the scene book name it (`scenes::slug`), not a filename-only one.
+        let id = crate::scenes::slug(&path.to_string_lossy());
 
         let stamp = match stamp_of(path) {
             Some(s) => s,
@@ -498,7 +517,7 @@ pub fn build(
 
         on(Step::Probing { file: file.clone(), clip: i, of: total });
         let dir = root.join("frames").join(&id);
-        let movie = crate::hap::Hap::paths(&root, &id).1;
+        let movie = proxy_paths(data, &id).1;
         on(Step::Extracting { file: file.clone(), clip: i, of: total });
         let written = match write_rungs(path, &dir, &movie, opts) {
             Ok(n) => n,
@@ -576,7 +595,10 @@ pub fn build(
     // still draw, only slower.
     let total = clips.len();
     for (i, clip) in clips.iter().enumerate() {
-        let (movie, index) = crate::hap::Hap::paths(&root, &clip.id);
+        let (movie, index) = proxy_paths(data, &clip.id);
+        if let Some(dir) = movie.parent() {
+            let _ = metal_vfs::create_dir_all(dir);
+        }
         let whole = crate::hap::Hap::open(&movie, &index).is_ok_and(|h| h.frames() == clip.rungs());
         if whole {
             continue;
@@ -606,7 +628,7 @@ pub fn build(
             &mut |_| {},
         ) {
             Ok((width, height, packets)) => {
-                let text = serde_json::to_string(&crate::hap::Index { width, height, packets }).map_err(|e| e.to_string())?;
+                let text = serde_json::to_string(&crate::hap::Index { width, height, packets, spec: PROXY_SPEC }).map_err(|e| e.to_string())?;
                 metal_vfs::write(&index, text).map_err(|e| e.to_string())?;
             }
             Err(e) => {
@@ -764,7 +786,9 @@ pub fn cut(rows: &[[f32; COLUMNS]], rate: f32) -> Vec<Passage> {
 // the plumbing
 // ---------------------------------------------------------------------------
 
-/// A JPEG on disk → RGB8.
+/// A still on disk → RGB8: JPEG (the ladder's own format, decoded by zune),
+/// PNG or WebP (decoded by the `image` crate). The format is read from the
+/// bytes, not the extension, so a renamed file still decodes.
 ///
 /// Greyscale sources come back one byte per pixel and are expanded here rather
 /// than handled everywhere downstream. Black-and-white footage is a real thing
@@ -772,12 +796,22 @@ pub fn cut(rows: &[[f32; COLUMNS]], rate: f32) -> Vec<Passage> {
 /// component count.
 pub fn decode(path: &Path) -> Result<Rgb, String> {
     let bytes = metal_vfs::read(path).map_err(|e| e.to_string())?;
+    if is_jpeg(&bytes) {
+        return decode_jpeg(&bytes);
+    }
+    decode_image(&bytes)
+}
+
+/// JPEG starts `FF D8 FF`.
+fn is_jpeg(bytes: &[u8]) -> bool {
+    bytes.starts_with(&[0xFF, 0xD8, 0xFF])
+}
+
+fn decode_jpeg(bytes: &[u8]) -> Result<Rgb, String> {
     // `ZCursor` rather than the slice: zune's reader trait is implemented for
     // `BufRead + Seek`, which a `&[u8]` is not, and for its own cursor, which
     // wraps one without copying.
-    let mut decoder = zune_jpeg::JpegDecoder::new(zune_jpeg::zune_core::bytestream::ZCursor::new(
-        &bytes[..],
-    ));
+    let mut decoder = zune_jpeg::JpegDecoder::new(zune_jpeg::zune_core::bytestream::ZCursor::new(bytes));
     let px = decoder.decode().map_err(|e| e.to_string())?;
     let info = decoder.info().ok_or("no jpeg header")?;
     let (w, h) = (info.width as u32, info.height as u32);
@@ -792,6 +826,22 @@ pub fn decode(path: &Path) -> Result<Rgb, String> {
         other => return Err(format!("{other} components per pixel")),
     };
     Ok(Rgb { width: w, height: h, px })
+}
+
+/// PNG or WebP (anything else `image` reads is refused by name). An alpha
+/// channel is dropped: a still is a picture, and the descriptor and the
+/// proxies are RGB.
+fn decode_image(bytes: &[u8]) -> Result<Rgb, String> {
+    let format = image::guess_format(bytes).map_err(|_| "not a JPEG, PNG or WebP".to_string())?;
+    if !matches!(format, image::ImageFormat::Png | image::ImageFormat::WebP) {
+        return Err(format!("unsupported still format {format:?}"));
+    }
+    let rgb = image::load_from_memory_with_format(bytes, format).map_err(|e| e.to_string())?.to_rgb8();
+    let (w, h) = rgb.dimensions();
+    if w == 0 || h == 0 {
+        return Err("zero-sized frame".into());
+    }
+    Ok(Rgb { width: w, height: h, px: rgb.into_raw() })
 }
 
 /// `f` over every item, across every core, results in the original order.
@@ -852,6 +902,81 @@ fn sweep(frames: &Path, keep: &[Clip]) {
     }
 }
 
+/// Moves every library onto the one proxy folder and the one slug (a clip's
+/// id is `scenes::slug` of its path): the ladder folder is renamed, the proxy
+/// moves to `projects/hap/`, the clip id in `index.json` and in the picks
+/// changes. Idempotent (a library already on the new slug is untouched), and
+/// before it changes a file it keeps a `.bak-slug` copy beside it (once).
+/// Returns how many clips it moved.
+pub fn migrate_to_one_slug(data: &Path) -> usize {
+    fn backup(path: &Path) {
+        let bak = PathBuf::from(format!("{}.bak-slug", path.display()));
+        if path.is_file() && !bak.exists() {
+            let _ = std::fs::copy(path, bak);
+        }
+    }
+    let mut moved = 0;
+    for name in Library::list(data) {
+        let Ok(mut lib) = Library::load(data, &name) else { continue };
+        let source = PathBuf::from(&lib.source);
+        let renames: Vec<(String, String)> = lib
+            .clips
+            .iter()
+            .map(|c| (c.id.clone(), crate::scenes::slug(&source.join(&c.file).to_string_lossy())))
+            .filter(|(old, new)| old != new)
+            .collect();
+        if renames.is_empty() {
+            continue;
+        }
+        backup(&lib.root.join("index.json"));
+        let picks_dir = lib.root.join("picks");
+        let pick_files: Vec<PathBuf> = metal_vfs::read_dir(&picks_dir)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x == "json"))
+            .collect();
+        for f in &pick_files {
+            backup(f);
+        }
+        for (old, new) in &renames {
+            let (frames_old, frames_new) = (lib.root.join("frames").join(old), lib.root.join("frames").join(new));
+            if frames_old.is_dir() && !frames_new.exists() {
+                let _ = std::fs::rename(&frames_old, &frames_new);
+            }
+            let (old_movie, old_index) = crate::hap::Hap::paths(&lib.root, old);
+            let (new_movie, new_index) = proxy_paths(data, new);
+            if let Some(dir) = new_movie.parent() {
+                let _ = metal_vfs::create_dir_all(dir);
+            }
+            for (from, to) in [(old_movie, new_movie), (old_index, new_index)] {
+                if from.is_file() && !to.exists() {
+                    let _ = std::fs::rename(&from, &to);
+                }
+            }
+            for c in lib.clips.iter_mut().filter(|c| &c.id == old) {
+                c.id = new.clone();
+            }
+            moved += 1;
+        }
+        for f in pick_files {
+            let Ok(text) = metal_vfs::read_to_string(&f) else { continue };
+            let Ok(mut picks) = serde_json::from_str::<Vec<crate::curate::Pick>>(&text) else { continue };
+            for p in &mut picks {
+                if let Some((_, new)) = renames.iter().find(|(old, _)| *old == p.clip) {
+                    p.clip = new.clone();
+                }
+            }
+            if let Ok(out) = serde_json::to_string_pretty(&picks) {
+                let _ = metal_vfs::write(&f, out);
+            }
+        }
+        let _ = lib.save();
+    }
+    moved
+}
+
 /// A filename → a directory name that is safe on every filesystem and stable
 /// across them.
 ///
@@ -879,26 +1004,49 @@ pub fn slug(file: &str) -> String {
     }
 }
 
-/// `slug` collides — two files named the same but for their extension, or two
-/// that differ only in punctuation. A collision would silently make two clips
-/// share one ladder.
-fn unique(base: &str, used: &[String]) -> String {
-    if !used.iter().any(|u| u == base) {
-        return base.to_string();
-    }
-    let mut n = 2;
-    loop {
-        let candidate = format!("{base}-{n}");
-        if !used.iter().any(|u| *u == candidate) {
-            return candidate;
-        }
-        n += 1;
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A 2×2 picture, one colour per corner, written in `format` to a tempdir.
+    fn still_file(name: &str, format: image::ImageFormat) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("fw-reel-still-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut img = image::RgbImage::new(2, 2);
+        img.put_pixel(0, 0, image::Rgb([255, 0, 0]));
+        img.put_pixel(1, 0, image::Rgb([0, 255, 0]));
+        img.put_pixel(0, 1, image::Rgb([0, 0, 255]));
+        img.put_pixel(1, 1, image::Rgb([255, 255, 255]));
+        let path = dir.join(name);
+        img.save_with_format(&path, format).unwrap();
+        path
+    }
+
+    /// PNG and WebP stills decode to the same RGB8 pixels the picture holds
+    /// (both are lossless here), beside the JPEG path that was already there.
+    #[test]
+    fn a_png_and_a_webp_still_decode_like_a_jpeg_does_not_have_to() {
+        for (name, format) in [("a.png", image::ImageFormat::Png), ("a.webp", image::ImageFormat::WebP)] {
+            let path = still_file(name, format);
+            let rgb = decode(&path).expect("decodes");
+            assert_eq!((rgb.width, rgb.height), (2, 2), "{name}");
+            assert_eq!(&rgb.px[0..3], &[255, 0, 0], "{name}: top-left is red");
+            assert_eq!(&rgb.px[9..12], &[255, 255, 255], "{name}: bottom-right is white");
+            let _ = std::fs::remove_dir_all(path.parent().unwrap());
+        }
+    }
+
+    /// The format is read from the bytes: a PNG renamed `.jpg` still decodes,
+    /// and bytes that are none of the three are refused by name.
+    #[test]
+    fn a_still_is_read_by_its_bytes_and_a_stranger_is_refused() {
+        let path = still_file("renamed.jpg", image::ImageFormat::Png);
+        assert!(decode(&path).is_ok(), "a PNG under a .jpg name decodes");
+        std::fs::write(&path, b"GIF89a not a still we take").unwrap();
+        let Err(err) = decode(&path) else { panic!("a GIF is refused") };
+        assert!(err.contains("not a JPEG, PNG or WebP") || err.contains("unsupported"), "{err}");
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
 
     fn rows(n: usize, motion_at: &[usize]) -> Vec<[f32; COLUMNS]> {
         (0..n)
@@ -1008,13 +1156,6 @@ mod tests {
         assert_eq!(slug("no-extension"), "no-extension");
     }
 
-    #[test]
-    fn two_files_that_slug_the_same_do_not_share_a_ladder() {
-        let used = vec!["a".to_string()];
-        assert_eq!(unique("a", &used), "a-2");
-        assert_eq!(unique("a", &["a".into(), "a-2".into()]), "a-3");
-        assert_eq!(unique("b", &used), "b");
-    }
 
     #[test]
     fn a_scene_carries_the_three_qualities_the_mean_loses() {
@@ -1074,5 +1215,49 @@ mod tests {
             let items: Vec<usize> = (0..n).collect();
             assert_eq!(across(&items, |k| k * 2), (0..n).map(|k| k * 2).collect::<Vec<_>>());
         }
+    }
+
+    /// 2b: a library built under the filename slug moves onto the path slug and
+    /// the one proxy folder; its picks follow; the originals are kept as
+    /// `.bak-slug`; a second run moves nothing.
+    #[test]
+    fn a_library_migrates_onto_the_one_slug_and_proxy_folder_once() {
+        let data = std::env::temp_dir().join(format!("fw-one-slug-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let root = Library::dir(&data, "lib");
+        let clip = Clip {
+            id: "intro".into(),
+            file: "intro.mp4".into(),
+            seconds: 1.0,
+            stamp: Stamp { bytes: 1, modified: 1 },
+            rows: Vec::new(),
+            passages: Vec::new(),
+        };
+        let lib = Library { name: "lib".into(), source: "/footage".into(), rate: FPS, width: WIDTH, clips: vec![clip], root: root.clone() };
+        lib.save().unwrap();
+        std::fs::create_dir_all(root.join("frames/intro")).unwrap();
+        std::fs::write(root.join("frames/intro/000001.jpg"), b"j").unwrap();
+        std::fs::create_dir_all(root.join("hap")).unwrap();
+        std::fs::write(root.join("hap/intro.mov"), b"mov").unwrap();
+        std::fs::write(root.join("hap/intro.json"), b"{}").unwrap();
+        let pick = crate::curate::Pick { song: "s".into(), tick: 3, clip: "intro".into(), passage: 0, play: Default::default() };
+        crate::curate::save_picks(&data, "lib", "s", &[pick]).unwrap();
+
+        let new = crate::scenes::slug("/footage/intro.mp4");
+        assert_eq!(migrate_to_one_slug(&data), 1);
+        let after = Library::load(&data, "lib").unwrap();
+        assert_eq!(after.clips[0].id, new);
+        assert!(root.join("frames").join(&new).join("000001.jpg").is_file());
+        assert!(proxy_paths(&data, &new).0.is_file() && proxy_paths(&data, &new).1.is_file());
+        assert!(!root.join("hap/intro.mov").exists());
+        assert_eq!(crate::curate::load_picks(&data, "lib")[0].clip, new);
+        assert!(root.join("index.json.bak-slug").is_file(), "the index is backed up");
+        assert!(root.join("picks/s.json.bak-slug").is_file(), "the picks are backed up");
+        let bak = std::fs::read_to_string(root.join("picks/s.json.bak-slug")).unwrap();
+        assert!(bak.contains("\"intro\""), "the backup is the old file");
+
+        assert_eq!(migrate_to_one_slug(&data), 0, "idempotent");
+        assert_eq!(std::fs::read_to_string(root.join("picks/s.json.bak-slug")).unwrap(), bak, "the backup is kept from the first run");
+        let _ = std::fs::remove_dir_all(&data);
     }
 }

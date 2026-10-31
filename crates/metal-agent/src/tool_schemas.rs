@@ -252,6 +252,9 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         "set_head_tracking" => vec!["on", "strength"],
         "attach_source" => vec!["graph", "node", "port", "kind", "from", "config"],
         "export_frame" => vec!["device", "node", "dir"],
+        "export_queue" => vec![
+            "op", "id", "to", "device", "node", "range", "fps", "codec", "bitrate", "audio", "path",
+        ],
         "export_video" => vec![
             "device", "node", "range", "fps", "codec", "bitrate", "audio", "path",
         ],
@@ -282,7 +285,7 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         "edit_loops" => vec!["op", "definition", "as_copy", "graph", "node", "choice", "song", "seconds", "stop"],
         "transport" => vec!["action", "song", "seconds"],
         "fire_trigger" => vec!["id"],
-        "overlay_control" => vec!["op", "device", "layer", "movement", "loop", "hold"],
+        "overlay_control" => vec!["op", "device", "layer", "movement", "loop", "hold", "timeline", "segment"],
         "colour_apply" => vec!["graph", "group", "nodes", "palette", "hsb", "rgb"],
         _ => return None,
     })

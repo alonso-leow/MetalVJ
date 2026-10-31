@@ -50,6 +50,7 @@ pub fn api_base() -> String {
         .unwrap_or_else(|| GITHUB_API.to_string())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A blocking client with the user agent and the `Accept` already set. One
 /// per operation: at update frequency a pooled agent buys nothing, and
 /// GitHub's rate limit counts requests, not connections. The token travels
@@ -68,6 +69,7 @@ fn agent(accept: &'static str) -> ureq::Agent {
         .timeout_global(Some(std::time::Duration::from_secs(60)));
     ureq::Agent::new_with_config(config.build())
 }
+#[cfg(not(target_arch = "wasm32"))]
 /// Run a GET with the standard headers; the token, when present, is attached
 /// per call so the agent can be shared across a `check` and an `apply`.
 fn get_with(token: Option<&str>, url: &str, accept: &'static str) -> Result<ureq::Body, Error> {
@@ -80,6 +82,13 @@ fn get_with(token: Option<&str>, url: &str, accept: &'static str) -> Result<ureq
 }
 
 /// `GET <api>/repos/<repo>/releases`, parsed into [`crate::Release`]s.
+#[cfg(target_arch = "wasm32")]
+pub fn fetch_releases(_cfg: &UpdateConfig) -> Result<Vec<crate::Release>, Error> {
+    Err(Error::Http("not in the browser: the page reloads instead".into()))
+}
+
+/// `GET <api>/repos/<repo>/releases`, parsed into [`crate::Release`]s.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn fetch_releases(cfg: &UpdateConfig) -> Result<Vec<crate::Release>, Error> {
     let url = releases_url(&cfg.repo);
     let body = get_with(cfg.token().as_deref(), &url, JSON_ACCEPT)?;
@@ -99,6 +108,13 @@ pub fn fetch_releases(cfg: &UpdateConfig) -> Result<Vec<crate::Release>, Error> 
 /// does not match removes the temp file and fails; a missing one is normal
 /// (GitHub leaves `digest` null on hand-uploaded assets) and the download is
 /// kept, with `Ok(false)` telling the caller it is unverified.
+#[cfg(target_arch = "wasm32")]
+pub fn download(_asset: &crate::Asset, _dest: &std::path::Path) -> Result<bool, Error> {
+    Err(Error::Http("not in the browser: the page reloads instead".into()))
+}
+
+/// The native download (see above).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn download(asset: &crate::Asset, dest: &std::path::Path) -> Result<bool, Error> {
     let expected = asset.digest.as_deref().map(parse_digest).transpose()?;
     let tmp = crate::staging_path(dest);
@@ -174,6 +190,7 @@ fn hex(bytes: &[u8]) -> String {
     })
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn http_error(e: ureq::Error) -> Error {
     let text = e.to_string();
     // The rate-limit case deserves its own sentence: it is the one failure a

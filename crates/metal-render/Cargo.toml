@@ -51,10 +51,12 @@ egui-winit = "0.36"
 # with the default features where the page provides it. `scripts/build-wasm.sh`
 # builds metal-dash for wasm32, which pulls this crate in through `metal-perform/gpu`.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wgpu = { version = "30", features = ["webgl"] }
+# `fragile-send-sync-non-atomic-wasm`: the browser build is one thread (no
+# atomics), so wgpu's handles are marked `Send + Sync` for the shell's mailboxes.
+wgpu = { version = "30", features = ["webgl", "fragile-send-sync-non-atomic-wasm"] }
 # The canvas a WebGL2 context is created on (`gpu::web`).
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "OffscreenCanvas"] }
 
 [[bin]]
 name = "metal-render"

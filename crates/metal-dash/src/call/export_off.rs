@@ -23,3 +23,11 @@ pub fn status(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
 pub fn control(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
     refuse()
 }
+
+pub fn queue_list(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+    refuse()
+}
+
+pub fn queue_control(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+    refuse()
+}

@@ -14,6 +14,10 @@ kurbo = "0.13"
 # Robust CSG. The Manifold library is the same solver Blender's
 # `geometry::boolean::Solver::Manifold` links; this crate is a permissive
 # binding (Apache-2.0 OR MIT), not Blender's GPL code.
-manifold3d = "0.4"
 # glTF 2.0 import. Apache-2.0 OR MIT.
 gltf = "1"
+
+# Native only: Manifold is a C++ library that does not build for the browser,
+# where `csg::boolean` answers `SolverNotAvailable`.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+manifold3d = "0.4"

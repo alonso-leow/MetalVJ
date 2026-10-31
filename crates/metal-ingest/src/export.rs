@@ -339,7 +339,11 @@ pub fn default_presets() -> Vec<ExportPreset> {
 /// no preset has nothing to fall back to — so the caller keeps the built-in
 /// defaults rather than an empty menu.
 pub fn parse_presets(json: &str) -> Result<Vec<ExportPreset>, String> {
-    let presets: Vec<ExportPreset> = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    // A bare list, or `{"presets": [...], "queue": [...]}` (the queue is the
+    // dash's: it runs the waiting jobs).
+    let value: serde_json::Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    let list = if value.is_array() { value } else { value["presets"].clone() };
+    let presets: Vec<ExportPreset> = serde_json::from_value(list).map_err(|e| e.to_string())?;
     if presets.is_empty() {
         return Err("export presets: the list is empty".to_string());
     }

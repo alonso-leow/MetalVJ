@@ -46,7 +46,15 @@ pub const CLOCK_KEY: &str = "_clock";
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Item {
-    Video { path: String },
+    /// A video. `start`/`end` (seconds) name a window to loop inside, as a
+    /// dropped scene writes them; absent, the whole clip loops.
+    Video {
+        path: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        start: Option<f64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        end: Option<f64>,
+    },
     Image { path: String },
     Scene { id: String },
     Group { name: String },
@@ -55,8 +63,8 @@ pub enum Item {
 /// What an item resolves to at a tick: something with pixels.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Entry {
-    /// A whole video, from its start.
-    Video { path: String },
+    /// A video: its whole length, or the `(start, end)` window it loops in.
+    Video { path: String, span: Option<(f64, f64)> },
     /// A still, held for the interval.
     Image { path: String },
     /// `clip` from `start` to `end` seconds, looping inside it.
@@ -135,7 +143,13 @@ pub fn expand(items: &[Item], favorites: &Favorites) -> Vec<Entry> {
     let mut out = Vec::new();
     for item in items {
         match item {
-            Item::Video { path } => out.push(Entry::Video { path: path.clone() }),
+            Item::Video { path, start, end } => {
+                let span = match (start, end) {
+                    (Some(a), Some(b)) if b > a => Some((*a, *b)),
+                    _ => None,
+                };
+                out.push(Entry::Video { path: path.clone(), span });
+            }
             Item::Image { path } => out.push(Entry::Image { path: path.clone() }),
             Item::Scene { id } => out.extend(favorites.scenes.get(id).map(scene)),
             Item::Group { name } => out.extend(favorites.group(name).into_iter().map(|(_, s)| scene(s))),
@@ -336,7 +350,7 @@ fn resolve(root: &Path, path: &str) -> PathBuf {
 pub fn frame(root: &Path, entry: &Entry, local: f32, w: u32, h: u32) -> Option<Vec<u8>> {
     match entry {
         Entry::Image { path } => image(&resolve(root, path), w, h, Fit::Stretch),
-        Entry::Video { path } => video(root, path, local as f64, None, false, w, h),
+        Entry::Video { path, span } => video(root, path, local as f64, *span, false, w, h),
         Entry::Scene { clip, start, end } => video(root, clip, local as f64, Some((*start, *end)), false, w, h),
     }
 }
@@ -369,6 +383,12 @@ fn source_path(root: &Path, library: Option<&str>, file: &str) -> PathBuf {
     root.join(p)
 }
 
+/// The colour of a `solid` node's `{"rgb":[r,g,b]}`; black when absent.
+pub fn solid_rgb(c: &Value) -> [u8; 3] {
+    let at = |i: usize| c["rgb"][i].as_u64().map_or(0, |v| v.min(255) as u8);
+    [at(0), at(1), at(2)]
+}
+
 /// P-E: the picture of a `still` node (`{file}` or `{library, image}`) or a
 /// `reel.clip` node (`{library, clip, passage, speed, reverse}`, or the drop
 /// shape `{file, start, end}`) at show `time`, RGBA at `w × h`. `None` when
@@ -377,6 +397,10 @@ fn source_path(root: &Path, library: Option<&str>, file: &str) -> PathBuf {
 pub fn source_frame(root: &Path, node: &metal_graph::Node, time: f32, w: u32, h: u32) -> Option<Vec<u8>> {
     let c: Value = serde_json::from_str(&node.config.to_json_str()).unwrap_or_default();
     let library = c["library"].as_str();
+    if node.kind == metal_graph::SOLID_KIND {
+        let rgb = solid_rgb(&c);
+        return Some([rgb[0], rgb[1], rgb[2], 255].repeat((w * h) as usize));
+    }
     if node.kind == "still" {
         let file = c["file"].as_str().or(c["image"].as_str()).filter(|f| !f.is_empty())?;
         return image(&source_path(root, library, file), w, h, fit_of(&c));
@@ -724,5 +748,82 @@ mod tests {
                 {"kind":"scene","id":"s"},{"kind":"group","name":"g"},{"kind":"nope"}]}"#,
         );
         assert_eq!(items(&node).len(), 4);
+    }
+
+    /// 1c: a scene dropped on the canvas writes `{file, scene, start, end}`.
+    /// The reel reads its file and its window and ignores nothing it needs: the
+    /// window comes through `clip_and_span` as the loop, and a plain drop (no
+    /// window) loops the whole clip.
+    #[test]
+    fn a_dropped_scene_hands_its_window_to_the_reel() {
+        let scene = serde_json::json!({ "file": "/v/a.mp4", "scene": "a-2#0-5000", "start": 2.0, "end": 5.0 });
+        assert_eq!(clip_and_span(&scene), Some(("/v/a.mp4", Some((2.0, 5.0)))));
+        let plain = serde_json::json!({ "file": "/v/a.mp4" });
+        assert_eq!(clip_and_span(&plain), Some(("/v/a.mp4", None)));
+        let inverted = serde_json::json!({ "file": "/v/a.mp4", "start": 5.0, "end": 2.0 });
+        assert_eq!(clip_and_span(&inverted), Some(("/v/a.mp4", None)), "an empty window is no window");
+    }
+
+    /// A dropped video's window is its loop: a video item with `start`/`end`
+    /// keeps the span through `expand`, and `source_time` then stays inside
+    /// `[start, end)` for every local time, where a plain video walks its
+    /// whole length.
+    #[test]
+    fn a_video_item_loops_its_window_and_a_plain_one_its_length() {
+        let node = batch(r#"{"items":[{"kind":"video","path":"v.mp4","start":2.0,"end":5.0},{"kind":"video","path":"w.mp4"}]}"#);
+        let entries = expand(&items(&node), &Favorites::default());
+        let Entry::Video { span: windowed, .. } = &entries[0] else { panic!("a video") };
+        let Entry::Video { span: plain, .. } = &entries[1] else { panic!("a video") };
+        assert_eq!(*windowed, Some((2.0, 5.0)));
+        assert_eq!(*plain, None, "no window: the whole clip");
+        for step in 0..60 {
+            let t = source_time(step as f64 * 0.37, *windowed, 60.0, false);
+            assert!((2.0..5.0).contains(&t), "{t} left the window");
+        }
+        assert_eq!(source_time(0.0, *plain, 60.0, false), 0.0);
+        assert!((source_time(30.0, *plain, 60.0, false) - 30.0).abs() < 1e-9, "a plain video walks its length");
+    }
+
+    /// 1f: a `reel.batch` node draws. Two stills at a 1 s interval: the pixels
+    /// at 0.5 s are the first file's (red), at 1.5 s the second's (blue), and a
+    /// file that does not decode draws nothing rather than panicking.
+    #[test]
+    fn a_batch_draws_the_item_its_clock_picks() {
+        let dir = std::env::temp_dir().join(format!("mvj-batch-draw-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for (name, rgb) in [("a.png", [250u8, 10, 10]), ("b.png", [10, 10, 250])] {
+            let mut enc = png::Encoder::new(std::io::BufWriter::new(std::fs::File::create(dir.join(name)).unwrap()), 4, 4);
+            enc.set_color(png::ColorType::Rgba);
+            enc.set_depth(png::BitDepth::Eight);
+            let px: Vec<u8> = (0..16).flat_map(|_| [rgb[0], rgb[1], rgb[2], 255]).collect();
+            enc.write_header().unwrap().write_image_data(&px).unwrap();
+        }
+        std::fs::write(dir.join("broken.png"), b"not a png").unwrap();
+        let node = batch(
+            r#"{"interval":1.0,"items":[{"kind":"image","path":"a.png"},{"kind":"image","path":"b.png"},{"kind":"image","path":"broken.png"}]}"#,
+        );
+        let f = Favorites::default();
+        let draw = |t: f32| {
+            let (entry, local) = now(&node, &f, t).expect("a batch with items has an entry");
+            frame(&dir, &entry, local, 8, 8)
+        };
+        let first = draw(0.5).expect("the first still draws");
+        assert_eq!(first.len(), 8 * 8 * 4);
+        assert!(first.chunks_exact(4).all(|p| p[0] > 200 && p[2] < 40 && p[3] == 255));
+        let second = draw(1.5).expect("the second still draws");
+        assert!(second.chunks_exact(4).all(|p| p[2] > 200 && p[0] < 40));
+        assert!(draw(2.5).is_none(), "an undecodable file draws nothing");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A `solid` node draws its `rgb` over the whole frame.
+    #[test]
+    fn a_solid_node_is_one_flat_colour() {
+        let mut g = metal_graph::Graph::new("g", "t", metal_graph::Domain::Live);
+        let id = g.add_node("s", metal_graph::SOLID_KIND, [0.0, 0.0]);
+        g.node_mut(&id).unwrap().config = metal_graph::Config::from_json_str(r#"{"rgb":[250,10,40]}"#).unwrap();
+        let px = source_frame(std::path::Path::new("."), g.node(&id).unwrap(), 0.0, 4, 3).expect("a solid has pixels");
+        assert_eq!(px.len(), 4 * 3 * 4);
+        assert!(px.chunks_exact(4).all(|p| p == [250, 10, 40, 255]));
     }
 }

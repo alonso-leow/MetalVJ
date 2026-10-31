@@ -1335,6 +1335,7 @@ pub fn is_tile_source(kind: &str) -> bool {
         || kind == metal_graph::TEXT_SOURCE_KIND
         || kind.starts_with("reel.")
         || kind == "still"
+        || kind == metal_graph::SOLID_KIND
         || kind == "capture"
 }
 

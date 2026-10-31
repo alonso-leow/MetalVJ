@@ -6,10 +6,6 @@
 //! coplanar or exactly-touching faces can occasionally make a boolean
 //! degenerate; those failures surface as [`CsgError::Unknown`].
 
-use std::panic::{catch_unwind, AssertUnwindSafe};
-
-use manifold3d::{Manifold, OpType};
-
 use crate::mesh::Mesh;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,65 +23,86 @@ pub enum CsgError {
     Unknown(String),
 }
 
-fn map_manifold_error(e: manifold3d::CsgError) -> CsgError {
-    match e {
-        manifold3d::CsgError::InvalidInput(msg) => CsgError::Unknown(msg),
-        manifold3d::CsgError::ManifoldStatus(status) => {
-            let _ = status;
-            CsgError::NonManifold
+#[cfg(not(target_arch = "wasm32"))]
+mod native {
+    use super::*;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    use manifold3d::{Manifold, OpType};
+
+    fn map_manifold_error(e: manifold3d::CsgError) -> CsgError {
+        match e {
+            manifold3d::CsgError::InvalidInput(msg) => CsgError::Unknown(msg),
+            manifold3d::CsgError::ManifoldStatus(status) => {
+                let _ = status;
+                CsgError::NonManifold
+            }
+            other => CsgError::Unknown(format!("{other:?}")),
         }
-        other => CsgError::Unknown(format!("{other:?}")),
+    }
+
+    fn to_manifold(mesh: &Mesh) -> Result<Manifold, CsgError> {
+        if mesh.indices.len() < 3 || mesh.positions.is_empty() {
+            return Err(CsgError::NonManifold);
+        }
+        let mut welded = mesh.clone();
+        welded.weld(1.0e-5);
+        if welded.indices.len() < 3 {
+            return Err(CsgError::NonManifold);
+        }
+        let mut verts = Vec::with_capacity(welded.positions.len() * 3);
+        for p in &welded.positions {
+            verts.extend_from_slice(p);
+        }
+        Manifold::from_mesh_f32(&verts, 3, &welded.indices).map_err(map_manifold_error)
+    }
+
+    fn from_manifold(m: &Manifold) -> Result<Mesh, CsgError> {
+        m.status().map_err(map_manifold_error)?;
+        let (verts, n_props, indices) = m.to_mesh_f32();
+        if n_props < 3 {
+            return Err(CsgError::Unknown(format!(
+                "manifold returned {n_props} vertex properties"
+            )));
+        }
+        let mut mesh = Mesh::new();
+        mesh.positions.reserve(verts.len() / n_props);
+        for chunk in verts.chunks_exact(n_props) {
+            mesh.positions.push([chunk[0], chunk[1], chunk[2]]);
+        }
+        mesh.indices = indices;
+        mesh.recompute_normals();
+        Ok(mesh)
+    }
+
+    /// Boolean operation between two meshes.
+    pub fn boolean(op: BooleanOp, a: &Mesh, b: &Mesh) -> Result<Mesh, CsgError> {
+        let op_type = match op {
+            BooleanOp::Union => OpType::Add,
+            BooleanOp::Difference => OpType::Subtract,
+            BooleanOp::Intersect => OpType::Intersect,
+        };
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let ma = to_manifold(a)?;
+            let mb = to_manifold(b)?;
+            let out = ma.boolean(&mb, op_type);
+            from_manifold(&out)
+        }));
+        result.unwrap_or_else(|_| Err(CsgError::Unknown("manifold panicked".to_string())))
     }
 }
 
-fn to_manifold(mesh: &Mesh) -> Result<Manifold, CsgError> {
-    if mesh.indices.len() < 3 || mesh.positions.is_empty() {
-        return Err(CsgError::NonManifold);
-    }
-    let mut welded = mesh.clone();
-    welded.weld(1.0e-5);
-    if welded.indices.len() < 3 {
-        return Err(CsgError::NonManifold);
-    }
-    let mut verts = Vec::with_capacity(welded.positions.len() * 3);
-    for p in &welded.positions {
-        verts.extend_from_slice(p);
-    }
-    Manifold::from_mesh_f32(&verts, 3, &welded.indices).map_err(map_manifold_error)
-}
-
-fn from_manifold(m: &Manifold) -> Result<Mesh, CsgError> {
-    m.status().map_err(map_manifold_error)?;
-    let (verts, n_props, indices) = m.to_mesh_f32();
-    if n_props < 3 {
-        return Err(CsgError::Unknown(format!(
-            "manifold returned {n_props} vertex properties"
-        )));
-    }
-    let mut mesh = Mesh::new();
-    mesh.positions.reserve(verts.len() / n_props);
-    for chunk in verts.chunks_exact(n_props) {
-        mesh.positions.push([chunk[0], chunk[1], chunk[2]]);
-    }
-    mesh.indices = indices;
-    mesh.recompute_normals();
-    Ok(mesh)
-}
-
-/// Boolean operation between two meshes.
+/// Boolean operation between two meshes. The browser build has no Manifold
+/// (it is a native library): there the answer is [`CsgError::SolverNotAvailable`].
 pub fn boolean(op: BooleanOp, a: &Mesh, b: &Mesh) -> Result<Mesh, CsgError> {
-    let op_type = match op {
-        BooleanOp::Union => OpType::Add,
-        BooleanOp::Difference => OpType::Subtract,
-        BooleanOp::Intersect => OpType::Intersect,
-    };
-    let result = catch_unwind(AssertUnwindSafe(|| {
-        let ma = to_manifold(a)?;
-        let mb = to_manifold(b)?;
-        let out = ma.boolean(&mb, op_type);
-        from_manifold(&out)
-    }));
-    result.unwrap_or_else(|_| Err(CsgError::Unknown("manifold panicked".to_string())))
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        native::boolean(op, a, b)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (op, a, b);
+        Err(CsgError::SolverNotAvailable)
+    }
 }
 
 #[cfg(test)]

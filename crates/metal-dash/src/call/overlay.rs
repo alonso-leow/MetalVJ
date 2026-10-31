@@ -235,6 +235,44 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             }
             return Ok(reply);
         }
+        // The inverse of `solid` for the timeline: the solid armed on `device`
+        // becomes colour clips on `timeline` at the overlay's own start. A
+        // one-colour solid is one clip; a per-mask solid is one clip per mask.
+        #[cfg(feature = "gpu")]
+        "to-timeline" => {
+            let timeline = body["timeline"].as_str().ok_or_else(|| CallError::Bad("which timeline".into()))?;
+            let device = body["device"].as_str().unwrap_or(PREVIEW);
+            let view = ctx
+                .state
+                .overlays
+                .solid_view(device, time)
+                .ok_or_else(|| CallError::Bad(format!("no solid armed on {device:?}")))?;
+            let root = std::path::Path::new(crate::author::TIMELINES);
+            let made = to_timeline_at(root, timeline, &view).map_err(CallError::Bad)?;
+            return Ok(json!({ "ok": true, "segments": made }));
+        }
+        // A colour clip played live: arms the clip's solid (rgb and masks) on
+        // `device` for the clip's length, the same overlay `solid` arms.
+        #[cfg(feature = "gpu")]
+        "color-clip" => {
+            let timeline = body["timeline"].as_str().ok_or_else(|| CallError::Bad("which timeline".into()))?;
+            let segment = body["segment"].as_str().ok_or_else(|| CallError::Bad("which segment".into()))?;
+            let device = body["device"].as_str().unwrap_or(PREVIEW).to_string();
+            let tl = crate::author::models::timeline::load(std::path::Path::new(crate::author::TIMELINES), timeline)
+                .ok_or_else(|| CallError::Bad(format!("no timeline called {timeline:?}")))?;
+            let seg = tl
+                .color_track
+                .iter()
+                .find(|c| c.id == segment)
+                .ok_or_else(|| CallError::Bad(format!("no colour segment {segment:?} in {timeline:?}")))?;
+            let masks = solid_masks(ctx, &device, &json!(seg.masks.iter().map(|(k, v)| (k.clone(), json!(v))).collect::<serde_json::Map<_, _>>()))?;
+            let duration = (seg.to - seg.from) as f32 / tl.rate.max(1.0);
+            ctx.state.overlays.start_solid_masks(device, seg.rgb, masks, time, duration);
+        }
+        #[cfg(not(feature = "gpu"))]
+        "to-timeline" | "color-clip" => {
+            return Err(CallError::Bad("colour clips need the studio (gpu build) — timelines are not compiled in".into()))
+        }
         #[cfg(not(feature = "gpu"))]
         "rasterize" => {
             return Err(CallError::Bad(
@@ -244,6 +282,50 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         other => return Err(CallError::Bad(format!("no such op: {other}"))),
     }
     Ok(json!({ "overlays": ctx.state.overlays.report(time) }))
+}
+
+/// The pure half of `op: "to-timeline"`: appends the colour clips a solid
+/// stands for to `timeline_id`, starting where the overlay started and
+/// lasting as long, and returns their ids. A test pattern (`grid`) is a
+/// calibration aid, not a colour, and is refused.
+#[cfg(feature = "gpu")]
+pub(crate) fn to_timeline_at(
+    root: &std::path::Path,
+    timeline_id: &str,
+    view: &metal_perform::overlay::SolidView,
+) -> Result<Vec<String>, String> {
+    use crate::author::models::timeline::{self, ColorSegment};
+    if view.grid {
+        return Err("a test pattern is not a colour clip".into());
+    }
+    let mut tl = timeline::load(root, timeline_id).ok_or_else(|| format!("no timeline called {timeline_id:?}"))?;
+    let rate = tl.rate.max(1.0);
+    let from = (view.started.max(0.0) * rate).round() as usize;
+    let to = from + ((view.duration * rate).round() as usize).max(1);
+    let fresh = |tl: &timeline::Timeline, n: usize| {
+        let mut k = n;
+        loop {
+            let id = format!("color-{k}");
+            if !tl.color_track.iter().any(|c| c.id == id) {
+                return id;
+            }
+            k += 1;
+        }
+    };
+    let pieces: Vec<(Vec<(String, [u8; 3])>,)> = if view.masks.is_empty() {
+        vec![(Vec::new(),)]
+    } else {
+        view.masks.iter().map(|m| (vec![m.clone()],)).collect()
+    };
+    let mut made = Vec::new();
+    for (masks,) in pieces {
+        let id = fresh(&tl, tl.color_track.len() + 1);
+        tl.color_track.push(ColorSegment { id: id.clone(), from, to, rgb: view.rgb, masks });
+        made.push(id);
+    }
+    let cat = timeline::catalog()?;
+    timeline::save(root, tl, &cat)?;
+    Ok(made)
 }
 
 /// What `rasterize_at` baked: the movement now in the library, and how many
@@ -771,5 +853,44 @@ mod tests {
             &body(json!({ "op": "rasterize", "timeline": "show" })),
         );
         assert!(matches!(nameless, Err(CallError::Bad(_))));
+    }
+
+    /// The inverse of `solid`: a one-colour solid becomes one colour clip at
+    /// the overlay's start; a per-mask solid becomes one clip per mask; a test
+    /// pattern is refused.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn a_solid_becomes_colour_clips_on_the_timeline() {
+        use crate::author::models::timeline::{self, Timeline};
+        use metal_perform::overlay::SolidView;
+        let root = std::env::temp_dir().join(format!("fw-to-timeline-{}", std::process::id()));
+        let _ = metal_vfs::remove_dir_all(&root);
+        let cat = timeline::catalog().expect("data/schema.json is checked in");
+        timeline::save(&root, Timeline::new("show", "Show", "click-100", 2000), &cat).unwrap();
+
+        let one = SolidView { rgb: [10, 20, 30], masks: vec![], grid: false, started: 2.0, duration: 3.0 };
+        let made = to_timeline_at(&root, "show", &one).unwrap();
+        assert_eq!(made.len(), 1);
+        let tl = timeline::load(&root, "show").unwrap();
+        let rate = tl.rate;
+        let c = &tl.color_track[0];
+        assert_eq!((c.from, c.to), ((2.0 * rate) as usize, (5.0 * rate) as usize));
+        assert_eq!((c.rgb, c.masks.len()), ([10, 20, 30], 0));
+
+        let masked = SolidView {
+            rgb: [0, 0, 0],
+            masks: vec![("a".into(), [1, 2, 3]), ("b".into(), [4, 5, 6])],
+            grid: false,
+            started: 6.0,
+            duration: 1.0,
+        };
+        assert_eq!(to_timeline_at(&root, "show", &masked).unwrap().len(), 2, "one clip per mask");
+        let tl = timeline::load(&root, "show").unwrap();
+        assert_eq!(tl.color_track.len(), 3);
+        assert!(tl.color_track.iter().filter(|c| c.masks.len() == 1).count() == 2);
+
+        let grid = SolidView { grid: true, ..one };
+        assert!(to_timeline_at(&root, "show", &grid).is_err());
+        let _ = metal_vfs::remove_dir_all(&root);
     }
 }

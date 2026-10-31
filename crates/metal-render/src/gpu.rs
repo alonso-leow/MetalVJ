@@ -337,6 +337,24 @@ pub async fn web() -> Option<Gpu> {
     Some(gpu)
 }
 
+/// [`web`] inside a Web Worker, drawing on an `OffscreenCanvas` the page
+/// transferred (`canvas.transferControlToOffscreen()`): there is no `window`
+/// or `document` in a worker, so the GL fallback's surface is made on the
+/// transferred canvas. `None` when the worker has neither WebGPU nor WebGL2.
+#[cfg(target_arch = "wasm32")]
+pub async fn web_worker(canvas: web_sys::OffscreenCanvas) -> Option<Gpu> {
+    let instance = headless_instance(wgpu::Backends::BROWSER_WEBGPU);
+    if let Some(adapter) = request_adapter_ladder(&instance, None).await {
+        return Some(Gpu::from_adapter(&instance, &adapter).await);
+    }
+    let instance = headless_instance(wgpu::Backends::GL);
+    let surface = instance.create_surface(wgpu::SurfaceTarget::OffscreenCanvas(canvas)).ok()?;
+    let adapter = request_adapter_ladder(&instance, Some(&surface)).await?;
+    let mut gpu = Gpu::from_adapter(&instance, &adapter).await;
+    gpu.surface = Some(surface);
+    Some(gpu)
+}
+
 /// Which paint backend a window should use. `Glow` is a decision point
 /// only as of `S.U3` — no `egui_glow` painter exists yet in this crate.
 /// `S.U15` is the batch that plugs one in behind this enum.

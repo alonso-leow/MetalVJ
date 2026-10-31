@@ -372,6 +372,7 @@ const SKIP: &[(&str, &str)] = &[
     ("bake_clip", "renders a clip: real time"),
     ("sleep", "blocks for `ms`; nothing to smoke"),
     ("export_video", "renders a frame range and encodes video: real time"),
+    ("export_queue", "an add starts a real-time export and writes data/export-presets.json"),
     ("export_frame", "renders a frame to the operator's Pictures"),
     ("artnet_nodes", "an ArtPoll over the network: real time"),
     ("capture_output", "renders a node: real time"),

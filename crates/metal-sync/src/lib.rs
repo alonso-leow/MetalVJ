@@ -48,6 +48,7 @@ pub mod manifest;
 pub mod node;
 pub mod notify;
 pub mod pair;
+pub mod farm;
 pub mod pull;
 pub mod reader;
 pub mod state;

@@ -4198,8 +4198,9 @@ fn paint_phantom_cell(
     if let Some(place) = add_at {
         response.context_menu(|ui| add_menu(ui, theme, door, state, open_graph, Some(place)));
     }
-    ui.painter()
-        .rect_filled(rect, theme.corner_radius(), theme.rule_bright);
+    // An empty cell is a glass payload cell: the same class the properties
+    // panel uses, so the grid and the panel read as one material.
+    ui.painter().add(egui::Shape::Vec(theme.payload_shapes(rect)));
     // The hover/refusal hint — what dropping here would make. Hover and
     // release are read separately: egui clears the payload on the release
     // frame before widgets run, so gating the release behind the hover would

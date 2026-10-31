@@ -2316,6 +2316,66 @@ pub fn arrangement_forced(theme: &Theme, viewport: Vec2, mode: ShellMode) -> Arr
 mod tests {
     use super::*;
 
+    /// The glass cell classes agree: every one is sharp-cornered, payload and
+    /// group are translucent (the grid shows through), the key is opaque grey
+    /// with a red shadow offset behind it, and the payload outlines in black.
+    #[test]
+    fn the_glass_cell_classes_share_one_set_of_tokens() {
+        let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(120.0, 30.0));
+        for theme in [Theme::phosphor(), Theme::daylight(), Theme::contrast()] {
+            assert!(theme.glass_fill().a() < 255 && theme.glass_fill().a() > 0, "glass is translucent");
+            assert_eq!(theme.cell_height(), theme.interact_size.y);
+            let key = theme.key_shapes(rect);
+            let payload = theme.payload_shapes(rect);
+            let group = theme.group_shapes(rect);
+            let rects = |shapes: &[Shape]| -> Vec<(Rect, Color32, CornerRadius)> {
+                shapes
+                    .iter()
+                    .filter_map(|s| match s {
+                        Shape::Rect(r) => Some((r.rect, r.fill, r.corner_radius)),
+                        _ => None,
+                    })
+                    .collect()
+            };
+            for shapes in [&key, &payload, &group] {
+                assert!(rects(shapes).iter().all(|(_, _, c)| *c == CornerRadius::ZERO), "sharp corners");
+            }
+            // Key: the shadow first, offset down-right of the grey header.
+            let k = rects(&key);
+            assert_eq!(k[0].0, rect.translate(theme.key_shadow_offset()));
+            assert_eq!(k[0].1, theme.key_shadow());
+            assert_eq!(k[1].1, theme.panel_head);
+            // Payload: glass base, black outline last.
+            assert_eq!(rects(&payload)[0].1, theme.glass_fill());
+            match payload.last() {
+                Some(Shape::Rect(r)) => assert_eq!(r.stroke.color, theme.hard_ink()),
+                other => panic!("payload ends in its outline, got {other:?}"),
+            }
+            // Group: the same glass base, the quiet rule outline.
+            assert_eq!(rects(&group)[0].1, theme.glass_fill());
+            // Cheap: a handful of shapes per cell, so a full panel of cells
+            // costs microseconds (measured ~1 µs per cell in release).
+            assert!(payload.len() <= 6 && key.len() <= 3 && group.len() <= 6);
+        }
+    }
+
+    /// Building the glass shapes for a screenful of cells stays far below a
+    /// frame (16 ms): 2000 cells here, generous on a loaded debug build.
+    #[test]
+    fn glass_shapes_cost_next_to_nothing() {
+        let theme = Theme::phosphor();
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(120.0, 30.0));
+        let start = std::time::Instant::now();
+        let mut n = 0;
+        for i in 0..2000 {
+            n += theme.payload_shapes(rect.translate(Vec2::new(0.0, i as f32))).len();
+            n += theme.key_shapes(rect).len();
+        }
+        let took = start.elapsed();
+        assert!(n > 0);
+        assert!(took.as_millis() < 16, "2000 cells took {took:?}");
+    }
+
     /// A border weight reaches the stroke a surface paints: none draws
     /// nothing, bold is twice the hairline, and one surface's pick leaves the
     /// others alone.

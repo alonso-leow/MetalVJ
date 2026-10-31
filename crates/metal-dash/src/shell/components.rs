@@ -2325,6 +2325,30 @@ mod tests {
         assert!(hit.borrow().0, "the square takes the click");
     }
 
+    /// Rows of different payloads are the same height: the key cell and the
+    /// payload cell both honour `Theme::cell_height`.
+    #[test]
+    fn label_rows_of_different_payloads_are_equally_tall() {
+        let theme = Theme::phosphor();
+        let heights = Rc::new(RefCell::new(Vec::new()));
+        let seen = heights.clone();
+        let mut harness = Harness::new_ui(move |ui| {
+            let mut pick = "a".to_string();
+            let options = [("a".to_string(), "Alpha"), ("b".to_string(), "Beta")];
+            let one = label_row(ui, &theme, "one", |ui| choice(ui, &theme, &mut pick, &options));
+            let two = label_row(ui, &theme, "two", |ui| ui.label("text"));
+            let three = label_row(ui, &theme, "three", |ui| ui.button("go"));
+            *seen.borrow_mut() = vec![one.rect.height(), two.rect.height(), three.rect.height()];
+        });
+        harness.run();
+        // The payload cell is what the row paints around the control.
+        let cell = Theme::phosphor().cell_height();
+        let all = harness.query_all_by_label("one").count();
+        assert!(all >= 1);
+        let h = heights.borrow().clone();
+        assert!(h.iter().all(|v| *v <= cell + 0.5), "controls fit the cell: {h:?}");
+    }
+
     #[test]
     fn dropdown_picks_a_different_option() {
         let theme = Theme::phosphor();

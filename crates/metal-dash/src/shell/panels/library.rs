@@ -59,7 +59,7 @@ use crate::call::{Call, Params};
 use crate::shell::classes::Theme;
 use crate::surface::LibraryIntent;
 use crate::shell::components::{
-    icon_toggle, paint_icon_stroked, panel_frame, header_edit, panel_head, search_field, section_heading,
+    icon_toggle, paint_icon_stroked, square_icon_button, panel_frame, header_edit, panel_head, search_field, section_heading,
     Icon,
 };
 use crate::shell::i18n::tr;
@@ -947,20 +947,16 @@ fn corner_slot(rect: Rect, index: usize) -> Rect {
 fn favourite_star(ui: &mut Ui, theme: &Theme, rect: Rect, entry: &crate::shell::favorites::Entry) {
     let slot = corner_slot(rect, 1);
     let fav = crate::shell::favorites::is_favourite(ui.ctx(), &entry.key);
-    let response = ui.interact(
-        slot,
-        ui.id().with(("shell/library/star", &entry.key)),
-        Sense::click(),
-    );
-    let _ = fav;
-    ui.painter()
-        .rect_filled(slot, theme.sharp_corner(), theme.panel_head);
-    paint_icon_stroked(
-        ui.painter(),
+    // A favourite lights its square in the accent; the glyph stays black.
+    let fill = if fav { theme.accent_vivid } else { theme.panel_head };
+    let response = square_icon_button(
+        ui,
+        theme,
+        ("shell/library/star", &entry.key),
         slot,
         Icon::Star,
-        theme,
-        theme.line_stroke(theme.hard_ink()),
+        fill,
+        None,
     );
     if response.on_hover_text(tr("favourite")).clicked() {
         crate::shell::favorites::request_toggle(ui.ctx(), entry.clone());
@@ -974,17 +970,7 @@ fn row_menu(
     row: &Response,
     add_contents: impl FnOnce(&mut Ui),
 ) {
-    let slot = corner_slot(rect, 0);
-    let response = ui.interact(slot, row.id.with("more"), Sense::click());
-    ui.painter()
-        .rect_filled(slot, theme.sharp_corner(), theme.panel_head);
-    paint_icon_stroked(
-        ui.painter(),
-        slot,
-        Icon::Other,
-        theme,
-        theme.line_stroke(theme.hard_ink()),
-    );
+    let response = square_icon_button(ui, theme, row.id.with("more"), corner_slot(rect, 0), Icon::Other, theme.panel_head, None);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, "…"));
     egui::Popup::menu(&response).show(add_contents);
 }

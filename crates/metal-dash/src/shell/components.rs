@@ -2313,6 +2313,41 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    /// The gear, star and `…` share one square: the response is exactly the
+    /// rect asked for (a stock button would grow past it) and a click lands.
+    #[test]
+    fn a_square_icon_button_keeps_its_rect_and_clicks() {
+        let theme = Theme::phosphor();
+        let hit = Rc::new(RefCell::new((false, Rect::NOTHING)));
+        let state = hit.clone();
+        let mut harness = Harness::new_ui(move |ui| {
+            let rect = Rect::from_min_size(ui.max_rect().min, egui::vec2(14.0, 14.0));
+            let r = square_icon_button(ui, &theme, "kit/square", rect, Icon::Settings, theme.panel_head, None);
+            let mut s = state.borrow_mut();
+            s.0 |= r.clicked();
+            s.1 = r.rect;
+            assert_eq!(r.rect, rect);
+        });
+        harness.run();
+        let rect = hit.borrow().1;
+        harness.input_mut().events.push(egui::Event::PointerMoved(rect.center()));
+        harness.run();
+        harness.input_mut().events.push(egui::Event::PointerButton {
+            pos: rect.center(),
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        });
+        harness.input_mut().events.push(egui::Event::PointerButton {
+            pos: rect.center(),
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        });
+        harness.run();
+        assert!(hit.borrow().0, "the square takes the click");
+    }
+
     #[test]
     fn dropdown_picks_a_different_option() {
         let theme = Theme::phosphor();
@@ -2911,6 +2946,31 @@ pub fn lucide_job(icon: Icon, size: f32, text: &str, color: egui::Color32) -> eg
 /// Paints one [`Icon`] inside `rect`, in `theme.ink_weak` at `theme.hairline`.
 pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, theme: &Theme) {
     paint_icon_stroked(painter, rect, icon, theme, theme.icon_stroke());
+}
+
+/// A sharp-cornered square icon button painted at exactly `rect`: the
+/// theme's darker header grey (`fill`), an optional outline, and the glyph in
+/// hard black ink centred in the box. The one control the grid's gear and the
+/// library's star and `…` share, so they read as the same family and the
+/// glyph can never spill out of its square (a stock `Button` grows to its
+/// padding and pushes the glyph off-centre).
+pub fn square_icon_button(
+    ui: &mut Ui,
+    theme: &Theme,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    rect: Rect,
+    icon: Icon,
+    fill: Color32,
+    outline: Option<egui::Stroke>,
+) -> egui::Response {
+    let response = ui.interact(rect, ui.id().with(id), Sense::click());
+    let fill = if response.hovered() { theme.phosphor_deep } else { fill };
+    ui.painter().rect_filled(rect, theme.sharp_corner(), fill);
+    if let Some(stroke) = outline {
+        ui.painter().rect_stroke(rect, theme.sharp_corner(), stroke, egui::StrokeKind::Inside);
+    }
+    paint_icon_stroked(ui.painter(), rect, icon, theme, theme.line_stroke(theme.hard_ink()));
+    response
 }
 
 /// [`paint_icon`] with its colour taken from `stroke`: a control lights its

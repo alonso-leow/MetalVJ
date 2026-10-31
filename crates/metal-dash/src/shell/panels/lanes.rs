@@ -4698,12 +4698,14 @@ fn paint_controller_cell(
         rect.right_top() + egui::vec2(-(theme.gear_size + pad), pad),
         egui::vec2(theme.gear_size, theme.gear_size),
     );
-    let gear_response = ui.put(
+    let gear_response = crate::shell::components::square_icon_button(
+        ui,
+        theme,
+        ("shell/region/lanes/gear", key),
         gear,
-        egui::Button::new(lucide(Icon::Settings, theme.font_small.size))
-            .fill(theme.panel_head)
-            .stroke(theme.rule_stroke())
-            .min_size(gear.size()),
+        Icon::Settings,
+        theme.panel_head,
+        Some(theme.rule_stroke()),
     );
     gear_response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tr("controller settings"))

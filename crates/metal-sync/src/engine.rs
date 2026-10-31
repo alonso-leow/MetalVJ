@@ -244,6 +244,7 @@ impl SyncEngine {
             dash_port: opts.dash_port,
             discovered: Mutex::new(BTreeMap::new()),
             pulls: Mutex::new(BTreeMap::new()),
+            stats: Mutex::new(crate::stats::StatsBook::default()),
         });
 
         let router = Router::builder(endpoint.clone())
@@ -252,7 +253,9 @@ impl SyncEngine {
             .accept(DOCS_ALPN, docs.clone())
             .accept(crate::pair::ALPN, PairProtocol { club: Arc::clone(&club) })
             .accept(crate::frame::ALPN, FrameProtocol { club: Arc::clone(&club) })
+            .accept(crate::stats::ALPN, crate::stats::StatsProtocol { club: Arc::clone(&club) })
             .spawn();
+        spawn_stats_tick(endpoint.clone(), Arc::clone(&club));
 
         if opts.mdns {
             spawn_mdns(&endpoint, Arc::clone(&club));
@@ -819,4 +822,31 @@ mod tests {
         // write a file nobody asked for.
         assert!(path_of(&[0xff, 0xfe]).is_none());
     }
+}
+
+/// The 5 s self-report: this machine's readings (and the local `GET /perf`'s
+/// paint backend and frame rate) pushed to every peer. The loop polls twice a
+/// second; [`crate::stats::Cadence`] decides when a tick is due.
+fn spawn_stats_tick(endpoint: iroh::Endpoint, club: Arc<Club>) {
+    tokio::spawn(async move {
+        let mut cadence = crate::stats::Cadence::default();
+        let mut sampler = crate::stats::CpuSampler::default();
+        let mut poll = tokio::time::interval(std::time::Duration::from_millis(500));
+        loop {
+            poll.tick().await;
+            if !cadence.due(std::time::Instant::now()) {
+                continue;
+            }
+            let dash = club.dash_port;
+            let perf = tokio::task::spawn_blocking(move || crate::frame::loopback_get(dash, "/perf"))
+                .await
+                .ok()
+                .and_then(Result::ok);
+            let mut stats = crate::stats::read_self(&mut sampler);
+            if let Some(frame) = perf {
+                (stats.paint_backend, stats.fps_paint) = crate::stats::perf_fields(&frame.body);
+            }
+            crate::stats::push(&endpoint, &club, &stats).await;
+        }
+    });
 }

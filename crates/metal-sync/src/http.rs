@@ -131,7 +131,7 @@ fn network_route(ctl: &Control, method: &str, path: &str, query: &str, body: &Va
             Reply::Json(200, json!({ "paused": path == "/pause" }))
         }
         ("GET", "/discover") | ("GET", "/peers") | ("GET", "/pair/pending")
-        | ("GET", "/pair/outgoing") | ("GET", "/frame") | ("GET", "/peer/outputs")
+        | ("GET", "/pair/outgoing") | ("GET", "/frame") | ("GET", "/peer/outputs") | ("GET", "/peer/stats")
         | ("GET", "/song/pull") | ("POST", "/song/pull")
         | ("POST", "/pair/request")
         | ("POST", "/pair/confirm") | ("POST", "/pair/reject") | ("POST", "/leave") => {
@@ -286,6 +286,10 @@ fn networked(
                 return Reply::Json(400, json!({ "error": "missing ?device= (or ?layer=&frame=)" }));
             };
             return Reply::Frame(rt.block_on(net.frame(ask)));
+        }
+        ("GET", "/peer/stats") => {
+            let book = club.stats.lock().expect("stats poisoned");
+            (200, json!({ "peers": book.view(now) }))
         }
         ("GET", "/peer/outputs") => {
             let Some(name) = param(query, "name") else {

@@ -53,6 +53,13 @@ pub fn peers_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/peers", json!({ "peers": [] })))
 }
 
+/// `GET /sync/stats`: each peer's last self-report, as `metal-sync` keeps it
+/// (`metal-sync`'s `stats.rs`): status, age, and the readings, `null` where
+/// unknown. Read-only.
+pub fn stats_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+    Ok(read_at(SYNC_PORT, "/peer/stats", json!({ "peers": [] })))
+}
+
 /// `GET /sync/log`: what `metal-sync` has done lately, newest last.
 pub fn log_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/log", json!({ "log": [] })))
@@ -306,6 +313,7 @@ mod tests {
         for (method, path) in [
             ("GET", "/sync/status"),
             ("GET", "/sync/peers"),
+            ("GET", "/sync/stats"),
             ("GET", "/sync/log"),
             ("GET", "/sync/discover"),
             ("GET", "/sync/pair"),

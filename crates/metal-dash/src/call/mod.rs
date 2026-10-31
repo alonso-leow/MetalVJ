@@ -934,6 +934,12 @@ pub static ROUTES: &[Route] = &[
     },
     Route {
         method: "GET",
+        path: "/sync/stats",
+        prefix: false,
+        handler: Handler::Json(sync::stats_get),
+    },
+    Route {
+        method: "GET",
         path: "/sync/log",
         prefix: false,
         handler: Handler::Json(sync::log_get),

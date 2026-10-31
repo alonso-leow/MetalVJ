@@ -51,6 +51,7 @@ pub mod pair;
 pub mod pull;
 pub mod reader;
 pub mod state;
+pub mod stats;
 
 pub mod session_merge;
 pub use land::{Lander, Landing, Sender};

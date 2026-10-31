@@ -60,7 +60,7 @@ pub struct PairWorker {
     tx: Sender<Job>,
     /// The sync reads (`status`, `peers`, `discover`, `pair`), one poll per
     /// message, each answered on the channel it carries.
-    polls: Sender<Sender<[Value; 4]>>,
+    polls: Sender<Sender<[Value; 5]>>,
 }
 
 /// One POST: the route, its body, and the channel its answer goes back on.
@@ -81,11 +81,17 @@ impl PairWorker {
         });
         // The reads have their own thread: `metal-sync` can take seconds to
         // refuse, and the frame must not wait for it.
-        let (polls, poll_rx) = mpsc::channel::<Sender<[Value; 4]>>();
+        let (polls, poll_rx) = mpsc::channel::<Sender<[Value; 5]>>();
         let _ = thread::Builder::new().name("metal-dash sync poll".into()).spawn(move || {
             while let Ok(back) = poll_rx.recv() {
                 let read = |path: &str| poll_door.json("GET", path, None).unwrap_or_else(|_| json!({}));
-                let reads = [read("/sync/status"), read("/sync/peers"), read("/sync/discover"), read("/sync/pair")];
+                let reads = [
+                    read("/sync/status"),
+                    read("/sync/peers"),
+                    read("/sync/discover"),
+                    read("/sync/pair"),
+                    read("/sync/stats"),
+                ];
                 let _ = back.send(reads);
             }
         });
@@ -130,7 +136,9 @@ pub struct PanelState {
     /// The POST on the worker, and what its answer is for.
     in_flight: Option<(Action, Receiver<Result<(), String>>)>,
     /// The sync reads on the worker, when one is set and a poll is out.
-    poll_in_flight: Option<Receiver<[Value; 4]>>,
+    poll_in_flight: Option<Receiver<[Value; 5]>>,
+    /// `GET /sync/stats`' peers' self-reports, as `metal-sync` keeps them.
+    stats: Vec<Value>,
 }
 
 impl PanelState {
@@ -192,8 +200,9 @@ impl PanelState {
     fn collect_poll(&mut self, now: Instant) {
         let Some(answer) = self.poll_in_flight.take() else { return };
         match answer.try_recv() {
-            Ok([status, peers, nearby, pair]) => {
+            Ok([status, peers, nearby, pair, stats]) => {
                 self.absorb(&status, &peers, &nearby, &pair);
+                self.absorb_stats(&stats);
                 self.last_poll = Some(now);
             }
             Err(TryRecvError::Empty) => self.poll_in_flight = Some(answer),
@@ -210,7 +219,14 @@ impl PanelState {
         let peers = read("/sync/peers");
         let nearby = read("/sync/discover");
         let pair = read("/sync/pair");
+        let stats = read("/sync/stats");
         self.absorb(&status, &peers, &nearby, &pair);
+        self.absorb_stats(&stats);
+    }
+
+    /// Takes `GET /sync/stats` in. A reply with no `peers` list leaves none.
+    fn absorb_stats(&mut self, stats: &Value) {
+        self.stats = list(stats, "peers");
     }
 
     /// Takes the four replies into the cache. Pure, so the mapping from the
@@ -486,7 +502,52 @@ pub fn paint_devices(ui: &mut Ui, theme: &Theme, state: &PanelState) {
             ui.label(text(word, color, theme));
             ui.label(text(&short(node), theme.ink_faint, theme));
         });
+        // The peer's own report, read-only: stale is shown as stale with its
+        // last values, a missing report or reading as "—", never as zero.
+        let stat = stat_for(&state.stats, name);
+        ui.horizontal(|ui| {
+            let (word, color) = match stat.and_then(|v| v["status"].as_str()) {
+                Some("fresh") => (tr("fresh"), theme.ok),
+                Some("stale") => (tr("stale"), theme.warn),
+                _ => (tr("no report yet"), theme.ink_faint),
+            };
+            ui.label(text(word, color, theme));
+            if let Some(stat) = stat {
+                ui.label(text(&readings_text(stat), theme.ink_weak, theme));
+            }
+        });
     }
+}
+
+/// The stats entry for the peer called `name`, if `metal-sync` has heard from it.
+fn stat_for<'a>(stats: &'a [Value], name: &str) -> Option<&'a Value> {
+    stats.iter().find(|v| v["name"].as_str() == Some(name))
+}
+
+/// One reading as the panel shows it: its number with a unit, or "—" when the
+/// machine could not read it.
+fn reading(stat: &Value, key: &str, unit: &str) -> String {
+    match stat[key].as_f64() {
+        Some(x) => format!("{x:.0}{unit}"),
+        None => "—".to_string(),
+    }
+}
+
+/// The readings line under a peer: CPU, temperature, paint backend and frame
+/// rate, each "—" when unknown.
+pub fn readings_text(stat: &Value) -> String {
+    let backend = stat["paint_backend"].as_str().unwrap_or("—");
+    format!(
+        "{} {} · {} {} · {} {} · {} {}",
+        tr("CPU"),
+        reading(stat, "cpu_pct", "%"),
+        tr("temp"),
+        reading(stat, "temp_c", " °C"),
+        tr("paint"),
+        backend,
+        tr("fps"),
+        reading(stat, "fps_paint", ""),
+    )
 }
 
 /// One small label in the theme's body face, with a colour.
@@ -662,5 +723,44 @@ mod tests {
         assert_eq!(s.summary(), Summary::Paired(1));
         s.refresh(&Down, Instant::now());
         assert_eq!(s.summary(), Summary::NotRunning);
+    }
+
+    /// A peer whose report is stale is painted stale, with its last values; a
+    /// reading it never sent reads "—".
+    #[test]
+    fn a_stale_peer_paints_stale_and_an_unknown_reading_as_a_dash() {
+        use egui_kittest::{kittest::Queryable, Harness};
+        let mut state = PanelState::default();
+        state.absorb(
+            &json!({ "running": true, "name": "sala" }),
+            &json!({ "peers": [{ "name": "cocina", "node_id": "abcdef0123", "online": true }] }),
+            &json!({}),
+            &json!({}),
+        );
+        state.absorb_stats(&json!({ "peers": [{
+            "name": "cocina", "status": "stale", "age_s": 31.0,
+            "cpu_pct": 12.0, "gpu_pct": null, "temp_c": null,
+            "paint_backend": "metal", "fps_paint": 59.0, "uptime_s": 900,
+        }] }));
+        let theme = Theme::phosphor();
+        let mut h = Harness::builder()
+            .with_size(egui::Vec2::new(640.0, 400.0))
+            .build_ui_state(
+                |ui, s: &mut PanelState| paint_devices(ui, &theme, s),
+                state,
+            );
+        theme.apply(&h.ctx);
+        h.run();
+        assert!(h.query_by_label("stale").is_some(), "the peer paints as stale");
+        assert!(h.query_by_label_contains("12%").is_some(), "its last CPU value stays shown");
+    }
+
+    #[test]
+    fn readings_show_a_dash_for_every_value_the_peer_never_sent() {
+        let stat = json!({ "cpu_pct": 7.0, "temp_c": null, "paint_backend": null, "fps_paint": null });
+        let line = readings_text(&stat);
+        assert!(line.contains("7%"), "{line}");
+        assert!(!line.contains(" 0"), "an unknown value is never zero: {line}");
+        assert_eq!(stat_for(&[stat], "nobody"), None);
     }
 }

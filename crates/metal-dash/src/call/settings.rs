@@ -32,11 +32,11 @@ pub const THEME_STYLES: [&str; 2] = ["phosphor", "daylight"];
 pub const BORDER_SURFACES: [&str; 4] = ["panel", "header", "card", "control"];
 pub const BORDER_WEIGHTS: [&str; 3] = ["none", "hairline", "bold"];
 
-const KEYS: [&str; 20] = [
+const KEYS: [&str; 21] = [
     "shell_mode", "language", "tick_level", "grid_spans", "grid_page", "grid_controllers",
     "shell_view", "colour_rule", "export_dir", "fps_cap", "file_tags", "ingest_proxy",
     "ui_scale", "theme", "grid_surface", "grid_layouts", "tone_mode", "tone_sample_s",
-    "theme_style", "borders",
+    "theme_style", "borders", "grid_layer",
 ];
 
 pub use crate::frame_cap::{DEFAULT_FPS_CAP, FPS_CAPS};
@@ -207,6 +207,8 @@ fn defaults() -> Map<String, Value> {
     // `grid-page-next`/`-prev` trigger targets step it blind, and the panel
     // clamps it to the page count it lays out (it knows the count, not here).
     m.insert("grid_page".into(), json!(0));
+    // The overlays grid's fn layer shown (with the page, its universe).
+    m.insert("grid_layer".into(), json!(0));
     // The overlays grid's controller assignments, `{ "<key>": { "graph",
     // "name", "targets": [{ "node", … }] } }`. A fresh install assigns
     // nothing, so the map is empty; an empty object clears every controller.
@@ -431,6 +433,13 @@ fn post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<Value, Str
             .as_i64()
             .ok_or_else(|| "grid_page must be an integer".to_string())?;
         next.insert("grid_page".into(), json!(n));
+        changed = true;
+    }
+    if let Some(layer) = body.get("grid_layer") {
+        let n = layer
+            .as_u64()
+            .ok_or_else(|| "grid_layer must be a non-negative integer".to_string())?;
+        next.insert("grid_layer".into(), json!(n));
         changed = true;
     }
     if let Some(spans) = body.get("grid_spans") {
@@ -715,6 +724,18 @@ mod tests {
         assert_eq!(reply_at(&p).expect("re-read")["grid_page"], json!(-4));
         assert!(post_at(&p, &json!({ "grid_page": "two" })).is_err());
         assert_eq!(reply_at(&p).expect("still")["grid_page"], json!(-4));
+    }
+
+    /// The fn layer shown is stored like the page: 0 on a fresh install, a
+    /// non-negative integer, anything else refused.
+    #[test]
+    fn grid_layer_defaults_to_zero_round_trips_and_refuses_bad_values() {
+        let p = tmp_named("grid-layer");
+        assert_eq!(reply_at(&p).expect("fresh")["grid_layer"], json!(0));
+        assert_eq!(post_at(&p, &json!({ "grid_layer": 2 })).expect("save")["grid_layer"], json!(2));
+        assert_eq!(reply_at(&p).expect("re-read")["grid_layer"], json!(2));
+        assert!(post_at(&p, &json!({ "grid_layer": -1 })).is_err());
+        assert!(post_at(&p, &json!({ "grid_layer": "one" })).is_err());
     }
 
     /// The grid's layouts: none stored on a fresh install, a list (each with

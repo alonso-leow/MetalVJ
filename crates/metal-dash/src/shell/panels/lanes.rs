@@ -452,6 +452,9 @@ impl PanelState {
             self.controllers = parse_controllers(&reply["grid_controllers"]);
             self.layout = crate::surface::Layout::from_value(&reply["grid_surface"]);
             self.layouts = crate::surface::Layouts::from_value(&reply["grid_layouts"]);
+            // The fn layer shown last time; one that no longer exists is the base.
+            let layer = reply["grid_layer"].as_u64().unwrap_or(0) as usize;
+            self.surface.layer = if layer < self.layout.layers_len() { layer } else { 0 };
         }
         // An install with none stored opens on the grid it had, named.
         if self.layouts.list.is_empty() {
@@ -3974,6 +3977,7 @@ fn run_outs(
                     state.layout.layer_count = l + 1;
                     save = true;
                 }
+                let _ = door.json("POST", "/settings", Some(json!({ "grid_layer": l })));
             }
             Out::PageStep(d) => {
                 // Stepping on past the last page opens a new, empty one.
@@ -9294,6 +9298,42 @@ fn without_an_open_graph_create_button_says_so() {
         assert!(state.layout_dirty, "the pin is saved with the layout");
     }
 
+    /// The layer shown is stored beside the page, and read back clamped to the
+    /// layers that exist.
+    #[test]
+    fn the_layer_shown_is_stored_and_restored_clamped() {
+        let run = |stored: u64| {
+            let recorder = dial_grid();
+            recorder.respond(
+                "GET",
+                "/settings",
+                json!({ "grid_page": 0, "grid_layer": stored, "grid_surface": {
+                    "layers": { "sw:up": 1 },
+                    "roles": { "fn-dial-1": { "kind": "fn-dial" } },
+                    "binds": [{ "input": "cc:32", "cell": "fn-dial-1", "dial": "relative" }]
+                } }),
+            );
+            let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+            harness.run();
+            harness.get_by_label("lanes / overlays").click();
+            harness.run();
+            (harness.state_mut().lanes_state_mut().surface.layer, recorder, harness)
+        };
+        assert_eq!(run(1).0, 1, "a stored layer comes back");
+        assert_eq!(run(9).0, 0, "one that no longer exists is the base");
+        let (_, recorder, mut harness) = run(0);
+        crate::input::drain_surface();
+        crate::input::push_surface(crate::input::SurfaceEvent {
+            port: "box".into(),
+            input: "cc:32".into(),
+            edge: metal_midi::Edge::Value { value: 1.0 / 127.0, raw: 1 },
+        });
+        harness.run();
+        let saved = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/settings" && body_of(params)["grid_layer"] == json!(1)
+        });
+        assert!(saved, "turning to a layer stores it");
+    }
 
     /// The fn dial turned past the last layer opens a new, empty one that is
     /// stored, and the layer shown is the new one.

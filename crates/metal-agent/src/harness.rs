@@ -489,6 +489,7 @@ fn param_schema(k: &metal_graph::NodeKind) -> Vec<Value> {
                 "type": match p.kind {
                     metal_graph::params::ParamKind::Float => "number",
                     metal_graph::params::ParamKind::Colour => "colour",
+                    metal_graph::params::ParamKind::Camera => "camera",
                 },
                 "min": p.min,
                 "max": p.max,
@@ -1165,12 +1166,31 @@ impl Harness {
     fn set_param(&self, args: &Value) -> Result<Value, String> {
         let node = Self::require_str(args, "node")?;
         let name = Self::require_str(args, "name")?;
-        let value = Self::held_value(
-            args.get("value")
-                .ok_or("expected `value`: a number, or null to release")?,
-        )?;
+        let raw = args
+            .get("value")
+            .ok_or("expected `value`: a number, or null to release")?;
         let mut g = self.require_graph(args)?;
         let catalog = self.catalog()?;
+        // A colour slot (12 floats) or the camera (7) is held as a list.
+        if let Some(list) = raw.as_array() {
+            let floats = list.iter().map(|v| v.as_f64().map(|f| f as f32)).collect::<Option<Vec<f32>>>()
+                .ok_or("a held colour or camera is a list of numbers")?;
+            metal_graph::params::set_held_vec(&mut g, node, name, Some(floats), &catalog)?;
+            self.save_graph(&g)?;
+            return Ok(Self::env_reply(&g, &catalog));
+        }
+        let value = Self::held_value(raw)?;
+        let is_vector = metal_graph::params::find_param(
+            g.node(node).ok_or_else(|| format!("no such node: {node}"))?,
+            catalog.iter().find(|k| g.node(node).is_some_and(|n| n.kind == k.kind)),
+            name,
+        )
+        .is_some_and(|p| p.kind != metal_graph::params::ParamKind::Float);
+        if value.is_none() && is_vector {
+            metal_graph::params::set_held_vec(&mut g, node, name, None, &catalog)?;
+            self.save_graph(&g)?;
+            return Ok(Self::env_reply(&g, &catalog));
+        }
         metal_graph::params::set_held(&mut g, node, name, value, &catalog)?;
         self.save_graph(&g)?;
         Ok(Self::env_reply(&g, &catalog))

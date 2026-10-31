@@ -592,3 +592,5 @@
 "section" = "sección"
 "unassigned" = "sin asignar"
 "no signal reaches this surface yet." = "ninguna señal llega a esta superficie todavía."
+"stop {n}" = "punto {n}"
+"release {param}" = "soltar {param}"

@@ -280,10 +280,21 @@ pub(crate) fn set_config_number(graph: &mut Graph, node: &str, key: &str, v: f32
 fn apply_held(graph: &Graph, rows: &mut Rows, gen_params: &GenParams) {
     for node in graph.nodes.iter().filter(|n| n.kind.starts_with("gen.")) {
         let held = params::gen_held(node);
-        if held.is_empty() {
+        let vectors = params::gen_held_vecs(node);
+        if held.is_empty() && vectors.is_empty() {
             continue;
         }
         let (Some(row), Some(ps)) = (rows.get_mut(&node.id), gen_params.get(&node.id)) else { continue };
+        // A held colour slot or camera is written whole over the driven row.
+        for p in ps.iter().filter(|p| p.kind != ParamKind::Float) {
+            if let (Some(v), Some(at)) = (vectors.get(&p.name), p.index) {
+                for (i, x) in v.iter().enumerate() {
+                    if let Some(slot) = row.get_mut(at + i) {
+                        *slot = *x;
+                    }
+                }
+            }
+        }
         for p in ps.iter().filter(|p| p.kind == ParamKind::Float) {
             if let (Some(v), Some(slot)) = (held.get(&p.name), p.index.and_then(|i| row.get_mut(i))) {
                 *slot = v.clamp(p.min, p.max);
@@ -771,6 +782,36 @@ mod tests {
         assert_eq!(rows[&gen][param(&gp, &gen, "scale").index.unwrap()], 3.0, "held");
         let feed = param(&gp, &gen, "feed");
         assert_eq!(rows[&gen][feed.index.unwrap()], feed.max, "bound beats held");
+    }
+
+    /// A held colour slot and a held camera are written whole over the driven
+    /// row; the rest of the row is left alone.
+    #[test]
+    fn a_held_colour_and_camera_are_pinned_whole() {
+        let (ids, schemas) = suite();
+        let mut g = Graph::new("g", "t", Domain::Live);
+        let gen = g.add_node("gen", "gen.turing", [1.0, 0.0]);
+        let plan = g.compile();
+        let gp = gen_params(&g, &ids, &schemas);
+        let ps = gp[&gen].clone();
+        let colour = ps.iter().find(|p| p.kind == ParamKind::Colour).expect("turing has a colour slot").clone();
+        let camera = ps.iter().find(|p| p.kind == ParamKind::Camera).cloned();
+        let mut held = serde_json::json!({ "colours": { colour.name.clone(): vec![0.5f32; 12] } });
+        if camera.is_some() {
+            held["camera"] = serde_json::json!([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]);
+        }
+        g.node_mut(&gen).unwrap().config = Config::from_json_str(&held.to_string()).unwrap();
+        let driven = turing_row(&ids, &schemas);
+        let mut rows = Rows::from([(gen.clone(), driven.clone())]);
+        before_scripts(&mut g, &plan, &mut rows, &gp, &[], &RepeatVars::default());
+        let at = colour.index.unwrap();
+        assert!(rows[&gen][at..at + 12].iter().all(|v| *v == 0.5), "the colour slot is the held one");
+        if let Some(c) = camera {
+            let at = c.index.unwrap();
+            assert_eq!(rows[&gen][at..at + 7], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]);
+        }
+        let other = param(&gp, &gen, "feed").index.unwrap();
+        assert_eq!(rows[&gen][other], driven[other], "the rest of the row is untouched");
     }
 
     /// K: a `color` node bound to a generator's colour slot paints all four

@@ -771,8 +771,29 @@ pub fn graph_node(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             let Some(value) = body.get("value") else {
                 return Err(CallError::Bad("`value`: a number, or null to release".into()));
             };
-            let value = held_value(value)?;
-            metal_graph::params::set_held(&mut g, id, name, value, &catalog).map_err(CallError::Bad)?;
+            // A colour slot (12 floats) or the camera (7) is held as a list;
+            // `null` releases either, like a float.
+            let is_vector = g
+                .node(id)
+                .and_then(|n| metal_graph::params::find_param(n, catalog.iter().find(|k| k.kind == n.kind), name))
+                .is_some_and(|p| p.kind != metal_graph::params::ParamKind::Float);
+            if value.is_array() || (value.is_null() && is_vector) {
+                let floats = match value {
+                    Value::Null => None,
+                    v => Some(
+                        v.as_array()
+                            .into_iter()
+                            .flatten()
+                            .map(|x| x.as_f64().map(|f| f as f32))
+                            .collect::<Option<Vec<f32>>>()
+                            .ok_or_else(|| CallError::Bad("a held colour or camera is a list of numbers".into()))?,
+                    ),
+                };
+                metal_graph::params::set_held_vec(&mut g, id, name, floats, &catalog).map_err(CallError::Bad)?;
+            } else {
+                let value = held_value(value)?;
+                metal_graph::params::set_held(&mut g, id, name, value, &catalog).map_err(CallError::Bad)?;
+            }
             if let Err(e) = crate::save_graph(&g) {
                 return Err(CallError::Bad(e));
             }
@@ -1877,6 +1898,29 @@ mod param_tests {
         .expect("config floats on a generator");
         let held = metal_graph::params::gen_held(crate::load_graph(&ids.graph).unwrap().node(&ids.gen).unwrap());
         assert_eq!(held, HashMap::from([("step".to_string(), 20.0)]), "escala released, paso held, nothing else");
+    }
+
+    /// `POST /graph/node {op: "param"}` holds a generator's camera as a list of
+    /// seven floats (and a colour slot as twelve), refuses another width, and
+    /// `null` releases it.
+    #[test]
+    fn op_param_holds_and_releases_a_camera_list() {
+        let (mut paint, mut state, mut sim, author) = fixture();
+        let mut ctx = Ctx { state: &mut state, paint: paint.as_mut(), sim: &mut sim, author: &author };
+        let (_, ids) = saved_graph("camera");
+        let post = |ctx: &mut Ctx, value: Value| {
+            graph_node(ctx, &body(json!({ "op": "param", "graph": ids.graph, "node": ids.gen, "name": "camera", "value": value })))
+        };
+        post(&mut ctx, json!([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 45.0])).expect("seven floats");
+        let g = crate::load_graph(&ids.graph).unwrap();
+        assert_eq!(
+            metal_graph::params::gen_held_vecs(g.node(&ids.gen).unwrap()).get("camera"),
+            Some(&vec![1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 45.0])
+        );
+        assert!(matches!(post(&mut ctx, json!([1.0, 2.0])), Err(CallError::Bad(_))));
+        post(&mut ctx, Value::Null).expect("release");
+        let g = crate::load_graph(&ids.graph).unwrap();
+        assert!(metal_graph::params::gen_held_vecs(g.node(&ids.gen).unwrap()).is_empty());
     }
 
     /// `POST /graph/node {op: "params"}`: every update lands in one write, and

@@ -315,7 +315,7 @@ pub struct PanelState {
     model_rows: Vec<Vec<f32>>,
     /// Where each float of a `gen.*` kind sits in its row, `(name, index)`
     /// (`GET /catalog` `params`).
-    row_slots: HashMap<String, Vec<(String, usize)>>,
+    row_slots: HashMap<String, Vec<(String, usize, String)>>,
     /// One picture per `gen.*` node, drawn from that node's own row
     /// (`GET /author/render/solo.jpg?row=`); the grid's cell is the fallback
     /// until it lands.
@@ -721,7 +721,7 @@ fn ensure_loaded(door: &dyn Call, state: &mut PanelState) {
 
 /// The float slots of every `gen.*` kind in a `GET /catalog` reply: each
 /// float param's name and its position in the model's row.
-fn row_slots_of(catalog: Option<&Value>) -> HashMap<String, Vec<(String, usize)>> {
+fn row_slots_of(catalog: Option<&Value>) -> HashMap<String, Vec<(String, usize, String)>> {
     let mut out = HashMap::new();
     for entry in catalog.and_then(|c| c["catalog"].as_array()).into_iter().flatten() {
         let Some(kind) = entry["kind"].as_str().filter(|k| k.starts_with("gen.")) else { continue };
@@ -729,8 +729,9 @@ fn row_slots_of(catalog: Option<&Value>) -> HashMap<String, Vec<(String, usize)>
             .as_array()
             .into_iter()
             .flatten()
-            .filter(|p| p["kind"] == json!("float"))
-            .filter_map(|p| Some((p["name"].as_str()?.to_string(), p["index"].as_u64()? as usize)))
+            .filter_map(|p| {
+                Some((p["name"].as_str()?.to_string(), p["index"].as_u64()? as usize, p["kind"].as_str()?.to_string()))
+            })
             .collect();
         out.insert(kind.to_string(), slots);
     }
@@ -740,8 +741,8 @@ fn row_slots_of(catalog: Option<&Value>) -> HashMap<String, Vec<(String, usize)>
 /// The row a `gen.*` node's tile is drawn from: its model's studio row with
 /// the node's own floats laid over it — the effective value the last frame
 /// used (`GET /graph/live`), else the float it holds (`config.floats`).
-/// Colour slots and the camera stay the studio's: the node config holds
-/// neither (a colour slot cannot be held yet, the camera is no param).
+/// A held colour slot (`config.colours.<slot>`) or camera (`config.camera`)
+/// is written whole over its floats.
 fn node_row(state: &PanelState, node: &Value) -> Option<Vec<f32>> {
     let kind = node["kind"].as_str()?;
     let model = kind.strip_prefix("gen.")?;
@@ -749,7 +750,16 @@ fn node_row(state: &PanelState, node: &Value) -> Option<Vec<f32>> {
     let mut row = state.model_rows.get(at)?.clone();
     let held = node["config"]["floats"].as_object();
     let live = state.live.as_ref().and_then(|l| l["nodes"][node["id"].as_str()?]["in"].as_object());
-    for (name, slot) in state.row_slots.get(kind).into_iter().flatten() {
+    for (name, slot, what) in state.row_slots.get(kind).into_iter().flatten() {
+        if what != "float" {
+            let held = if what == "camera" { &node["config"]["camera"] } else { &node["config"]["colours"][name.as_str()] };
+            for (i, x) in held.as_array().into_iter().flatten().enumerate() {
+                if let (Some(x), Some(cell)) = (x.as_f64(), row.get_mut(slot + i)) {
+                    *cell = x as f32;
+                }
+            }
+            continue;
+        }
         let value = live
             .and_then(|l| l.get(name))
             .or_else(|| {
@@ -5182,7 +5192,8 @@ mod tests {
             json!({
                 "graph": { "id": "empty-1", "domain": "live", "nodes": [
                     { "id": "gen-0", "kind": "gen.turing", "pos": [0.0, 0.0], "label": "", "bypass": false,
-                      "solo": false, "config": { "floats": { "scale": 7.5 } } }
+                      "solo": false, "config": { "floats": { "scale": 7.5 },
+                        "colours": { "tint": [0.1, 0.2, 0.3, 0.4] }, "camera": [9.0, 8.0] } }
                 ] },
                 "primitives": [],
                 "issues": []
@@ -5191,14 +5202,15 @@ mod tests {
         recorder.respond(
             "GET",
             "/author/render/state",
-            json!({ "names": ["turing"], "rows": [[0.25, 1.0, 0.5, 0.75]] }),
+            json!({ "names": ["turing"], "rows": [[0.25, 1.0, 0.5, 0.75, 0.0, 0.0, 1.0, 1.0, 1.0]] }),
         );
         recorder.respond(
             "GET",
             "/catalog",
             json!({ "catalog": [{ "kind": "gen.turing", "params": [
                 { "name": "scale", "kind": "float", "index": 1 },
-                { "name": "tint", "kind": "colour", "index": 2 }
+                { "name": "tint", "kind": "colour", "index": 2 },
+                { "name": "camera", "kind": "camera", "index": 6 }
             ] }] }),
         );
         recorder.respond_bytes(
@@ -5217,7 +5229,7 @@ mod tests {
             .filter_map(|(_, _, params)| params.query.get("row").cloned())
             .collect();
         assert!(!rows.is_empty(), "the node's tile is asked for");
-        assert!(rows.iter().all(|r| r == "0.25,7.5,0.5,0.75"), "{rows:?}");
+        assert!(rows.iter().all(|r| r == "0.25,7.5,0.1,0.2,0.3,0.4,9,8,1"), "{rows:?}");
         let model = recorder
             .calls
             .borrow()

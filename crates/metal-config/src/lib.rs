@@ -395,8 +395,18 @@ fn default_compose() -> String {
 /// `scope = device` (`O.24`).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Farm {
+    /// The paired peer (by the name it announced) that splits exports into
+    /// shards and hands them out. This node claims shards from it. Absent, or
+    /// this node's own name: this node is the conductor and claims nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub conductor: Option<String>,
+    /// Frames per shard when the conductor splits an export. `None` uses 300.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shard_frames: Option<u64>,
+    /// Heartbeats (every 2 s) a shard's worker may miss before the shard goes
+    /// back in the queue. `None` uses 3.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missed_beats: Option<u32>,
 }
 
 /// `scope = studio` — a *view* of the files sync already carries, per O.26:

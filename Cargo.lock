@@ -4348,6 +4348,7 @@ dependencies = [
  "iroh-mdns-address-lookup",
  "metal-config",
  "metal-graph",
+ "metal-ingest",
  "metal-schema",
  "rand",
  "serde",

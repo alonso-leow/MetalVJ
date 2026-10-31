@@ -111,7 +111,7 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     // Plan §9.1 E1: the offline video export — the same `POST /export/video`
     // the export control posts (rule 6). Renders the device graph's generator
     // `node` (or the first authored one) over `range` frames to `path`.
-    ("export_queue", "Queues exports, one runs at a time in order (POST /export/queue {op:\"add\"|\"cancel\"|\"move\"|\"list\", id?, to?, ...an export_video request for add}); add takes the same fields as export_video; cancel stops a waiting job or the running one; move puts a job at position `to` (0 is next).", true),
+    ("export_queue", "Queues exports, one runs at a time in order (POST /export/queue {op:\"add\"|\"cancel\"|\"move\"|\"list\", id?, to?, ...an export_video request for add}); add takes the same fields as export_video, plus `farm: true` to have the paired conductor split it into shards that workers render (see GET /farm) and `reel` to name where the pieces land; cancel stops a waiting job or the running one; move puts a job at position `to` (0 is next).", true),
     ("export_video", "Exports a range of frames from an offline graph to a video, with optional audio (POST /export/video {device, node?, range:[start,end], fps?, codec?, bitrate?, audio?:\"mix\"|\"file:<path>\"|null, path}); replies with the job status.", true),
     ("capture_camera_frame", "One frame from the camera.", true),
     // S.B, over S.A's routes — implemented, but not by this struct: they
@@ -286,6 +286,7 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     ("perf_report", "The running app's frame-time report: the same numbers the F12 monitor shows (GET /perf).", true),
     ("get_grid_layouts", "The grid's saved layouts and the one up: each layout's id, name, surface and controllers, plus `active` (GET /settings, `grid_layouts`).", true),
     ("set_grid_layouts", "Replaces the whole list of grid layouts (POST /settings {grid_layouts}): `active` (an id in `list`) and `list` of {id, name, surface, controllers}. The grid panel's create, rename and delete write this same key.", true),
+    ("farm_status", "The render farm: whether this node conducts, and each job with its queued / claimed / done shard counts (GET /farm).", true),
     ("export_status", "The export job's progress, or idle when none runs (GET /export).", true),
     ("export_control", "Controls the running export (POST /export {op}): `op` cancel stops it and removes the partial file.", true),
     ("list_palettes", "The stored colour palettes, the list `set_palette` edits (GET /author/palettes).", true),
@@ -1830,7 +1831,7 @@ impl ToolExecutor for Harness {
             | "list_video_io" | "set_output_sink" | "dmx_bus" | "import_gdtf" | "capture_output"
             | "play_sequence" | "edit_loops" | "transport" | "fire_trigger" | "overlay_control"
             | "colour_apply"
-            | "perf_report" | "get_grid_layouts" | "set_grid_layouts" | "export_status" | "export_control"
+            | "perf_report" | "get_grid_layouts" | "set_grid_layouts" | "export_status" | "farm_status" | "export_control"
             | "list_palettes" => Err(format!(
                 "{} is implemented by metal_dash::author::models::agent_tools::AgentHarness, not by metal_agent::harness::Harness — see this module's doc comment",
                 call.name
@@ -3332,6 +3333,7 @@ mod capability_tests {
         "get_grid_layouts",
         "set_grid_layouts",
         "export_status",
+        "farm_status",
         "list_palettes",
     ];
 

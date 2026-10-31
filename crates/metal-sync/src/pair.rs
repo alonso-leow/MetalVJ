@@ -326,6 +326,8 @@ pub struct Club {
     pub pulls: Mutex<BTreeMap<String, crate::pull::Pull>>,
     /// The last self-report heard from each peer (`stats.rs`).
     pub stats: Mutex<crate::stats::StatsBook>,
+    /// The render farm (`farm_net.rs`): its queue, config and clock.
+    pub farm: crate::farm_net::FarmHandle,
 }
 
 impl std::fmt::Debug for Club {

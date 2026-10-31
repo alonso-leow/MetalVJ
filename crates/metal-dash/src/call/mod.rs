@@ -962,6 +962,20 @@ pub static ROUTES: &[Route] = &[
         prefix: false,
         handler: Handler::Json(sync::pair_request_post),
     },
+    // The render farm: the conductor's queue and a submission to split. The
+    // AI's `export_queue {op:"add", farm:true}` and `farm_status` come here.
+    Route {
+        method: "GET",
+        path: "/farm",
+        prefix: false,
+        handler: Handler::Json(sync::farm_get),
+    },
+    Route {
+        method: "POST",
+        path: "/farm/submit",
+        prefix: false,
+        handler: Handler::Json(sync::farm_submit_post),
+    },
     Route {
         method: "POST",
         path: "/sync/pair/confirm",

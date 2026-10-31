@@ -262,6 +262,48 @@ impl Encoder for FfmpegEncoder {
     }
 }
 
+// -- joining shards ------------------------------------------------------------
+
+/// Joins the shard files of a farm export, in the order given, into `out`
+/// through ffmpeg's concat demuxer and the same mp4 muxer an ordinary export
+/// ends in. Streams are copied, not re-encoded: every shard was encoded with
+/// the same pinned flags ([`FfmpegEncoder`]), so they join on a keyframe
+/// boundary and the result is deterministic. Written to a temp file and renamed.
+pub fn join_shards(files: &[PathBuf], out: &std::path::Path) -> Result<(), String> {
+    if files.is_empty() {
+        return Err("nothing to join".into());
+    }
+    if let Some(dir) = out.parent() {
+        if !dir.as_os_str().is_empty() {
+            metal_vfs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        }
+    }
+    let list = out.with_extension("concat.txt");
+    let mut text = String::new();
+    for f in files {
+        let abs = std::fs::canonicalize(f).map_err(|e| format!("{}: {e}", f.display()))?;
+        // The concat list quotes with '...'; a quote in a path is escaped.
+        text.push_str(&format!("file '{}'\n", abs.display().to_string().replace('\'', "'\\''")));
+    }
+    std::fs::write(&list, text).map_err(|e| e.to_string())?;
+    let tmp = out.with_extension("joining.mp4");
+    let status = Command::new("ffmpeg")
+        .args(["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i"])
+        .arg(&list)
+        .args(["-c", "copy", "-fflags", "+bitexact", "-flags:v", "+bitexact", "-f", "mp4"])
+        .arg(&tmp)
+        .output();
+    let _ = std::fs::remove_file(&list);
+    match status {
+        Ok(o) if o.status.success() => std::fs::rename(&tmp, out).map_err(|e| e.to_string()),
+        Ok(o) => {
+            let _ = std::fs::remove_file(&tmp);
+            Err(String::from_utf8_lossy(&o.stderr).trim().to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 // -- one frame of an offline render -----------------------------------------
 
 /// One frame an [`Exporter`] should draw: which model, its float row, at what
@@ -546,5 +588,34 @@ mod tests {
     fn an_empty_preset_list_is_refused_rather_than_silently_empty() {
         assert!(parse_presets("[]").is_err());
         assert!(parse_presets("not json").is_err());
+    }
+
+    /// Shards encoded apart join into one file with every frame, in the order
+    /// given (skipped where there is no ffmpeg).
+    #[test]
+    fn shards_join_into_one_file_with_all_their_frames() {
+        if Command::new("ffmpeg").arg("-version").output().is_err() {
+            eprintln!("skipped: no ffmpeg");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("fw-join-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut shards = Vec::new();
+        for (i, secs) in [1u32, 2].into_iter().enumerate() {
+            let path = dir.join(format!("s{i}.mp4"));
+            let mut enc = open(&EncodeSettings::new(&path, 64, 48, 10.0)).expect("an encoder");
+            for _ in 0..(10 * secs) {
+                enc.push(&vec![i as u8 * 100; 64 * 48 * 4]).expect("a frame");
+            }
+            enc.finish().expect("finish");
+            shards.push(path);
+        }
+        let out = dir.join("joined.mp4");
+        join_shards(&shards, &out).expect("join");
+        let frames = crate::video::probe(&out).map(|i| (i.duration * 10.0).round() as u32);
+        assert_eq!(frames.ok(), Some(30), "1 s + 2 s at 10 fps");
+        assert!(join_shards(&[], &out).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

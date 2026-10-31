@@ -2059,6 +2059,13 @@ impl AgentHarness {
         Ok(json!({ "grid_layouts": reply["grid_layouts"] }))
     }
 
+    /// `GET /farm`: the render farm's jobs and shard counts.
+    fn farm_status(&self) -> Result<Value, String> {
+        self.door()?
+            .json("GET", "/farm", None)
+            .map_err(|(status, msg)| format!("/farm answered {status}: {msg}"))
+    }
+
     /// Gap closure: `GET /export`, the running job's progress or idle.
     fn export_status(&self) -> Result<Value, String> {
         self.door()?
@@ -2151,7 +2158,7 @@ impl AgentHarness {
     fn export_queue(&self, args: &Value) -> Result<Value, String> {
         let op = args.get("op").and_then(Value::as_str).ok_or_else(|| "expected `op`".to_string())?;
         let mut body = json!({ "op": op });
-        for key in ["id", "to", "device", "node", "range", "fps", "codec", "bitrate", "audio", "path"] {
+        for key in ["id", "to", "device", "node", "range", "fps", "codec", "bitrate", "audio", "path", "farm", "reel"] {
             if let Some(v) = args.get(key) {
                 body[key] = v.clone();
             }
@@ -2875,6 +2882,7 @@ impl ToolExecutor for AgentHarness {
             "get_grid_layouts" => self.get_grid_layouts(),
             "set_grid_layouts" => self.set_grid_layouts(&call.arguments),
             "export_status" => self.export_status(),
+            "farm_status" => self.farm_status(),
             "export_control" => self.export_control(&call.arguments),
             "list_palettes" => self.list_palettes(),
             _ => self.inner.execute(call),

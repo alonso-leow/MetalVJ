@@ -448,10 +448,30 @@ impl crate::pair::Net {
 /// One blocking GET to the local `metal-dash`. Short timeouts: a wedged
 /// dashboard must not hold a frame request open.
 pub fn loopback_get(port: u16, path: &str) -> std::io::Result<Frame> {
+    loopback_call(port, "GET", path, None)
+}
+
+/// [`loopback_get`] for a JSON `POST` (the farm worker starts its shard's
+/// export through the same `/export/video` route the operator's button posts).
+pub fn loopback_post(port: u16, path: &str, body: &Value) -> std::io::Result<Frame> {
+    loopback_call(port, "POST", path, Some(body.to_string().as_bytes()))
+}
+
+fn loopback_call(port: u16, method: &str, path: &str, body: Option<&[u8]>) -> std::io::Result<Frame> {
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2))?;
     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
-    write!(stream, "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n")?;
+    match body {
+        None => write!(stream, "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n")?,
+        Some(b) => {
+            write!(
+                stream,
+                "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                b.len()
+            )?;
+            stream.write_all(b)?;
+        }
+    }
     stream.flush()?;
     let mut reader = BufReader::new(stream);
     let mut status_line = String::new();

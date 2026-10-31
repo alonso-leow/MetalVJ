@@ -8595,6 +8595,81 @@
           "tool_calls": []
         }
       ]
+    },
+    {
+      "id": "farm-progress",
+      "tags": [
+        "farm_status"
+      ],
+      "user": "¿Cómo va el render distribuido?",
+      "steps": [
+        {
+          "assistant": "Miro la granja.",
+          "tool_calls": [
+            {
+              "name": "farm_status",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Estado de los fragmentos.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "farm-export-split",
+      "tags": [
+        "export_queue"
+      ],
+      "user": "Mandá el set completo a la granja de render.",
+      "steps": [
+        {
+          "assistant": "Lo encolo para que el conductor lo parta en fragmentos.",
+          "tool_calls": [
+            {
+              "name": "export_queue",
+              "arguments": {
+                "op": "add",
+                "farm": true,
+                "device": "out-1",
+                "range": [
+                  0,
+                  1800
+                ],
+                "path": "~/Videos/set.mp4"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Enviado a la granja.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "farm-who-conducts",
+      "tags": [
+        "farm_status"
+      ],
+      "user": "¿Esta máquina dirige la granja?",
+      "steps": [
+        {
+          "assistant": "Lo consulto.",
+          "tool_calls": [
+            {
+              "name": "farm_status",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "assistant": "Veo si es conductora.",
+          "tool_calls": []
+        }
+      ]
     }
   ]
 }

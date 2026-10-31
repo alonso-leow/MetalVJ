@@ -692,3 +692,98 @@ async fn a_device_graph_and_a_model_pull_from_a_paired_peer() {
     assert_eq!(st["got_bytes"], st["total_bytes"], "{st}");
     assert_eq!(read(&b.data().join("models/bp/m.onnx")).map(|v| v.len()), Some(200_000));
 }
+
+/// A stand-in `metal-dash` that renders: `POST /export/video` writes a real
+/// mp4 of `range` (one frame per index, 10 fps) at the request's `path`, and
+/// `GET /export` answers `done` once it has.
+fn fake_render_dash() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        let state = Arc::new(Mutex::new("idle"));
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut line = String::new();
+            if reader.read_line(&mut line).unwrap_or(0) == 0 {
+                continue;
+            }
+            let mut len = 0usize;
+            let mut h = String::new();
+            while reader.read_line(&mut h).is_ok_and(|n| n > 2) {
+                if let Some(v) = h.to_ascii_lowercase().strip_prefix("content-length:") {
+                    len = v.trim().parse().unwrap_or(0);
+                }
+                h.clear();
+            }
+            let mut body = vec![0u8; len];
+            std::io::Read::read_exact(&mut reader, &mut body).unwrap();
+            let out = if line.starts_with("POST /export/video ") {
+                let v: Value = serde_json::from_slice(&body).unwrap();
+                let (a, b) = (v["range"][0].as_u64().unwrap(), v["range"][1].as_u64().unwrap());
+                let path = v["path"].as_str().unwrap().to_string();
+                let made = std::process::Command::new("ffmpeg")
+                    .args(["-v", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=64x48:r=10"])
+                    .args(["-frames:v", &(b - a).to_string(), "-pix_fmt", "yuv420p", "-c:v", "libx264", "-threads", "1"])
+                    .arg(&path)
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false);
+                *state.lock().unwrap() = if made { "done" } else { "error" };
+                json!({ "state": "running" })
+            } else if line.starts_with("GET /export ") {
+                json!({ "state": *state.lock().unwrap() })
+            } else if line.starts_with("POST /export ") {
+                *state.lock().unwrap() = "cancelled";
+                json!({ "state": "cancelled" })
+            } else {
+                json!({})
+            };
+            let text = out.to_string();
+            let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{text}", text.len());
+        }
+    });
+    port
+}
+
+/// The render farm end to end: the conductor splits an export into three
+/// shards, a ghost worker claims one and goes silent (3 missed beats put it
+/// back), the real worker over `fw/farm/1` renders all three and delivers them
+/// into `reels/<reel>/verified/`, and the conductor joins them into the file
+/// the export asked for, in frame order, and clears the job.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_farm_splits_requeues_delivers_and_joins() {
+    if std::process::Command::new("ffmpeg").arg("-version").output().is_err() {
+        eprintln!("skipped: no ffmpeg");
+        return;
+    }
+    let a = node_with("bar", fake_dash(), "[]", &[], None, |o| {
+        o.farm = metal_sync::farm_net::FarmCfg { shard_frames: 20, ..Default::default() };
+    })
+    .await;
+    let b = node_with("stage", fake_render_dash(), "[]", &[], None, |o| {
+        o.farm = metal_sync::farm_net::FarmCfg { conductor: Some("bar".into()), ..Default::default() };
+    })
+    .await;
+    pair(&a, &b).await;
+
+    let out = a.dir.path().join("joined.mp4");
+    let job = a
+        .net
+        .club
+        .farm_submit(&json!({ "device": "out-1", "range": [0, 60], "path": out.display().to_string() }))
+        .expect("the conductor accepts the export");
+    // The ghost claims one shard now and never beats.
+    let ghost = a.net.club.farm.queue.lock().unwrap().claim("ghost", a.net.club.farm.now_ms()).expect("a shard for the ghost");
+    assert_eq!(ghost.job, job);
+
+    wait_for("the conductor to join the shards", Duration::from_secs(120), || out.is_file() && a.net.club.farm_report()["jobs"] == json!([])).await;
+    let probed = metal_ingest::video::probe(&out).expect("the joined file probes");
+    assert_eq!((probed.duration * 10.0).round() as u32, 60, "3 shards of 20 frames, joined");
+    for i in 0..3 {
+        let shard = a.data().join(format!("reels/out-1/verified/{job}-{i}.mp4"));
+        assert!(shard.is_file(), "shard {i} was delivered to verified/: {}", shard.display());
+    }
+    let queue = std::fs::read_to_string(a.data().join("render/queue.json")).unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&queue).unwrap()["jobs"], json!([]), "the queue file is cleared");
+}

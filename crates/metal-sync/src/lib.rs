@@ -48,6 +48,8 @@ pub mod manifest;
 pub mod node;
 pub mod notify;
 pub mod pair;
+pub mod farm;
+pub mod farm_net;
 pub mod pull;
 pub mod reader;
 pub mod state;

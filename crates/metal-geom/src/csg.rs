@@ -6,8 +6,10 @@
 //! coplanar or exactly-touching faces can occasionally make a boolean
 //! degenerate; those failures surface as [`CsgError::Unknown`].
 
+#[cfg(not(target_os = "android"))]
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
+#[cfg(not(target_os = "android"))]
 use manifold3d::{Manifold, OpType};
 
 use crate::mesh::Mesh;
@@ -27,6 +29,7 @@ pub enum CsgError {
     Unknown(String),
 }
 
+#[cfg(not(target_os = "android"))]
 fn map_manifold_error(e: manifold3d::CsgError) -> CsgError {
     match e {
         manifold3d::CsgError::InvalidInput(msg) => CsgError::Unknown(msg),
@@ -38,6 +41,7 @@ fn map_manifold_error(e: manifold3d::CsgError) -> CsgError {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn to_manifold(mesh: &Mesh) -> Result<Manifold, CsgError> {
     if mesh.indices.len() < 3 || mesh.positions.is_empty() {
         return Err(CsgError::NonManifold);
@@ -54,6 +58,7 @@ fn to_manifold(mesh: &Mesh) -> Result<Manifold, CsgError> {
     Manifold::from_mesh_f32(&verts, 3, &welded.indices).map_err(map_manifold_error)
 }
 
+#[cfg(not(target_os = "android"))]
 fn from_manifold(m: &Manifold) -> Result<Mesh, CsgError> {
     m.status().map_err(map_manifold_error)?;
     let (verts, n_props, indices) = m.to_mesh_f32();
@@ -72,7 +77,15 @@ fn from_manifold(m: &Manifold) -> Result<Mesh, CsgError> {
     Ok(mesh)
 }
 
+/// Boolean operation between two meshes. Android builds no Manifold (its C++
+/// solver is not cross-built), so there it answers [`CsgError::SolverNotAvailable`].
+#[cfg(target_os = "android")]
+pub fn boolean(_op: BooleanOp, _a: &Mesh, _b: &Mesh) -> Result<Mesh, CsgError> {
+    Err(CsgError::SolverNotAvailable)
+}
+
 /// Boolean operation between two meshes.
+#[cfg(not(target_os = "android"))]
 pub fn boolean(op: BooleanOp, a: &Mesh, b: &Mesh) -> Result<Mesh, CsgError> {
     let op_type = match op {
         BooleanOp::Union => OpType::Add,

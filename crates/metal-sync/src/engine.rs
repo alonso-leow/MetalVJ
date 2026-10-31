@@ -152,7 +152,24 @@ impl Default for EngineOpts {
     }
 }
 
+/// The engine's background tasks (the 5 s stats tick, mDNS). They hold the
+/// endpoint and the club, so they must end with the engine: left running after
+/// the `run` future is dropped they keep the document store open, and a restart
+/// on the same store (a process restart done in-process) waits on it forever.
+#[derive(Default)]
+struct Tasks(Vec<tokio::task::AbortHandle>);
+
+impl Drop for Tasks {
+    fn drop(&mut self) {
+        for t in &self.0 {
+            t.abort();
+        }
+    }
+}
+
 pub struct SyncEngine {
+    /// Dropped (and so aborted) with the engine.
+    _tasks: Tasks,
     doc: Doc,
     author: AuthorId,
     blobs: FsStore,
@@ -255,10 +272,11 @@ impl SyncEngine {
             .accept(crate::frame::ALPN, FrameProtocol { club: Arc::clone(&club) })
             .accept(crate::stats::ALPN, crate::stats::StatsProtocol { club: Arc::clone(&club) })
             .spawn();
-        spawn_stats_tick(endpoint.clone(), Arc::clone(&club));
+        let mut tasks = Tasks::default();
+        tasks.0.push(spawn_stats_tick(endpoint.clone(), Arc::clone(&club)));
 
         if opts.mdns {
-            spawn_mdns(&endpoint, Arc::clone(&club));
+            tasks.0.extend(spawn_mdns(&endpoint, Arc::clone(&club)));
         }
 
         let api = docs.api();
@@ -311,6 +329,7 @@ impl SyncEngine {
         let net = Net { endpoint, club: Arc::clone(&club), cmds: tx };
         Ok((
             SyncEngine {
+                _tasks: tasks,
                 doc,
                 author,
                 blobs,
@@ -756,19 +775,19 @@ impl SyncEngine {
 /// `iroh-mdns-address-lookup` 0.6 is built against iroh 1.x and resolves
 /// against this crate's 1.2; added to the endpoint's lookups it also lets a
 /// bare node id from `GET /discover` be dialled with no relay at all.
-fn spawn_mdns(endpoint: &Endpoint, club: Arc<Club>) {
+fn spawn_mdns(endpoint: &Endpoint, club: Arc<Club>) -> Option<tokio::task::AbortHandle> {
     let mdns = match MdnsAddressLookup::builder().build(endpoint.id()) {
         Ok(m) => m,
         Err(e) => {
             tracing::warn!(%e, "mDNS unavailable on this network; discovery is off");
-            return;
+            return None;
         }
     };
     match endpoint.address_lookup() {
         Ok(lookups) => lookups.add(mdns.clone()),
         Err(e) => tracing::warn!(%e, "could not register mDNS with the endpoint"),
     }
-    tokio::spawn(async move {
+    Some(tokio::spawn(async move {
         let mut events = mdns.subscribe().await;
         while let Some(event) = events.next().await {
             let mut seen = club.discovered.lock().expect("discovered poisoned");
@@ -790,7 +809,7 @@ fn spawn_mdns(endpoint: &Endpoint, club: Arc<Club>) {
                 _ => {}
             }
         }
-    });
+    }).abort_handle())
 }
 
 /// A path relative to `data/` becomes the document key, verbatim.
@@ -827,7 +846,7 @@ mod tests {
 /// The 5 s self-report: this machine's readings (and the local `GET /perf`'s
 /// paint backend and frame rate) pushed to every peer. The loop polls twice a
 /// second; [`crate::stats::Cadence`] decides when a tick is due.
-fn spawn_stats_tick(endpoint: iroh::Endpoint, club: Arc<Club>) {
+fn spawn_stats_tick(endpoint: iroh::Endpoint, club: Arc<Club>) -> tokio::task::AbortHandle {
     tokio::spawn(async move {
         let mut cadence = crate::stats::Cadence::default();
         let mut sampler = crate::stats::CpuSampler::default();
@@ -848,5 +867,6 @@ fn spawn_stats_tick(endpoint: iroh::Endpoint, club: Arc<Club>) {
             }
             crate::stats::push(&endpoint, &club, &stats).await;
         }
-    });
+    })
+    .abort_handle()
 }

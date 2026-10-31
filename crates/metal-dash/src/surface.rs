@@ -256,10 +256,19 @@ pub struct Bind {
     pub input: String,
     #[serde(default)]
     pub page: Option<usize>,
+    /// The fn layer it lives in (with `page`, its universe); control cells'
+    /// bindings (`page: None`) answer in every layer. Absent in layouts saved
+    /// before layers existed, which read as layer 0.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub layer: usize,
     pub cell: String,
     /// How a knob on this input reports itself.
     #[serde(default, skip_serializing_if = "is_absolute")]
     pub dial: DialMode,
+}
+
+fn is_zero(n: &usize) -> bool {
+    *n == 0
 }
 
 fn is_absolute(m: &DialMode) -> bool {
@@ -349,6 +358,14 @@ pub struct Layout {
     /// Cells pinned to a page.
     #[serde(default)]
     pub pages: BTreeMap<String, usize>,
+    /// Cells pinned to an fn layer: with its page, the universe a cell lives
+    /// in. A cell not named here is in layer 0, and a control cell is in every
+    /// layer.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub layers: BTreeMap<String, usize>,
+    /// Layers kept even when empty (one the fn dial opened).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub layer_count: usize,
     #[serde(default)]
     pub roles: BTreeMap<String, Role>,
     #[serde(default)]
@@ -428,6 +445,8 @@ impl Default for Layout {
             page_count: 0,
             order: Vec::new(),
             pages: BTreeMap::new(),
+            layers: BTreeMap::new(),
+            layer_count: 0,
             roles: BTreeMap::new(),
             binds: Vec::new(),
             loops: BTreeMap::new(),
@@ -482,13 +501,13 @@ impl Layout {
     /// The cell `input` fires on `page`: a binding on that page wins over one
     /// on every page, and an exact one (the same channel) over one that only
     /// names the control ([`metal_midi::same_control`]).
-    pub fn bound(&self, input: &str, page: usize) -> Option<&Bind> {
+    pub fn bound(&self, input: &str, page: usize, layer: usize) -> Option<&Bind> {
         self.binds
             .iter()
             .filter(|b| metal_midi::same_control(&b.input, input))
             .filter_map(|b| {
                 let here = match b.page {
-                    Some(p) if p == page => 0,
+                    Some(p) if p == page && b.layer == layer => 0,
                     None => 2,
                     Some(_) => return None,
                 };
@@ -501,13 +520,32 @@ impl Layout {
     /// Binds `input` to `cell`, on `page` (or every page), replacing whatever
     /// that input fired there before.
     pub fn bind(&mut self, input: &str, page: Option<usize>, cell: &str) {
-        self.binds.retain(|b| !(b.input == input && b.page == page));
+        self.bind_at(input, page, 0, cell);
+    }
+
+    /// [`Layout::bind`] in fn layer `layer` (ignored for a binding on every page).
+    pub fn bind_at(&mut self, input: &str, page: Option<usize>, layer: usize, cell: &str) {
+        let layer = if page.is_some() { layer } else { 0 };
+        self.binds.retain(|b| !(b.input == input && b.page == page && b.layer == layer));
         self.binds.push(Bind {
             input: input.to_string(),
             page,
+            layer,
             cell: cell.to_string(),
             dial: DialMode::Absolute,
         });
+    }
+
+    /// The fn layer `cell` lives in (0 unless pinned).
+    pub fn layer_of(&self, cell: &str) -> usize {
+        self.layers.get(cell).copied().unwrap_or(0)
+    }
+
+    /// How many layers there are: those kept open, and those a cell or a
+    /// binding is in; at least the base one.
+    pub fn layers_len(&self) -> usize {
+        let used = self.layers.values().copied().chain(self.binds.iter().map(|b| b.layer)).max().map_or(0, |m| m + 1);
+        self.layer_count.max(used).max(1)
     }
 
     /// The bindings that fire `cell`.
@@ -522,6 +560,7 @@ impl Layout {
         self.binds.retain(|b| b.cell != cell);
         self.order.retain(|k| k != cell);
         self.pages.remove(cell);
+        self.layers.remove(cell);
         self.places.remove(cell);
     }
 
@@ -998,6 +1037,9 @@ pub enum Out {
     Page(usize),
     /// Step the page.
     PageStep(i32),
+    /// Show this fn layer (the surface already holds it); the grid keeps it
+    /// open when it is one past the last.
+    Layer(usize),
     Library(LibraryIntent),
     /// Set a loop's length (`None`: the next recording's).
     LoopTicks { key: Option<String>, ticks: usize },
@@ -1033,8 +1075,11 @@ pub struct Surface {
     /// A `glitch hold` button is down.
     glitch_down: bool,
     recording: Option<Recording>,
-    /// `(fn cell, pressed at, page to return to)`.
+    /// `(fn cell, pressed at, layer to return to)`.
     fn_hold: Option<(String, f64, usize)>,
+    /// The fn layer up: the held `fn` button's, the latched one, or where the
+    /// fn dial stands. With the page it is the universe the grid shows.
+    pub layer: usize,
     /// The loop the speed dial lengthens: the last one touched.
     pub focus_loop: Option<String>,
     /// Each playing loop's playhead, in ticks.
@@ -1070,7 +1115,9 @@ impl Surface {
         match role {
             Role::Rec => self.recording.is_some() || self.rec_down.is_some(),
             Role::DropRec => self.drop_down.is_some(),
-            Role::Fn { .. } => self.fn_hold.as_ref().is_some_and(|(k, _, _)| k == key),
+            Role::Fn { page: to } => {
+                self.fn_hold.as_ref().is_some_and(|(k, _, _)| k == key) || (self.layer != 0 && self.layer == to.unwrap_or(1))
+            }
             Role::Glitch { hold: true } => self.glitch_down,
             _ => false,
         }
@@ -1139,23 +1186,46 @@ impl Surface {
                 out.extend(self.role(layout, key, &Role::Play, Gesture::Click, now, page));
             }
             (Role::SearchDial, Gesture::Down | Gesture::Click) => out.push(Out::Library(LibraryIntent::Load)),
-            (Role::FnDial | Role::Navigator, Gesture::Down | Gesture::Click) => out.push(Out::Page(0)),
+            (Role::Navigator, Gesture::Down | Gesture::Click) => out.push(Out::Page(0)),
             (Role::SearchDial, Gesture::Steps(n)) => out.push(Out::Library(LibraryIntent::Step(n))),
             (Role::Load, Gesture::Down | Gesture::Click) => out.push(Out::Library(LibraryIntent::Load)),
             (Role::Folder, Gesture::Down | Gesture::Click) => out.push(Out::Library(LibraryIntent::ToggleFolders)),
+            // `fn` shows layer `n` (1 unless it names one): held, it springs
+            // back on release; tapped, it latches; pressed again, it lets go.
             (Role::Fn { page: to }, Gesture::Down) => {
-                self.fn_hold = Some((key.to_string(), now, page));
-                out.push(Out::Page(to.unwrap_or(page + 1)));
+                let target = to.unwrap_or(1);
+                if self.layer == target {
+                    self.fn_hold = None;
+                    self.layer = 0;
+                } else {
+                    self.fn_hold = Some((key.to_string(), now, self.layer));
+                    self.layer = target;
+                }
+                out.push(Out::Layer(self.layer));
             }
             (Role::Fn { .. }, Gesture::Up) => {
                 if let Some((k, at, back)) = self.fn_hold.take() {
                     if k == key && now - at >= FN_HOLD_SECS {
-                        out.push(Out::Page(back));
+                        self.layer = back;
+                        out.push(Out::Layer(back));
                     }
                 }
             }
-            (Role::Fn { page: to }, Gesture::Click) => out.push(Out::Page(to.unwrap_or(page + 1))),
-            (Role::FnDial | Role::Navigator, Gesture::Steps(n)) => out.push(Out::PageStep(n)),
+            (Role::Fn { page: to }, Gesture::Click) => {
+                let target = to.unwrap_or(1);
+                self.layer = if self.layer == target { 0 } else { target };
+                out.push(Out::Layer(self.layer));
+            }
+            // The fn dial walks the layers; one past the last opens a new one.
+            (Role::FnDial, Gesture::Steps(n)) => {
+                self.layer = (self.layer as i64 + n as i64).clamp(0, layout.layers_len() as i64) as usize;
+                out.push(Out::Layer(self.layer));
+            }
+            (Role::FnDial, Gesture::Down | Gesture::Click) => {
+                self.layer = 0;
+                out.push(Out::Layer(0));
+            }
+            (Role::Navigator, Gesture::Steps(n)) => out.push(Out::PageStep(n)),
             (Role::Page { step }, Gesture::Down | Gesture::Click) => out.push(Out::PageStep(*step)),
             (Role::Octave { step }, Gesture::Down | Gesture::Click) => out.push(Out::Octave(*step)),
             (Role::Play, Gesture::Down | Gesture::Click) => {
@@ -1339,7 +1409,7 @@ mod tests {
         assert_eq!(serde_json::to_value(Role::Navigator).unwrap(), serde_json::json!({ "kind": "navigator" }));
         assert_eq!(s.role(&l, "n", &Role::Navigator, Gesture::Steps(2), 0.0, 3), vec![Out::PageStep(2)]);
         assert_eq!(s.role(&l, "n", &Role::Navigator, Gesture::Click, 0.0, 3), vec![Out::Page(0)]);
-        assert_eq!(s.role(&l, "fd", &Role::FnDial, Gesture::Click, 0.0, 3), vec![Out::Page(0)]);
+        assert_eq!(s.role(&l, "fd", &Role::FnDial, Gesture::Click, 0.0, 3), vec![Out::Layer(0)]);
         assert_eq!(
             s.role(&l, "sd", &Role::SearchDial, Gesture::Click, 0.0, 0),
             vec![Out::Library(LibraryIntent::Load)]
@@ -1408,12 +1478,12 @@ mod tests {
         let mut l = Layout::default();
         l.bind("note:60", None, "rec-1");
         l.bind("note:60", Some(2), "sw:a");
-        assert_eq!(l.bound("note:60", 2).unwrap().cell, "sw:a");
-        assert_eq!(l.bound("note:60", 0).unwrap().cell, "rec-1");
+        assert_eq!(l.bound("note:60", 2, 0).unwrap().cell, "sw:a");
+        assert_eq!(l.bound("note:60", 0, 0).unwrap().cell, "rec-1");
         l.bind("note:60", Some(2), "sw:b");
         assert_eq!(l.binds.len(), 2, "rebinding replaces");
         l.forget("sw:b");
-        assert_eq!(l.bound("note:60", 2).unwrap().cell, "rec-1");
+        assert_eq!(l.bound("note:60", 2, 0).unwrap().cell, "rec-1");
     }
 
     #[test]
@@ -1533,15 +1603,76 @@ mod tests {
         let l = Layout::default();
         let mut s = Surface::default();
         let role = Role::Fn { page: Some(3) };
-        assert_eq!(s.role(&l, "fn-1", &role, Gesture::Down, 0.0, 1), vec![Out::Page(3)]);
-        assert_eq!(s.role(&l, "fn-1", &role, Gesture::Up, 1.0, 3), vec![Out::Page(1)]);
+        assert_eq!(s.role(&l, "fn-1", &role, Gesture::Down, 0.0, 1), vec![Out::Layer(3)]);
+        assert_eq!(s.layer, 3);
+        assert_eq!(s.role(&l, "fn-1", &role, Gesture::Up, 1.0, 1), vec![Out::Layer(0)]);
+        assert_eq!(s.layer, 0, "a hold springs back");
         s.role(&l, "fn-1", &role, Gesture::Down, 2.0, 1);
-        assert!(s.role(&l, "fn-1", &role, Gesture::Up, 2.1, 3).is_empty(), "a tap stays");
-        assert_eq!(s.role(&l, "fd", &Role::FnDial, Gesture::Steps(-1), 0.0, 0), vec![Out::PageStep(-1)]);
-        assert_eq!(
-            s.role(&l, "f2", &Role::Fn { page: None }, Gesture::Click, 0.0, 4),
-            vec![Out::Page(5)]
-        );
+        assert!(s.role(&l, "fn-1", &role, Gesture::Up, 2.1, 1).is_empty(), "a tap stays");
+        assert_eq!(s.layer, 3, "latched");
+        assert_eq!(s.role(&l, "fn-1", &role, Gesture::Down, 3.0, 1), vec![Out::Layer(0)], "pressed again it lets go");
+        let mut s = Surface::default();
+        assert_eq!(s.role(&l, "f2", &Role::Fn { page: None }, Gesture::Click, 0.0, 4), vec![Out::Layer(1)], "fn alone is layer 1");
+        assert_eq!(s.role(&l, "fd", &Role::FnDial, Gesture::Steps(-1), 0.0, 0), vec![Out::Layer(0)]);
+    }
+
+    /// The fn dial walks the layers and opens a new, empty one one past the
+    /// last that has buttons; it never runs further than that.
+    #[test]
+    fn the_fn_dial_opens_a_new_empty_layer_past_the_last() {
+        let mut l = Layout::default();
+        l.layers.insert("sw:a".into(), 1);
+        assert_eq!(l.layers_len(), 2);
+        let mut s = Surface::default();
+        assert_eq!(s.role(&l, "fd", &Role::FnDial, Gesture::Steps(1), 0.0, 0), vec![Out::Layer(1)]);
+        assert_eq!(s.role(&l, "fd", &Role::FnDial, Gesture::Steps(5), 0.0, 0), vec![Out::Layer(2)], "one past the last, no further");
+        assert_eq!(s.layer, 2);
+        l.layer_count = 3;
+        assert_eq!(l.layers_len(), 3, "the opened layer is kept");
+        assert_eq!(s.role(&l, "fd", &Role::FnDial, Gesture::Click, 0.0, 0), vec![Out::Layer(0)]);
+    }
+
+    /// A position's payload is resolved by (page, layer): the same input fires
+    /// a different cell in each universe, and a control cell answers in all.
+    #[test]
+    fn an_input_fires_the_payload_of_the_current_page_and_layer() {
+        let mut l = Layout::default();
+        l.bind_at("note:60", Some(0), 0, "sw:a");
+        l.bind_at("note:60", Some(0), 1, "sw:b");
+        l.bind_at("note:60", Some(1), 0, "sw:c");
+        l.bind_at("note:61", None, 5, "rec-1");
+        let cell = |page, layer| l.bound("note:60", page, layer).map(|b| b.cell.as_str());
+        assert_eq!((cell(0, 0), cell(0, 1), cell(1, 0)), (Some("sw:a"), Some("sw:b"), Some("sw:c")));
+        assert_eq!(cell(1, 1), None, "a universe nothing is bound in fires nothing");
+        for (page, layer) in [(0, 0), (3, 2), (1, 7)] {
+            assert_eq!(l.bound("note:61", page, layer).map(|b| b.cell.as_str()), Some("rec-1"), "a control cell is global");
+        }
+    }
+
+    /// A layout saved before layers existed reads as layer 0 everywhere: every
+    /// binding and cell keeps its universe, and it saves back without layers.
+    #[test]
+    fn a_layout_saved_before_layers_migrates_to_layer_zero() {
+        let old = serde_json::json!({
+            "pages": { "sw:a": 1 },
+            "roles": { "fn-1": { "kind": "fn", "page": 2 } },
+            "binds": [
+                { "input": "note:60", "page": 0, "cell": "sw:a" },
+                { "input": "note:61", "page": 1, "cell": "sw:b" },
+                { "input": "cc:1", "cell": "fn-1" }
+            ]
+        });
+        let l = Layout::from_value(&old);
+        assert!(l.layers.is_empty() && l.layer_count == 0 && l.binds.iter().all(|b| b.layer == 0));
+        assert_eq!(l.layers_len(), 1);
+        assert_eq!(l.layer_of("sw:a"), 0);
+        assert_eq!(l.bound("note:60", 0, 0).unwrap().cell, "sw:a");
+        assert_eq!(l.bound("note:61", 1, 0).unwrap().cell, "sw:b");
+        assert_eq!(l.bound("cc:1", 4, 0).unwrap().cell, "fn-1");
+        assert_eq!(l.roles["fn-1"], Role::Fn { page: Some(2) }, "the old page field is read as the layer");
+        let saved = l.to_value();
+        assert!(saved.get("layers").is_none() && saved["binds"][0].get("layer").is_none());
+        assert_eq!(Layout::from_value(&saved), l, "lossless");
     }
 
     #[test]
@@ -1564,7 +1695,7 @@ mod tests {
         l.apply_device(&metal_midi::devices::device("apc-mini-mk2").unwrap());
         assert!(l.roles.is_empty());
         assert_eq!(l.slots.iter().filter(|s| s.kind == SlotKind::Pad).count(), 64);
-        assert!(l.bound("note:60", 0).is_some_and(|b| b.cell == "sw:mine"));
+        assert!(l.bound("note:60", 0, 0).is_some_and(|b| b.cell == "sw:mine"));
         l.clear_device();
         assert!(l.roles.is_empty() && l.slots.is_empty() && l.places.is_empty() && l.device.is_none());
         let v = l.to_value();
@@ -1590,7 +1721,7 @@ mod tests {
         l.bind("note:60", Some(0), "sw:strobe");
         l.place("sw:strobe", pad, Some(0));
         l.clear_slot(pad, Some(0));
-        assert!(l.in_slot(pad).is_empty() && l.bound("note:60", 0).is_some());
+        assert!(l.in_slot(pad).is_empty() && l.bound("note:60", 0, 0).is_some());
         // A learned control moves off any slot that had it.
         let pad2 = l.slots.iter().position(|s| s.id == "pad-2").unwrap();
         l.learn_slot(pad2, "note:40@10");
@@ -1602,9 +1733,9 @@ mod tests {
         let mut l = Layout::default();
         l.bind("note:48@10", Some(0), "sw:pad");
         l.bind("note:48", None, "rec-1");
-        assert_eq!(l.bound("note:48@10", 0).unwrap().cell, "sw:pad");
-        assert_eq!(l.bound("note:48@1", 0).unwrap().cell, "rec-1");
-        assert_eq!(l.bound("note:48", 0).unwrap().cell, "sw:pad", "the screen's piano names no channel");
+        assert_eq!(l.bound("note:48@10", 0, 0).unwrap().cell, "sw:pad");
+        assert_eq!(l.bound("note:48@1", 0, 0).unwrap().cell, "rec-1");
+        assert_eq!(l.bound("note:48", 0, 0).unwrap().cell, "sw:pad", "the screen's piano names no channel");
     }
 
     #[test]

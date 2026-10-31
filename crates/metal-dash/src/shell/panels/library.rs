@@ -59,7 +59,7 @@ use crate::call::{Call, Params};
 use crate::shell::classes::Theme;
 use crate::surface::LibraryIntent;
 use crate::shell::components::{
-    icon_toggle, paint_icon, paint_icon_stroked, panel_frame, header_edit, panel_head, search_field, section_heading, segmented,
+    icon_toggle, paint_icon_stroked, panel_frame, header_edit, panel_head, search_field, section_heading,
     Icon,
 };
 use crate::shell::i18n::tr;
@@ -809,14 +809,14 @@ pub(crate) fn file_like_row(
         // hover wash above reads as the lighter step.
         theme.inset
     };
-    ui.painter().rect_filled(rect, theme.library_card_corner(), fill);
+    ui.painter().rect_filled(rect, theme.sharp_corner(), fill);
     if previewing {
         ui.painter().rect_filled(
             Rect::from_min_size(
                 rect.left_top(),
                 Vec2::new(theme.accent_stroke, rect.height()),
             ),
-            theme.library_card_corner(),
+            theme.sharp_corner(),
             theme.phosphor,
         );
     }
@@ -830,20 +830,17 @@ pub(crate) fn file_like_row(
         size,
     );
     ui.painter()
-        .rect_filled(slot, theme.library_card_corner(), theme.library_badge);
-    // The tag tints the badge's glyph, and (below) the title. `paint_icon`
-    // takes no colour, so the glyph's stroke is re-sourced by handing it a
-    // copy of the theme with only `ink_weak` — the one token its
-    // `icon_stroke` reads — replaced by the tag's own preset.
+        .rect_filled(slot, theme.sharp_corner(), theme.panel_head);
+    // The tag still tints the title, but every kind glyph is black ink on the
+    // darker badge (2026-10-31 restyle) so the icon reads at a glance.
     let tint = tag.map(|idx| theme.tag_colours()[idx]);
-    match tint {
-        Some(colour) => {
-            let mut tinted = theme.clone();
-            tinted.ink_weak = colour;
-            paint_icon(ui.painter(), slot, icon, &tinted);
-        }
-        None => paint_icon(ui.painter(), slot, icon, theme),
-    }
+    paint_icon_stroked(
+        ui.painter(),
+        slot,
+        icon,
+        theme,
+        theme.line_stroke(theme.hard_ink()),
+    );
 
     // The text lives in a child ui that stops short of the menu column, so
     // a long title truncates there and never runs under the `…`. The block's
@@ -851,13 +848,20 @@ pub(crate) fn file_like_row(
     // space above the title as below the subtitle (or the title alone).
     let title_h = ui.ctx().fonts_mut(|f| f.row_height(&theme.font_body));
     let block_h = match subtitle {
-        Some(_) => title_h + theme.library_detail_gap + ui.ctx().fonts_mut(|f| f.row_height(&theme.font_small)),
+        Some(_) => {
+            title_h
+                + theme.library_detail_gap
+                + ui.ctx().fonts_mut(|f| f.row_height(&theme.font_small))
+        }
         None => title_h,
     };
     let top = (rect.center().y - block_h / 2.0).max(rect.top());
     let text = Rect::from_min_max(
         Pos2::new(slot.right() + theme.item_gap.x, top),
-        Pos2::new(rect.right() - theme.row_menu_width, (top + block_h).min(rect.bottom())),
+        Pos2::new(
+            rect.right() - theme.row_menu_width,
+            (top + block_h).min(rect.bottom()),
+        ),
     );
     let mut child = ui.new_child(
         UiBuilder::new()
@@ -943,10 +947,21 @@ fn corner_slot(rect: Rect, index: usize) -> Rect {
 fn favourite_star(ui: &mut Ui, theme: &Theme, rect: Rect, entry: &crate::shell::favorites::Entry) {
     let slot = corner_slot(rect, 1);
     let fav = crate::shell::favorites::is_favourite(ui.ctx(), &entry.key);
-    let response = ui.interact(slot, ui.id().with(("shell/library/star", &entry.key)), Sense::click());
-    let ink = if fav { theme.accent_vivid } else { theme.ink_weak };
-    ui.painter().rect_filled(slot, theme.library_card_corner(), theme.library_badge);
-    paint_icon_stroked(ui.painter(), slot, Icon::Star, theme, theme.line_stroke(ink));
+    let response = ui.interact(
+        slot,
+        ui.id().with(("shell/library/star", &entry.key)),
+        Sense::click(),
+    );
+    let _ = fav;
+    ui.painter()
+        .rect_filled(slot, theme.sharp_corner(), theme.panel_head);
+    paint_icon_stroked(
+        ui.painter(),
+        slot,
+        Icon::Star,
+        theme,
+        theme.line_stroke(theme.hard_ink()),
+    );
     if response.on_hover_text(tr("favourite")).clicked() {
         crate::shell::favorites::request_toggle(ui.ctx(), entry.clone());
     }
@@ -959,17 +974,19 @@ fn row_menu(
     row: &Response,
     add_contents: impl FnOnce(&mut Ui),
 ) {
-    let mut child = ui.new_child(UiBuilder::new().max_rect(corner_slot(rect, 0)));
-    egui::containers::menu::MenuButton::from_button(
-        egui::Button::new(
-            RichText::new("…")
-                .font(theme.font_small.clone())
-                .color(theme.ink_weak),
-        )
-        .min_size(Vec2::splat(CORNER_SIDE))
-        .fill(theme.library_badge),
-    )
-    .ui(&mut child, add_contents);
+    let slot = corner_slot(rect, 0);
+    let response = ui.interact(slot, row.id.with("more"), Sense::click());
+    ui.painter()
+        .rect_filled(slot, theme.sharp_corner(), theme.panel_head);
+    paint_icon_stroked(
+        ui.painter(),
+        slot,
+        Icon::Other,
+        theme,
+        theme.line_stroke(theme.hard_ink()),
+    );
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, "…"));
+    egui::Popup::menu(&response).show(add_contents);
 }
 
 // ---------------------------------------------------------------------------

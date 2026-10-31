@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{
-    float_row, kv_row, kv_wrap, label_row, number_row, section_heading, toggle_row, Float,
+    float_row, key_cell, kv_row, kv_wrap, label_row, number_row, section_heading, toggle_row, Float,
 };
 use crate::shell::i18n::{tr, trf};
 
@@ -75,6 +75,74 @@ fn live_for<'a>(live: &'a Value, node: &str) -> (&'a Value, &'a Value) {
 /// The label of an `IoEnd` (`from`/`to`), falling back to the node id.
 fn end_label(v: &Value) -> String {
     v["label"].as_str().filter(|s| !s.is_empty()).unwrap_or_else(|| v["node"].as_str().unwrap_or("")).to_string()
+}
+
+/// The node card's compact I/O summary: three columns (`From / To`, `Kind`,
+/// `Port`), inputs then outputs, every cell a standard key cell. A clicked
+/// row selects the node at that cable's other end. This replaces the old
+/// `detail` switch; the raw tables stay available from the input/output
+/// folders in the browser.
+pub(crate) fn summary(ui: &mut Ui, theme: &Theme, io: &Value) -> Option<RowKey> {
+    let inputs = io["inputs"].as_array().cloned().unwrap_or_default();
+    let outputs = io["outputs"].as_array().cloned().unwrap_or_default();
+    let mut clicked = None;
+    ui.push_id("shell/properties/io-summary", |ui| {
+        egui::Grid::new("shell/properties/io-summary-grid")
+            .spacing(theme.item_gap)
+            .show(ui, |ui| {
+                for h in [tr("From / To"), tr("Kind"), tr("Port")] {
+                    key_cell(ui, theme, |ui| {
+                        ui.label(
+                            RichText::new(h)
+                                .font(theme.font_small.clone())
+                                .color(theme.ink_weak)
+                                .strong(),
+                        );
+                    });
+                }
+                ui.end_row();
+                for (arrow, ends) in [("←", &inputs), ("→", &outputs)] {
+                    for e in ends {
+                        let end = if arrow == "←" { &e["from"] } else { &e["to"] };
+                        let var = end["var"].as_str().unwrap_or("");
+                        let port = end["port"].as_str().unwrap_or("");
+                        let port_cell = if var.is_empty() {
+                            port.to_string()
+                        } else {
+                            format!("{port}.{var}")
+                        };
+                        let label = format!("{arrow} {}", end_label(end));
+                        let node = end["node"].as_str().unwrap_or("").to_string();
+                        let cells = [
+                            label,
+                            end["kind"].as_str().unwrap_or("").to_string(),
+                            port_cell,
+                        ];
+                        for text in cells {
+                            let shown = text.clone();
+                            key_cell(ui, theme, |ui| {
+                                let response = ui.selectable_label(
+                                    false,
+                                    RichText::new(text).font(theme.font_small.clone()),
+                                );
+                                response.widget_info(|| {
+                                    egui::WidgetInfo::labeled(
+                                        egui::WidgetType::Button,
+                                        true,
+                                        &shown,
+                                    )
+                                });
+                                if response.clicked() {
+                                    clicked = Some(RowKey::Text(node.clone()));
+                                }
+                            });
+                        }
+                        ui.end_row();
+                    }
+                }
+            });
+    });
+    clicked
 }
 
 /// Input table: From (label) | Kind | Port (with its var) | → Port | Type.

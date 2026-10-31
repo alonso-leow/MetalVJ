@@ -1795,6 +1795,26 @@ impl Theme {
         CornerRadius::same(self.menu_radius)
     }
 
+    /// No radius at all: the library's corner buttons and kind badges are
+    /// square (2026-10-31 restyle), while cards and panels keep their own.
+    pub fn sharp_corner(&self) -> CornerRadius {
+        CornerRadius::ZERO
+    }
+
+    /// A true black for glyph strokes that must read as ink on a badge rather
+    /// than as body text in the current theme.
+    pub fn hard_ink(&self) -> Color32 {
+        Color32::BLACK
+    }
+
+    /// The translucent panel wash the properties panel's key/payload cells and
+    /// config groups sit in: the panel colour at partial alpha, so the node
+    /// canvas grid reads through as a live background.
+    pub fn glass_fill(&self) -> Color32 {
+        let p = self.panel;
+        Color32::from_rgba_unmultiplied(p.r(), p.g(), p.b(), 170)
+    }
+
     /// The library card's own corner radius — rounder than [`corner_radius`]
     /// so a card reads as a card.
     pub fn library_card_corner(&self) -> CornerRadius {

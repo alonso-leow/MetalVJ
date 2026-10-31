@@ -60,7 +60,7 @@ use serde_json::json;
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{
-    field_row, label_row, num, panel_frame, panel_head, section as kit_section, section_heading,
+    field_row, label_row, num, panel_head, section as kit_section, section_heading,
     segmented, toggle_row,
 };
 use crate::shell::i18n::{tr, trf};
@@ -70,6 +70,26 @@ use crate::shell::panels::Selection;
 /// header reuses `tr("layer")`; the key is distinct so opening the card's
 /// section never toggles the node browser's own `layer` section.
 const LAYER_CARD_SECTION: &str = "lanes/layer-card";
+
+/// A section key as the properties panel paints it: `Layer` and
+/// `Effects Chain` are title-cased (2026-10-31), other section keys keep
+/// their translated text because they are ordinary words, not proper names.
+fn section_title(key: &str) -> String {
+    let text = crate::shell::i18n::tr_dyn(key);
+    if !matches!(key, "layer" | "effects chain") {
+        return text;
+    }
+    text.split_whitespace()
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
 
 /// The one kind of the `Stack` family — spelled once in `metal-graph` and read
 /// here as the same constant, not a second literal that could drift.
@@ -183,9 +203,6 @@ pub struct PanelState {
     /// same kind must not share a fold, and a generator's remembered layout
     /// must never decide what a screen's page shows.
     section_states: HashMap<(String, String, String), bool>,
-    /// The `detail` toggle: when on, the node card paints the raw I/O tables
-    /// (`io::input_table`/`output_table`) for debugging.
-    io_detail: bool,
     /// The `customise sources` toggle: when on, Parameters reveals the
     /// binding editor (`io::source_section`) inline. Off by default.
     source_advanced: bool,
@@ -272,7 +289,6 @@ impl Default for PanelState {
             wall_fit: HashMap::new(),
             sector_rects: HashMap::new(),
             section_states: HashMap::new(),
-            io_detail: false,
             source_advanced: false,
             card_label_draft: None,
             header_info: None,
@@ -555,7 +571,7 @@ impl PanelState {
             .section_states
             .entry((String::new(), String::new(), LAYER_CARD_SECTION.to_string()))
             .or_insert(true);
-        kit_section(ui, theme, tr("layer"), &mut open);
+        kit_section(ui, theme, &section_title("layer"), &mut open);
         self.section_states
             .insert((String::new(), String::new(), LAYER_CARD_SECTION.to_string()), open);
         if !open {
@@ -652,7 +668,12 @@ impl PanelState {
         let params = io.as_ref().map(io::counts).unwrap_or((0, 0, 0, 0)).3;
 
         let _ = narrow;
-        let mut clicked = self.node_card(ui, theme, door, gid, node_id, &node, &kind, io.as_ref());
+        let mut clicked = theme
+            .card_frame()
+            .show(ui, |ui| {
+                self.node_card(ui, theme, door, gid, node_id, &node, &kind, io.as_ref())
+            })
+            .inner;
 
         let authored = kind
             .strip_prefix("gen.")
@@ -717,7 +738,7 @@ impl PanelState {
             // a screen's page shows, and two screens must not share one fold.
             let fold_key = (kind.to_string(), node_id.to_string(), (*key).to_string());
             let mut open = *self.section_states.entry(fold_key).or_insert(default_open);
-            let body = crate::shell::components::card_section(ui, theme, tr(*key), &mut open, |ui| {
+            let body = crate::shell::components::card_section(ui, theme, &section_title(key), &mut open, |ui| {
                 let _span = crate::perf::Span::new(*key);
                 self.paint_section(ui, theme, door, gid, node_id, &node, &graph, io.as_ref(), ingest, authored, key)
             });
@@ -754,12 +775,28 @@ impl PanelState {
         io: Option<&serde_json::Value>,
     ) -> Option<browser::RowKey> {
         let label = node["label"].as_str().unwrap_or_default().to_string();
-        self.card_label_draft = Some(if label.is_empty() { node_id.to_string() } else { label });
-        let shown = self.card_label_draft.clone().unwrap_or_else(|| node_id.to_string());
+        self.card_label_draft = Some(if label.is_empty() {
+            node_id.to_string()
+        } else {
+            label
+        });
+        let shown = self
+            .card_label_draft
+            .clone()
+            .unwrap_or_else(|| node_id.to_string());
         ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new(shown).font(theme.font_body.clone()).color(theme.ink));
+            ui.label(
+                RichText::new(shown)
+                    .font(theme.font_body.clone())
+                    .color(theme.ink),
+            );
             ui.label(small_text(theme, kind.to_string()).color(theme.ink_faint));
         });
+
+        let mut clicked = None;
+        if let Some(io) = io {
+            clicked = io::summary(ui, theme, io);
+        }
 
         if kind.starts_with("gen.") {
             let mut mode = match node["config"]["mode"].as_str() {
@@ -768,42 +805,17 @@ impl PanelState {
                 _ => 1,
             };
             let options = [(0usize, tr("AI")), (1, tr("AI FX")), (2, tr("manual"))];
-            if label_row(ui, theme, tr("mode"), |ui| segmented(ui, theme, &mut mode, &options)).changed() {
+            if label_row(ui, theme, tr("mode"), |ui| {
+                segmented(ui, theme, &mut mode, &options)
+            })
+            .changed()
+            {
                 let value = match mode {
                     0 => "ai",
                     2 => "manual",
                     _ => "ai_fx",
                 };
                 text::post_text(door, gid, node_id, json!({ "mode": value }));
-            }
-        }
-
-        if let Some(io) = io {
-            let (ins, outs) = io::io_summary(io);
-            ui.label(
-                RichText::new(format!("{}: {ins}", tr("inputs")))
-                    .font(theme.font_small.clone())
-                    .color(theme.ink_weak),
-            )
-            .on_hover_text(ins);
-            ui.label(
-                RichText::new(format!("{}: {outs}", tr("outputs")))
-                    .font(theme.font_small.clone())
-                    .color(theme.ink_weak),
-            )
-            .on_hover_text(outs);
-        }
-
-        toggle_row(ui, theme, tr("detail"), &mut self.io_detail);
-        let mut clicked = None;
-        if self.io_detail {
-            if let Some(io) = io {
-                let count = io::counts(io).0 + io::counts(io).1;
-                browser::search_bar(ui, theme, &mut self.io_search, count);
-                clicked = io::input_table(ui, theme, self, io);
-                if let Some(row) = io::output_table(ui, theme, self, io) {
-                    clicked = Some(row);
-                }
             }
         }
         clicked
@@ -1046,9 +1058,9 @@ fn header_block(
             });
         });
         ui.add_space(theme.item_gap.y);
-        crate::shell::components::note(ui, theme, info.description.as_str());
+        crate::shell::components::notice(ui, theme, info.description.as_str());
         for keypoint in &info.keypoints {
-            crate::shell::components::note(ui, theme, &format!("· {keypoint}"));
+            crate::shell::components::notice(ui, theme, &format!("· {keypoint}"));
         }
         if let Some(payload) = &info.payload {
             payload_block(ui, theme, door, frame, payload);
@@ -1641,14 +1653,30 @@ pub fn paint(
 ) -> Response {
     let _span = crate::perf::Span::new("properties");
     ui.push_id(Id::new(super::Region::Properties.id()), |ui| {
-        let mut frame = panel_frame(theme);
+        let mut frame = egui::Frame::new()
+            .fill(theme.transparent())
+            .stroke(theme.border_stroke(crate::shell::classes::Surface::Panel))
+            .inner_margin(theme.panel_margin())
+            .corner_radius(theme.corner_radius());
         if focused {
             frame = frame.stroke(theme.accent());
         }
         let inner = frame.show(ui, |ui| {
             ui.expand_to_include_rect(ui.max_rect());
             let full_rect = ui.max_rect();
-            state.ui(ui, theme, door, ingest, selection, picked, graph_id, overlay_focus, lanes_focused, full_rect)
+            crate::shell::panels::nodes::paint_ground_grid(ui.painter(), theme, full_rect);
+            state.ui(
+                ui,
+                theme,
+                door,
+                ingest,
+                selection,
+                picked,
+                graph_id,
+                overlay_focus,
+                lanes_focused,
+                full_rect,
+            )
         });
         inner.inner
     })
@@ -1943,36 +1971,34 @@ mod tests {
         assert_eq!(posted["config"]["targets"], json!(["gen-0"]));
     }
 
-    /// The node card shows the `entradas:`/`salidas:` summary and the `gen.*`
-    /// mode segments; the `detail` toggle reveals the raw input table, and a
-    /// clicked input row selects that node through `pending_selection`.
+    /// cable's other end.
     #[test]
-    fn the_node_card_shows_the_summary_and_detail_reveals_the_input_row() {
+    fn the_node_card_shows_the_summary_and_a_row_selects_the_other_node() {
         let recorder = browser_door();
         let mut harness = shell_harness(Box::new(Rc::clone(&recorder)));
         harness.run();
-        harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
+        harness
+            .state_mut()
+            .set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
 
-        // The card: the I/O summary and the mode segments.
-        harness.get_by_label_contains("inputs:");
-        harness.get_by_label_contains("outputs:");
+        harness.get_by_label("From / To");
+        harness.get_by_label("Kind");
+        harness.get_by_label("Port");
         harness.get_by_label("AI");
         harness.get_by_label("AI FX");
         harness.get_by_label("manual");
 
-        // The raw table is behind the `detail` toggle.
-        harness.get_by_label("detail").click();
+        let upstream = harness.get_by_label_contains("← Audio");
+        upstream.scroll_to_me();
         harness.run();
-        harness.get_by_label("Audio").scroll_to_me();
-        harness.run();
-        harness.get_by_label("Audio").click();
+        harness.get_by_label_contains("← Audio").click();
         harness.run();
 
         assert_eq!(
             harness.state().selection(),
             &Selection::Node("audio-0".to_string()),
-            "clicking an input row selects the upstream node"
+            "clicking a summary row selects the upstream node"
         );
     }
 
@@ -2011,7 +2037,7 @@ mod tests {
         harness.run();
         assert!(harness.query_by_label("node").is_none());
         assert!(harness.query_by_label("effects").is_none());
-        harness.get_by_label("▾ layer");
+        harness.get_by_label("▾ Layer");
     }
 
     /// A file selected in the library shows its own page here.
@@ -2169,7 +2195,7 @@ mod tests {
         harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
 
-        harness.get_by_label("▾ layer");
+        harness.get_by_label("▾ Layer");
         harness.get_by_label("▾ parameters");
     }
 
@@ -2201,7 +2227,7 @@ mod tests {
         assert!(harness.get_all_by_label_contains("layer 1 · gen.turing").next().is_some());
         assert!(harness.get_all_by_label_contains("clip 1/1").next().is_some());
         harness.get_by_label("page");
-        harness.get_by_label("▾ layer");
+        harness.get_by_label("▾ Layer");
         harness.get_by_label("blend");
         harness.get_by_label("opacity");
         harness.get_by_label("muted");

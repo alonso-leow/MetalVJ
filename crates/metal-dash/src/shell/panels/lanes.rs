@@ -250,6 +250,11 @@ pub struct PanelState {
     /// animation a change of it started.
     universe: Option<(usize, usize)>,
     swap: Option<Swap>,
+    /// While a cell paints mid-swap: the `(alpha, scale)` of its label (its
+    /// frame stays as is), and whether it is a leaving payload that takes no
+    /// input.
+    swap_text: Option<(f32, f32)>,
+    swap_passive: bool,
     /// The note each piano cell's pointer is down on.
     piano_held: HashMap<String, Option<u8>>,
     /// CC-mode pads above half, by input id: a CC pad's level becomes edges.
@@ -422,6 +427,8 @@ impl Default for PanelState {
             layout_dirty: false,
             universe: None,
             swap: None,
+            swap_text: None,
+            swap_passive: false,
             piano_held: HashMap::new(),
             cc_down: BTreeSet::new(),
             hw_down: BTreeSet::new(),
@@ -2931,17 +2938,24 @@ fn paint_cell_swapping(
     vis: Option<(f32, f32)>,
     passive: bool,
 ) {
-    let Some((alpha, scale)) = vis else {
-        return paint_cell(ui, theme, door, state, cell, rect, open_graph, slot);
-    };
-    let rect = Rect::from_center_size(rect.center(), rect.size() * scale);
-    ui.scope(|ui| {
-        ui.set_opacity(alpha);
-        if passive {
-            ui.disable();
-        }
-        paint_cell(ui, theme, door, state, cell, rect, open_graph, slot);
-    });
+    // The frame, fill and outline stay as they are; only the label swaps.
+    state.swap_text = vis;
+    state.swap_passive = passive && vis.is_some();
+    paint_cell(ui, theme, door, state, cell, rect, open_graph, slot);
+    state.swap_text = None;
+    state.swap_passive = false;
+}
+
+/// Paints a swapping cell's label over its (label-less) button: faded by
+/// `alpha`, its font squished by `scale`, centred and wrapped to the button.
+fn paint_swap_label(ui: &Ui, theme: &Theme, response: &Response, text: &str, (alpha, scale): (f32, f32)) {
+    let mut font = theme.font_small.clone();
+    font.size *= scale;
+    let colour = ui.style().interact(response).text_color().gamma_multiply(alpha);
+    let wrap = (response.rect.width() - 2.0 * ui.spacing().button_padding.x).max(theme.hairline);
+    let galley = ui.painter().layout(text.to_string(), font, colour, wrap);
+    let at = response.rect.center() - galley.size() / 2.0;
+    ui.painter().galley(at, galley, colour);
 }
 
 /// The grid as laid out this frame: the cells in order, where each may land
@@ -4539,7 +4553,10 @@ fn paint_cell(
             let text = RichText::new(&cell.label).font(theme.font_small.clone());
             // A box's face is packed tight: a name keeps to two rows inside
             // its button, cut with `…`, never grown over the control below.
-            let text: egui::WidgetText = if state.layout.device.is_some() {
+            let swap_text = state.swap_text;
+            let text: egui::WidgetText = if swap_text.is_some() {
+                egui::WidgetText::from("")
+            } else if state.layout.device.is_some() {
                 let mut job = std::sync::Arc::unwrap_or_clone(egui::WidgetText::from(text).into_layout_job(ui.style(), egui::FontSelection::Default, Align::Center));
                 job.wrap = egui::text::TextWrapping {
                     max_width: (rect.width() - 2.0 * ui.spacing().button_padding.x).max(theme.hairline),
@@ -4561,9 +4578,17 @@ fn paint_cell(
             // A stable id per cell key: the grid's cells come and go, and an
             // auto id that shifted with them would orphan an open popup (the
             // `+` menu) mid-pick.
-            ui.push_id(("shell/region/lanes/cell", &cell.key), |ui| ui.put(rect, button)).inner
+            let response = ui.push_id(("shell/region/lanes/cell", &cell.key), |ui| ui.put(rect, button)).inner;
+            if let Some(vis) = swap_text {
+                response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, cell.label.clone()));
+                paint_swap_label(ui, theme, &response, &cell.label, vis);
+            }
+            response
         }
     };
+    if state.swap_passive {
+        return;
+    }
     if state.surface.is_frozen(&cell.key) {
         let lock = Rect::from_min_size(rect.left_top(), Vec2::splat(theme.gear_size));
         ui.put(lock, egui::Label::new(lucide(Icon::Lock, theme.font_small.size).color(theme.phosphor)));
@@ -4862,18 +4887,27 @@ fn paint_controller_cell(
             f.response
         }
         ControllerFace::Palette { stops } => {
-            let button = egui::Button::new(RichText::new(&label).font(theme.font_small.clone()))
+            let shown = if state.swap_text.is_some() { "" } else { label.as_str() };
+            let button = egui::Button::new(RichText::new(shown).font(theme.font_small.clone()))
                 .min_size(rect.size())
                 .fill(fill);
             let response = ui.put(rect, button);
             builtins::paint_stops(ui, theme, &stops, rect);
+            if let Some(vis) = state.swap_text {
+                paint_swap_label(ui, theme, &response, &label, vis);
+            }
             response
         }
         ControllerFace::Button => {
-            let button = egui::Button::new(RichText::new(&label).font(theme.font_small.clone()))
+            let shown = if state.swap_text.is_some() { "" } else { label.as_str() };
+            let button = egui::Button::new(RichText::new(shown).font(theme.font_small.clone()))
                 .min_size(rect.size())
                 .fill(fill);
-            ui.put(rect, button)
+            let response = ui.put(rect, button);
+            if let Some(vis) = state.swap_text {
+                paint_swap_label(ui, theme, &response, &label, vis);
+            }
+            response
         }
     };
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label.clone()));
@@ -9600,9 +9634,16 @@ fn without_an_open_graph_create_button_says_so() {
         harness.get_by_label("lanes / overlays").click();
         harness.run();
         assert!(harness.state_mut().lanes_state_mut().swap.is_none(), "nothing swaps at rest");
+        let resting = harness.get_by_label("basebtn").rect();
         harness.get_by_label("fn").click();
         harness.step();
         harness.step();
+        let mid = harness.query_by_label("basebtn").or_else(|| harness.query_by_label("upbtn")).map(|n| n.rect());
+        assert_eq!(
+            mid,
+            Some(resting),
+            "mid-swap the cell's frame is still painted, full size; only its label swaps"
+        );
         let swap = harness.state_mut().lanes_state_mut().swap;
         assert!(swap.is_some_and(|s| s.dir > 0 && s.from == (0, 0)), "the layer change started the swap: {swap:?}");
         crate::input::drain_surface();

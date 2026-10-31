@@ -22,6 +22,15 @@ use std::path::{Path, PathBuf};
 
 use crate::manifest::Allowlist;
 
+/// Who wrote an incoming entry, as far as the club can tell: a member of the
+/// document we paired with, or someone else.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Sender {
+    Paired,
+    Unpaired,
+}
+
+
 /// What happened to one incoming blob.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Landing {
@@ -60,22 +69,31 @@ impl Lander {
     /// from `config.toml` fresh (`SyncState::allowlist`), so a path an
     /// operator just removed from `[sync].allowseed` is refused here even if
     /// a peer still publishes it, and nothing already on disk is touched.
-    pub fn land(&self, rel: &Path, bytes: &[u8], allow: &Allowlist) -> std::io::Result<Landing> {
+    pub fn land(&self, rel: &Path, bytes: &[u8], allow: &Allowlist, from: Sender) -> std::io::Result<Landing> {
         if !allow.syncable(rel) {
             return Ok(Landing::Refused(format!("{} is not a synced path", rel.display())));
         }
-        // O.8: this machine owns the graph, so an incoming version of it was
-        // written by a peer that did not hold it — drop it, keep ours. The
-        // sender is not known here (an iroh-docs entry's author is not passed
-        // down to the lander), so the check is "do *we* own it"; a write
-        // landing for a graph owned by a third peer still lands LWW.
-        if let Some(why) = self.owned_here(rel) {
-            tracing::warn!(path = %rel.display(), %why, "dropped an incoming graph write");
-            return Ok(Landing::Refused(why));
+        // A graph this machine owns takes writes from any paired peer, last
+        // write wins: the owner is where the pixels are drawn (a follower takes
+        // those over `fw/frame/1`), a peer takes the state, so a peer may edit
+        // the graph it is watching. An author that is not paired is still
+        // refused, and our copy kept.
+        if from == Sender::Unpaired {
+            if let Some(why) = self.owned_here(rel) {
+                tracing::warn!(path = %rel.display(), %why, "dropped an incoming graph write");
+                return Ok(Landing::Refused(why));
+            }
         }
         if let Err(why) = self.validate(rel, bytes) {
             tracing::warn!(path = %rel.display(), %why, "rejected an incoming blob");
             return Ok(Landing::Invalid(why));
+        }
+        // The shared session log is an append log: merge the peer's copy into
+        // ours instead of replacing it, so partitioned appends survive.
+        if crate::session_merge::is_session(rel) {
+            let text = String::from_utf8_lossy(bytes);
+            crate::session_merge::land(&self.data_root.join(rel), &text)?;
+            return Ok(Landing::Wrote);
         }
         self.write_atomic(rel, bytes)?;
         Ok(Landing::Wrote)
@@ -88,7 +106,7 @@ impl Lander {
         let id = rel.file_stem()?.to_str()?;
         let me = metal_graph::owner::local_identity();
         let owner = metal_graph::owner::status(&self.data_root.join("graphs"), id)?;
-        (owner.owner == me).then(|| format!("graph {id:?} is owned by this machine ({me:?}); a peer's write to it is dropped"))
+        (owner.owner == me).then(|| format!("graph {id:?} is owned by this machine ({me:?}); an unpaired author's write to it is dropped"))
     }
 
     /// The gate. A graph gets the full treatment because a graph is the one
@@ -192,7 +210,7 @@ mod tests {
     fn a_synced_json_file_lands() {
         let (dir, l) = lander();
         let rel = Path::new("trims.json");
-        assert_eq!(l.land(rel, b"{\"a\":1}", &Allowlist::builtin()).unwrap(), Landing::Wrote);
+        assert_eq!(l.land(rel, b"{\"a\":1}", &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Wrote);
         assert_eq!(std::fs::read_to_string(dir.path().join(rel)).unwrap(), "{\"a\":1}");
     }
 
@@ -201,7 +219,7 @@ mod tests {
         let (dir, l) = lander();
         // The credential file, which must never arrive from a peer.
         let rel = Path::new("ai.json");
-        assert!(matches!(l.land(rel, b"{}", &Allowlist::builtin()).unwrap(), Landing::Refused(_)));
+        assert!(matches!(l.land(rel, b"{}", &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Refused(_)));
         assert!(!dir.path().join(rel).exists());
     }
 
@@ -209,7 +227,7 @@ mod tests {
     fn traversal_is_refused_and_writes_nothing_outside_the_root() {
         let (dir, l) = lander();
         let rel = Path::new("../escaped.json");
-        assert!(matches!(l.land(rel, b"{}", &Allowlist::builtin()).unwrap(), Landing::Refused(_)));
+        assert!(matches!(l.land(rel, b"{}", &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Refused(_)));
         assert!(!dir.path().parent().unwrap().join("escaped.json").exists());
     }
 
@@ -217,7 +235,7 @@ mod tests {
     fn malformed_json_never_lands() {
         let (dir, l) = lander();
         let rel = Path::new("trims.json");
-        assert!(matches!(l.land(rel, b"{not json", &Allowlist::builtin()).unwrap(), Landing::Invalid(_)));
+        assert!(matches!(l.land(rel, b"{not json", &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Invalid(_)));
         assert!(!dir.path().join(rel).exists());
     }
 
@@ -225,7 +243,7 @@ mod tests {
     fn a_graph_that_does_not_parse_never_lands() {
         let (dir, l) = lander();
         let rel = Path::new("graphs/x.json");
-        assert!(matches!(l.land(rel, b"{\"nonsense\": true}", &Allowlist::builtin()).unwrap(), Landing::Invalid(_)));
+        assert!(matches!(l.land(rel, b"{\"nonsense\": true}", &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Invalid(_)));
         assert!(!dir.path().join(rel).exists());
     }
 
@@ -249,7 +267,7 @@ mod tests {
         let l = Lander::new(dir.path().to_path_buf());
         let rel = Path::new("graphs/empty-1.json");
         assert_eq!(
-            l.land(rel, &graph, &Allowlist::builtin()).unwrap(),
+            l.land(rel, &graph, &Allowlist::builtin(), Sender::Paired).unwrap(),
             Landing::Wrote,
             "a graph metal-dash saved must survive the trip to another device"
         );
@@ -261,8 +279,8 @@ mod tests {
     fn landing_over_an_existing_file_leaves_no_temp_behind() {
         let (dir, l) = lander();
         let rel = Path::new("trims.json");
-        l.land(rel, b"{\"v\":1}", &Allowlist::builtin()).unwrap();
-        l.land(rel, b"{\"v\":2}", &Allowlist::builtin()).unwrap();
+        l.land(rel, b"{\"v\":1}", &Allowlist::builtin(), Sender::Paired).unwrap();
+        l.land(rel, b"{\"v\":2}", &Allowlist::builtin(), Sender::Paired).unwrap();
         assert_eq!(std::fs::read_to_string(dir.path().join(rel)).unwrap(), "{\"v\":2}");
 
         let strays: Vec<_> = std::fs::read_dir(dir.path())
@@ -274,29 +292,48 @@ mod tests {
         assert!(strays.is_empty(), "temp files left behind: {strays:?}");
     }
 
-    /// O.8: a graph this machine owns refuses a peer's version of it; once
-    /// released, the same bytes land.
+    /// A graph this machine owns refuses an unpaired author's version of it and
+    /// takes any paired peer's (last write wins); the bytes land either way
+    /// once it is released.
     #[test]
-    fn a_graph_owned_here_drops_an_incoming_write() {
+    fn a_graph_owned_here_takes_paired_writes_and_drops_unpaired_ones() {
         let (dir, l) = lander();
         let graphs = dir.path().join("graphs");
         let g = metal_graph::Graph::new("mine", "Mine", metal_graph::Domain::Live).to_json();
         let rel = Path::new("graphs/mine.json");
         let me = metal_graph::owner::local_identity();
         metal_graph::owner::take(&graphs, "mine", &me).unwrap();
-        assert!(matches!(l.land(rel, g.as_bytes(), &Allowlist::builtin()).unwrap(), Landing::Refused(_)));
+        assert!(matches!(l.land(rel, g.as_bytes(), &Allowlist::builtin(), Sender::Unpaired).unwrap(), Landing::Refused(_)));
         assert!(!graphs.join("mine.json").exists());
+        assert_eq!(l.land(rel, g.as_bytes(), &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Wrote);
+        let newer = metal_graph::Graph::new("mine", "Edited by a peer", metal_graph::Domain::Live).to_json();
+        assert_eq!(l.land(rel, newer.as_bytes(), &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Wrote);
+        assert!(std::fs::read_to_string(graphs.join("mine.json")).unwrap().contains("Edited by a peer"));
         metal_graph::owner::release(&graphs, "mine", &me).unwrap();
-        assert_eq!(l.land(rel, g.as_bytes(), &Allowlist::builtin()).unwrap(), Landing::Wrote);
+        assert_eq!(l.land(rel, g.as_bytes(), &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Wrote);
         // The owner record itself is a synced path.
         assert!(Allowlist::builtin().syncable(Path::new("graphs/mine.owner")));
+    }
+
+    /// The session log merges on landing instead of being replaced, so an
+    /// entry written here while partitioned survives a peer's copy.
+    #[test]
+    fn the_session_log_merges_instead_of_being_replaced() {
+        let (dir, l) = lander();
+        let rel = Path::new("agent/session.jsonl");
+        let mine = "{\"seq\":1,\"role\":\"super\",\"author\":\"a\",\"body\":{}}\n";
+        let theirs = "{\"seq\":1,\"role\":\"producer\",\"author\":\"b\",\"body\":{}}\n";
+        assert_eq!(l.land(rel, mine.as_bytes(), &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Wrote);
+        assert_eq!(l.land(rel, theirs.as_bytes(), &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Wrote);
+        let got = std::fs::read_to_string(dir.path().join(rel)).unwrap();
+        assert_eq!(got.lines().count(), 2, "{got}");
     }
 
     #[test]
     fn nested_paths_get_their_directory_created() {
         let (dir, l) = lander();
         let rel = Path::new("animations/entrance/song.json");
-        assert_eq!(l.land(rel, b"{}", &Allowlist::builtin()).unwrap(), Landing::Wrote);
+        assert_eq!(l.land(rel, b"{}", &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Wrote);
         assert!(dir.path().join(rel).exists());
     }
 
@@ -306,7 +343,7 @@ mod tests {
     fn binary_payloads_skip_the_json_check() {
         let (dir, l) = lander();
         let rel = Path::new("animations/entrance/song.npy");
-        assert_eq!(l.land(rel, &[0x93, b'N', b'U', b'M', b'P', b'Y'], &Allowlist::builtin()).unwrap(), Landing::Wrote);
+        assert_eq!(l.land(rel, &[0x93, b'N', b'U', b'M', b'P', b'Y'], &Allowlist::builtin(), Sender::Paired).unwrap(), Landing::Wrote);
         assert!(dir.path().join(rel).exists());
     }
 }

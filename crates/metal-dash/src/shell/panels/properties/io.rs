@@ -622,3 +622,63 @@ pub(crate) fn io_summary(io: &Value) -> (String, String) {
     (names(&io["inputs"], "from"), names(&io["outputs"], "to"))
 }
 
+
+#[cfg(test)]
+mod vector_tests {
+    use super::*;
+    use crate::shell::FakeDoor;
+    use egui_kittest::kittest::Queryable;
+
+    fn params() -> Vec<Value> {
+        vec![
+            json!({ "name": "tint", "kind": "colour", "index": 2, "defaults": vec![0.5f32; 12], "values": vec![0.25f32; 12] }),
+            json!({ "name": "camera", "kind": "camera", "index": 14, "defaults": [0, 0, 4, 0, 0, 0, 45], "values": [1, 2, 3, 0, 0, 0, 50] }),
+        ]
+    }
+
+    fn draw(door: std::rc::Rc<FakeDoor>) -> egui_kittest::Harness<'static, PanelState> {
+        let theme = Theme::phosphor();
+        let t = theme.clone();
+        let h = egui_kittest::Harness::builder().with_size(egui::Vec2 { x: 600.0, y: 900.0 }).build_ui_state(
+            move |ui, state: &mut PanelState| vector_rows(ui, &t, door.as_ref(), state, "g1", "gen-0", &params()),
+            PanelState::default(),
+        );
+        theme.apply(&h.ctx);
+        h
+    }
+
+    fn posts(door: &FakeDoor) -> Vec<Value> {
+        door.calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/graph/node")
+            .map(|(_, _, params)| serde_json::from_slice(&params.body).unwrap())
+            .collect()
+    }
+
+    /// The form draws a swatch per colour stop and the camera's seven rows
+    /// from the schema's params, and a held vector's release posts `null`.
+    #[test]
+    fn the_form_draws_colour_stops_and_camera_rows_and_release_posts_null() {
+        let door = std::rc::Rc::new(FakeDoor::new());
+        let mut h = draw(std::rc::Rc::clone(&door));
+        h.run();
+        for n in 1..=4 {
+            h.get_by_label(&format!("stop {n}"));
+        }
+        assert_eq!(h.get_all_by_label_contains("camera · position").count(), 3);
+        assert_eq!(h.get_all_by_label_contains("camera · target").count(), 3);
+        h.get_by_label("camera · fov");
+        assert!(posts(&door).is_empty(), "drawing posts nothing");
+        h.get_by_label("release camera").click();
+        h.run();
+        assert_eq!(
+            posts(&door),
+            vec![json!({ "op": "param", "graph": "g1", "node": "gen-0", "name": "camera", "value": null })]
+        );
+        h.get_by_label("release tint").click();
+        h.run();
+        assert_eq!(posts(&door)[1]["name"], json!("tint"));
+        assert_eq!(posts(&door)[1]["value"], json!(null));
+    }
+}

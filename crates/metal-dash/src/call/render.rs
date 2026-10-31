@@ -195,7 +195,7 @@ impl Codec {
     pub fn encode(self, rgba: &[u8], w: u32, h: u32) -> Bytes {
         match self {
             Codec::Jpeg(q) => Bytes { kind: "image/jpeg", body: crate::paint::encode_jpeg_q(rgba, w, h, q) },
-            Codec::Qoi => Bytes { kind: "image/qoi", body: crate::remote_layers::encode_qoi_frame(rgba, w, h) },
+            Codec::Qoi => Bytes { kind: "image/qoi", body: encode_qoi(rgba, w, h) },
             Codec::Rgba => Bytes { kind: "application/octet-stream", body: rgba.to_vec() },
         }
     }
@@ -996,4 +996,13 @@ mod window_tests {
             println!("MEASURE window preview {w}x{h}: JPEG path {before:.1} ms, texture path {after:.1} ms");
         }
     }
+}
+
+/// A QOI body for one picture, striped across the cores when the frame is big
+/// enough (the compositor's `remote_layers` does the same where it is built;
+/// the Android build has no compositor, so the call is made here).
+fn encode_qoi(rgba: &[u8], w: u32, h: u32) -> Vec<u8> {
+    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as u32;
+    let strips = if cores < 2 || h < 48 { 1 } else { cores.min(h).min(16) };
+    crate::qoi::encode_parallel(rgba, w, h, strips)
 }

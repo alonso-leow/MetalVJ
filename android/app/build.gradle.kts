@@ -27,7 +27,7 @@ android {
         }
     }
 
-    // libfw_dash.so must sit on disk, not inside the APK, for NativeActivity's
+    // libmetal_dash.so must sit on disk, not inside the APK, for NativeActivity's
     // dlopen. Set here, not via the deprecated manifest `extractNativeLibs`.
     packaging {
         jniLibs {

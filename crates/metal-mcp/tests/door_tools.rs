@@ -390,6 +390,7 @@ const SKIP: &[(&str, &str)] = &[
     ("locate", "needs a PNG / camera frame to resolve"),
     ("bind_param", "the fixture graph has no bindable variable to wire"),
     ("set_param", "the fixture graph holds no named parameter to set"),
+    ("set_param_batch", "the fixture graph holds no named parameter to set (same as set_param)"),
 ];
 
 /// The arguments for one smoke call: the schema's required keys as

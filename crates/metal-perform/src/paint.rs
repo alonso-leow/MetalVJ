@@ -805,6 +805,11 @@ pub trait Paint: PaintBound {
             .ops
             .iter()
             .filter(|op| {
+                // A bypassed sink reads nothing: its inputs are not kept for
+                // it, so a switched-off output ships no frame either.
+                if graph.node(&op.node).is_some_and(|n| n.bypass) {
+                    return false;
+                }
                 op.buffer.is_none()
                     || graph
                         .node(&op.node)
@@ -2081,6 +2086,16 @@ mod run_tests {
             dark.frames.is_empty(),
             "a bypassed generator must not produce a frame"
         );
+
+        // Un-bypass restores the frame with no recompile.
+        g.node_mut(&gen).unwrap().bypass = false;
+        let back = stand.run(&g, &plan, &rows, &HashMap::new(), &[], 1.0, 16, 9);
+        assert_eq!(back.frames.len(), 1, "un-bypass brings the frame back");
+
+        // A bypassed output node sends nothing either.
+        g.node_mut(&out).unwrap().bypass = true;
+        let mute = stand.run(&g, &plan, &rows, &HashMap::new(), &[], 1.0, 16, 9);
+        assert!(mute.frames.is_empty(), "a bypassed output ships no frame");
     }
 
     /// S.W: a `text.source` renders in one readback and picks up its

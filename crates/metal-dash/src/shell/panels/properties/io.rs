@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{
-    float_row, key_cell, kv_row, kv_wrap, label_row, number_row, section_heading, toggle_row, Float,
+    float_row, key_cell, key_label, kv_row, kv_wrap, label_row, number_row, section_heading, toggle_row, Float,
 };
 use crate::shell::i18n::{tr, trf};
 
@@ -77,70 +77,51 @@ fn end_label(v: &Value) -> String {
     v["label"].as_str().filter(|s| !s.is_empty()).unwrap_or_else(|| v["node"].as_str().unwrap_or("")).to_string()
 }
 
-/// The node card's compact I/O summary: three columns (`From / To`, `Kind`,
-/// `Port`), inputs then outputs, every cell a standard key cell. A clicked
-/// row selects the node at that cable's other end. This replaces the old
-/// `detail` switch; the raw tables stay available from the input/output
-/// folders in the browser.
+/// The node card's compact I/O summary: a `From | Kind | Port` block for the
+/// inputs and a `To | Kind | Port` block for the outputs, one cable per row,
+/// every cell a standard key cell on equal columns. A clicked row selects the
+/// node at that cable's other end. This replaces the old `detail` switch.
 pub(crate) fn summary(ui: &mut Ui, theme: &Theme, io: &Value) -> Option<RowKey> {
-    let inputs = io["inputs"].as_array().cloned().unwrap_or_default();
-    let outputs = io["outputs"].as_array().cloned().unwrap_or_default();
     let mut clicked = None;
     ui.push_id("shell/properties/io-summary", |ui| {
-        egui::Grid::new("shell/properties/io-summary-grid")
-            .spacing(theme.item_gap)
-            .show(ui, |ui| {
-                for h in [tr("From / To"), tr("Kind"), tr("Port")] {
-                    key_cell(ui, theme, |ui| {
-                        ui.label(
-                            RichText::new(h)
-                                .font(theme.font_small.clone())
-                                .color(theme.ink_weak)
-                                .strong(),
-                        );
-                    });
-                }
-                ui.end_row();
-                for (arrow, ends) in [("←", &inputs), ("→", &outputs)] {
-                    for e in ends {
-                        let end = if arrow == "←" { &e["from"] } else { &e["to"] };
-                        let var = end["var"].as_str().unwrap_or("");
-                        let port = end["port"].as_str().unwrap_or("");
-                        let port_cell = if var.is_empty() {
-                            port.to_string()
-                        } else {
-                            format!("{port}.{var}")
-                        };
-                        let label = format!("{arrow} {}", end_label(end));
-                        let node = end["node"].as_str().unwrap_or("").to_string();
-                        let cells = [
-                            label,
-                            end["kind"].as_str().unwrap_or("").to_string(),
-                            port_cell,
-                        ];
-                        for text in cells {
-                            let shown = text.clone();
-                            key_cell(ui, theme, |ui| {
-                                let response = ui.selectable_label(
-                                    false,
-                                    RichText::new(text).font(theme.font_small.clone()),
+        let col = ((ui.available_width() - theme.item_gap.x * 2.0) / 3.0).max(0.0);
+        for (head, side, key) in [("From", "inputs", "from"), ("To", "outputs", "to")] {
+            let ends = io[side].as_array().cloned().unwrap_or_default();
+            if ends.is_empty() {
+                continue;
+            }
+            let mut row = |ui: &mut Ui, cells: [String; 3], node: Option<&str>| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing = theme.item_gap;
+                    for text in cells {
+                        match node {
+                            None => key_label(ui, theme, Some(col), &text),
+                            Some(node) => key_cell(ui, theme, Some(col), |ui| {
+                                let response = ui.add(
+                                    egui::Label::new(RichText::new(&text).font(theme.font_small.clone()).color(theme.ink))
+                                        .truncate()
+                                        .sense(egui::Sense::click()),
                                 );
-                                response.widget_info(|| {
-                                    egui::WidgetInfo::labeled(
-                                        egui::WidgetType::Button,
-                                        true,
-                                        &shown,
-                                    )
-                                });
+                                response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &text));
                                 if response.clicked() {
-                                    clicked = Some(RowKey::Text(node.clone()));
+                                    clicked = Some(RowKey::Text(node.to_string()));
                                 }
-                            });
+                            }),
                         }
-                        ui.end_row();
                     }
-                }
-            });
+                });
+            };
+            row(ui, [crate::shell::i18n::tr_dyn(head), tr("Kind").to_string(), tr("Port").to_string()], None);
+            for e in &ends {
+                let end = &e[key];
+                let var = end["var"].as_str().unwrap_or("");
+                let port = end["port"].as_str().unwrap_or("");
+                let port = if var.is_empty() { port.to_string() } else { format!("{port}.{var}") };
+                let node = end["node"].as_str().unwrap_or("").to_string();
+                row(ui, [end_label(end), end["kind"].as_str().unwrap_or("").to_string(), port], Some(&node));
+            }
+            ui.add_space(theme.item_gap.y);
+        }
     });
     clicked
 }

@@ -19,7 +19,7 @@
 //! which is what proves the widget tree is not reading either.
 
 use egui::style::HandleShape;
-use egui::{Color32, CornerRadius, FontFamily, FontId, Margin, Shadow, Stroke, TextStyle, Vec2};
+use egui::{Color32, CornerRadius, FontFamily, FontId, Margin, Pos2, Rect, Shadow, Shape, Stroke, StrokeKind, TextStyle, Vec2};
 
 /// A kind of surface the shell paints a border around. The settings page
 /// picks a [`Border`] weight for each; `key` is the word `data/settings.json`
@@ -1837,12 +1837,113 @@ impl Theme {
         Color32::BLACK
     }
 
-    /// The translucent panel wash the properties panel's key/payload cells and
-    /// config groups sit in: the panel colour at partial alpha, so the node
-    /// canvas grid reads through as a live background.
+    // --- the glass cell classes (2026-10-31) ------------------------------
+    // One set of tokens behind the key cell, the payload cell, the glass
+    // group and the notice. egui has no backdrop blur, so "blur" is emulated
+    // by layering translucent fills over the panel's grid: a base wash (the
+    // panel colour at partial alpha), a faint frost veil over its lower half
+    // and a one-pixel inner highlight/shade along the top/bottom edges.
+
+    /// Height of every key and payload cell, so a row of any mix is equal.
+    pub fn cell_height(&self) -> f32 {
+        self.interact_size.y
+    }
+
+    /// The translucent panel wash: the panel colour at partial alpha, so the
+    /// node canvas grid reads through it.
     pub fn glass_fill(&self) -> Color32 {
         let p = self.panel;
         Color32::from_rgba_unmultiplied(p.r(), p.g(), p.b(), 170)
+    }
+
+    /// The frost layered over a glass cell's lower half.
+    pub fn glass_veil(&self) -> Color32 {
+        Color32::from_white_alpha(8)
+    }
+
+    /// The inner highlight along a glass cell's top edge.
+    pub fn glass_highlight(&self) -> Color32 {
+        Color32::from_white_alpha(34)
+    }
+
+    /// The inner shade along a glass cell's bottom edge.
+    pub fn glass_shade(&self) -> Color32 {
+        Color32::from_black_alpha(70)
+    }
+
+    /// Offset, in points, of the key cell's red shadow (down and right).
+    pub fn key_shadow_offset(&self) -> Vec2 {
+        Vec2::splat(self.hairline * 2.0)
+    }
+
+    /// The key cell's red shadow: the card glow, firmed up so a small cell
+    /// still shows it.
+    pub fn key_shadow(&self) -> Color32 {
+        let g = self.glow;
+        Color32::from_rgba_unmultiplied(g.r(), g.g(), g.b(), 150)
+    }
+
+    /// The glass wash as shapes over `rect`: base, frost, inner highlight and
+    /// shade. Cheap (four shapes) and sharp-cornered.
+    fn glass_layers(&self, rect: Rect) -> Vec<Shape> {
+        let r = self.sharp_corner();
+        let h = self.hairline;
+        let lower = Rect::from_min_max(Pos2::new(rect.min.x, rect.center().y), rect.max);
+        vec![
+            Shape::rect_filled(rect, r, self.glass_fill()),
+            Shape::rect_filled(lower, r, self.glass_veil()),
+            Shape::line_segment(
+                [Pos2::new(rect.min.x + h, rect.min.y + h), Pos2::new(rect.max.x - h, rect.min.y + h)],
+                Stroke::new(h, self.glass_highlight()),
+            ),
+            Shape::line_segment(
+                [Pos2::new(rect.min.x + h, rect.max.y - h), Pos2::new(rect.max.x - h, rect.max.y - h)],
+                Stroke::new(h, self.glass_shade()),
+            ),
+        ]
+    }
+
+    /// The PAYLOAD cell: glass with a black outline.
+    pub fn payload_shapes(&self, rect: Rect) -> Vec<Shape> {
+        let mut shapes = self.glass_layers(rect);
+        shapes.push(Shape::rect_stroke(rect, self.sharp_corner(), self.line_stroke(self.hard_ink()), StrokeKind::Inside));
+        shapes
+    }
+
+    /// The KEY cell: the red shadow, the header's grey and its rule.
+    pub fn key_shapes(&self, rect: Rect) -> Vec<Shape> {
+        vec![
+            Shape::rect_filled(rect.translate(self.key_shadow_offset()), self.sharp_corner(), self.key_shadow()),
+            Shape::rect_filled(rect, self.sharp_corner(), self.panel_head),
+            Shape::rect_stroke(rect, self.sharp_corner(), self.rule_stroke(), StrokeKind::Inside),
+        ]
+    }
+
+    /// The glass GROUP (a collapsible config group): glass with the quiet rule.
+    pub fn group_shapes(&self, rect: Rect) -> Vec<Shape> {
+        let mut shapes = self.glass_layers(rect);
+        shapes.push(Shape::rect_stroke(rect, self.sharp_corner(), self.rule_stroke(), StrokeKind::Inside));
+        shapes
+    }
+
+    /// Restyles the widgets of a scope as payload controls: sharp corners, a
+    /// black outline and the glass wash as their resting fill, so a combo,
+    /// field or button inside a payload cell reads as part of it.
+    pub fn payload_style(&self, visuals: &mut egui::Visuals) {
+        let r = self.sharp_corner();
+        let outline = self.line_stroke(self.hard_ink());
+        for w in [
+            &mut visuals.widgets.inactive,
+            &mut visuals.widgets.hovered,
+            &mut visuals.widgets.active,
+            &mut visuals.widgets.open,
+        ] {
+            w.corner_radius = r;
+            w.bg_stroke = outline;
+        }
+        visuals.widgets.inactive.weak_bg_fill = self.glass_fill();
+        visuals.widgets.inactive.bg_fill = self.glass_fill();
+        visuals.menu_corner_radius = r;
     }
 
     /// The library card's own corner radius — rounder than [`corner_radius`]
@@ -2244,6 +2345,66 @@ pub fn arrangement_forced(theme: &Theme, viewport: Vec2, mode: ShellMode) -> Arr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The glass cell classes agree: every one is sharp-cornered, payload and
+    /// group are translucent (the grid shows through), the key is opaque grey
+    /// with a red shadow offset behind it, and the payload outlines in black.
+    #[test]
+    fn the_glass_cell_classes_share_one_set_of_tokens() {
+        let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(120.0, 30.0));
+        for theme in [Theme::phosphor(), Theme::daylight(), Theme::contrast()] {
+            assert!(theme.glass_fill().a() < 255 && theme.glass_fill().a() > 0, "glass is translucent");
+            assert_eq!(theme.cell_height(), theme.interact_size.y);
+            let key = theme.key_shapes(rect);
+            let payload = theme.payload_shapes(rect);
+            let group = theme.group_shapes(rect);
+            let rects = |shapes: &[Shape]| -> Vec<(Rect, Color32, CornerRadius)> {
+                shapes
+                    .iter()
+                    .filter_map(|s| match s {
+                        Shape::Rect(r) => Some((r.rect, r.fill, r.corner_radius)),
+                        _ => None,
+                    })
+                    .collect()
+            };
+            for shapes in [&key, &payload, &group] {
+                assert!(rects(shapes).iter().all(|(_, _, c)| *c == CornerRadius::ZERO), "sharp corners");
+            }
+            // Key: the shadow first, offset down-right of the grey header.
+            let k = rects(&key);
+            assert_eq!(k[0].0, rect.translate(theme.key_shadow_offset()));
+            assert_eq!(k[0].1, theme.key_shadow());
+            assert_eq!(k[1].1, theme.panel_head);
+            // Payload: glass base, black outline last.
+            assert_eq!(rects(&payload)[0].1, theme.glass_fill());
+            match payload.last() {
+                Some(Shape::Rect(r)) => assert_eq!(r.stroke.color, theme.hard_ink()),
+                other => panic!("payload ends in its outline, got {other:?}"),
+            }
+            // Group: the same glass base, the quiet rule outline.
+            assert_eq!(rects(&group)[0].1, theme.glass_fill());
+            // Cheap: a handful of shapes per cell, so a full panel of cells
+            // costs microseconds (measured ~1 µs per cell in release).
+            assert!(payload.len() <= 6 && key.len() <= 3 && group.len() <= 6);
+        }
+    }
+
+    /// Building the glass shapes for a screenful of cells stays far below a
+    /// frame (16 ms): 2000 cells here, generous on a loaded debug build.
+    #[test]
+    fn glass_shapes_cost_next_to_nothing() {
+        let theme = Theme::phosphor();
+        let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(120.0, 30.0));
+        let start = std::time::Instant::now();
+        let mut n = 0;
+        for i in 0..2000 {
+            n += theme.payload_shapes(rect.translate(Vec2::new(0.0, i as f32))).len();
+            n += theme.key_shapes(rect).len();
+        }
+        let took = start.elapsed();
+        assert!(n > 0);
+        assert!(took.as_millis() < 16, "2000 cells took {took:?}");
+    }
 
     /// A border weight reaches the stroke a surface paints: none draws
     /// nothing, bold is twice the hairline, and one surface's pick leaves the

@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{label_row, segmented};
+use crate::shell::components::{label_row, choice};
 use crate::shell::i18n::{tr, tr_key, trf};
 use crate::shell::preview;
 
@@ -38,7 +38,7 @@ fn pick(ui: &mut Ui, theme: &Theme, door: &dyn Call, ids: (&str, &str), cfg: &Va
     let options: Vec<(usize, String)> =
         labels.iter().enumerate().map(|(i, l)| (i, if translate && l.len() > 1 { tr(l).to_string() } else { l.to_string() })).collect();
     let options: Vec<(usize, &str)> = options.iter().map(|(i, s)| (*i, s.as_str())).collect();
-    if label_row(ui, theme, label, |ui| segmented(ui, theme, &mut v, &options)).changed() {
+    if label_row(ui, theme, label, |ui| choice(ui, theme, &mut v, &options)).changed() {
         post_text(door, ids.0, ids.1, json!({ key: v as f64 }));
     }
 }

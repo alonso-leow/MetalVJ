@@ -14,7 +14,8 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{field_row, segmented, slider_row};
+use crate::shell::components::{field_row, slider_row};
+use crate::shell::components::choice;
 use crate::shell::i18n::{tr, trf};
 
 use super::shared::get;
@@ -69,7 +70,7 @@ pub(crate) fn section(
         ("reactive".to_string(), tr("reactivo")),
         ("fixed".to_string(), tr("fijo")),
     ];
-    if segmented(ui, theme, &mut pick, &options).changed() {
+    if choice(ui, theme, &mut pick, &options).changed() {
         let value = if pick == "fixed" {
             entry["value"].as_f64().unwrap_or(0.0)
         } else {

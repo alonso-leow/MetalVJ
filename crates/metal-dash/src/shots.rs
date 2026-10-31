@@ -407,6 +407,24 @@ fn shots_shell_ui_pass() {
     shot(&mut hs, &dir, "shellui-07-sequence");
 }
 
+/// 2026-10-31: the properties panel on one generator — the glass cell set
+/// (key and payload cells, glass groups, the From/Kind/Port summary).
+#[test]
+fn shots_properties_glass() {
+    let Some(dir) = out_dir() else { return };
+    let door = realistic_door();
+    door.respond("GET", "/graph", json!({ "graph": { "id": "g1", "domain": "live", "nodes": [
+        { "id": "gen-1", "kind": "gen.turing", "pos": [0.0, 60.0], "label": "", "bypass": false, "solo": false, "config": {} },
+        { "id": "out-0", "kind": "output.device", "pos": [440.0, 60.0], "label": "", "bypass": false, "solo": false, "config": {} }
+    ], "edges": [] }, "primitives": [], "issues": [] }));
+    let (w, h) = (crate::shell::DESKTOP_VIEWPORT.0 as f32, crate::shell::DESKTOP_VIEWPORT.1 as f32);
+    let mut hs = harness(Box::new(Rc::clone(&door)), w, h);
+    hs.run_steps(4);
+    hs.state_mut().nodes_state_mut().set_selected_graph_for_test("g1");
+    hs.state_mut().set_selection_for_test(Selection::Node("gen-1".into()));
+    shot(&mut hs, &dir, "properties-glass");
+}
+
 /// 2026-10-28: the grid as each known controller's face, a few of the box's
 /// controls held and turned.
 #[test]

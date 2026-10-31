@@ -31,7 +31,6 @@
 "source" = "fuente"
 "parameters" = "parámetros"
 "From" = "Desde"
-"From / To" = "De / A"
 "To" = "Hacia"
 "Kind" = "Tipo"
 "Port" = "Puerto"
@@ -157,8 +156,8 @@
 "value" = "valor"
 "not listed in {gen}'s chain" = "no listado en la cadena de {gen}"
 "— not wired: connect this fx node downstream of a gen —" = "— sin cable: conectá este nodo fx aguas abajo de un gen —"
-"layer" = "capa"
-"effects chain" = "efectos"
+"Layer" = "Capa"
+"Effects Chain" = "Efectos"
 "— no effects downstream yet —" = "— sin efectos aguas abajo todavía —"
 "remove this effect" = "quitar este efecto"
 

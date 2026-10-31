@@ -635,7 +635,7 @@ pub(crate) fn import_sections(door: &dyn Call, nodes: &super::nodes::PanelState)
     let fx = Item {
         kind: "fx".to_string(),
         label: "fx".to_string(),
-        family: tr("layer").to_string(),
+        family: tr("Layer").to_string(),
         inputs: vec!["image".to_string()],
         outputs: vec!["image".to_string()],
         tiles: Default::default(),
@@ -4363,8 +4363,9 @@ fn paint_phantom_cell(
     if let Some(place) = add_at {
         response.context_menu(|ui| add_menu(ui, theme, door, state, open_graph, Some(place)));
     }
-    ui.painter()
-        .rect_filled(rect, theme.corner_radius(), theme.rule_bright);
+    // An empty cell is a glass payload cell: the same class the properties
+    // panel uses, so the grid and the panel read as one material.
+    ui.painter().add(egui::Shape::Vec(theme.payload_shapes(rect)));
     // The hover/refusal hint — what dropping here would make. Hover and
     // release are read separately: egui clears the payload on the release
     // frame before widgets run, so gating the release behind the hover would
@@ -4920,12 +4921,14 @@ fn paint_controller_cell(
         rect.right_top() + egui::vec2(-(theme.gear_size + pad), pad),
         egui::vec2(theme.gear_size, theme.gear_size),
     );
-    let gear_response = ui.put(
+    let gear_response = crate::shell::components::square_icon_button(
+        ui,
+        theme,
+        ("shell/region/lanes/gear", key),
         gear,
-        egui::Button::new(lucide(Icon::Settings, theme.font_small.size))
-            .fill(theme.panel_head)
-            .stroke(theme.rule_stroke())
-            .min_size(gear.size()),
+        Icon::Settings,
+        theme.panel_head,
+        Some(theme.rule_stroke()),
     );
     gear_response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tr("controller settings"))

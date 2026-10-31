@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown, label_row, number_row, segmented};
+use crate::shell::components::{dropdown, label_row, number_row, choice};
 use crate::shell::i18n::{tr, tr_key};
 
 use super::text::post_text;
@@ -99,7 +99,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
 
     let mut unit = slot["unit"].as_str().map(str::to_string).or(preset.map(|p| p.3.clone())).unwrap_or_else(|| "beats".into());
     let units = [("beats".to_string(), tr("beats")), ("seconds".to_string(), tr("seconds"))];
-    if label_row(ui, theme, tr("unit"), |ui| segmented(ui, theme, &mut unit, &units)).changed() {
+    if label_row(ui, theme, tr("unit"), |ui| choice(ui, theme, &mut unit, &units)).changed() {
         post("unit", json!(unit));
     }
 

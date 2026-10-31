@@ -697,8 +697,8 @@ pub fn paint(
                     .and_then(|v| (!v.model.is_empty()).then_some(v.model.clone()))
                     .or_else(|| here.iter().find_map(|v| (!v.model.is_empty()).then_some(v.model.clone())));
                 let name = match model_of {
-                    Some(m) => format!("{mark}{} {} · {m}", crate::shell::i18n::tr("layer"), layer + 1),
-                    None => format!("{mark}{} {}", crate::shell::i18n::tr("layer"), layer + 1),
+                    Some(m) => format!("{mark}{} {} · {m}", crate::shell::i18n::tr("Layer"), layer + 1),
+                    None => format!("{mark}{} {}", crate::shell::i18n::tr("Layer"), layer + 1),
                 };
                 let page = ingest.current_page();
                 let mut meta = ingest.layer_meta(&page, layer);
@@ -858,7 +858,7 @@ pub fn paint(
                 }
             }
             Row::NewLayer => {
-                label(format!("+ {}", crate::shell::i18n::tr("layer")).into(), theme.ink_faint);
+                label(format!("+ {}", crate::shell::i18n::tr("Layer")).into(), theme.ink_faint);
                 body_painter.text(
                     Pos2::new(lane.left() + 8.0, lane.center().y),
                     Align2::LEFT_CENTER,

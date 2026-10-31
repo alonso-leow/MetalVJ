@@ -14,8 +14,10 @@
 //! head, and the later file replaces the earlier one, so an entry the other
 //! side wrote can be lost. The stale-seq rule protects one shared file on one
 //! machine and a file that replicates before it is edited; merging two diverged
-//! logs needs the sync layer to merge by `seq`, which it does not do yet.
-//! The append itself is serialised only in this process (see [`LOCK`]).
+//! logs is `metal-sync`'s `session_merge`: on landing it unions both files by
+//! `(author, seq)`, orders them by `seq` and keeps a run-once id once.
+//! The append is serialised in this process ([`LOCK`]) and across processes by
+//! a file lock on `session.jsonl.lock`, the same one `session_merge` takes.
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -36,6 +38,10 @@ pub enum Role {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
     pub seq: u64,
+    /// The machine that wrote it: with `seq` it names the entry across peers,
+    /// which is what `metal-sync` merges the logs by.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub author: String,
     pub role: Role,
     /// The run-once call id, when this entry is a run-once claim.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -59,11 +65,29 @@ pub fn path(data_root: &Path) -> PathBuf {
     data_root.join("agent").join("session.jsonl")
 }
 
-/// Serialises the check-then-append in this process. Two processes on one
-/// machine are not covered: the rule holds per file, and a second process
-/// writing the same file at the same instant is the case the sync layer's
-/// own locking has to answer.
+/// Serialises the check-then-append in this process; [`file_lock`] covers
+/// the other processes.
 static LOCK: Mutex<()> = Mutex::new(());
+
+/// The cross-process lock on the log: an exclusive `flock` on the sidecar
+/// `<log>.lock` (the file `metal-sync` takes when it lands a peer's copy),
+/// released when the returned file is dropped.
+fn file_lock(path: &Path) -> Result<std::fs::File, Refusal> {
+    let io = |e: std::io::Error| Refusal::Io(e.to_string());
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(io)?;
+    }
+    let mut name = path.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+    name.push(".lock");
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(path.with_file_name(name))
+        .map_err(io)?;
+    file.lock().map_err(io)?;
+    Ok(file)
+}
 
 /// Every entry in the file, oldest first. A missing file is an empty session.
 pub fn read(path: &Path) -> Result<Vec<Entry>, String> {
@@ -117,6 +141,7 @@ fn write_entry(
     body: Value,
 ) -> Result<Entry, Refusal> {
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _file_lock = file_lock(path)?;
     let entries = read(path).map_err(Refusal::Io)?;
     let head = head(&entries);
     if head != base {
@@ -129,6 +154,7 @@ fn write_entry(
     }
     let entry = Entry {
         seq: base + 1,
+        author: metal_graph::owner::local_identity(),
         role,
         run_once: run_once.map(str::to_string),
         body,
@@ -245,5 +271,26 @@ mod tests {
     fn the_path_helper_names_the_agent_session_under_the_data_root() {
         let root = Path::new("/d");
         assert_eq!(path(root), Path::new("/d/agent/session.jsonl"));
+    }
+
+    /// An append names its machine, and waits for the cross-process file lock
+    /// another holder has taken (the lock `metal-sync` takes to land a peer).
+    #[test]
+    fn an_append_carries_its_author_and_waits_for_the_file_lock() {
+        let dir = tempdir("lock");
+        let p = path(&dir);
+        let e = append(&p, 0, Role::Super, json!({})).unwrap();
+        assert_eq!(e.author, metal_graph::owner::local_identity());
+        let held = file_lock(&p).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let q = p.clone();
+        let t = std::thread::spawn(move || {
+            let r = append(&q, 1, Role::Super, json!({}));
+            tx.send(r.is_ok()).unwrap();
+        });
+        assert!(rx.recv_timeout(std::time::Duration::from_millis(300)).is_err(), "blocked by the lock");
+        drop(held);
+        assert!(rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap(), "proceeds once released");
+        t.join().unwrap();
     }
 }

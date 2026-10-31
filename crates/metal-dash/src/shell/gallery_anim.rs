@@ -21,7 +21,9 @@ pub const FRAME_SECS: f64 = 1.0;
 /// The directory the GIFs live in (`~/.cache/metalvj/gallery`), or `None`
 /// without a home directory.
 pub fn cache_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache/metalvj/gallery"))
+    let home = metal_config::home_dir();
+    (!home.as_os_str().is_empty() && home != PathBuf::from("."))
+        .then(|| home.join(".cache/metalvj/gallery"))
 }
 
 /// The file a kind's GIF is stored under: the kind's own name, with anything

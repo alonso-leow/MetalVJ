@@ -57,7 +57,7 @@ fn mirror_path(root: &Path) -> Option<std::path::PathBuf> {
     }
     let base = std::env::var_os("XDG_DATA_HOME")
         .map(std::path::PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| Path::new(&h).join(".local/share")))?;
+        .unwrap_or_else(|| metal_config::home_dir().join(".local/share"));
     Some(base.join("metalvj/review-status.json"))
 }
 

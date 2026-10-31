@@ -18,8 +18,7 @@ use crate::call::{CallError, Ctx, Params};
 
 /// The default folder, under `$HOME`.
 pub fn default_dir() -> PathBuf {
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
-    home.join("Pictures").join("MetalVJ")
+    metal_config::home_dir().join("Pictures").join("MetalVJ")
 }
 
 pub fn export(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {

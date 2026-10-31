@@ -319,11 +319,10 @@ pub(crate) fn digest_interpreter() -> std::ffi::OsString {
     if let Some(explicit) = std::env::var_os(PYTHON_ENV) {
         return explicit;
     }
-    if let Some(home) = std::env::var_os("HOME") {
-        let venv = metal_config::app_dir_in(&Path::new(&home).join(".cache")).join(VENV_PYTHON);
-        if metal_vfs::is_file(&venv) {
-            return venv.into_os_string();
-        }
+    let home = metal_config::home_dir();
+    let venv = metal_config::app_dir_in(&home.join(".cache")).join(VENV_PYTHON);
+    if metal_vfs::is_file(&venv) {
+        return venv.into_os_string();
     }
     std::ffi::OsString::from("python3")
 }

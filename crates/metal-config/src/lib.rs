@@ -535,15 +535,43 @@ pub fn config_dir() -> PathBuf {
             return app_dir_in(Path::new(&x));
         }
     }
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    app_dir_in(&PathBuf::from(home).join(".config"))
+    app_dir_in(&home_dir().join(".config"))
 }
 
 /// `~/.cache/metalvj` (the digest venv, the vision models, the song data),
 /// falling back to `~/.cache/furtherwave` through [`app_dir_in`].
 pub fn cache_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    app_dir_in(&PathBuf::from(home).join(".cache"))
+    app_dir_in(&home_dir().join(".cache"))
+}
+
+/// The user's home directory, in the one lookup every reader shares.
+///
+/// Unix sets `HOME`; Windows does not — it sets `USERPROFILE` (and, on older
+/// shells, `HOMEDRIVE` + `HOMEPATH`). Reading only `HOME` left every path
+/// that hangs off it — the config dir, the agent token, the library's `/fs`
+/// root, the caches — resolving against `.` on Windows, so the app reported
+/// "cannot find the path" for files that do exist. This honours the same
+/// order a shell does and falls back to `.` (the old behaviour) only when
+/// neither is present, e.g. a hermetic test.
+pub fn home_dir() -> PathBuf {
+    if let Some(h) = non_empty(std::env::var_os("HOME")) {
+        return h;
+    }
+    if let Some(h) = non_empty(std::env::var_os("USERPROFILE")) {
+        return h;
+    }
+    if let (Some(d), Some(p)) = (non_empty(std::env::var_os("HOMEDRIVE")), non_empty(std::env::var_os("HOMEPATH"))) {
+        let mut path = d;
+        path.push(p);
+        return path;
+    }
+    PathBuf::from(".")
+}
+
+fn non_empty(value: Option<std::ffi::OsString>) -> Option<PathBuf> {
+    value
+        .map(PathBuf::from)
+        .filter(|p| !p.as_os_str().is_empty())
 }
 
 /// The app's directory name under a base directory (`~/.config`, `~/.cache`).

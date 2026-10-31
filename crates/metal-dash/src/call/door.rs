@@ -277,6 +277,16 @@ impl Call for Door {
             return Some(crate::perf::timed(method, path, || self.author.dispatch(&inner_req)));
         }
 
+        // The `/sync/*` and `/peers` reads only dial a loopback sidecar
+        // (`metal-sync`) or read the disk; they never touch the shared engine
+        // state. On Windows a connect to a closed loopback port takes ~2 s to
+        // refuse (Linux refuses at once), so running them under the shared
+        // lock stalled the UI thread and the preview worker down to a few fps.
+        // `dispatch_free` answers them here, before the lock is taken.
+        if let Some(reply) = super::dispatch_free(method, path, &params) {
+            return Some(crate::perf::timed(method, path, || reply));
+        }
+
         // The same lock `serve` takes per request (`main.rs`) — a panel and
         // an inbound HTTP request never run a handler at the same instant,
         // which is the whole reason `Shared` moved behind a `Mutex` in this

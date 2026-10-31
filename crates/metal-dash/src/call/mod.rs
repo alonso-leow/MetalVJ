@@ -238,6 +238,14 @@ impl Reply {
 pub enum Handler {
     Json(fn(&mut Ctx, &Params) -> Result<Value, CallError>),
     Bytes(fn(&mut Ctx, &Params) -> Result<Bytes, CallError>),
+    /// A read that never touches the shared engine state — it only dials a
+    /// sidecar on loopback (`metal-sync`'s `/sync/*`, `/peers`) or reads the
+    /// disk. [`dispatch_free`] runs it *without* the shared `Shared` lock, so a
+    /// slow or absent sidecar cannot hold the lock the UI thread and the
+    /// preview worker both need. On Windows a connect to a closed loopback
+    /// port takes ~2 s to refuse (Linux refuses instantly), which is what made
+    /// every `/sync` poll freeze the client; taking it off the lock is the fix.
+    Free(fn(&Params) -> Result<Value, CallError>),
 }
 
 pub struct Route {
@@ -338,6 +346,26 @@ pub fn dispatch(method: &str, path: &str, params: &Params, ctx: &mut Ctx) -> Opt
     Some(finish(reply, pending))
 }
 
+/// Answers `path` if its first matching route is [`Handler::Free`] — one that
+/// never reads the shared engine state. The caller ([`Door::call`]) runs this
+/// before it takes the shared lock, so a `/sync/*` or `/peers` read that dials
+/// a missing or slow sidecar on loopback cannot stall the UI thread or the
+/// preview worker. `None` sends every other path through [`dispatch`] under the
+/// lock, unchanged.
+pub fn dispatch_free(_method: &str, path: &str, params: &Params) -> Option<Reply> {
+    let route = ROUTES.iter().find(|r| r.matches(_method, path))?;
+    let Handler::Free(f) = route.handler else {
+        return None;
+    };
+    let params = Params {
+        tail: route.prefix.then(|| path[route.path.len()..].to_string()),
+        ..params.clone()
+    };
+    Some(match f(&params) {
+        Ok(v) => Reply::json_ok(v),
+        Err(e) => Reply::error(e),
+    })
+}
 /// What a picture route parked instead of encoding: the codec and the pixels.
 pub type Pending = Option<(render::Codec, Vec<u8>, u32, u32)>;
 
@@ -374,6 +402,13 @@ fn dispatch_route(method: &str, path: &str, params: &Params, ctx: &mut Ctx) -> O
         },
         Handler::Bytes(f) => match f(ctx, params) {
             Ok(b) => Reply::bytes_ok(b),
+            Err(e) => Reply::error(e),
+        },
+        // Reached only if a caller that already holds the lock dispatches one
+        // of these; the normal path is [`dispatch_free`], which runs it with
+        // no lock at all. Running it here is still correct, just locked.
+        Handler::Free(f) => match f(params) {
+            Ok(v) => Reply::json_ok(v),
             Err(e) => Reply::error(e),
         },
     })
@@ -924,43 +959,43 @@ pub static ROUTES: &[Route] = &[
         method: "GET",
         path: "/sync/status",
         prefix: false,
-        handler: Handler::Json(sync::status_get),
+        handler: Handler::Free(sync::status_get),
     },
     Route {
         method: "GET",
         path: "/sync/peers",
         prefix: false,
-        handler: Handler::Json(sync::peers_get),
+        handler: Handler::Free(sync::peers_get),
     },
     Route {
         method: "GET",
         path: "/sync/stats",
         prefix: false,
-        handler: Handler::Json(sync::stats_get),
+        handler: Handler::Free(sync::stats_get),
     },
     Route {
         method: "GET",
         path: "/sync/log",
         prefix: false,
-        handler: Handler::Json(sync::log_get),
+        handler: Handler::Free(sync::log_get),
     },
     Route {
         method: "GET",
         path: "/sync/discover",
         prefix: false,
-        handler: Handler::Json(sync::discover_get),
+        handler: Handler::Free(sync::discover_get),
     },
     Route {
         method: "GET",
         path: "/sync/pair",
         prefix: false,
-        handler: Handler::Json(sync::pair_get),
+        handler: Handler::Free(sync::pair_get),
     },
     Route {
         method: "POST",
         path: "/sync/pair/request",
         prefix: false,
-        handler: Handler::Json(sync::pair_request_post),
+        handler: Handler::Free(sync::pair_request_post),
     },
     // The render farm: the conductor's queue and a submission to split. The
     // AI's `export_queue {op:"add", farm:true}` and `farm_status` come here.
@@ -968,25 +1003,25 @@ pub static ROUTES: &[Route] = &[
         method: "GET",
         path: "/farm",
         prefix: false,
-        handler: Handler::Json(sync::farm_get),
+        handler: Handler::Free(sync::farm_get),
     },
     Route {
         method: "POST",
         path: "/farm/submit",
         prefix: false,
-        handler: Handler::Json(sync::farm_submit_post),
+        handler: Handler::Free(sync::farm_submit_post),
     },
     Route {
         method: "POST",
         path: "/sync/pair/confirm",
         prefix: false,
-        handler: Handler::Json(sync::pair_confirm_post),
+        handler: Handler::Free(sync::pair_confirm_post),
     },
     Route {
         method: "POST",
         path: "/sync/pair/reject",
         prefix: false,
-        handler: Handler::Json(sync::pair_reject_post),
+        handler: Handler::Free(sync::pair_reject_post),
     },
     Route {
         method: "POST",

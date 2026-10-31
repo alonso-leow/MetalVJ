@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-use super::{CallError, Ctx, Params};
+use super::{CallError, Params};
 
 /// `metal-sync`'s control port — the one `monitor.rs` asks for frames on.
 pub const SYNC_PORT: u16 = 7901;
@@ -44,37 +44,37 @@ pub fn valid_code(code: &str) -> bool {
 }
 
 /// `GET /sync/status`.
-pub fn status_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+pub fn status_get(_params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/status", json!({})))
 }
 
 /// `GET /sync/peers`: the club as this machine knows it, with liveness.
-pub fn peers_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+pub fn peers_get(_params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/peers", json!({ "peers": [] })))
 }
 
 /// `GET /sync/stats`: each peer's last self-report, as `metal-sync` keeps it
 /// (`metal-sync`'s `stats.rs`): status, age, and the readings, `null` where
 /// unknown. Read-only.
-pub fn stats_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+pub fn stats_get(_params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/peer/stats", json!({ "peers": [] })))
 }
 
 /// `GET /sync/log`: what `metal-sync` has done lately, newest last.
-pub fn log_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+pub fn log_get(_params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/log", json!({ "log": [] })))
 }
 
 /// `GET /sync/discover`: machines seen on the LAN, with `member` set for
 /// the ones already in the club.
-pub fn discover_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+pub fn discover_get(_params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/discover", json!({ "nearby": [] })))
 }
 
 /// `GET /sync/pair`: this machine's side of both halves of a pairing —
 /// the requests it is showing codes for (`pending`) and the one it sent
 /// (`outgoing`).
-pub fn pair_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+pub fn pair_get(_params: &Params) -> Result<Value, CallError> {
     let pending = read_at(SYNC_PORT, "/pair/pending", json!({ "pending": [] }));
     let outgoing = read_at(SYNC_PORT, "/pair/outgoing", json!({ "outgoing": null }));
     Ok(json!({
@@ -86,7 +86,7 @@ pub fn pair_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
 
 /// `POST /sync/pair/request` `{ node_id }`: dial that machine and ask to
 /// pair. The reply is `awaiting_code`; the code is typed on this side later.
-pub fn pair_request_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
+pub fn pair_request_post(params: &Params) -> Result<Value, CallError> {
     let body = params.json().unwrap_or(Value::Null);
     let node_id = body["node_id"]
         .as_str()
@@ -97,7 +97,7 @@ pub fn pair_request_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallE
 
 /// `POST /sync/pair/confirm` `{ code }`: the six digits shown on the other
 /// machine. A match makes the club share its document with this one.
-pub fn pair_confirm_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
+pub fn pair_confirm_post(params: &Params) -> Result<Value, CallError> {
     let body = params.json().unwrap_or(Value::Null);
     let code = body["code"].as_str().unwrap_or_default();
     if !valid_code(code) {
@@ -107,7 +107,7 @@ pub fn pair_confirm_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallE
 }
 
 /// `POST /sync/pair/reject` `{ node_id }`: refuse a request shown here.
-pub fn pair_reject_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
+pub fn pair_reject_post(params: &Params) -> Result<Value, CallError> {
     let body = params.json().unwrap_or(Value::Null);
     let node_id = body["node_id"]
         .as_str()
@@ -118,13 +118,13 @@ pub fn pair_reject_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallEr
 
 /// `GET /farm`: the render farm's jobs as the conductor's `metal-sync` keeps
 /// them (`metal-sync`'s `farm_net.rs`).
-pub fn farm_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+pub fn farm_get(_params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/farm", json!({ "conductor": false, "jobs": [] })))
 }
 
 /// `POST /farm/submit`: an export request (a `/export/video` body) for the
 /// farm to split into shards. Also what `POST /export/queue {farm:true}` does.
-pub fn farm_submit_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
+pub fn farm_submit_post(params: &Params) -> Result<Value, CallError> {
     let body = params.json().ok_or_else(|| CallError::Bad("expected json".into()))?;
     farm_submit_at(SYNC_PORT, body)
 }

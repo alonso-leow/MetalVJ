@@ -17,6 +17,12 @@ pushd "%ROOT%" || exit /b 1
 if not defined CARGO_HOME set "CARGO_HOME=%USERPROFILE%\.cargo"
 set "PATH=%CARGO_HOME%\bin;%PATH%"
 
+rem The token/config paths in metal-agent and metal-config resolve via HOME
+rem (a Unix convention). Windows sets USERPROFILE, not HOME, so without this
+rem the app looks in ".config" relative to the cwd and exits with
+rem "agent token at .config\metalvj\agent-token: ... not found".
+if not defined HOME set "HOME=%USERPROFILE%"
+
 where cargo >nul 2>nul
 if errorlevel 1 (
   echo.

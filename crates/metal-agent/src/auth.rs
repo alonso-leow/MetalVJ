@@ -6,7 +6,7 @@
 //! `$XDG_CONFIG_HOME/metalvj/agent-token` (`~/.config/...` by default).
 //! A token in the environment (`FW_DASH_TOKEN` for metal-mcp) wins over the file.
 
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 /// Overrides the token file's location for both metal-dash and metal-mcp.
@@ -20,8 +20,7 @@ pub fn token_path() -> PathBuf {
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-        .unwrap_or_else(|| PathBuf::from(".config"));
+        .unwrap_or_else(|| metal_config::home_dir().join(".config"));
     metal_config::app_dir_in(&config).join("agent-token")
 }
 
@@ -55,10 +54,12 @@ pub fn ensure_token(path: &Path) -> io::Result<String> {
     Ok(token)
 }
 
-/// 32 bytes from the kernel's CSPRNG, hex-encoded.
+/// 32 bytes from the kernel's CSPRNG, hex-encoded. `getrandom` reaches
+/// `/dev/urandom` on Unix and `BCryptGenRandom` on Windows, so the token is
+/// the same strength on both and the file gets created on first start.
 fn random_token() -> io::Result<String> {
     let mut bytes = [0u8; 32];
-    std::fs::File::open("/dev/urandom")?.read_exact(&mut bytes)?;
+    getrandom::fill(&mut bytes).map_err(|e| io::Error::other(e.to_string()))?;
     Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
 }
 

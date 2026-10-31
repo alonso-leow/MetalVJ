@@ -13,6 +13,67 @@ use crate::call::{Call, Params};
 /// reads the graph, the catalog or the device state goes through here, so a
 /// route the door refuses comes back `None` rather than a panic.
 pub(crate) fn get(door: &dyn Call, method: &str, path: &str, query: &[(&str, String)]) -> Option<Value> {
+    // `GET /catalog` is the big static one: the panel reads it several times a
+    // frame (header label, surfaces folder, the effects picker), and each read
+    // serialises the whole catalogue under the shared lock (~26 ms here). The
+    // catalogue only changes when a model is added, so a short memo removes the
+    // per-frame cost without a stale picker: a re-read lands within a second.
+    if method == "GET" && path == "/catalog" {
+        let stamp = catalog_stamp(query);
+        if let Some(v) = catalog_memo(&stamp) {
+            return Some(v);
+        }
+        let v = get_uncached(door, method, path, query)?;
+        store_catalog_memo(stamp, &v);
+        return Some(v);
+    }
+    get_uncached(door, method, path, query)
+}
+
+/// How long a `GET /catalog` reply is reused before re-reading.
+const CATALOG_TTL: f64 = 1.0;
+
+thread_local! {
+    static CATALOG: std::cell::RefCell<Option<(String, f64, Value)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// A stable key for a `/catalog` read: the path plus its sorted query.
+fn catalog_stamp(query: &[(&str, String)]) -> String {
+    let mut pairs: Vec<(String, String)> =
+        query.iter().map(|(k, v)| ((*k).to_string(), v.clone())).collect();
+    pairs.sort();
+    let mut out = String::from("/catalog");
+    for (k, v) in pairs {
+        out.push('\u{1}');
+        out.push_str(&k);
+        out.push('=');
+        out.push_str(&v);
+    }
+    out
+}
+
+fn catalog_memo(stamp: &str) -> Option<Value> {
+    CATALOG.with(|c| {
+        let c = c.borrow();
+        let (s, at, v) = c.as_ref()?;
+        (s == stamp && clock() - at < CATALOG_TTL).then(|| v.clone())
+    })
+}
+
+fn store_catalog_memo(stamp: String, value: &Value) {
+    CATALOG.with(|c| *c.borrow_mut() = Some((stamp, clock(), value.clone())));
+}
+
+/// The panel's own clock (egui's `input.time` basis is not available in this
+/// free helper, so a monotonic process instant is close enough for a 1 s TTL).
+fn clock() -> f64 {
+    use std::sync::OnceLock;
+    static START: OnceLock<web_time::Instant> = OnceLock::new();
+    START.get_or_init(web_time::Instant::now).elapsed().as_secs_f64()
+}
+
+fn get_uncached(door: &dyn Call, method: &str, path: &str, query: &[(&str, String)]) -> Option<Value> {
     let mut q = HashMap::new();
     for (k, v) in query {
         q.insert((*k).to_string(), v.clone());

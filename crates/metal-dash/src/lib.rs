@@ -1516,6 +1516,12 @@ fn serve(mut stream: TcpStream, shared: &Mutex<Shared>, author: &Author) -> std:
     if let Some(reply) = call::agent_intercept(&req.method, &req.path, &params, authorized) {
         return metal_web::reply(&mut stream, reply.status_line(), reply.kind, &reply.body);
     }
+    // Lock-free reads (`/sync/*`, `/peers`): they dial a loopback sidecar and
+    // never touch `Shared`, so an absent/slow `metal-sync` (a ~2 s refuse on
+    // Windows) must not hold the state lock the shell needs.
+    if let Some(reply) = call::dispatch_free(&req.method, &req.path, &params) {
+        return metal_web::reply(&mut stream, reply.status_line(), reply.kind, &reply.body);
+    }
     let asked = web_time::Instant::now();
     let mut guard = shared.lock().expect("shared lock poisoned");
     let wait = asked.elapsed();

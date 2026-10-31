@@ -48,6 +48,11 @@ png = "0.18"
 # per-OS story this module does not want to own yet.
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 webpki-roots = "1.0.9"
+# The agent token is 32 bytes from the OS CSPRNG. `/dev/urandom` is Unix-only,
+# so the token code used to fail on Windows (`os error 3`); `getrandom` reaches
+# the same kernel source (`/dev/urandom` or `BCryptGenRandom`) portably. 0.3 is
+# already in `Cargo.lock`, so this adds no new version to the tree.
+getrandom = "0.3"
 
 [dev-dependencies]
 metal-web = { path = "../metal-web" }

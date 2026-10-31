@@ -172,9 +172,7 @@ impl Default for PanelState {
         PanelState {
             folder_query: String::new(),
             file_query: String::new(),
-            cwd: std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("/")),
+            cwd: metal_config::home_dir(),
             fs: None,
             files_note: None,
             cwd_edit: None,

@@ -488,9 +488,7 @@ pub fn fs_list(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let state = &*ctx.state;
     let path = match params.param("path").filter(|s| !s.is_empty()) {
         Some(p) => std::path::PathBuf::from(p),
-        None => std::env::var_os("HOME")
-            .map(std::path::PathBuf::from)
-            .ok_or_else(|| CallError::Bad("no $HOME to start from".into()))?,
+        None => metal_config::home_dir(),
     };
     if !metal_vfs::is_dir(&path) {
         return Err(CallError::Bad(format!(

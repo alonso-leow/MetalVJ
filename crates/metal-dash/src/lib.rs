@@ -403,6 +403,12 @@ fn serve_forever(
     // Both are once, then idempotent.
     adopt_device_graphs_at(&crate::output::data_root());
     crate::merge_device_collections_at(&crate::output::data_root());
+    // Libraries move onto the one clip slug and the one proxy folder; once, then
+    // a no-op (the old index and picks are kept as `.bak-slug`).
+    let moved = metal_reel::index::migrate_to_one_slug(&crate::output::data_root());
+    if moved > 0 {
+        eprintln!("[reel] {moved} library clip(s) moved onto the path slug and projects/hap/");
+    }
     // Conjunto C: the studio's renderers and state, built once up front for
     // the same reason `paint` is — a machine with no usable GPU adapter has
     // to say so here, not partway through serving `/author/`. G5: on the

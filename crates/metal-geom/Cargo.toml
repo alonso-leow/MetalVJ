@@ -17,7 +17,8 @@ kurbo = "0.13"
 # glTF 2.0 import. Apache-2.0 OR MIT.
 gltf = "1"
 
-# Native only: Manifold is a C++ library that does not build for the browser,
-# where `csg::boolean` answers `SolverNotAvailable`.
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Native desktop only: Manifold is a C++ library built with the host
+# toolchain; the browser and Android have no build of it (`csg::boolean`
+# answers `SolverNotAvailable` there).
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 manifold3d = "0.4"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the MetalVJ Android APK: cargo-ndk builds `metal-dash` as the
-# `libfw_dash.so` cdylib (feature `android`, desktop deps off), then the
+# `libmetal_dash.so` cdylib (feature `android`, desktop deps off), then the
 # minimal Gradle project in `android/` packages it into an APK.
 #
 #   ./scripts/build-apk.sh              # debug APK (assembleDebug)
@@ -81,17 +81,17 @@ fi
 export JAVA_HOME
 export PATH="$JAVA_HOME/bin:$PATH"
 
-# --- Rust side: libfw_dash.so into jniLibs/arm64-v8a ------------------------
+# --- Rust side: libmetal_dash.so into jniLibs/arm64-v8a ------------------------
 echo "==> cargo ndk -t $ABI build -p metal-dash --release --no-default-features --features android"
 (
   cd "$ROOT"
   "$CARGO" ndk -t "$ABI" -o "$JNI_DIR" build \
     -p metal-dash --lib --release --no-default-features --features android
 )
-SO="$JNI_DIR/$ABI/libfw_dash.so"
+SO="$JNI_DIR/$ABI/libmetal_dash.so"
 [ -f "$SO" ] || die "expected $SO after cargo ndk"
 # cpal's oboe backend is built against the shared C++ runtime (see metal-dash's
-# Cargo.toml); the APK must carry it next to libfw_dash.so.
+# Cargo.toml); the APK must carry it next to libmetal_dash.so.
 STDCXX="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$RUST_TARGET/libc++_shared.so"
 [ -f "$STDCXX" ] || die "NDK libc++_shared.so not found at $STDCXX"
 cp "$STDCXX" "$JNI_DIR/$ABI/"
@@ -113,9 +113,10 @@ mkdir -p "$ASSETS"
 # Audio (data/audio) and digests are NOT packed. Audio is excluded by the
 # metal-sync allowlist too (`audio/` never syncs), so a song cannot play on a
 # phone until that changes; see docs/ANDROID.md.
+# graphs/ is live data and absent from a clean checkout: pack what exists.
 ( cd "$ROOT/data" && tar -cf - schema.json keybinds.json outputs.json library shaders \
   router agent animations loops/templates models songs dataset \
-  graphs/g.json graphs/device-*.json ) | tar -C "$ASSETS" -xf -
+  $(ls graphs/g.json graphs/device-*.json 2>/dev/null) ) | tar -C "$ASSETS" -xf -
 { git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo nogit; date +%s; } > "$ASSETS/build-stamp"
 echo "==> staged $(du -sh "$ASSETS" | cut -f1) of data into assets"
 

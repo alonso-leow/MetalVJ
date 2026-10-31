@@ -154,6 +154,19 @@ scene. The decoded second scene is `docs/shots/android-video.png`. This was
 driven over HTTP with adb forwarding; loading the clip as a layer in the UI
 was not done.
 
+**Verified again (2026-10-31, x86_64 emulator, Android 35), native H.264.** The debug APK built with
+`scripts/build-apk.sh -t x86_64` (cargo-ndk; no release keystore) installs, the shell starts
+(`108 renderers on Vulkan`), and a 2 s 640x360 H.264 clip (ffmpeg testsrc, pushed to the app's
+files dir) decodes through `MediaClip` (AMediaExtractor + AMediaCodec): `/author/video/seek`
+reports `decoded: 16, done: true` after the five-second goldfish-decoder fallback, and
+`frame.jpg` returns a 480x270 picture (`docs/shots/android-h264-frame.jpg`; the device screen is
+`docs/shots/android-h264-screen.png`). Fixes that build needed: the script and gradle still named
+`libfw_dash.so` (the lib is `libmetal_dash.so`), `call/render.rs` reached the desktop-only
+`remote_layers`, `window.rs` a missing `software_gpu` path, `tar` failed on the absent live
+`graphs/`, and `metal-geom`'s Manifold CSG (host C++ build, `libstdc++` symbols) made
+`libmetal_dash.so` unloadable on the device; on Android `csg::boolean` now answers
+`SolverNotAvailable`.
+
 **Verified (2026-10-09, x86_64 emulator, Android 35).** Startup reaches
 `42 renderers on the GPU`, the Wgpu paint backend, the digest on cpal, and the
 HTTP/OSC listeners. The shell is on screen: `docs/shots/android-shell.png`.

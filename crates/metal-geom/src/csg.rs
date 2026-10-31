@@ -23,7 +23,7 @@ pub enum CsgError {
     Unknown(String),
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 mod native {
     use super::*;
     use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -91,14 +91,14 @@ mod native {
     }
 }
 
-/// Boolean operation between two meshes. The browser build has no Manifold
-/// (it is a native library): there the answer is [`CsgError::SolverNotAvailable`].
+/// Boolean operation between two meshes. The browser and Android builds have no Manifold
+/// (a C++ library built with the host toolchain): there the answer is [`CsgError::SolverNotAvailable`].
 pub fn boolean(op: BooleanOp, a: &Mesh, b: &Mesh) -> Result<Mesh, CsgError> {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
     {
         native::boolean(op, a, b)
     }
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(any(target_arch = "wasm32", target_os = "android"))]
     {
         let _ = (op, a, b);
         Err(CsgError::SolverNotAvailable)

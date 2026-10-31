@@ -897,7 +897,7 @@ impl App {
                 s["ui_ms"].as_f64().unwrap_or(0.0),
                 s["paint_ms"].as_f64().unwrap_or(0.0),
                 s["slow_frames"],
-                software_gpu(),
+                super::frames::software_gpu(),
             );
         }
     }

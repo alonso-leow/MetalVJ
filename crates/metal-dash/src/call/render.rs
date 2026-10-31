@@ -1060,13 +1060,18 @@ mod demo_tests {
     }
 }
 
-/// A QOI picture; the browser build has no remote layers, so it sends raw RGBA.
+/// A QOI body for one picture, striped across the cores when the frame is big
+/// enough (the compositor's `remote_layers` does the same where it is built;
+/// Android has no compositor, so the call is made here). The browser build
+/// has no remote layers and no threads to stripe on, so it sends raw RGBA.
 fn qoi_frame(rgba: &[u8], w: u32, h: u32) -> Vec<u8> {
-    #[cfg(all(feature = "desktop", any(feature = "gpu", feature = "glow")))]
+    #[cfg(not(target_arch = "wasm32"))]
     {
-        crate::remote_layers::encode_qoi_frame(rgba, w, h)
+        let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as u32;
+        let strips = if cores < 2 || h < 48 { 1 } else { cores.min(h).min(16) };
+        crate::qoi::encode_parallel(rgba, w, h, strips)
     }
-    #[cfg(not(all(feature = "desktop", any(feature = "gpu", feature = "glow"))))]
+    #[cfg(target_arch = "wasm32")]
     {
         let _ = (w, h);
         rgba.to_vec()

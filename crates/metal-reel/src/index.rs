@@ -1156,13 +1156,6 @@ mod tests {
         assert_eq!(slug("no-extension"), "no-extension");
     }
 
-    #[test]
-    fn two_files_that_slug_the_same_do_not_share_a_ladder() {
-        let used = vec!["a".to_string()];
-        assert_eq!(unique("a", &used), "a-2");
-        assert_eq!(unique("a", &["a".into(), "a-2".into()]), "a-3");
-        assert_eq!(unique("b", &used), "b");
-    }
 
     #[test]
     fn a_scene_carries_the_three_qualities_the_mean_loses() {

@@ -1013,7 +1013,7 @@ pub trait Paint: PaintBound {
                     .and_then(|s| crate::capture::frame(s, w, h))
                     .unwrap_or_else(|| vec![0u8; (w * h * 4) as usize]);
                 produced.insert(buf, (px, w, h));
-            } else if node.kind == "still" || node.kind == "reel.clip" {
+            } else if node.kind == "still" || node.kind == "reel.clip" || node.kind == metal_graph::SOLID_KIND {
                 // P-E: a picture or one library clip — black until the file
                 // has pixels (an unreadable image, a clip with no HAP proxy).
                 if node.kind == "still" && textures && texture_ok(&op.node) {

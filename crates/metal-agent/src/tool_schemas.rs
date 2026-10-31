@@ -281,7 +281,7 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         "edit_loops" => vec!["op", "definition", "as_copy", "graph", "node", "choice", "song", "seconds", "stop"],
         "transport" => vec!["action", "song", "seconds"],
         "fire_trigger" => vec!["id"],
-        "overlay_control" => vec!["op", "device", "layer", "movement", "loop"],
+        "overlay_control" => vec!["op", "device", "layer", "movement", "loop", "timeline", "segment"],
         "colour_apply" => vec!["graph", "group", "nodes", "palette", "hsb", "rgb"],
         _ => return None,
     })

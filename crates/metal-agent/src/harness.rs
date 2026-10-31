@@ -215,7 +215,7 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     ("edit_loops", "Loop library and choice: op save (a loop definition, optionally as_copy), choose (the loop a graph node plays), tap (set the downbeat), song (play or stop a song's audio from `seconds`).", true),
     ("transport", "Playback transport: action toggle_pause (pauses or resumes the clock), play or seek (song + seconds), stop.", true),
     ("fire_trigger", "Fires a trigger by id (POST /trigger/<id>): its target runs (a switch, a scene, a sequence, the transport).", true),
-    ("overlay_control", "Starts or stops overlays on a device (POST /overlay): op play (layer + movement, optional loop), stop (layer), stop-all, stop-solid.", true),
+    ("overlay_control", "Starts or stops overlays on a device (POST /overlay): op play (layer + movement, optional loop), stop (layer), stop-all, stop-solid, to-timeline (the solid armed on the device becomes colour clips on `timeline`; one clip per mask when it has masks), color-clip (arms the timeline's colour clip `segment` on the device).", true),
     ("colour_apply", "Applies a colourist rule to a graph's colour slots (POST /colour/apply): graph, group all|models|effects|text or nodes, and one of palette [4 rgb], hsb or rgb (0..1).", true),
     // S.D — SegmentMix tool
     ("set_layer_mix", "Sets a layer's blend mode in a timeline.", true),

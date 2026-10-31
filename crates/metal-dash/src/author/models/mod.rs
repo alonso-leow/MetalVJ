@@ -222,6 +222,13 @@ pub(crate) fn edit_segment(body: &Value) -> Result<timeline::Timeline, String> {
             tl.text_track.retain(|t| t.id != seg.id);
             tl.text_track.push(seg);
         }
+        ("color", "remove") => tl.color_track.retain(|c| c.id != seg_id),
+        ("color", _) => {
+            let seg: timeline::ColorSegment = serde_json::from_value(body["segment"].clone())
+                .map_err(|e| format!("not a colour segment: {e}"))?;
+            tl.color_track.retain(|c| c.id != seg.id);
+            tl.color_track.push(seg);
+        }
         ("signal", "remove") => tl.signal_track.retain(|s| s.id != seg_id),
         ("signal", _) => {
             let seg: timeline::SignalSegment = serde_json::from_value(body["segment"].clone())

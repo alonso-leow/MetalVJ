@@ -1445,6 +1445,13 @@ impl NodeKind {
             vec![Port::new("image", PortType::Image)],
         ));
         out.push(NodeKind::new(
+            SOLID_KIND,
+            NodeFamily::Still,
+            "Solid colour",
+            vec![],
+            vec![Port::new("image", PortType::Image)],
+        ));
+        out.push(NodeKind::new(
             "text.source",
             NodeFamily::Text,
             "Texto",
@@ -1840,6 +1847,9 @@ pub const COLOR_KIND: &str = "color";
 /// saved/favourite scenes and whole favourites groups, stepped by its
 /// `interval`/`unit`/`order`/`seed` floats, each held under its own config
 /// key beside `items` — `metal_perform::reel_batch` reads both.
+/// The solid-colour source: one flat `rgb` over the frame (`{"rgb":[r,g,b]}`),
+/// what a timeline colour clip resolves to.
+pub const SOLID_KIND: &str = "solid";
 pub const REEL_BATCH_KIND: &str = "reel.batch";
 
 /// The palette kind (K): config `{ "palette": "<id>" | null, "colors":

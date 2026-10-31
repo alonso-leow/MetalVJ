@@ -8179,6 +8179,32 @@
           "tool_calls": []
         }
       ]
+    },
+    {
+      "id": "keep-the-red-wash-on-the-timeline",
+      "tags": [
+        "overlay_control"
+      ],
+      "user": "Dejá en el timeline el rojo que tengo prendido.",
+      "steps": [
+        {
+          "assistant": "Paso el sólido armado a clips de color del timeline show.",
+          "tool_calls": [
+            {
+              "name": "overlay_control",
+              "arguments": {
+                "op": "to-timeline",
+                "device": "out-1",
+                "timeline": "show"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Listo, quedó como clip de color.",
+          "tool_calls": []
+        }
+      ]
     }
   ]
 }

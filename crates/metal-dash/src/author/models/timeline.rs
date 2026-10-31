@@ -329,6 +329,22 @@ pub struct StillSegment {
     pub fit: String,
 }
 
+/// A flat colour held over `[from, to)`: a solid overlay as a clip.
+///
+/// `rgb` covers the frame; `masks` (a venue's `<mask id> -> rgb`) paint those
+/// contours over it, as `POST /overlay {op:"solid", masks}` does. Resolved
+/// into a `solid` source node (flat `rgb`; the contours need a device, so they
+/// play through `POST /overlay {op:"color-clip"}` on a live one).
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ColorSegment {
+    pub id: String,
+    pub from: usize,
+    pub to: usize,
+    pub rgb: [u8; 3],
+    #[serde(default)]
+    pub masks: Vec<(String, [u8; 3])>,
+}
+
 /// Words on screen over `[from, to)`.
 ///
 /// The one segment whose content is *in the document* rather than a pointer
@@ -414,6 +430,9 @@ pub struct Timeline {
     pub text_track: Vec<TextSegment>,
     #[serde(default)]
     pub signal_track: Vec<SignalSegment>,
+    /// Flat colour clips (solid overlays on the timeline).
+    #[serde(default)]
+    pub color_track: Vec<ColorSegment>,
 }
 
 impl Timeline {
@@ -428,6 +447,7 @@ impl Timeline {
             effect_tracks: Vec::new(),
             media_track: Vec::new(),
             still_track: Vec::new(),
+            color_track: Vec::new(),
             text_track: Vec::new(),
             signal_track: Vec::new(),
         }
@@ -465,6 +485,10 @@ impl Timeline {
             x4(&mut s.to);
         }
         for s in &mut self.signal_track {
+            x4(&mut s.from);
+            x4(&mut s.to);
+        }
+        for s in &mut self.color_track {
             x4(&mut s.from);
             x4(&mut s.to);
         }
@@ -602,6 +626,10 @@ impl Timeline {
             }
         }
 
+        for c in &self.color_track {
+            check_range(c.from, c.to, self.length_ticks, &c.id)?;
+        }
+
         for t in &self.text_track {
             check_range(t.from, t.to, self.length_ticks, &t.id)?;
             // Empty text is not a picture of nothing, it is a segment the
@@ -696,6 +724,7 @@ impl Timeline {
         self.still_track.sort_by_key(|s| (s.from, s.id.clone()));
         self.text_track.sort_by_key(|s| (s.from, s.id.clone()));
         self.signal_track.sort_by_key(|s| (s.from, s.id.clone()));
+        self.color_track.sort_by_key(|s| (s.from, s.id.clone()));
         self
     }
 
@@ -974,6 +1003,27 @@ pub fn resolve(catalog: &[metal_graph::NodeKind], tl: &Timeline, tick: usize) ->
             "image": s.image,
             "fit": if s.fit.is_empty() { "cover" } else { s.fit.as_str() },
         });
+        if let (Some(n), Ok(cfg)) = (
+            g.node_mut(&node),
+            metal_graph::Config::from_json_str(&cfg.to_string()),
+        ) {
+            n.config = cfg;
+        }
+        g.add_edge(
+            Endpoint::new(&node, "image"),
+            Endpoint::new(&export, "image"),
+        );
+    }
+
+    // A colour clip is a `solid` source on its own branch, like a still.
+    for (row, c) in tl
+        .color_track
+        .iter()
+        .filter(|c| tick >= c.from && tick < c.to)
+        .enumerate()
+    {
+        let node = g.add_node("solid", metal_graph::SOLID_KIND, [2.0, -60.0 - row as f32 * 2.0]);
+        let cfg = serde_json::json!({ "rgb": c.rgb });
         if let (Some(n), Ok(cfg)) = (
             g.node_mut(&node),
             metal_graph::Config::from_json_str(&cfg.to_string()),
@@ -2818,5 +2868,43 @@ mod tests {
         assert_eq!(tl.model_track[0].mix, None);
         assert_eq!(tl.media_track[0].mix, None);
         assert_eq!(tl.media_track[0].layer, 0);
+    }
+
+    // -- colour clips -----------------------------------------------------------
+
+    #[test]
+    fn a_colour_clip_round_trips_and_resolves_to_a_flat_solid_source() {
+        let root = scratch("color-clip");
+        let mut tl = two_cuts();
+        tl.color_track = vec![ColorSegment {
+            id: "c1".into(),
+            from: 20,
+            to: 60,
+            rgb: [250, 10, 10],
+            masks: vec![("bar.panel-left".into(), [0, 0, 255])],
+        }];
+        let cat = catalog();
+        save(&root, tl.clone(), &cat).expect("save");
+        let back = load(&root, "show").expect("load");
+        assert_eq!(back.color_track, tl.color_track, "rgb and per-mask colours survive");
+
+        let solids = |tick: usize| {
+            resolve(&cat, &back, tick)
+                .nodes
+                .iter()
+                .filter(|n| n.kind == metal_graph::SOLID_KIND)
+                .map(|n| n.config.to_json_str())
+                .collect::<Vec<_>>()
+        };
+        assert!(solids(10).is_empty(), "before the clip: nothing");
+        let during = solids(30);
+        assert_eq!(during.len(), 1);
+        assert!(during[0].contains("250"), "{during:?}");
+        assert!(solids(60).is_empty(), "the clip ends at `to`");
+
+        let mut bad = tl.clone();
+        bad.color_track[0].to = 9999;
+        assert!(bad.validate(&cat).is_err(), "a clip past the timeline is refused");
+        let _ = metal_vfs::remove_dir_all(&root);
     }
 }

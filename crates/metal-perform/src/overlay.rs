@@ -97,6 +97,16 @@ impl Blackout {
     }
 }
 
+/// A solid overlay as it reads out ([`Overlays::solid_view`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct SolidView {
+    pub rgb: [u8; 3],
+    pub masks: Vec<(String, [u8; 3])>,
+    pub grid: bool,
+    pub started: f32,
+    pub duration: f32,
+}
+
 /// A solid color overlay: a fixed color for a duration.
 pub struct SolidColorOverlay {
     pub device: String,
@@ -381,6 +391,18 @@ impl Overlays {
             .iter()
             .find(|c| c.device == device && c.is_active(time))
             .map(|c| c.rgb)
+    }
+
+    /// The solid active on `device` at `time`, whole: what `POST /overlay
+    /// {op:"to-timeline"}` turns into colour clips.
+    pub fn solid_view(&self, device: &str, time: f32) -> Option<SolidView> {
+        self.solid_colors.iter().find(|c| c.device == device && c.is_active(time)).map(|c| SolidView {
+            rgb: c.rgb,
+            masks: c.masks.clone(),
+            grid: c.grid,
+            started: c.started,
+            duration: c.duration,
+        })
     }
 
     /// The per-mask colours of the solid active on `device` at `time`:

@@ -383,6 +383,12 @@ fn source_path(root: &Path, library: Option<&str>, file: &str) -> PathBuf {
     root.join(p)
 }
 
+/// The colour of a `solid` node's `{"rgb":[r,g,b]}`; black when absent.
+pub fn solid_rgb(c: &Value) -> [u8; 3] {
+    let at = |i: usize| c["rgb"][i].as_u64().map_or(0, |v| v.min(255) as u8);
+    [at(0), at(1), at(2)]
+}
+
 /// P-E: the picture of a `still` node (`{file}` or `{library, image}`) or a
 /// `reel.clip` node (`{library, clip, passage, speed, reverse}`, or the drop
 /// shape `{file, start, end}`) at show `time`, RGBA at `w × h`. `None` when
@@ -391,6 +397,10 @@ fn source_path(root: &Path, library: Option<&str>, file: &str) -> PathBuf {
 pub fn source_frame(root: &Path, node: &metal_graph::Node, time: f32, w: u32, h: u32) -> Option<Vec<u8>> {
     let c: Value = serde_json::from_str(&node.config.to_json_str()).unwrap_or_default();
     let library = c["library"].as_str();
+    if node.kind == metal_graph::SOLID_KIND {
+        let rgb = solid_rgb(&c);
+        return Some([rgb[0], rgb[1], rgb[2], 255].repeat((w * h) as usize));
+    }
     if node.kind == "still" {
         let file = c["file"].as_str().or(c["image"].as_str()).filter(|f| !f.is_empty())?;
         return image(&source_path(root, library, file), w, h, fit_of(&c));
@@ -804,5 +814,16 @@ mod tests {
         assert!(second.chunks_exact(4).all(|p| p[2] > 200 && p[0] < 40));
         assert!(draw(2.5).is_none(), "an undecodable file draws nothing");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A `solid` node draws its `rgb` over the whole frame.
+    #[test]
+    fn a_solid_node_is_one_flat_colour() {
+        let mut g = metal_graph::Graph::new("g", "t", metal_graph::Domain::Live);
+        let id = g.add_node("s", metal_graph::SOLID_KIND, [0.0, 0.0]);
+        g.node_mut(&id).unwrap().config = metal_graph::Config::from_json_str(r#"{"rgb":[250,10,40]}"#).unwrap();
+        let px = source_frame(std::path::Path::new("."), g.node(&id).unwrap(), 0.0, 4, 3).expect("a solid has pixels");
+        assert_eq!(px.len(), 4 * 3 * 4);
+        assert!(px.chunks_exact(4).all(|p| p == [250, 10, 40, 255]));
     }
 }

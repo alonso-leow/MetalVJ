@@ -2661,11 +2661,11 @@ impl AgentHarness {
     /// the layer and movement; `solid` stays with `solid_color`.
     fn overlay_control(&self, args: &Value) -> Result<Value, String> {
         let op = Self::require_str(args, "op")?;
-        if !matches!(op, "play" | "stop" | "stop-all" | "stop-solid") {
-            return Err(format!("op is play / stop / stop-all / stop-solid, not {op}"));
+        if !matches!(op, "play" | "stop" | "stop-all" | "stop-solid" | "to-timeline" | "color-clip") {
+            return Err(format!("op is play / stop / stop-all / stop-solid / to-timeline / color-clip, not {op}"));
         }
         let mut body = json!({ "op": op });
-        for key in ["device", "layer", "movement"] {
+        for key in ["device", "layer", "movement", "timeline", "segment"] {
             if let Some(v) = args.get(key).and_then(Value::as_str) {
                 body[key] = json!(v);
             }
@@ -2841,6 +2841,11 @@ fn find_segment_json(tl: &timeline::Timeline, track: &str, id: &str) -> Option<V
             .and_then(|s| serde_json::to_value(s).ok()),
         "text" => tl
             .text_track
+            .iter()
+            .find(|s| s.id == id)
+            .and_then(|s| serde_json::to_value(s).ok()),
+        "color" => tl
+            .color_track
             .iter()
             .find(|s| s.id == id)
             .and_then(|s| serde_json::to_value(s).ok()),

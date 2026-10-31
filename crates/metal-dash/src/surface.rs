@@ -817,53 +817,101 @@ pub enum Pin {
 /// Cells on every page are placed first and their places kept free on every
 /// page; pinned cells land on their page next; the rest flow, first-fit in
 /// reading order, from page 0 — a cell that fits nowhere opens the next page.
-/// A pin that does not fit flows instead.
+/// A pin that does not fit flows instead. See [`pack_placed`] for cells that
+/// also name the spot they want.
 pub fn pack(spans: &[(usize, usize)], pins: &[Pin], cols: usize, rows: usize) -> Vec<Placed> {
+    pack_placed(spans, pins, &vec![None; spans.len()], cols, rows)
+}
+
+/// Packs like [`pack`], but a cell with a `place` (`[x, y, w, h]` in
+/// sub-cells; only the corner is read, the span still comes from `spans`)
+/// asks for that spot. The free grid's right-click `+` uses this so a new
+/// button lands on the exact empty cell that opened the menu.
+///
+/// A place is clamped to the grid and taken as is when it is free. When the
+/// span does not fit there (a neighbour, or a wider span than the hole) the
+/// cell takes the free spot *nearest* the place — the one that touches the
+/// empty space the operator pointed at — and only a full page falls back to
+/// flow order. Places are honoured before the flowing cells, so a flowing
+/// cell never steals a requested spot.
+pub fn pack_placed(
+    spans: &[(usize, usize)],
+    pins: &[Pin],
+    places: &[Option<[u16; 4]>],
+    cols: usize,
+    rows: usize,
+) -> Vec<Placed> {
     let (cols, rows) = (cols.max(1), rows.max(1));
-    let mut placed: Vec<Option<Placed>> = vec![None; spans.len()];
     let fit = |(w, h): (usize, usize)| (w.clamp(1, cols), h.clamp(1, rows));
-    let first_fit = |occ: &[bool], w: usize, h: usize| -> Option<(usize, usize)> {
-        (0..=rows - h).find_map(|y| {
-            (0..=cols - w)
-                .find(|&x| (y..y + h).all(|r| (x..x + w).all(|c| !occ[r * cols + c])))
-                .map(|x| (x, y))
-        })
+    let is_free = |occ: &[bool], x: usize, y: usize, w: usize, h: usize| {
+        (y..y + h).all(|r| (x..x + w).all(|c| !occ[r * cols + c]))
     };
+    // The free spot of `w × h` closest (Manhattan) to `(px, py)`; ties go to
+    // reading order.
+    let nearest = |occ: &[bool], w: usize, h: usize, (px, py): (usize, usize)| -> Option<(usize, usize)> {
+        (0..=rows - h)
+            .flat_map(|y| (0..=cols - w).map(move |x| (x, y)))
+            .filter(|&(x, y)| is_free(occ, x, y, w, h))
+            .min_by_key(|&(x, y)| x.abs_diff(px) + y.abs_diff(py))
+    };
+    let first_fit = |occ: &[bool], w: usize, h: usize| -> Option<(usize, usize)> {
+        (0..=rows - h).find_map(|y| (0..=cols - w).find(|&x| is_free(occ, x, y, w, h)).map(|x| (x, y)))
+    };
+    // Where `span` goes on `occ`: its place if free, else the nearest free
+    // spot to it, else (no place) the first fit.
+    let choose = |occ: &[bool], span: (usize, usize), place: Option<[u16; 4]>| -> Option<(usize, usize, usize, usize)> {
+        let (w, h) = fit(span);
+        let spot = match place {
+            Some(p) => {
+                let want = ((p[0] as usize).min(cols - w), (p[1] as usize).min(rows - h));
+                if is_free(occ, want.0, want.1, w, h) {
+                    Some(want)
+                } else {
+                    nearest(occ, w, h, want)
+                }
+            }
+            None => first_fit(occ, w, h),
+        };
+        spot.map(|(x, y)| (x, y, w, h))
+    };
+    let mark = |occ: &mut [bool], x: usize, y: usize, w: usize, h: usize| {
+        for r in y..y + h {
+            for c in x..x + w {
+                occ[r * cols + c] = true;
+            }
+        }
+    };
+    let mut placed: Vec<Option<Placed>> = vec![None; spans.len()];
     // Every page starts from the template the cells on every page leave.
     let mut template = vec![false; cols * rows];
     for (i, (&span, pin)) in spans.iter().zip(pins).enumerate() {
         if *pin != Pin::Every {
             continue;
         }
-        let (w, h) = fit(span);
-        if let Some((x, y)) = first_fit(&template, w, h) {
-            for r in y..y + h {
-                for c in x..x + w {
-                    template[r * cols + c] = true;
-                }
-            }
+        if let Some((x, y, w, h)) = choose(&template, span, places[i]) {
+            mark(&mut template, x, y, w, h);
             placed[i] = Some(Placed { page: 0, x, y, w, h });
         }
     }
     let mut pages: Vec<Vec<bool>> = Vec::new();
-    let take = |pages: &mut Vec<Vec<bool>>, page: usize, x: usize, y: usize, w: usize, h: usize| {
+    let ensure = |pages: &mut Vec<Vec<bool>>, page: usize| {
         while pages.len() <= page {
             pages.push(template.clone());
-        }
-        for r in y..y + h {
-            for c in x..x + w {
-                pages[page][r * cols + c] = true;
-            }
         }
     };
-    for (i, (&span, pin)) in spans.iter().zip(pins).enumerate() {
-        let Pin::Page(page) = *pin else { continue };
-        let (w, h) = fit(span);
-        while pages.len() <= page {
-            pages.push(template.clone());
-        }
-        if let Some((x, y)) = first_fit(&pages[page], w, h) {
-            take(&mut pages, page, x, y, w, h);
+    // Pinned cells, then flowing cells that name a spot (on page 0): both
+    // claim their places before anything flows around them.
+    let claims: Vec<(usize, usize)> = (0..spans.len())
+        .filter_map(|i| match pins[i] {
+            Pin::Page(p) => Some((i, p)),
+            Pin::Flow if places[i].is_some() => Some((i, 0)),
+            _ => None,
+        })
+        .collect();
+    for (i, page) in claims {
+        ensure(&mut pages, page);
+        if let Some((x, y, w, h)) = choose(&pages[page], spans[i], places[i]) {
+            mark(&mut pages[page], x, y, w, h);
             placed[i] = Some(Placed { page, x, y, w, h });
         }
     }
@@ -874,11 +922,9 @@ pub fn pack(spans: &[(usize, usize)], pins: &[Pin], cols: usize, rows: usize) ->
         }
         let (w, h) = fit(span);
         loop {
-            if pages.len() <= page {
-                pages.push(template.clone());
-            }
+            ensure(&mut pages, page);
             if let Some((x, y)) = first_fit(&pages[page], w, h) {
-                take(&mut pages, page, x, y, w, h);
+                mark(&mut pages[page], x, y, w, h);
                 placed[i] = Some(Placed { page, x, y, w, h });
                 break;
             }
@@ -892,112 +938,6 @@ pub fn pack(spans: &[(usize, usize)], pins: &[Pin], cols: usize, rows: usize) ->
         }
     }
     placed.into_iter().map(|p| p.expect("every span is placed")).collect()
-}
-
-/// Packs like [`pack`], but a cell with an explicit `place` (`[x, y, w, h]` in
-/// sub-cells) keeps it. The free grid's right-click `+` uses this so a new
-/// button lands under the exact empty cell that opened the menu, rather than
-/// at the first free spot in flow order. A place is clamped to the grid; a
-/// cell with no place packs exactly as [`pack`] does.
-pub fn pack_placed(
-    spans: &[(usize, usize)],
-    pins: &[Pin],
-    places: &[Option<[u16; 4]>],
-    cols: usize,
-    rows: usize,
-) -> Vec<Placed> {
-    let (cols, rows) = (cols.max(1), rows.max(1));
-    let fit = |(w, h): (usize, usize)| (w.clamp(1, cols), h.clamp(1, rows));
-    let at_place = |p: [u16; 4], span: (usize, usize)| -> (usize, usize, usize, usize) {
-        let (w, h) = fit(span);
-        let x = (p[0] as usize).min(cols - w);
-        let y = (p[1] as usize).min(rows - h);
-        (x, y, w, h)
-    };
-    let first_fit = |occ: &[bool], w: usize, h: usize| -> Option<(usize, usize)> {
-        (0..=rows - h).find_map(|y| {
-            (0..=cols - w)
-                .find(|&x| (y..y + h).all(|r| (x..x + w).all(|c| !occ[r * cols + c])))
-                .map(|x| (x, y))
-        })
-    };
-    let mark = |occ: &mut [bool], x: usize, y: usize, w: usize, h: usize| {
-        for r in y..y + h {
-            for c in x..x + w {
-                occ[r * cols + c] = true;
-            }
-        }
-    };
-    let mut placed: Vec<Option<Placed>> = vec![None; spans.len()];
-    let mut template = vec![false; cols * rows];
-    for (i, (&span, pin)) in spans.iter().zip(pins).enumerate() {
-        if *pin != Pin::Every {
-            continue;
-        }
-        let (w, h) = fit(span);
-        let (x, y, w, h) = match places[i] {
-            Some(p) => at_place(p, span),
-            None => match first_fit(&template, w, h) {
-                Some((x, y)) => (x, y, w, h),
-                None => continue,
-            },
-        };
-        mark(&mut template, x, y, w, h);
-        placed[i] = Some(Placed {
-            page: 0,
-            x,
-            y,
-            w,
-            h,
-        });
-    }
-    let mut pages: Vec<Vec<bool>> = Vec::new();
-    let take = |pages: &mut Vec<Vec<bool>>, template: &[bool], page: usize| {
-        while pages.len() <= page {
-            pages.push(template.to_vec());
-        }
-    };
-    for (i, (&span, pin)) in spans.iter().zip(pins).enumerate() {
-        let Pin::Page(page) = *pin else { continue };
-        let (w, h) = fit(span);
-        take(&mut pages, &template, page);
-        let (x, y, w, h) = match places[i] {
-            Some(p) => at_place(p, span),
-            None => match first_fit(&pages[page], w, h) {
-                Some((x, y)) => (x, y, w, h),
-                None => continue,
-            },
-        };
-        mark(&mut pages[page], x, y, w, h);
-        placed[i] = Some(Placed { page, x, y, w, h });
-    }
-    let mut page = 0;
-    for (i, &span) in spans.iter().enumerate() {
-        if placed[i].is_some() {
-            continue;
-        }
-        let (w, h) = fit(span);
-        let (x, y, w, h) = match places[i] {
-            Some(p) => at_place(p, span),
-            None => loop {
-                take(&mut pages, &template, page);
-                if let Some((x, y)) = first_fit(&pages[page], w, h) {
-                    break (x, y, w, h);
-                }
-                if !template.contains(&false) || first_fit(&template, w, h).is_none() {
-                    break (0, 0, w, h);
-                }
-                page += 1;
-            },
-        };
-        take(&mut pages, &template, page);
-        mark(&mut pages[page], x, y, w, h);
-        placed[i] = Some(Placed { page, x, y, w, h });
-    }
-    placed
-        .into_iter()
-        .map(|p| p.expect("every span is placed"))
-        .collect()
 }
 
 /// Lays cells out on a box's face. A cell with a `place` holds it — on its
@@ -1455,6 +1395,33 @@ mod tests {
         // A place is clamped to the grid rather than drawn off it.
         let placed = pack_placed(&[(6, 6)], &[Pin::Page(2)], &[Some([60, 60, 6, 6])], 12, 12);
         assert_eq!((placed[0].x, placed[0].y, placed[0].page), (6, 6, 2));
+    }
+
+    #[test]
+    fn a_taken_or_too_small_place_takes_the_nearest_free_spot() {
+        // Two cells ask for the same corner: the second lands on the nearest
+        // free spot (reading order breaks the tie), not on top of the first.
+        let spans = [(6, 6), (6, 6)];
+        let places = [Some([0, 0, 6, 6]), Some([0, 0, 6, 6])];
+        let placed = pack_placed(&spans, &[Pin::Flow; 2], &places, 12, 12);
+        assert_eq!((placed[0].x, placed[0].y), (0, 0));
+        assert_eq!((placed[1].x, placed[1].y), (6, 0));
+        // A double-wide span wanted in a one-cell hole slides to where it
+        // fits instead of overlapping its neighbour.
+        let spans = [(6, 6), (12, 6)];
+        let places = [Some([6, 0, 6, 6]), Some([0, 0, 12, 6])];
+        let placed = pack_placed(&spans, &[Pin::Flow; 2], &places, 12, 12);
+        assert_eq!((placed[1].x, placed[1].y), (0, 6));
+    }
+
+    #[test]
+    fn a_flowing_cell_never_steals_a_requested_spot() {
+        // Cell 0 flows and is listed first, but cell 1 asked for (0,0).
+        let spans = [(6, 6), (6, 6)];
+        let places = [None, Some([0, 0, 6, 6])];
+        let placed = pack_placed(&spans, &[Pin::Flow; 2], &places, 12, 6);
+        assert_eq!((placed[1].x, placed[1].y), (0, 0));
+        assert_eq!((placed[0].x, placed[0].y), (6, 0));
     }
 
     #[test]

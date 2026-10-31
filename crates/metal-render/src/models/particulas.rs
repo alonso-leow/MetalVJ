@@ -421,6 +421,31 @@ struct Core {
     step: wgpu::ComputePipeline,
 }
 
+/// The fragment ping-pong path's state (a device with no compute shaders or
+/// storage buffers, WebGL2): bodies as `Rgba32Float` textures, the collision
+/// grid as an `R32Uint` one built with a depth-tested point per body. Kept for
+/// the model's life like [`Core`].
+struct PpCore {
+    pos: [wgpu::Texture; 2],
+    vel: [wgpu::Texture; 2],
+    pos_views: [wgpu::TextureView; 2],
+    vel_views: [wgpu::TextureView; 2],
+    _grid: wgpu::Texture,
+    grid_view: wgpu::TextureView,
+    _depth: wgpu::Texture,
+    depth_view: wgpu::TextureView,
+    seed_pipe: wgpu::RenderPipeline,
+    step_pipe: wgpu::RenderPipeline,
+    build_pipe: wgpu::RenderPipeline,
+    seed_bgl: wgpu::BindGroupLayout,
+    step_bgl: wgpu::BindGroupLayout,
+    build_bgl: wgpu::BindGroupLayout,
+    draw_bgl: wgpu::BindGroupLayout,
+}
+
+/// Side of the body textures: `MAX_N` bodies, row by row.
+const BODY_TEX: u32 = 256;
+
 struct Draw {
     bg: wgpu::RenderPipeline,
     sprites: wgpu::RenderPipeline,
@@ -442,22 +467,186 @@ struct Sim {
 
 pub struct Particulas {
     core: Option<Core>,
+    pp: Option<PpCore>,
     draw: Built<Draw>,
     sim: Sim,
+    /// Step with the fragment ping-pong even where compute exists (the parity
+    /// test runs both on one adapter).
+    force_pingpong: bool,
 }
 
-fn draw_src() -> &'static str {
-    static SRC: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    SRC.get_or_init(|| format!("{VERTEX}\n{}\n{}", kit::WGSL, include_str!("../../shaders/particulas.wgsl")))
+fn draw_src(pingpong: bool) -> String {
+    use crate::shared::sim::{with_compute, without_compute};
+    let body = include_str!("../../shaders/particulas.wgsl");
+    if pingpong {
+        format!("{VERTEX}\n{}\n{}\n{}", kit::WGSL, without_compute(body), include_str!("../../shaders/particulas_pp.wgsl"))
+    } else {
+        format!("{VERTEX}\n{}\n{}", kit::WGSL, with_compute(body))
+    }
 }
 
 impl Particulas {
     pub fn new() -> Particulas {
-        Particulas { core: None, draw: Built::default(), sim: Sim::default() }
+        Particulas { core: None, pp: None, draw: Built::default(), sim: Sim::default(), force_pingpong: false }
+    }
+
+    #[cfg(test)]
+    fn pingpong() -> Particulas {
+        Particulas { force_pingpong: true, ..Particulas::new() }
+    }
+
+    fn build_pp(device: &wgpu::Device) -> PpCore {
+        use crate::shared::sim::without_compute;
+        let src = format!(
+            "{}\n{}",
+            without_compute(include_str!("../../shaders/particulas_step.wgsl")),
+            include_str!("../../shaders/particulas_step_pp.wgsl"),
+        );
+        let shader = build_shader(device, "particles step pingpong", &src);
+        let tex = |label: &str, w: u32, h: u32, format: wgpu::TextureFormat, copy: bool| {
+            device.create_texture(&wgpu::TextureDescriptor {
+                label: Some(label),
+                size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING
+                    | if copy { wgpu::TextureUsages::COPY_SRC } else { wgpu::TextureUsages::empty() },
+                view_formats: &[],
+            })
+        };
+        let f32x4 = wgpu::TextureFormat::Rgba32Float;
+        let body = |label: &str| tex(label, BODY_TEX, BODY_TEX, f32x4, true);
+        let pos = [body("particles pos a"), body("particles pos b")];
+        let vel = [body("particles vel a"), body("particles vel b")];
+        let view = |t: &wgpu::Texture| t.create_view(&wgpu::TextureViewDescriptor::default());
+        let pos_views = [view(&pos[0]), view(&pos[1])];
+        let vel_views = [view(&vel[0]), view(&vel[1])];
+        let grid = tex("particles grid", GRID, GRID, wgpu::TextureFormat::R32Uint, false);
+        let grid_view = view(&grid);
+        let depth = tex("particles grid depth", GRID, GRID, wgpu::TextureFormat::Depth32Float, false);
+        let depth_view = view(&depth);
+
+        let uniform = |visibility: wgpu::ShaderStages| wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        };
+        let texture = |binding: u32, visibility: wgpu::ShaderStages, sample_type: wgpu::TextureSampleType| {
+            wgpu::BindGroupLayoutEntry {
+                binding,
+                visibility,
+                ty: wgpu::BindingType::Texture {
+                    sample_type,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            }
+        };
+        let float = wgpu::TextureSampleType::Float { filterable: false };
+        let (f, v, vf) = (wgpu::ShaderStages::FRAGMENT, wgpu::ShaderStages::VERTEX, wgpu::ShaderStages::VERTEX_FRAGMENT);
+        let bgl = |label: &str, entries: &[wgpu::BindGroupLayoutEntry]| {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label: Some(label), entries })
+        };
+        let seed_bgl = bgl("particles seed bgl", &[uniform(vf)]);
+        let step_bgl = bgl(
+            "particles step bgl",
+            &[uniform(vf), texture(6, f, float), texture(7, f, float), texture(8, f, wgpu::TextureSampleType::Uint)],
+        );
+        let build_bgl = bgl("particles build bgl", &[uniform(vf), texture(6, v, float)]);
+        let draw_bgl = bgl("particles pp draw bgl", &[uniform(vf), texture(1, v, float), texture(2, v, float)]);
+
+        let layout = |b: &wgpu::BindGroupLayout| {
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("particles pp layout"),
+                bind_group_layouts: &[Some(b)],
+                immediate_size: 0,
+            })
+        };
+        let target = |format: wgpu::TextureFormat| {
+            Some(wgpu::ColorTargetState { format, blend: None, write_mask: wgpu::ColorWrites::ALL })
+        };
+        let body_pass = |label: &str, b: &wgpu::BindGroupLayout, fs: &str| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(label),
+                layout: Some(&layout(b)),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vs_full"),
+                    buffers: &[],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some(fs),
+                    targets: &[target(f32x4), target(f32x4)],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let build_pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("particles build"),
+            layout: Some(&layout(&build_bgl)),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_build"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_build"),
+                targets: &[target(wgpu::TextureFormat::R32Uint)],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState { topology: wgpu::PrimitiveTopology::PointList, ..Default::default() },
+            // The highest body index wins a cell, like `atomicMax`.
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Greater),
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        });
+        PpCore {
+            seed_pipe: body_pass("particles seed", &seed_bgl, "fs_seed"),
+            step_pipe: body_pass("particles step", &step_bgl, "fs_step"),
+            build_pipe,
+            pos,
+            vel,
+            pos_views,
+            vel_views,
+            _grid: grid,
+            grid_view,
+            _depth: depth,
+            depth_view,
+            seed_bgl,
+            step_bgl,
+            build_bgl,
+            draw_bgl,
+        }
     }
 
     fn build_core(device: &wgpu::Device) -> Core {
-        let shader = build_shader(device, "particles step", include_str!("../../shaders/particulas_step.wgsl"));
+        use crate::shared::sim::with_compute;
+        let shader = build_shader(device, "particles step", &with_compute(include_str!("../../shaders/particulas_step.wgsl")));
         let body = |label| {
             device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(label),
@@ -539,11 +728,11 @@ impl Particulas {
         }
     }
 
-    fn build_draw(device: &wgpu::Device, format: wgpu::TextureFormat, core: &Core) -> Draw {
-        let shader = build_shader(device, "particles draw", draw_src());
+    fn build_draw(device: &wgpu::Device, format: wgpu::TextureFormat, draw_bgl: &wgpu::BindGroupLayout, pingpong: bool) -> Draw {
+        let shader = build_shader(device, "particles draw", &draw_src(pingpong));
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("particles draw layout"),
-            bind_group_layouts: &[Some(&core.draw_bgl)],
+            bind_group_layouts: &[Some(draw_bgl)],
             immediate_size: 0,
         });
         let make = |label: &str, vs: &str, fs: &str, blend: wgpu::BlendState| {
@@ -584,6 +773,142 @@ impl Particulas {
         }
     }
 
+    /// The reseed and the steps on the compute path.
+    fn step_compute(&mut self, ctx: &Ctx, enc: &mut wgpu::CommandEncoder, p: &Params, reseed: bool, steps: u32) {
+        let core = self.core.get_or_insert_with(|| Self::build_core(ctx.device));
+        let groups = p.n.div_ceil(64);
+        let sim_bg = |k: usize, u: &StepUniform| {
+            let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("particles step uniform"),
+                contents: bytemuck::bytes_of(u),
+                usage: wgpu::BufferUsages::UNIFORM,
+            });
+            ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("particles sim bg"),
+                layout: &core.sim_bgl,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 1, resource: core.pos[k].as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 2, resource: core.speed[k].as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 3, resource: core.pos[1 - k].as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 4, resource: core.speed[1 - k].as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 5, resource: core.grid.as_entire_binding() },
+                ],
+            })
+        };
+        let mut dispatch = |pipeline: &wgpu::ComputePipeline, bind: &wgpu::BindGroup, g: u32| {
+            let mut pass = enc.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("particles"), timestamp_writes: None });
+            pass.set_pipeline(pipeline);
+            pass.set_bind_group(0, bind, &[]);
+            pass.dispatch_workgroups(g, 1, 1);
+        };
+        if reseed {
+            // Written into buffer pair 0 (in = pair 1, out = pair 0).
+            let bg = sim_bg(1, &StepUniform::new(p, 0.0, 0));
+            dispatch(&core.seed, &bg, groups);
+            self.sim.cur = 0;
+        }
+        for _ in 0..steps {
+            let bg = sim_bg(self.sim.cur, &StepUniform::new(p, self.sim.t, self.sim.counter));
+            dispatch(&core.clear, &bg, (GRID * GRID).div_ceil(64));
+            dispatch(&core.build, &bg, groups);
+            dispatch(&core.step, &bg, groups);
+            self.sim.cur = 1 - self.sim.cur;
+            self.sim.t += p.dt as f64;
+            self.sim.counter = self.sim.counter.wrapping_add(1);
+        }
+
+    }
+
+    /// The reseed and the steps as fragment passes: seed and step write the
+    /// other half of the body textures, and each step first rebuilds the
+    /// collision grid from the bodies it reads.
+    fn step_pingpong(&mut self, ctx: &Ctx, enc: &mut wgpu::CommandEncoder, p: &Params, reseed: bool, steps: u32) {
+        let pp = self.pp.get_or_insert_with(|| Self::build_pp(ctx.device));
+        let device = ctx.device;
+        let ubuf = |u: &StepUniform| {
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("particles step uniform"),
+                contents: bytemuck::bytes_of(u),
+                usage: wgpu::BufferUsages::UNIFORM,
+            })
+        };
+        fn tex(binding: u32, v: &wgpu::TextureView) -> wgpu::BindGroupEntry<'_> {
+            wgpu::BindGroupEntry { binding, resource: wgpu::BindingResource::TextureView(v) }
+        }
+        fn attach(view: &wgpu::TextureView) -> Option<wgpu::RenderPassColorAttachment<'_>> {
+            Some(wgpu::RenderPassColorAttachment {
+                view,
+                resolve_target: None,
+                depth_slice: None,
+                ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
+            })
+        }
+        let body_pass = |enc: &mut wgpu::CommandEncoder,
+                         pipe: &wgpu::RenderPipeline,
+                         bind: &wgpu::BindGroup,
+                         to: (&wgpu::TextureView, &wgpu::TextureView)| {
+            let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("particles body pass"),
+                color_attachments: &[attach(to.0), attach(to.1)],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_pipeline(pipe);
+            pass.set_bind_group(0, bind, &[]);
+            pass.draw(0..3, 0..1);
+        };
+        if reseed {
+            let u = ubuf(&StepUniform::new(p, 0.0, 0));
+            let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("particles seed bg"),
+                layout: &pp.seed_bgl,
+                entries: &[wgpu::BindGroupEntry { binding: 0, resource: u.as_entire_binding() }],
+            });
+            body_pass(enc, &pp.seed_pipe, &bind, (&pp.pos_views[0], &pp.vel_views[0]));
+            self.sim.cur = 0;
+        }
+        for _ in 0..steps {
+            let k = self.sim.cur;
+            let u = ubuf(&StepUniform::new(p, self.sim.t, self.sim.counter));
+            let uniform = || wgpu::BindGroupEntry { binding: 0, resource: u.as_entire_binding() };
+            let build_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("particles build bg"),
+                layout: &pp.build_bgl,
+                entries: &[uniform(), tex(6, &pp.pos_views[k])],
+            });
+            let step_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("particles step bg"),
+                layout: &pp.step_bgl,
+                entries: &[uniform(), tex(6, &pp.pos_views[k]), tex(7, &pp.vel_views[k]), tex(8, &pp.grid_view)],
+            });
+            {
+                let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("particles grid pass"),
+                    color_attachments: &[attach(&pp.grid_view)],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &pp.depth_view,
+                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(0.0), store: wgpu::StoreOp::Discard }),
+                        stencil_ops: None,
+                    }),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+                pass.set_pipeline(&pp.build_pipe);
+                pass.set_bind_group(0, &build_bg, &[]);
+                pass.draw(0..1, 0..p.n);
+            }
+            body_pass(enc, &pp.step_pipe, &step_bg, (&pp.pos_views[1 - k], &pp.vel_views[1 - k]));
+            self.sim.cur = 1 - k;
+            self.sim.t += p.dt as f64;
+            self.sim.counter = self.sim.counter.wrapping_add(1);
+        }
+        let _ = (&pp.pos, &pp.vel); // the views borrow from these; keep them named
+    }
+
     /// The reseed decision and the number of steps owed (Nubes' schedule).
     fn schedule(&mut self, time: f32, p: &Params, key: Key) -> (bool, u32) {
         let reseed = match self.sim.wall {
@@ -605,8 +930,54 @@ impl Particulas {
         (false, (whole.max(0.0) as u32).min(MAX_STEPS_PER_FRAME))
     }
 
+    /// [`Self::read_state`] for the texture state of the ping-pong path.
+    fn read_state_pp(&self, pp: &PpCore, device: &wgpu::Device, queue: &wgpu::Queue, n: usize) -> Vec<[f32; 6]> {
+        let row = BODY_TEX as u64 * 16;
+        let size = row * BODY_TEX as u64;
+        let mk = || {
+            device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("particles readback"),
+                size,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            })
+        };
+        let (rp, rv) = (mk(), mk());
+        let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("particles readback") });
+        let copy = |enc: &mut wgpu::CommandEncoder, t: &wgpu::Texture, b: &wgpu::Buffer| {
+            enc.copy_texture_to_buffer(
+                wgpu::TexelCopyTextureInfo { texture: t, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                wgpu::TexelCopyBufferInfo {
+                    buffer: b,
+                    layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(row as u32), rows_per_image: Some(BODY_TEX) },
+                },
+                wgpu::Extent3d { width: BODY_TEX, height: BODY_TEX, depth_or_array_layers: 1 },
+            );
+        };
+        copy(&mut enc, &pp.pos[self.sim.cur], &rp);
+        copy(&mut enc, &pp.vel[self.sim.cur], &rv);
+        queue.submit(Some(enc.finish()));
+        let read = |b: &wgpu::Buffer| -> Vec<f32> {
+            let slice = b.slice(..);
+            let (tx, rx) = std::sync::mpsc::channel();
+            slice.map_async(wgpu::MapMode::Read, move |r| tx.send(r).expect("readback channel"));
+            device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).expect("poll");
+            rx.recv().expect("readback").expect("map");
+            let data = slice.get_mapped_range().expect("range");
+            let v = bytemuck::cast_slice::<u8, f32>(&data).to_vec();
+            drop(data);
+            b.unmap();
+            v
+        };
+        let (pv, vv) = (read(&rp), read(&rv));
+        (0..n).map(|i| [pv[i * 4], pv[i * 4 + 1], pv[i * 4 + 2], vv[i * 4], vv[i * 4 + 1], vv[i * 4 + 2]]).collect()
+    }
+
     /// The bodies as `[x, y, z, vx, vy, vz]`, read back (tests and probes).
     pub fn read_state(&self, device: &wgpu::Device, queue: &wgpu::Queue, n: usize) -> Vec<[f32; 6]> {
+        if let Some(pp) = &self.pp {
+            return self.read_state_pp(pp, device, queue, n);
+        }
         let Some(core) = &self.core else { return Vec::new() };
         let bytes = (n * 16) as u64;
         let mk = || {
@@ -646,10 +1017,6 @@ impl Default for Particulas {
 }
 
 impl Model for Particulas {
-    fn needs_compute(&self) -> bool {
-        true
-    }
-
     fn id(&self) -> &'static str {
         "particles"
     }
@@ -679,52 +1046,19 @@ impl Model for Particulas {
         );
         let (reseed, steps) = self.schedule(time, &p, key);
 
-        let core = self.core.get_or_insert_with(|| Self::build_core(ctx.device));
-        let draw = self.draw.get(format, || Self::build_draw(ctx.device, format, core));
-
+        let pingpong = self.force_pingpong || !crate::gpu::device_has_compute(ctx.device);
         let mut enc = ctx.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("particles") });
-        let groups = p.n.div_ceil(64);
-        let sim_bg = |k: usize, u: &StepUniform| {
-            let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("particles step uniform"),
-                contents: bytemuck::bytes_of(u),
-                usage: wgpu::BufferUsages::UNIFORM,
-            });
-            ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("particles sim bg"),
-                layout: &core.sim_bgl,
-                entries: &[
-                    wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 1, resource: core.pos[k].as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 2, resource: core.speed[k].as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 3, resource: core.pos[1 - k].as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 4, resource: core.speed[1 - k].as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 5, resource: core.grid.as_entire_binding() },
-                ],
-            })
-        };
-        let mut dispatch = |pipeline: &wgpu::ComputePipeline, bind: &wgpu::BindGroup, g: u32| {
-            let mut pass = enc.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("particles"), timestamp_writes: None });
-            pass.set_pipeline(pipeline);
-            pass.set_bind_group(0, bind, &[]);
-            pass.dispatch_workgroups(g, 1, 1);
-        };
-        if reseed {
-            // Written into buffer pair 0 (in = pair 1, out = pair 0).
-            let bg = sim_bg(1, &StepUniform::new(&p, 0.0, 0));
-            dispatch(&core.seed, &bg, groups);
-            self.sim.cur = 0;
+        if pingpong {
+            self.step_pingpong(ctx, &mut enc, &p, reseed, steps);
+        } else {
+            self.step_compute(ctx, &mut enc, &p, reseed, steps);
         }
-        for _ in 0..steps {
-            let bg = sim_bg(self.sim.cur, &StepUniform::new(&p, self.sim.t, self.sim.counter));
-            dispatch(&core.clear, &bg, (GRID * GRID).div_ceil(64));
-            dispatch(&core.build, &bg, groups);
-            dispatch(&core.step, &bg, groups);
-            self.sim.cur = 1 - self.sim.cur;
-            self.sim.t += p.dt as f64;
-            self.sim.counter = self.sim.counter.wrapping_add(1);
-        }
-
+        let draw_bgl = if pingpong {
+            &self.pp.as_ref().expect("built by the step").draw_bgl
+        } else {
+            &self.core.as_ref().expect("built by the step").draw_bgl
+        };
+        let draw = self.draw.get(format, || Self::build_draw(ctx.device, format, draw_bgl, pingpong));
         let cam = kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]);
         let look = kit::Look::from_floats(&floats[off(B_LOOK)..off(B_LOOK) + kit::Look::N]);
         let (vp, eye) = view_proj(&cam, time, ctx.aspect());
@@ -747,13 +1081,23 @@ impl Model for Particulas {
             contents: bytemuck::bytes_of(&uniform),
             usage: wgpu::BufferUsages::UNIFORM,
         });
+        let (pos_res, vel_res) = if pingpong {
+            let pp = self.pp.as_ref().expect("built by the step");
+            (
+                wgpu::BindingResource::TextureView(&pp.pos_views[self.sim.cur]),
+                wgpu::BindingResource::TextureView(&pp.vel_views[self.sim.cur]),
+            )
+        } else {
+            let core = self.core.as_ref().expect("built by the step");
+            (core.pos[self.sim.cur].as_entire_binding(), core.speed[self.sim.cur].as_entire_binding())
+        };
         let draw_bg = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("particles draw bg"),
-            layout: &core.draw_bgl,
+            layout: draw_bgl,
             entries: &[
                 wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: core.pos[self.sim.cur].as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: core.speed[self.sim.cur].as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 1, resource: pos_res },
+                wgpu::BindGroupEntry { binding: 2, resource: vel_res },
             ],
         });
         {
@@ -841,7 +1185,7 @@ mod tests {
         for i in [F_N, F_DT, F_CHAOS, F_DISC_RADIUS, F_DISC_THICKNESS, F_DISC_SPIN, F_SHEAR, F_BOUNDARY_MODE, F_SEED, F_TEXTURE] {
             assert!(FLOATS[i].drive < 1.0, "{} should be held", FLOATS[i].name);
         }
-        assert!(Particulas::new().needs_compute());
+        assert!(!Particulas::new().needs_compute(), "it has a fragment ping-pong fallback");
         assert!(!Particulas::new().camera_track());
     }
 
@@ -1124,5 +1468,34 @@ mod tests {
             println!("particles {w}x{h} n={n_part}: {ms:.2} ms/frame");
         }
         let _ = crate::gpu::read_rgba8(&gpu.device, &gpu.queue, &tex, w, h);
+    }
+
+    /// The fragment ping-pong (what a WebGL2 device runs) steps the same
+    /// bodies and draws the same frame as the compute path on one adapter,
+    /// collisions on.
+    #[test]
+    fn the_pingpong_path_matches_the_compute_state_and_frame() {
+        let gpu = crate::gpu::Gpu::new_headless();
+        if !crate::gpu::device_has_compute(&gpu.device) {
+            eprintln!("no compute here: only the ping-pong path exists on this adapter");
+            return;
+        }
+        let mut f = base();
+        f[F_COLLISION] = 0.6;
+        let (mut a, mut b) = (Particulas::new(), Particulas::pingpong());
+        let (fa, fb) = (run(&gpu, &mut a, &f, 0.6), run(&gpu, &mut b, &f, 0.6));
+        let n = 2048;
+        let (sa, sb) = (a.read_state(&gpu.device, &gpu.queue, n), b.read_state(&gpu.device, &gpu.queue, n));
+        let worst = sa
+            .iter()
+            .zip(&sb)
+            .flat_map(|(x, y)| x.iter().zip(y).map(|(p, q)| (p - q).abs()))
+            .fold(0.0f32, f32::max);
+        let diff: Vec<u8> = fa.iter().zip(&fb).map(|(x, y)| x.abs_diff(*y)).collect();
+        let mean = diff.iter().map(|d| *d as f32).sum::<f32>() / diff.len() as f32;
+        println!("particulas parity: state worst {worst:e} frame mean {mean:.4}");
+        assert!(fa.iter().any(|v| *v > 8), "the frame is not black");
+        assert!(worst < 1e-3, "body state drifted: {worst}");
+        assert!(mean < 0.5, "frame drifted: mean {mean:.3}");
     }
 }

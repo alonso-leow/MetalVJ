@@ -46,17 +46,26 @@ struct SU {
 };
 
 @group(0) @binding(0) var<uniform> u: SU;
+//@compute
 @group(0) @binding(1) var<storage, read> pos_in: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read> vel_in: array<vec4<f32>>;
 @group(0) @binding(3) var<storage, read_write> pos_out: array<vec4<f32>>;
 @group(0) @binding(4) var<storage, read_write> vel_out: array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> grid: array<atomic<u32>>;
 
+var<workgroup> tile: array<vec4<f32>, 64>;
+
+fn pos_at(j: u32) -> vec4<f32> { return pos_in[j]; }
+fn vel_at(j: u32) -> vec4<f32> { return vel_in[j]; }
+// The representative body (index + 1) of a collision cell, 0 for none.
+fn rep_at(c: i32) -> u32 { return atomicLoad(&grid[c]); }
+// Source body `k` of workgroup `wid`'s tile (filled by `cs_step`).
+fn tile_pos(wid: u32, k: u32) -> vec3<f32> { return tile[k].xyz; }
+//@end-compute
+
 const GRID: i32 = 256;
 const TILE: u32 = 64u;
 const TAU: f32 = 6.2831853;
-
-var<workgroup> tile: array<vec4<f32>, 64>;
 
 fn pcg(v: u32) -> u32 {
     let s = v * 747796405u + 2891336453u;
@@ -151,12 +160,8 @@ fn cell_of(p: vec3<f32>) -> i32 {
     return cy * GRID + cx;
 }
 
-@compute @workgroup_size(64)
-fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
-    let i = gid.x;
-    if (i >= u.ints.x) {
-        return;
-    }
+// The seed state of body `i`, shared by `cs_seed` and the fragment ping-pong.
+fn seed_body(i: u32) -> Body {
     var b = spawn(i, 0u);
     // Start the half-step velocity half a kick behind, so the first step lands
     // on the synchronised velocity.
@@ -167,10 +172,24 @@ fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
         let om = u.b.y;
         a = vec3<f32>(2.0 * u.b.x * om * om * b.p.x, 0.0, -om * om * b.p.z) + attractor_accel(b.p);
     }
-    pos_out[i] = vec4<f32>(b.p, 0.0);
-    vel_out[i] = vec4<f32>(cap_speed(b.v - 0.5 * u.a.x * a), 0.0);
+    b.v = cap_speed(b.v - 0.5 * u.a.x * a);
+    return b;
 }
 
+//@compute
+@compute @workgroup_size(64)
+fn cs_seed(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let i = gid.x;
+    if (i >= u.ints.x) {
+        return;
+    }
+    let b = seed_body(i);
+    pos_out[i] = vec4<f32>(b.p, 0.0);
+    vel_out[i] = vec4<f32>(b.v, 0.0);
+}
+//@end-compute
+
+//@compute
 @compute @workgroup_size(64)
 fn cs_clear(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (i32(gid.x) < GRID * GRID) {
@@ -178,6 +197,7 @@ fn cs_clear(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
 }
 
+//@compute
 @compute @workgroup_size(64)
 fn cs_build(@builtin(global_invocation_id) gid: vec3<u32>) {
     let i = gid.x;
@@ -189,27 +209,16 @@ fn cs_build(@builtin(global_invocation_id) gid: vec3<u32>) {
         atomicMax(&grid[c], i + 1u);
     }
 }
+//@end-compute
 
-@compute @workgroup_size(64)
-fn cs_step(
-    @builtin(global_invocation_id) gid: vec3<u32>,
-    @builtin(local_invocation_id) lid: vec3<u32>,
-    @builtin(workgroup_id) wid: vec3<u32>,
-) {
+// One step of body `i` (workgroup `wid` of its tile), shared by `cs_step` and
+// the fragment ping-pong.
+fn step_body(i: u32, wid: u32) -> Body {
     let n = u.ints.x;
-    let i = gid.x;
-    // The tile: one hashed source body per thread, shared by the workgroup.
-    let pick = pcg(wid.x * 2654435761u + u.ints.z * 40503u + lid.x * 97u + u.ints.y) % n;
-    tile[lid.x] = pos_in[pick];
-    workgroupBarrier();
-    if (i >= n) {
-        return;
-    }
-
     let dt = u.a.x;
     let sheet = u.b.z > 0.5;
-    var p = pos_in[i].xyz;
-    var v = vel_in[i].xyz;
+    var p = pos_at(i).xyz;
+    var v = vel_at(i).xyz;
     let om = u.b.y;
 
     var a = attractor_accel(p);
@@ -223,7 +232,7 @@ fn cs_step(
     let eps2 = u.g.z * u.g.z;
     var g = vec3<f32>(0.0);
     for (var k = 0u; k < TILE; k = k + 1u) {
-        let d = tile[k].xyz - p;
+        let d = tile_pos(wid, k) - p;
         let d2 = dot(d, d) + eps2;
         g = g + d * pow(d2, -1.5);
     }
@@ -245,19 +254,19 @@ fn cs_step(
                     if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) {
                         continue;
                     }
-                    let rep = atomicLoad(&grid[ny * GRID + nx]);
+                    let rep = rep_at(ny * GRID + nx);
                     if (rep == 0u || rep - 1u == i) {
                         continue;
                     }
                     let j = rep - 1u;
-                    let dd = pos_in[j].xyz - p;
+                    let dd = pos_at(j).xyz - p;
                     let dist2 = dot(dd, dd);
                     if (dist2 < d0 * d0 && dist2 > 1e-10) {
                         let distance = sqrt(dist2);
                         let nrm = dd / distance;
                         let pen = d0 - distance;
                         a = a - nrm * (kcol * pen);
-                        let vn = dot(vel_in[j].xyz - v, nrm);
+                        let vn = dot(vel_at(j).xyz - v, nrm);
                         if (vn < 0.0) {
                             dv = dv + nrm * (u.h.x * 0.5 * (1.0 + u.e.y) * vn * (pen / d0));
                         }
@@ -311,6 +320,30 @@ fn cs_step(
         p = b.p;
         v = b.v;
     }
-    pos_out[i] = vec4<f32>(p, 0.0);
-    vel_out[i] = vec4<f32>(v, 0.0);
+    var o: Body;
+    o.p = p;
+    o.v = v;
+    return o;
 }
+
+//@compute
+@compute @workgroup_size(64)
+fn cs_step(
+    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(local_invocation_id) lid: vec3<u32>,
+    @builtin(workgroup_id) wid: vec3<u32>,
+) {
+    let n = u.ints.x;
+    let i = gid.x;
+    // The tile: one hashed source body per thread, shared by the workgroup.
+    let pick = pcg(wid.x * 2654435761u + u.ints.z * 40503u + lid.x * 97u + u.ints.y) % n;
+    tile[lid.x] = pos_in[pick];
+    workgroupBarrier();
+    if (i >= n) {
+        return;
+    }
+    let o = step_body(i, wid.x);
+    pos_out[i] = vec4<f32>(o.p, 0.0);
+    vel_out[i] = vec4<f32>(o.v, 0.0);
+}
+//@end-compute

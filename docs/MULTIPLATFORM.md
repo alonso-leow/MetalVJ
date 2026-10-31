@@ -273,6 +273,23 @@ Needs a Mac for signing and `cargo-xcode`. Not started.
 the desktop binary with the default features. The `--low-power` GLES backend
 (`glow` feature) and local `memfd` frame transport are also planned.
 
+## Frames between machines: QOI budget
+
+A remote layer's frame travels raw RGBA on a direct LAN and QOI on relay
+(`remote_layers::choose_fmt`). The serving peer encodes in 8 independent
+bands (`qoix`). Measured 2026-10-30 on a quiet box (i5-8300H laptop, load < 0.1
+before the run), release build,
+`cargo test --release -p metal-dash --lib qoi::tests::bench_720p -- --ignored --nocapture`:
+
+| 720p frame | qoix encode | qoix decode | bytes | single-band qoi encode | jpeg q82 encode |
+|---|---|---|---|---|---|
+| gradient | 2.33 ms | 2.52 ms | 493 768 | 5.06 ms | 8.78 ms |
+| noisy (worst case) | 3.06 ms | 3.74 ms | 1 114 006 | 6.87 ms | 12.75 ms |
+
+The banded encoder holds the < 5 ms budget for both frames. Still open (need
+machines): the Pi LAN run with `scripts/frames-perf-log.sh` and the relay run
+phone ↔ desktop.
+
 ## Rules
 
 - Platform code goes behind a feature or `cfg(target_os)`, never a parallel

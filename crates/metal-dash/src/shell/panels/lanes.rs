@@ -242,6 +242,10 @@ pub struct PanelState {
     grid_note: Option<String>,
     /// A dial's part-step, by cell key, between frames.
     dial_acc: HashMap<String, f32>,
+    /// The page shown last frame, and whether a cell was just pinned to the
+    /// universe up (the layout then wants saving).
+    shown_page: usize,
+    layout_dirty: bool,
     /// The note each piano cell's pointer is down on.
     piano_held: HashMap<String, Option<u8>>,
     /// CC-mode pads above half, by input id: a CC pad's level becomes edges.
@@ -410,6 +414,8 @@ impl Default for PanelState {
             lit_controllers: BTreeSet::new(),
             grid_note: None,
             dial_acc: HashMap::new(),
+            shown_page: 0,
+            layout_dirty: false,
             piano_held: HashMap::new(),
             cc_down: BTreeSet::new(),
             hw_down: BTreeSet::new(),
@@ -3528,6 +3534,7 @@ fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState
                     save_controllers(door, state);
                 }
                 let gone = state.layout.place(&format!("ctrl:{key}"), slot, Some(page));
+                pin_new_cell(state, &format!("ctrl:{key}"));
                 drop_controllers(door, state, &gone);
                 save_layout(door, state);
                 state.editing_controller = Some(key);
@@ -3691,6 +3698,7 @@ fn drive_surface(
     wired: &[(String, String, crate::surface::DialMode)],
 ) {
     let now = ui.input(|i| i.time);
+    state.shown_page = page;
     let events = crate::input::drain_surface();
     if let Some(e) = events.last() {
         state.last_heard = Some(format!("{} · {}", e.input, e.port));
@@ -3733,6 +3741,9 @@ fn drive_surface(
     state.grid_outs.extend(outs);
     let outs = std::mem::take(&mut state.grid_outs);
     run_outs(ui, door, state, cells, outs, page, pages);
+    if std::mem::take(&mut state.layout_dirty) {
+        save_layout(door, state);
+    }
     if let Some(at) = state.controllers_dirty {
         if now - at > 0.3 {
             state.controllers_dirty = None;
@@ -3987,6 +3998,7 @@ fn run_outs(
                 let key = state.layout.fresh_key("loop");
                 state.grid_note = Some(trf("{name} recorded · {n} presses", &[("name", &lp.name), ("n", &lp.events.len())]));
                 state.surface.focus_loop = Some(key.clone());
+                pin_new_cell(state, &key);
                 state.layout.loops.insert(key, lp);
                 save = true;
             }
@@ -4327,6 +4339,7 @@ fn paint_cell(
                         let key = key_controller(n, page);
                         if !state.controllers.contains_key(&key) {
                             state.controllers.insert(key.clone(), json!({ "graph": gid, "name": "", "mode": "switch", "targets": [] }));
+                            pin_new_cell(state, &format!("ctrl:{key}"));
                             save_controllers(door, state);
                         }
                         state.editing_controller = Some(key);
@@ -5161,6 +5174,10 @@ fn controller_key(graph: &str) -> String {
 /// targets) on the first touch — a name, a mode flip or a pick all lazily make
 /// the button.
 fn controller_entry<'a>(state: &'a mut PanelState, graph: &str) -> &'a mut Value {
+    let made = !state.controllers.contains_key(&controller_key(graph));
+    if made {
+        pin_new_cell(state, &format!("ctrl:{}", controller_key(graph)));
+    }
     let entry = state
         .controllers
         .entry(controller_key(graph))
@@ -5305,6 +5322,22 @@ fn controller_mode(state: &PanelState, graph: &str) -> String {
 fn set_controller_mode(door: &dyn Call, state: &mut PanelState, graph: &str, hold: bool) {
     controller_entry(state, graph)["mode"] = json!(if hold { "hold" } else { "switch" });
     save_controllers(door, state);
+}
+
+/// A cell just made while a universe other than the first is up lands in it:
+/// pinned to the fn layer (and the page) shown now. One hook after creation,
+/// so however a cell is made it starts where the operator is looking.
+fn pin_new_cell(state: &mut PanelState, cell: &str) {
+    let (page, layer) = (state.shown_page, state.surface.layer);
+    if layer > 0 {
+        state.layout.layers.entry(cell.to_string()).or_insert(layer);
+        state.layout.layer_count = state.layout.layer_count.max(layer + 1);
+        state.layout_dirty = true;
+    }
+    if page > 0 && !state.layout.pages.contains_key(cell) {
+        state.layout.pages.insert(cell.to_string(), page);
+        state.layout_dirty = true;
+    }
 }
 
 /// The overlays grid's stored page (`grid_page` in settings, unclamped: a
@@ -5668,6 +5701,7 @@ fn add_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState,
                 key.clone(),
                 json!({ "graph": gid, "name": "", "mode": "switch", "targets": [], "scene": true }),
             );
+            pin_new_cell(state, &format!("ctrl:{key}"));
             save_controllers(door, state);
             state.editing_controller = Some(key);
             state.controller_edit_pos = Some(ui.cursor().min);
@@ -9243,6 +9277,22 @@ fn without_an_open_graph_create_button_says_so() {
         assert!(on("b0"), "the same pad fires layer 1's payload");
     }
 
+    /// A cell made while a layer (and page) is up lands there, whichever way it
+    /// is made; on the first layer and page it is left unpinned.
+    #[test]
+    fn a_new_cell_lands_on_the_layer_and_page_shown() {
+        let mut state = PanelState::default();
+        controller_entry(&mut state, "g0");
+        assert!(state.layout.layers.is_empty() && state.layout.pages.is_empty(), "layer 0, page 0: nothing pinned");
+        (state.surface.layer, state.shown_page) = (2, 1);
+        controller_entry(&mut state, "g1");
+        controller_entry(&mut state, "g1");
+        assert_eq!(state.layout.layer_of("ctrl:g1"), 2);
+        assert_eq!(state.layout.pages.get("ctrl:g1"), Some(&1));
+        assert!(state.layout.layers_len() >= 3);
+        assert_eq!(state.layout.layer_of("ctrl:g0"), 0, "an earlier cell stays where it was");
+        assert!(state.layout_dirty, "the pin is saved with the layout");
+    }
 
 
     /// The fn dial turned past the last layer opens a new, empty one that is

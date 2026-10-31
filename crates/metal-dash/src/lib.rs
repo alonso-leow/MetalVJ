@@ -1907,7 +1907,7 @@ mod tests {
             "audio.live, audio.file and clock.timecode (P-D)"
         );
         assert_eq!(count(NodeFamily::Reel), 2, "reel.clip and reel.batch");
-        assert_eq!(count(NodeFamily::Still), 1);
+        assert_eq!(count(NodeFamily::Still), 2, "still and the solid colour");
         assert_eq!(count(NodeFamily::Text), 1);
         assert_eq!(count(NodeFamily::Capture), 1);
         assert_eq!(count(NodeFamily::Router), 1);

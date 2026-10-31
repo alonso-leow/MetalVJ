@@ -242,6 +242,19 @@ pub struct PanelState {
     grid_note: Option<String>,
     /// A dial's part-step, by cell key, between frames.
     dial_acc: HashMap<String, f32>,
+    /// The page shown last frame, and whether a cell was just pinned to the
+    /// universe up (the layout then wants saving).
+    shown_page: usize,
+    layout_dirty: bool,
+    /// The universe `(page, layer)` painted last frame, and the swap
+    /// animation a change of it started.
+    universe: Option<(usize, usize)>,
+    swap: Option<Swap>,
+    /// While a cell paints mid-swap: the `(alpha, scale)` of its label (its
+    /// frame stays as is), and whether it is a leaving payload that takes no
+    /// input.
+    swap_text: Option<(f32, f32)>,
+    swap_passive: bool,
     /// The note each piano cell's pointer is down on.
     piano_held: HashMap<String, Option<u8>>,
     /// CC-mode pads above half, by input id: a CC pad's level becomes edges.
@@ -410,6 +423,12 @@ impl Default for PanelState {
             lit_controllers: BTreeSet::new(),
             grid_note: None,
             dial_acc: HashMap::new(),
+            shown_page: 0,
+            layout_dirty: false,
+            universe: None,
+            swap: None,
+            swap_text: None,
+            swap_passive: false,
             piano_held: HashMap::new(),
             cc_down: BTreeSet::new(),
             hw_down: BTreeSet::new(),
@@ -446,6 +465,9 @@ impl PanelState {
             self.controllers = parse_controllers(&reply["grid_controllers"]);
             self.layout = crate::surface::Layout::from_value(&reply["grid_surface"]);
             self.layouts = crate::surface::Layouts::from_value(&reply["grid_layouts"]);
+            // The fn layer shown last time; one that no longer exists is the base.
+            let layer = reply["grid_layer"].as_u64().unwrap_or(0) as usize;
+            self.surface.layer = if layer < self.layout.layers_len() { layer } else { 0 };
         }
         // An install with none stored opens on the grid it had, named.
         if self.layouts.list.is_empty() {
@@ -2720,7 +2742,7 @@ fn overlays_grid(
     state_val: &Value,
     open_graph: Option<&str>,
 ) {
-    let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, state_val);
+    let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, state_val, None);
     let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
     state.driven_pass = Some(ui.ctx().cumulative_pass_nr());
     // What a face's control can be given from the grid's own buttons.
@@ -2733,6 +2755,25 @@ fn overlays_grid(
     // The hardware first: what the controller sent since the last frame, and
     // the loops' playback, fire before this frame paints what they changed.
     drive_surface(ui, door, state, &cells, page, pages, &wired);
+    // A change of universe (page, layer), by any route, starts the swap.
+    let now = ui.input(|i| i.time);
+    let here = (page, state.surface.layer);
+    if let Some(prev) = state.universe.filter(|p| *p != here) {
+        let dir = if here.0 != prev.0 { (here.0 as i32 - prev.0 as i32).signum() } else { (here.1 as i32 - prev.1 as i32).signum() };
+        state.swap = Some(Swap { start: now, from: prev, dir });
+    }
+    state.universe = Some(here);
+    let timing = theme.swap_timing();
+    let swap_t = state.swap.map(|s| (now - s.start) as f32);
+    if swap_t.is_some_and(|t| t >= timing.total) {
+        state.swap = None;
+    }
+    let swap = state.swap.zip(swap_t);
+    if swap.is_some() {
+        ui.ctx().request_repaint();
+    }
+    // The payloads leaving are painted from the universe left, while it lasts.
+    let old = swap.filter(|(_, t)| *t < timing.total * 0.5).map(|(s, _)| grid_plan(door, state, state_val, Some(s.from)));
     if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
         apply_overlay_drop(door, state, &drag);
     }
@@ -2756,7 +2797,7 @@ fn overlays_grid(
         let (cu, ru) = (cols * crate::surface::UNITS, rows * crate::surface::UNITS);
         let mut occupied = vec![false; cu * ru];
         for (((c, p), pin), slot) in cells.iter().zip(&placed).zip(&pins).zip(&slot_of) {
-            if p.page != page && *pin != crate::surface::Pin::Every {
+            if p.page == usize::MAX || (p.page != page && *pin != crate::surface::Pin::Every) {
                 continue;
             }
             for y in p.y..p.y + p.h {
@@ -2765,7 +2806,22 @@ fn overlays_grid(
                 }
             }
             let rect = unit_rect(origin, cell, gap, p.x, p.y, p.w, p.h);
-            paint_cell(ui, theme, door, state, c, rect, open_graph, *slot);
+            let vis = swap_vis(swap, c, p, cols, rows, &timing);
+            // Before the turn the new payload waits for the old one to leave.
+            if vis.is_some() && swap.is_some_and(|(_, t)| t < timing.total * 0.5) {
+                continue;
+            }
+            paint_cell_swapping(ui, theme, door, state, c, rect, open_graph, *slot, vis, false);
+        }
+        if let Some(old) = &old {
+            for ((c, p), (pin, slot)) in old.cells.iter().zip(&old.placed).zip(old.pins.iter().zip(&old.slot_of)) {
+                if p.page == usize::MAX || (p.page != old.page && *pin != crate::surface::Pin::Every) {
+                    continue;
+                }
+                let Some(vis) = swap_vis(swap, c, p, cols, rows, &timing) else { continue };
+                let rect = unit_rect(origin, cell, gap, p.x, p.y, p.w, p.h);
+                paint_cell_swapping(ui, theme, door, state, c, rect, open_graph, *slot, Some(vis), true);
+            }
         }
         // A box's face: its empty slots paint as the control they are (a pad
         // still takes a dropped card), and its mark where the panel has it.
@@ -2839,6 +2895,69 @@ fn overlays_grid(
     cell_editor_popup(ui, theme, door, state, &cells, page, pages);
 }
 
+/// A universe change being shown: when it started, the universe it left and
+/// which way the index went (positive: up). Visual only — the grid already
+/// answers presses in the new universe.
+#[derive(Clone, Copy, Debug)]
+struct Swap {
+    start: f64,
+    from: (usize, usize),
+    dir: i32,
+}
+
+/// The `(alpha, scale)` a cell paints with mid-swap; control cells (roles) and
+/// the fixed ones do not swap.
+fn swap_vis(
+    swap: Option<(Swap, f32)>,
+    cell: &Cell,
+    p: &crate::surface::Placed,
+    cols: usize,
+    rows: usize,
+    timing: &crate::surface::SwapTiming,
+) -> Option<(f32, f32)> {
+    let (s, t) = swap?;
+    if matches!(cell.kind, CellKind::Role { .. }) || cell.is_fixed() {
+        return None;
+    }
+    let u = crate::surface::UNITS;
+    Some(crate::surface::swap_visual(t, p.x / u, p.y / u, cols, rows, s.dir, timing))
+}
+
+/// Paints one cell, faded and squished by `vis` `(alpha, scale)` when it is
+/// swapping; a `passive` one (a leaving payload) takes no input.
+#[allow(clippy::too_many_arguments)]
+fn paint_cell_swapping(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    cell: &Cell,
+    rect: Rect,
+    open_graph: Option<&str>,
+    slot: Option<usize>,
+    vis: Option<(f32, f32)>,
+    passive: bool,
+) {
+    // The frame, fill and outline stay as they are; only the label swaps.
+    state.swap_text = vis;
+    state.swap_passive = passive && vis.is_some();
+    paint_cell(ui, theme, door, state, cell, rect, open_graph, slot);
+    state.swap_text = None;
+    state.swap_passive = false;
+}
+
+/// Paints a swapping cell's label over its (label-less) button: faded by
+/// `alpha`, its font squished by `scale`, centred and wrapped to the button.
+fn paint_swap_label(ui: &Ui, theme: &Theme, response: &Response, text: &str, (alpha, scale): (f32, f32)) {
+    let mut font = theme.font_small.clone();
+    font.size *= scale;
+    let colour = ui.style().interact(response).text_color().gamma_multiply(alpha);
+    let wrap = (response.rect.width() - 2.0 * ui.spacing().button_padding.x).max(theme.hairline);
+    let galley = ui.painter().layout(text.to_string(), font, colour, wrap);
+    let at = response.rect.center() - galley.size() / 2.0;
+    ui.painter().galley(at, galley, colour);
+}
+
 /// The grid as laid out this frame: the cells in order, where each may land
 /// and where it did, how many pages there are and which one is shown.
 struct GridPlan {
@@ -2857,7 +2976,7 @@ struct GridPlan {
     slot_of: Vec<Option<usize>>,
 }
 
-fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan {
+fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value, at: Option<(usize, usize)>) -> GridPlan {
     let cells = grid_cells(door, state, state_val);
 
     // Fixed columns × rows (`grid_surface`), in sub-cells so the halves and
@@ -2868,6 +2987,8 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
         .iter()
         .map(|c| (crate::surface::units(c.span.0), crate::surface::units(c.span.1)))
         .collect();
+    let layer = at.map_or(state.surface.layer, |u| u.1);
+    let in_layer = |c: &Cell| matches!(c.kind, CellKind::Role { .. }) || c.is_fixed() || state.layout.layer_of(&c.key) == layer;
     let (pins, placed, slot_of) = if state.layout.device.is_some() {
         // A box's face: its controls where the panel has them, the grid's
         // own buttons in its pads (a fader in its knobs and faders).
@@ -2886,8 +3007,19 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
                 (None, None) => Pin::Flow,
             })
             .collect();
-        let (mut placed, mut slot_of): (Vec<_>, Vec<_>) =
-            crate::surface::pack_device(&places, &value, &pins, &state.layout.slots).into_iter().unzip();
+        // Only the fn layer up is laid out into the pads, like the free grid:
+        // the same sixteen pads hold each layer's own buttons.
+        let shown: Vec<usize> = (0..cells.len()).filter(|&i| in_layer(&cells[i])).collect();
+        let pick = |v: &[bool]| shown.iter().map(|&i| v[i]).collect::<Vec<_>>();
+        let sub_places: Vec<_> = shown.iter().map(|&i| places[i]).collect();
+        let packed = crate::surface::pack_device(&sub_places, &pick(&value), &shown.iter().map(|&i| pins[i]).collect::<Vec<_>>(), &state.layout.slots);
+        let hidden = crate::surface::Placed { page: usize::MAX, x: 0, y: 0, w: 1, h: 1 };
+        let mut placed = vec![hidden; cells.len()];
+        let mut slot_of: Vec<Option<usize>> = vec![None; cells.len()];
+        for (&i, (p, s)) in shown.iter().zip(packed) {
+            placed[i] = p;
+            slot_of[i] = s;
+        }
         // A face shows only what the operator gave its controls: the grid's
         // own buttons wait in each control's menu ([`slot_menu`]).
         for (i, at) in places.iter().enumerate() {
@@ -2909,17 +3041,25 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
                 _ => crate::surface::Pin::Flow,
             })
             .collect();
-        let places: Vec<Option<[u16; 4]>> = cells
-            .iter()
-            .map(|c| state.layout.places.get(&c.key).copied())
-            .collect();
-        let placed = crate::surface::pack_placed(
-            &spans,
-            &pins,
-            &places,
+        // Only the cells of the fn layer up are laid out; the rest wait,
+        // hidden, for their layer (a control cell is in every one). A cell
+        // with a place (right-click `+`) keeps it.
+        let shown: Vec<usize> = (0..cells.len()).filter(|&i| in_layer(&cells[i])).collect();
+        let sub_spans: Vec<_> = shown.iter().map(|&i| spans[i]).collect();
+        let sub_pins: Vec<_> = shown.iter().map(|&i| pins[i]).collect();
+        let sub_places: Vec<Option<[u16; 4]>> = shown.iter().map(|&i| state.layout.places.get(&cells[i].key).copied()).collect();
+        let packed = crate::surface::pack_placed(
+            &sub_spans,
+            &sub_pins,
+            &sub_places,
             cols * crate::surface::UNITS,
             rows * crate::surface::UNITS,
         );
+        let hidden = crate::surface::Placed { page: usize::MAX, x: 0, y: 0, w: 1, h: 1 };
+        let mut placed = vec![hidden; cells.len()];
+        for (&i, p) in shown.iter().zip(packed) {
+            placed[i] = p;
+        }
         let none = vec![None; placed.len()];
         (pins, placed, none)
     };
@@ -2934,9 +3074,9 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
     // The stored page, clamped to the pages this layout holds: a removed
     // button or a trigger stepping past an end cannot strand it. The clamped
     // value is written back so the stored and shown page agree.
-    let stored = stored_page(door);
+    let stored = at.map_or_else(|| stored_page(door), |u| u.0 as i64);
     let page = stored.clamp(0, pages as i64 - 1) as usize;
-    if stored != page as i64 {
+    if at.is_none() && stored != page as i64 {
         set_stored_page(door, page);
     }
 
@@ -2944,7 +3084,7 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
     let mut wired = Vec::new();
     for (((c, p), pin), s) in cells.iter().zip(&placed).zip(&pins).zip(&slot_of) {
         let Some(s) = *s else { continue };
-        if p.page != page && *pin != crate::surface::Pin::Every {
+        if p.page == usize::MAX || (p.page != page && *pin != crate::surface::Pin::Every) {
             continue;
         }
         filled[s] = true;
@@ -2976,7 +3116,7 @@ pub(crate) fn drive_offscreen(ui: &Ui, door: &dyn Call, state: &mut PanelState) 
     }
     state.refresh(door);
     let state_val = get(door, "GET", "/state", &[]).unwrap_or_else(|| json!({}));
-    let plan = grid_plan(door, state, &state_val);
+    let plan = grid_plan(door, state, &state_val, None);
     drive_surface(ui, door, state, &plan.cells, plan.page, plan.pages, &plan.wired);
     if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
         apply_overlay_drop(door, state, &drag);
@@ -3112,7 +3252,7 @@ fn page_bar(
     for (rect, cell) in [
         (prev, Cell::page(format!("‹ {}/{pages}", page + 1), page.saturating_sub(1))),
         (add, Cell::add()),
-        (next, Cell::page(format!("{}/{pages} ›", page + 1), (page + 1).min(pages - 1))),
+        (next, Cell::page(format!("{}/{pages} ›", page + 1), page + 1)),
     ] {
         paint_cell(ui, theme, door, state, &cell, rect, open_graph, None);
     }
@@ -3524,6 +3664,7 @@ fn slot_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState
                     save_controllers(door, state);
                 }
                 let gone = state.layout.place(&format!("ctrl:{key}"), slot, Some(page));
+                pin_new_cell(state, &format!("ctrl:{key}"));
                 drop_controllers(door, state, &gone);
                 save_layout(door, state);
                 state.editing_controller = Some(key);
@@ -3687,6 +3828,7 @@ fn drive_surface(
     wired: &[(String, String, crate::surface::DialMode)],
 ) {
     let now = ui.input(|i| i.time);
+    state.shown_page = page;
     let events = crate::input::drain_surface();
     if let Some(e) = events.last() {
         state.last_heard = Some(format!("{} · {}", e.input, e.port));
@@ -3729,6 +3871,9 @@ fn drive_surface(
     state.grid_outs.extend(outs);
     let outs = std::mem::take(&mut state.grid_outs);
     run_outs(ui, door, state, cells, outs, page, pages);
+    if std::mem::take(&mut state.layout_dirty) {
+        save_layout(door, state);
+    }
     if let Some(at) = state.controllers_dirty {
         if now - at > 0.3 {
             state.controllers_dirty = None;
@@ -3853,16 +3998,19 @@ fn surface_input(
         // A control cell answers on every page; a content cell only on the
         // page it was bound from.
         let on = (!state.layout.roles.contains_key(&cell)).then_some(page);
-        state.layout.bind(input, on, &cell);
+        state.layout.bind_at(input, on, state.surface.layer, &cell);
         state.grid_learn = None;
         state.grid_note = Some(trf("{input} → {cell}", &[("input", &input), ("cell", &cell)]));
         save_layout(door, state);
         return Vec::new();
     }
+    // The universe this input is heard in: the page and the fn layer up.
+    let layer = state.surface.layer;
     let wired_bind = || {
         wired.iter().find(|(i, _, _)| metal_midi::same_control(i, input)).map(|(i, cell, dial)| crate::surface::Bind {
             input: i.clone(),
             page: Some(page),
+            layer,
             cell: cell.clone(),
             dial: *dial,
         })
@@ -3874,11 +4022,12 @@ fn surface_input(
         state.controllers.contains_key(&key).then(|| crate::surface::Bind {
             input: input.to_string(),
             page: Some(page),
+            layer,
             cell: format!("ctrl:{key}"),
             dial: crate::surface::DialMode::Absolute,
         })
     };
-    let Some(bind) = state.layout.bound(input, page).cloned().or_else(wired_bind).or_else(key_bind) else {
+    let Some(bind) = state.layout.bound(input, page, layer).cloned().or_else(wired_bind).or_else(key_bind) else {
         return Vec::new();
     };
     if let Some(role) = state.layout.roles.get(&bind.cell).cloned() {
@@ -3888,6 +4037,8 @@ fn surface_input(
                     0 => None,
                     n => Some(Gesture::Steps(n)),
                 },
+                // A push encoder's press.
+                Edge::Press { .. } => Some(Gesture::Click),
                 _ => None,
             }
         } else {
@@ -3947,8 +4098,21 @@ fn run_outs(
                 }
             }
             Out::Page(p) => set_stored_page(door, p.min(pages.saturating_sub(1))),
+            // The fn dial turned past the last layer: it stays open, empty.
+            Out::Layer(l) => {
+                if l + 1 > state.layout.layers_len() {
+                    state.layout.layer_count = l + 1;
+                    save = true;
+                }
+                let _ = door.json("POST", "/settings", Some(json!({ "grid_layer": l })));
+            }
             Out::PageStep(d) => {
-                let to = (page as i64 + d as i64).clamp(0, pages as i64 - 1) as usize;
+                // Stepping on past the last page opens a new, empty one.
+                let to = (page as i64 + d as i64).clamp(0, pages as i64) as usize;
+                if to >= pages {
+                    state.layout.page_count = to + 1;
+                    save = true;
+                }
                 set_stored_page(door, to);
             }
             Out::Library(intent) => super::pads::push_library_intent(ui.ctx(), intent),
@@ -3965,6 +4129,7 @@ fn run_outs(
                 let key = state.layout.fresh_key("loop");
                 state.grid_note = Some(trf("{name} recorded · {n} presses", &[("name", &lp.name), ("n", &lp.events.len())]));
                 state.surface.focus_loop = Some(key.clone());
+                pin_new_cell(state, &key);
                 state.layout.loops.insert(key, lp);
                 save = true;
             }
@@ -4315,6 +4480,7 @@ fn paint_cell(
                         let key = key_controller(n, page);
                         if !state.controllers.contains_key(&key) {
                             state.controllers.insert(key.clone(), json!({ "graph": gid, "name": "", "mode": "switch", "targets": [] }));
+                            pin_new_cell(state, &format!("ctrl:{key}"));
                             save_controllers(door, state);
                         }
                         state.editing_controller = Some(key);
@@ -4334,7 +4500,32 @@ fn paint_cell(
             response
         }
         CellKind::Role { role } if role.is_dial() => {
-            let (value, frac) = dial_face(state, &cell.key, role);
+            let (mut value, frac) = dial_face(state, &cell.key, role);
+            // The page dials say which page is up.
+            match role {
+                Role::Navigator => value = (page + 1).to_string(),
+                Role::FnDial => value = format!("L{}", state.surface.layer + 1),
+                _ => {}
+            }
+            // The navigator's `‹` and `›` sit on its sides; the dial takes the
+            // middle. Each button is the page button's own gesture.
+            let mut rect = rect;
+            if matches!(role, Role::Navigator) {
+                let side = theme.gear_size.min(rect.width() / 3.0);
+                let (left, right) = (
+                    Rect::from_min_size(rect.min, Vec2::new(side, rect.height())),
+                    Rect::from_min_size(Pos2::new(rect.right() - side, rect.top()), Vec2::new(side, rect.height())),
+                );
+                rect = Rect::from_min_max(Pos2::new(left.right(), rect.top()), Pos2::new(right.left(), rect.bottom()));
+                for (side_rect, glyph, step) in [(left, "‹", -1), (right, "›", 1)] {
+                    let button = egui::Button::new(RichText::new(glyph).font(theme.font_small.clone())).fill(theme.inset);
+                    let id = ("shell/region/lanes/navigator", &cell.key, step);
+                    if ui.push_id(id, |ui| ui.put(side_rect, button)).inner.clicked() && !editing {
+                        let out = state.surface.role(&state.layout, &cell.key, &Role::Page { step }, Gesture::Click, now, page);
+                        state.grid_outs.extend(out);
+                    }
+                }
+            }
             // A knob turned past half is not a knob pressed.
             let lit = false;
             let mut acc = state.dial_acc.get(&cell.key).copied().unwrap_or(0.0);
@@ -4343,6 +4534,12 @@ fn paint_cell(
             state.dial_acc.insert(cell.key.clone(), acc);
             if steps != 0 && !editing {
                 let out = state.surface.role(&state.layout, &cell.key, role, Gesture::Steps(steps), now, page);
+                state.grid_outs.extend(out);
+            }
+            // A click is the push of a push-encoder: the same gesture a
+            // press on the dial's bound input raises.
+            if response.clicked() && !editing {
+                let out = state.surface.role(&state.layout, &cell.key, role, Gesture::Click, now, page);
                 state.grid_outs.extend(out);
             }
             response
@@ -4356,7 +4553,10 @@ fn paint_cell(
             let text = RichText::new(&cell.label).font(theme.font_small.clone());
             // A box's face is packed tight: a name keeps to two rows inside
             // its button, cut with `…`, never grown over the control below.
-            let text: egui::WidgetText = if state.layout.device.is_some() {
+            let swap_text = state.swap_text;
+            let text: egui::WidgetText = if swap_text.is_some() {
+                egui::WidgetText::from("")
+            } else if state.layout.device.is_some() {
                 let mut job = std::sync::Arc::unwrap_or_clone(egui::WidgetText::from(text).into_layout_job(ui.style(), egui::FontSelection::Default, Align::Center));
                 job.wrap = egui::text::TextWrapping {
                     max_width: (rect.width() - 2.0 * ui.spacing().button_padding.x).max(theme.hairline),
@@ -4378,9 +4578,17 @@ fn paint_cell(
             // A stable id per cell key: the grid's cells come and go, and an
             // auto id that shifted with them would orphan an open popup (the
             // `+` menu) mid-pick.
-            ui.push_id(("shell/region/lanes/cell", &cell.key), |ui| ui.put(rect, button)).inner
+            let response = ui.push_id(("shell/region/lanes/cell", &cell.key), |ui| ui.put(rect, button)).inner;
+            if let Some(vis) = swap_text {
+                response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, cell.label.clone()));
+                paint_swap_label(ui, theme, &response, &cell.label, vis);
+            }
+            response
         }
     };
+    if state.swap_passive {
+        return;
+    }
     if state.surface.is_frozen(&cell.key) {
         let lock = Rect::from_min_size(rect.left_top(), Vec2::splat(theme.gear_size));
         ui.put(lock, egui::Label::new(lucide(Icon::Lock, theme.font_small.size).color(theme.phosphor)));
@@ -4449,6 +4657,11 @@ fn paint_cell(
     match &cell.kind {
         CellKind::PageTo(to) => {
             if response.clicked() {
+                // A page past the last one is a new, empty page of the grid.
+                if *to + 1 > state.layout.page_count {
+                    state.layout.page_count = *to + 1;
+                    save_layout(door, state);
+                }
                 set_stored_page(door, *to);
             }
         }
@@ -4674,18 +4887,27 @@ fn paint_controller_cell(
             f.response
         }
         ControllerFace::Palette { stops } => {
-            let button = egui::Button::new(RichText::new(&label).font(theme.font_small.clone()))
+            let shown = if state.swap_text.is_some() { "" } else { label.as_str() };
+            let button = egui::Button::new(RichText::new(shown).font(theme.font_small.clone()))
                 .min_size(rect.size())
                 .fill(fill);
             let response = ui.put(rect, button);
             builtins::paint_stops(ui, theme, &stops, rect);
+            if let Some(vis) = state.swap_text {
+                paint_swap_label(ui, theme, &response, &label, vis);
+            }
             response
         }
         ControllerFace::Button => {
-            let button = egui::Button::new(RichText::new(&label).font(theme.font_small.clone()))
+            let shown = if state.swap_text.is_some() { "" } else { label.as_str() };
+            let button = egui::Button::new(RichText::new(shown).font(theme.font_small.clone()))
                 .min_size(rect.size())
                 .fill(fill);
-            ui.put(rect, button)
+            let response = ui.put(rect, button);
+            if let Some(vis) = state.swap_text {
+                paint_swap_label(ui, theme, &response, &label, vis);
+            }
+            response
         }
     };
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label.clone()));
@@ -5122,6 +5344,9 @@ fn new_controller_key(state: &PanelState, graph: &str) -> String {
 /// targets) on the first touch — a name, a mode flip or a pick all lazily make
 /// the button. `key` may be a graph id or a per-button `<graph>#n`.
 fn controller_entry<'a>(state: &'a mut PanelState, key: &str) -> &'a mut Value {
+    if !state.controllers.contains_key(key) {
+        pin_new_cell(state, &format!("ctrl:{key}"));
+    }
     let entry = state
         .controllers
         .entry(key.to_string())
@@ -5276,6 +5501,22 @@ fn set_controller_mode(door: &dyn Call, state: &mut PanelState, key: &str, hold:
     save_controllers(door, state);
 }
 
+/// A cell just made while a universe other than the first is up lands in it:
+/// pinned to the fn layer (and the page) shown now. One hook after creation,
+/// so however a cell is made it starts where the operator is looking.
+fn pin_new_cell(state: &mut PanelState, cell: &str) {
+    let (page, layer) = (state.shown_page, state.surface.layer);
+    if layer > 0 {
+        state.layout.layers.entry(cell.to_string()).or_insert(layer);
+        state.layout.layer_count = state.layout.layer_count.max(layer + 1);
+        state.layout_dirty = true;
+    }
+    if page > 0 && !state.layout.pages.contains_key(cell) {
+        state.layout.pages.insert(cell.to_string(), page);
+        state.layout_dirty = true;
+    }
+}
+
 /// The overlays grid's stored page (`grid_page` in settings, unclamped: a
 /// trigger may have stepped it past an end). Unreadable settings read as the
 /// first page.
@@ -5387,6 +5628,20 @@ fn cell_editor_popup(
                 }
                 if pinned.is_some() && ui.button(small(tr("unpin").into())).clicked() {
                     state.layout.pages.remove(&key);
+                    changed = true;
+                }
+            });
+            // Its fn layer: with the page, the universe the button lives in.
+            ui.horizontal(|ui| {
+                let at = state.layout.layer_of(&key);
+                if ui.button(small("‹".into())).clicked() && at > 0 {
+                    state.layout.layers.insert(key.clone(), at - 1);
+                    changed = true;
+                }
+                ui.label(small(trf("layer {n}", &[("n", &(at + 1))])));
+                if ui.button(small("›".into())).clicked() {
+                    state.layout.layers.insert(key.clone(), at + 1);
+                    state.layout.layer_count = state.layout.layer_count.max(at + 2);
                     changed = true;
                 }
             });
@@ -5610,6 +5865,7 @@ fn create_controller_button(
         key.clone(),
         json!({ "graph": graph, "name": "", "mode": "switch", "targets": [] }),
     );
+    pin_new_cell(state, &format!("ctrl:{key}"));
     save_controllers(door, state);
     if let Some(place) = place {
         place_added_cell(door, state, &format!("ctrl:{key}"), place);
@@ -5672,6 +5928,7 @@ fn add_menu(
                 key.clone(),
                 json!({ "graph": gid, "name": "", "mode": "switch", "targets": [], "scene": true }),
             );
+            pin_new_cell(state, &format!("ctrl:{key}"));
             save_controllers(door, state);
             if let Some(place) = place {
                 place_added_cell(door, state, &format!("ctrl:{key}"), place);
@@ -9170,6 +9427,411 @@ fn without_an_open_graph_create_button_says_so() {
             posted_with(&recorder, "/graph/node", json!({ "op": "flag", "graph": "g", "node": "strobe-node", "field": "bypass", "on": true })),
             "the key fires its button"
         );
+    }
+
+    /// A grid with a speed dial and a navigator, a loop-length and a page the
+    /// MIDI encoders (`cc:30`, `cc:31`) also drive.
+    fn dial_grid() -> std::rc::Rc<FakeDoor> {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 0, "grid_surface": {
+                "page_count": 2,
+                "roles": { "speed-dial-1": { "kind": "speed-dial" }, "navigator-1": { "kind": "navigator" } },
+                "binds": [
+                    { "input": "cc:31", "cell": "speed-dial-1", "dial": "relative" },
+                    { "input": "cc:30", "cell": "navigator-1", "dial": "relative" }
+                ]
+            } }),
+        );
+        recorder
+    }
+
+    fn loop_ticks_posted(r: &FakeDoor) -> Vec<Value> {
+        r.calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/settings")
+            .map(|(_, _, params)| body_of(params))
+            .filter_map(|b| b["grid_surface"]["loop_ticks"].as_u64().map(Value::from))
+            .collect()
+    }
+
+    fn pages_posted(r: &FakeDoor) -> Vec<Value> {
+        r.calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/settings")
+            .filter_map(|(_, _, params)| body_of(params).get("grid_page").cloned())
+            .collect()
+    }
+
+    /// A drag on the speed dial turns it one step per notch and raises the
+    /// same loop-length write a relative MIDI step does; a click on the
+    /// navigator's dial goes back to the first page and its `›` steps on, as
+    /// the encoder bound to it does.
+    #[test]
+    fn a_mouse_on_a_dial_makes_the_same_outs_as_midi() {
+        // The mouse.
+        let mouse = dial_grid();
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&mouse)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        let centre = harness.get_by_label("speed").rect().center();
+        let up = egui::Vec2::Y * -(Theme::phosphor().gear_size * 1.5);
+        harness.drag_at(centre);
+        harness.run();
+        harness.hover_at(centre + up);
+        harness.run();
+        harness.drop_at(centre + up);
+        harness.run();
+        // MIDI: one clockwise relative step.
+        let midi = dial_grid();
+        let mut harness_midi = shell_harness_of_height(Box::new(std::rc::Rc::clone(&midi)), 900.0);
+        harness_midi.run();
+        harness_midi.get_by_label("lanes / overlays").click();
+        harness_midi.run();
+        crate::input::drain_surface();
+        crate::input::push_surface(crate::input::SurfaceEvent {
+            port: "box".into(),
+            input: "cc:31".into(),
+            edge: metal_midi::Edge::Value { value: 1.0 / 127.0, raw: 1 },
+        });
+        harness_midi.run();
+        let (by_mouse, by_midi) = (loop_ticks_posted(&mouse), loop_ticks_posted(&midi));
+        assert!(!by_midi.is_empty(), "a relative step lengthens the loop");
+        assert_eq!(by_mouse, by_midi, "a drag of one notch is one MIDI step");
+
+        // The navigator: its `›`, then the same step from the encoder.
+        harness.get_by_label("›").click();
+        harness.run();
+        assert_eq!(pages_posted(&mouse).last(), Some(&json!(1)));
+        crate::input::drain_surface();
+        crate::input::push_surface(crate::input::SurfaceEvent {
+            port: "box".into(),
+            input: "cc:30".into(),
+            edge: metal_midi::Edge::Value { value: 1.0 / 127.0, raw: 1 },
+        });
+        harness_midi.run();
+        assert_eq!(pages_posted(&midi).last(), Some(&json!(1)), "the encoder steps the page like the button");
+    }
+
+    /// Stepping on from the last page lands on a new, empty page (the page
+    /// count grows and nothing is copied into it), through the navigator's `›`
+    /// and the encoder alike; stepping back from the first stays on it.
+    #[test]
+    fn paging_past_the_last_page_opens_a_new_empty_one() {
+        let recorder = dial_grid();
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 1, "grid_surface": {
+                "page_count": 2,
+                "roles": { "navigator-1": { "kind": "navigator" } },
+                "binds": []
+            } }),
+        );
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        harness.get_by_label("›").click();
+        harness.run();
+        assert_eq!(pages_posted(&recorder).last(), Some(&json!(2)), "page 3 is shown");
+        let grew = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/settings" && body_of(params)["grid_surface"]["page_count"] == json!(3)
+        });
+        assert!(grew, "the new page is stored");
+        let state = harness.state_mut().lanes_state_mut();
+        assert_eq!(state.layout.page_count, 3);
+        assert!(state.layout.pages.values().all(|p| *p < 2), "no cell was copied onto it");
+    }
+
+    /// Universes in the grid: a switch pinned to layer 1 is not on the grid
+    /// (and its pad fires nothing) until the fn button shows layer 1, where it
+    /// fires through the same input; the fn button is there in both.
+    #[test]
+    fn a_layer_shows_its_own_buttons_and_a_pad_fires_the_payload_of_the_universe() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond("GET", "/switch", json!({ "switches": [
+            { "id": "base", "name": "basebtn", "kind": "toggle", "on": false },
+            { "id": "up", "name": "upbtn", "kind": "toggle", "on": false }
+        ] }));
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 0, "grid_surface": {
+                "layers": { "sw:up": 1 },
+                "roles": { "fn-1": { "kind": "fn" } },
+                "binds": [
+                    { "input": "note:60", "page": 0, "cell": "sw:base" },
+                    { "input": "note:60", "page": 0, "layer": 1, "cell": "sw:up" }
+                ]
+            } }),
+        );
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        assert!(harness.query_by_label("basebtn").is_some() && harness.query_by_label("upbtn").is_none());
+        assert!(harness.query_by_label("fn").is_some(), "the fn button is global");
+        let pad = || {
+            crate::input::drain_surface();
+            for edge in [metal_midi::Edge::Press { velocity: 1.0 }, metal_midi::Edge::Release] {
+                crate::input::push_surface(crate::input::SurfaceEvent { port: "box".into(), input: "note:60".into(), edge });
+            }
+        };
+        let on = |r: &FakeDoor, id: &str| {
+            r.calls.borrow().iter().any(|(m, p, params)| {
+                m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": id })
+            })
+        };
+        pad();
+        harness.run();
+        assert!(on(&recorder, "base") && !on(&recorder, "up"), "layer 0's payload");
+        harness.get_by_label("fn").click();
+        harness.run();
+        assert_eq!(harness.state_mut().lanes_state_mut().surface.layer, 1);
+        harness.run();
+        assert!(harness.query_by_label("upbtn").is_some() && harness.query_by_label("basebtn").is_none());
+        assert!(harness.query_by_label("fn").is_some(), "the fn button stays in layer 1");
+        pad();
+        harness.run();
+        assert!(on(&recorder, "up"), "the same pad fires layer 1's payload");
+    }
+
+    /// A change of layer starts the swap animation of the payloads, a press
+    /// during it already fires the new universe, and it ends on its own.
+    #[test]
+    fn a_layer_change_runs_the_swap_animation_and_it_ends() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond("GET", "/switch", json!({ "switches": [
+            { "id": "base", "name": "basebtn", "kind": "toggle", "on": false },
+            { "id": "up", "name": "upbtn", "kind": "toggle", "on": false }
+        ] }));
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 0, "grid_surface": {
+                "layers": { "sw:up": 1 },
+                "roles": { "fn-1": { "kind": "fn" } },
+                "binds": [
+                    { "input": "note:60", "page": 0, "cell": "sw:base" },
+                    { "input": "note:60", "page": 0, "layer": 1, "cell": "sw:up" }
+                ]
+            } }),
+        );
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        assert!(harness.state_mut().lanes_state_mut().swap.is_none(), "nothing swaps at rest");
+        let resting = harness.get_by_label("basebtn").rect();
+        harness.get_by_label("fn").click();
+        harness.step();
+        harness.step();
+        let mid = harness.query_by_label("basebtn").or_else(|| harness.query_by_label("upbtn")).map(|n| n.rect());
+        assert_eq!(
+            mid,
+            Some(resting),
+            "mid-swap the cell's frame is still painted, full size; only its label swaps"
+        );
+        let swap = harness.state_mut().lanes_state_mut().swap;
+        assert!(swap.is_some_and(|s| s.dir > 0 && s.from == (0, 0)), "the layer change started the swap: {swap:?}");
+        crate::input::drain_surface();
+        for edge in [metal_midi::Edge::Press { velocity: 1.0 }, metal_midi::Edge::Release] {
+            crate::input::push_surface(crate::input::SurfaceEvent { port: "box".into(), input: "note:60".into(), edge });
+        }
+        harness.step();
+        let fired = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": "up" })
+        });
+        assert!(fired, "a press mid-animation fires the new universe");
+        harness.run();
+        assert!(harness.state_mut().lanes_state_mut().swap.is_none(), "the animation ends");
+        assert!(harness.query_by_label("upbtn").is_some(), "the new payload is shown");
+    }
+
+    /// A 16-pad face reuses its pads across layers: each layer's buttons fill
+    /// all of them in turn, and a pad press fires the payload of the layer up.
+    #[test]
+    fn a_face_lays_out_only_the_layer_up_into_its_pads() {
+        let mut face = crate::surface::Layout::default();
+        face.apply_device(&metal_midi::devices::device("flkey-mini").unwrap());
+        let pads: Vec<usize> = (0..face.slots.len()).filter(|&i| face.slots[i].kind == crate::surface::SlotKind::Pad).collect();
+        assert_eq!(pads.len(), 16);
+        let mut switches = Vec::new();
+        for (layer, tag) in [(0usize, "a"), (1, "b")] {
+            for (n, &s) in pads.iter().enumerate() {
+                let key = format!("sw:{tag}{n}");
+                face.places.insert(key.clone(), face.slots[s].rect);
+                if layer > 0 {
+                    face.layers.insert(key, layer);
+                }
+                switches.push(json!({ "id": format!("{tag}{n}"), "name": format!("{tag}{n}"), "kind": "toggle", "on": false }));
+            }
+        }
+        let first_input = face.slots[pads[0]].input.clone().unwrap();
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond("GET", "/switch", json!({ "switches": switches }));
+        recorder.respond("GET", "/settings", json!({ "grid_page": 0, "grid_surface": face.to_value() }));
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        let filled = |st: &PanelState| -> usize {
+            grid_plan(&*recorder, st, &json!({}), None).filled.iter().filter(|f| **f).count()
+        };
+        assert_eq!(filled(harness.state_mut().lanes_state_mut()), 16, "layer 0 fills every pad");
+        let press = || {
+            crate::input::drain_surface();
+            crate::input::push_surface(crate::input::SurfaceEvent {
+                port: "FLkey Mini".into(),
+                input: first_input.clone(),
+                edge: metal_midi::Edge::Press { velocity: 1.0 },
+            });
+        };
+        let on = |id: &str| {
+            recorder.calls.borrow().iter().any(|(m, p, params)| {
+                m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": id })
+            })
+        };
+        press();
+        harness.run();
+        assert!(on("a0") && !on("b0"));
+        harness.state_mut().lanes_state_mut().surface.layer = 1;
+        harness.run();
+        assert_eq!(filled(harness.state_mut().lanes_state_mut()), 16, "layer 1 fills every pad too");
+        press();
+        harness.run();
+        assert!(on("b0"), "the same pad fires layer 1's payload");
+    }
+
+    /// A cell made while a layer (and page) is up lands there, whichever way it
+    /// is made; on the first layer and page it is left unpinned.
+    #[test]
+    fn a_new_cell_lands_on_the_layer_and_page_shown() {
+        let mut state = PanelState::default();
+        controller_entry(&mut state, "g0");
+        assert!(state.layout.layers.is_empty() && state.layout.pages.is_empty(), "layer 0, page 0: nothing pinned");
+        (state.surface.layer, state.shown_page) = (2, 1);
+        controller_entry(&mut state, "g1");
+        controller_entry(&mut state, "g1");
+        assert_eq!(state.layout.layer_of("ctrl:g1"), 2);
+        assert_eq!(state.layout.pages.get("ctrl:g1"), Some(&1));
+        assert!(state.layout.layers_len() >= 3);
+        assert_eq!(state.layout.layer_of("ctrl:g0"), 0, "an earlier cell stays where it was");
+        assert!(state.layout_dirty, "the pin is saved with the layout");
+    }
+
+    /// A button made from the right-click `+` on layer 1 lands on that layer,
+    /// at the clicked place and page.
+    #[test]
+    fn a_right_click_placed_cell_also_lands_on_the_layer_shown() {
+        let door = FakeDoor::new();
+        let mut state = PanelState::default();
+        (state.surface.layer, state.shown_page) = (1, 2);
+        let key = create_controller_button(&door, &mut state, "g", Some(AddPlace { page: 2, x: 6, y: 0 }));
+        let cell = format!("ctrl:{key}");
+        assert_eq!(state.layout.layer_of(&cell), 1);
+        assert_eq!(state.layout.pages.get(&cell), Some(&2));
+        assert_eq!(state.layout.places.get(&cell).map(|p| (p[0], p[1])), Some((6, 0)));
+    }
+
+    /// The layer shown is stored beside the page, and read back clamped to the
+    /// layers that exist.
+    #[test]
+    fn the_layer_shown_is_stored_and_restored_clamped() {
+        let run = |stored: u64| {
+            let recorder = dial_grid();
+            recorder.respond(
+                "GET",
+                "/settings",
+                json!({ "grid_page": 0, "grid_layer": stored, "grid_surface": {
+                    "layers": { "sw:up": 1 },
+                    "roles": { "fn-dial-1": { "kind": "fn-dial" } },
+                    "binds": [{ "input": "cc:32", "cell": "fn-dial-1", "dial": "relative" }]
+                } }),
+            );
+            let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+            harness.run();
+            harness.get_by_label("lanes / overlays").click();
+            harness.run();
+            (harness.state_mut().lanes_state_mut().surface.layer, recorder, harness)
+        };
+        assert_eq!(run(1).0, 1, "a stored layer comes back");
+        assert_eq!(run(9).0, 0, "one that no longer exists is the base");
+        let (_, recorder, mut harness) = run(0);
+        crate::input::drain_surface();
+        crate::input::push_surface(crate::input::SurfaceEvent {
+            port: "box".into(),
+            input: "cc:32".into(),
+            edge: metal_midi::Edge::Value { value: 1.0 / 127.0, raw: 1 },
+        });
+        harness.run();
+        let saved = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/settings" && body_of(params)["grid_layer"] == json!(1)
+        });
+        assert!(saved, "turning to a layer stores it");
+    }
+
+    /// The fn dial turned past the last layer opens a new, empty one that is
+    /// stored, and the layer shown is the new one.
+    #[test]
+    fn the_fn_dial_opens_a_stored_empty_layer() {
+        let recorder = dial_grid();
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 0, "grid_surface": {
+                "roles": { "fn-dial-1": { "kind": "fn-dial" } },
+                "binds": [{ "input": "cc:32", "cell": "fn-dial-1", "dial": "relative" }]
+            } }),
+        );
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        crate::input::drain_surface();
+        crate::input::push_surface(crate::input::SurfaceEvent {
+            port: "box".into(),
+            input: "cc:32".into(),
+            edge: metal_midi::Edge::Value { value: 1.0 / 127.0, raw: 1 },
+        });
+        harness.run();
+        let state = harness.state_mut().lanes_state_mut();
+        assert_eq!(state.surface.layer, 1);
+        assert_eq!(state.layout.layer_count, 2, "the new layer is kept, empty");
+        assert!(state.layout.layers.is_empty() && state.layout.pages.is_empty(), "nothing was copied into it");
+        let stored = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/settings" && body_of(params)["grid_surface"]["layer_count"] == json!(2)
+        });
+        assert!(stored, "the layer count is saved with the layout");
+    }
+
+    /// The page bar's own `›` opens a new page past the last one too.
+    #[test]
+    fn the_page_bar_next_opens_a_new_page_past_the_last() {
+        let recorder = dial_grid();
+        recorder.respond("GET", "/settings", json!({ "grid_page": 1, "grid_surface": { "page_count": 2 } }));
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        harness.get_by_label("2/2 ›").click();
+        harness.run();
+        assert_eq!(pages_posted(&recorder).last(), Some(&json!(2)));
+        assert_eq!(harness.state_mut().lanes_state_mut().layout.page_count, 3);
     }
 
     /// The layouts menu: a box's face is made a new layout from its

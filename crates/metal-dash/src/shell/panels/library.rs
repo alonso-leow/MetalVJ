@@ -216,10 +216,6 @@ impl PanelState {
         self.confirm_open = Some((name.to_string(), audio.to_string()));
     }
 
-    /// Test-only: point the browser at a folder without walking to it, the
-    /// same trade `set_confirm_open` above makes for a form the test does
-    /// not want to simulate clicks into.
-    #[cfg(test)]
     /// The rows of the folder listing the panel last read (`GET /fs`), for the
     /// chat's `@` completion; empty until the library has been painted.
     pub(crate) fn mention_files(&self) -> Vec<Value> {
@@ -231,6 +227,10 @@ impl PanelState {
         self.fs = Some(fs);
     }
 
+    /// Test-only: point the browser at a folder without walking to it, the
+    /// same trade `set_confirm_open` above makes for a form the test does
+    /// not want to simulate clicks into.
+    #[cfg(test)]
     pub(crate) fn set_cwd(&mut self, path: &str) {
         self.cwd = PathBuf::from(path);
         self.fs = None;

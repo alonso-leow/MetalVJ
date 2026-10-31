@@ -725,6 +725,7 @@ impl Shell {
         self.chat.prompt_for_test()
     }
 
+    #[cfg(test)]
     pub(crate) fn set_harness_prompt_for_test(&mut self, text: &str) {
         self.chat.set_prompt_for_test(text);
     }

@@ -112,16 +112,17 @@ fn slosh(p: vec2<f32>, time: f32, agitation: f32, hit: f32) -> vec2<f32> {
 // ---------------------------------------------------------------------------
 
 @group(0) @binding(1) var src: texture_2d<f32>;
+//@compute
 @group(0) @binding(2) var dst: texture_storage_2d<rgba16float, write>;
+//@end-compute
 
-@compute @workgroup_size(8, 8, 1)
-fn cs_accumulate(@builtin(global_invocation_id) gid: vec3<u32>) {
+// The accumulate and the blur are plain functions of a texel, so the compute
+// entry points and the fragment ping-pong (solvent_pp.wgsl, for a device with
+// no compute) run the same code.
+fn accumulate_value(texel: vec2<i32>) -> vec4<f32> {
     let size = u32(u.misc.z);
-    if (gid.x >= size || gid.y >= size) {
-        return;
-    }
     let aspect = max(u.misc.x, 0.01);
-    let uv = (vec2<f32>(gid.xy) + 0.5) / f32(size);
+    let uv = (vec2<f32>(texel) + 0.5) / f32(size);
     let p = slosh(frame_point(uv, aspect), u.misc.y, u.look.x, u.look.y);
 
     var wa = 0.0;
@@ -152,8 +153,19 @@ fn cs_accumulate(@builtin(global_invocation_id) gid: vec3<u32>) {
         tb = tb + w * is_b * d.tint.x;
     }
 
-    textureStore(dst, vec2<i32>(gid.xy), vec4<f32>(wa, ta, wb, tb));
+    return vec4<f32>(wa, ta, wb, tb);
 }
+
+//@compute
+@compute @workgroup_size(8, 8, 1)
+fn cs_accumulate(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let size = u32(u.misc.z);
+    if (gid.x >= size || gid.y >= size) {
+        return;
+    }
+    textureStore(dst, vec2<i32>(gid.xy), accumulate_value(vec2<i32>(gid.xy)));
+}
+//@end-compute
 
 // ---------------------------------------------------------------------------
 // pass 2 and 3 — the blur
@@ -165,12 +177,8 @@ fn cs_accumulate(@builtin(global_invocation_id) gid: vec3<u32>) {
 // The edge clamps rather than fading to zero: a wash that reaches the frame
 // edge should stay full-bleed on a projector, not develop a dark border no
 // parameter asked for.
-@compute @workgroup_size(8, 8, 1)
-fn cs_blur(@builtin(global_invocation_id) gid: vec3<u32>) {
+fn blur_value(texel: vec2<i32>) -> vec4<f32> {
     let size = i32(u.misc.z);
-    if (i32(gid.x) >= size || i32(gid.y) >= size) {
-        return;
-    }
     let dir = vec2<i32>(u.sweep.xy);
     let sigma = max(u.misc.w * max(u.sweep.z, 1e-3), 0.05);
     let inv = -0.5 / (sigma * sigma);
@@ -179,12 +187,23 @@ fn cs_blur(@builtin(global_invocation_id) gid: vec3<u32>) {
     var norm = 0.0;
     for (var k = -TAPS; k <= TAPS; k = k + 1) {
         let w = exp(f32(k * k) * inv);
-        let c = clamp(vec2<i32>(gid.xy) + dir * k, vec2<i32>(0), vec2<i32>(size - 1));
+        let c = clamp(texel + dir * k, vec2<i32>(0), vec2<i32>(size - 1));
         sum = sum + textureLoad(src, c, 0) * w;
         norm = norm + w;
     }
-    textureStore(dst, vec2<i32>(gid.xy), sum / norm);
+    return sum / norm;
 }
+
+//@compute
+@compute @workgroup_size(8, 8, 1)
+fn cs_blur(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let size = i32(u.misc.z);
+    if (i32(gid.x) >= size || i32(gid.y) >= size) {
+        return;
+    }
+    textureStore(dst, vec2<i32>(gid.xy), blur_value(vec2<i32>(gid.xy)));
+}
+//@end-compute
 
 // ---------------------------------------------------------------------------
 // pass 4 — the frame

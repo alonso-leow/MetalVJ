@@ -368,10 +368,22 @@ struct Uniform {
     drops: [DropGpu; MAX_DROPS],
 }
 
+/// How the field is built. Compute where the device has it; otherwise the same
+/// `accumulate_value` / `blur_value` drawn by fragment passes (WebGL2).
+enum Stages {
+    Compute {
+        accumulate: wgpu::ComputePipeline,
+        blur: wgpu::ComputePipeline,
+        bgl: wgpu::BindGroupLayout,
+    },
+    PingPong {
+        accumulate: wgpu::RenderPipeline,
+        blur: wgpu::RenderPipeline,
+    },
+}
+
 struct Gpu {
-    accumulate: wgpu::ComputePipeline,
-    blur: wgpu::ComputePipeline,
-    compute_bgl: wgpu::BindGroupLayout,
+    stages: Stages,
     render_pipeline: wgpu::RenderPipeline,
     render_bgl: wgpu::BindGroupLayout,
     /// Ping and pong. `field` is what the render pass reads; `swap` is where
@@ -390,74 +402,88 @@ struct Gpu {
 
 pub struct Solvent {
     gpu: Built<Gpu>,
+    /// Build the field with fragment passes even where compute exists (the
+    /// parity test runs both on one adapter).
+    force_pingpong: bool,
 }
 
 impl Solvent {
     pub fn new() -> Solvent {
-        Solvent { gpu: Built::default() }
+        Solvent { gpu: Built::default(), force_pingpong: false }
     }
 
-    fn build(device: &wgpu::Device, format: wgpu::TextureFormat) -> Gpu {
-        let shader = crate::shared::build_shader(
-            device,
-            "solvent",
-            include_str!("../../shaders/solvent.wgsl"),
-        );
+    #[cfg(test)]
+    fn pingpong() -> Solvent {
+        Solvent { force_pingpong: true, ..Solvent::new() }
+    }
 
-        // One layout for all three compute dispatches: uniform, a texture to
-        // read, a texture to write. `cs_accumulate` ignores the one it reads.
-        let compute_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("solvent compute bgl"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::StorageTexture {
-                        access: wgpu::StorageTextureAccess::WriteOnly,
-                        format: FIELD_FORMAT,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-            ],
-        });
-        let compute_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("solvent compute layout"),
-            bind_group_layouts: &[Some(&compute_bgl)],
-            immediate_size: 0,
-        });
-        let stage = |entry: &str, label: &str| {
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some(label),
-                layout: Some(&compute_layout),
-                module: &shader,
-                entry_point: Some(entry),
-                compilation_options: Default::default(),
-                cache: None,
-            })
+    fn build(device: &wgpu::Device, format: wgpu::TextureFormat, pingpong: bool) -> Gpu {
+        use crate::shared::sim::{with_compute, without_compute};
+        let src = include_str!("../../shaders/solvent.wgsl");
+        let src = if pingpong {
+            format!("{}\n{}", without_compute(src), include_str!("../../shaders/solvent_pp.wgsl"))
+        } else {
+            with_compute(src)
         };
-        let accumulate = stage("cs_accumulate", "solvent accumulate");
-        let blur = stage("cs_blur", "solvent blur");
+        let shader = crate::shared::build_shader(device, "solvent", &src);
+
+        let compute = (!pingpong).then(|| {
+            // One layout for all three compute dispatches: uniform, a texture to
+            // read, a texture to write. `cs_accumulate` ignores the one it reads.
+            let compute_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("solvent compute bgl"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            format: FIELD_FORMAT,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+            let compute_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("solvent compute layout"),
+                bind_group_layouts: &[Some(&compute_bgl)],
+                immediate_size: 0,
+            });
+            let stage = |entry: &str, label: &str| {
+                device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some(label),
+                    layout: Some(&compute_layout),
+                    module: &shader,
+                    entry_point: Some(entry),
+                    compilation_options: Default::default(),
+                    cache: None,
+                })
+            };
+            let accumulate = stage("cs_accumulate", "solvent accumulate");
+            let blur = stage("cs_blur", "solvent blur");
+            Stages::Compute { accumulate, blur, bgl: compute_bgl }
+        });
 
         let render_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("solvent render bgl"),
@@ -521,6 +547,37 @@ impl Solvent {
             cache: None,
         });
 
+        let stages = compute.unwrap_or_else(|| {
+            let pass = |entry: &str| {
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some(entry),
+                    layout: Some(&render_layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: Some("vs_main"),
+                        buffers: &[],
+                        compilation_options: Default::default(),
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: Some(entry),
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: FIELD_FORMAT,
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                        compilation_options: Default::default(),
+                    }),
+                    primitive: wgpu::PrimitiveState::default(),
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    multiview_mask: None,
+                    cache: None,
+                })
+            };
+            Stages::PingPong { accumulate: pass("fs_accumulate"), blur: pass("fs_blur") }
+        });
+
         let make = |label: &str| {
             device.create_texture(&wgpu::TextureDescriptor {
                 label: Some(label),
@@ -533,7 +590,12 @@ impl Solvent {
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: FIELD_FORMAT,
-                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::TEXTURE_BINDING,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | if pingpong {
+                        wgpu::TextureUsages::RENDER_ATTACHMENT
+                    } else {
+                        wgpu::TextureUsages::STORAGE_BINDING
+                    },
                 view_formats: &[],
             })
         };
@@ -558,9 +620,7 @@ impl Solvent {
         });
 
         Gpu {
-            accumulate,
-            blur,
-            compute_bgl,
+            stages,
             render_pipeline,
             render_bgl,
             field,
@@ -575,10 +635,6 @@ impl Solvent {
 }
 
 impl Model for Solvent {
-    fn needs_compute(&self) -> bool {
-        true
-    }
-
     fn id(&self) -> &'static str {
         "solvent"
     }
@@ -626,7 +682,8 @@ impl Model for Solvent {
             drops: table,
         };
 
-        let gpu = self.gpu.get(format, || Self::build(ctx.device, format));
+        let pingpong = self.force_pingpong || !crate::gpu::device_has_compute(ctx.device);
+        let gpu = self.gpu.get(format, || Self::build(ctx.device, format, pingpong));
         let _ = (&gpu.field, &gpu.swap); // keeps the textures alive alongside their views
 
         // Three uniforms rather than one, because the blur passes differ in
@@ -649,10 +706,22 @@ impl Model for Solvent {
         let u_across = upload([1.0, 0.0, 1.0 / aspect, 0.0], "solvent blur across");
         let u_down = upload([0.0, 1.0, 1.0, 0.0], "solvent blur down");
 
-        let bind = |uniform: &wgpu::Buffer, read: &wgpu::TextureView, write: &wgpu::TextureView| {
+        let bind = |uniform: &wgpu::Buffer, read: &wgpu::TextureView, write: &wgpu::TextureView| match &gpu.stages {
+            // The fragment passes read `read` and are drawn into `write`
+            // outside the bind group; the layout is the render one.
+            Stages::PingPong { .. } => ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("solvent pass bind group"),
+                layout: &gpu.render_bgl,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: uniform.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(read) },
+                    wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::Sampler(&gpu.sampler) },
+                ],
+            }),
+            Stages::Compute { bgl, .. } => {
             ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("solvent compute bind group"),
-                layout: &gpu.compute_bgl,
+                layout: bgl,
                 entries: &[
                     wgpu::BindGroupEntry { binding: 0, resource: uniform.as_entire_binding() },
                     wgpu::BindGroupEntry {
@@ -665,6 +734,7 @@ impl Model for Solvent {
                     },
                 ],
             })
+            }
         };
         // swap ← drops, field ← blur across swap, swap ← blur down field, and
         // the render pass reads swap. Every dispatch reads one texture and
@@ -696,19 +766,45 @@ impl Model for Solvent {
         let groups = FIELD_SIZE.div_ceil(8);
         // Separate passes rather than three dispatches in one, so the
         // read-after-write between them is a pass boundary and not a question
-        // about how a usage scope is tracked.
-        for (label, pipeline, group) in [
-            ("solvent accumulate pass", &gpu.accumulate, &deal),
-            ("solvent blur across pass", &gpu.blur, &across),
-            ("solvent blur down pass", &gpu.blur, &down),
+        // about how a usage scope is tracked. `write` is only used by the
+        // fragment path (a compute bind group already holds it).
+        for (label, accumulate, group, write) in [
+            ("solvent accumulate pass", true, &deal, &gpu.swap_store),
+            ("solvent blur across pass", false, &across, &gpu.field_store),
+            ("solvent blur down pass", false, &down, &gpu.swap_store),
         ] {
-            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some(label),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(pipeline);
-            pass.set_bind_group(0, group, &[]);
-            pass.dispatch_workgroups(groups, groups, 1);
+            match &gpu.stages {
+                Stages::Compute { accumulate: ap, blur: bp, .. } => {
+                    let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                        label: Some(label),
+                        timestamp_writes: None,
+                    });
+                    pass.set_pipeline(if accumulate { ap } else { bp });
+                    pass.set_bind_group(0, group, &[]);
+                    pass.dispatch_workgroups(groups, groups, 1);
+                }
+                Stages::PingPong { accumulate: ap, blur: bp } => {
+                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some(label),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: write,
+                            resolve_target: None,
+                            depth_slice: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                        multiview_mask: None,
+                    });
+                    pass.set_pipeline(if accumulate { ap } else { bp });
+                    pass.set_bind_group(0, group, &[]);
+                    pass.draw(0..3, 0..1);
+                }
+            }
         }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -943,5 +1039,27 @@ mod tests {
             assert!(coverage > 0.02, "only {coverage} of liquid in the frame at t={t}");
             t += 0.37;
         }
+    }
+
+    /// The fragment ping-pong (what a WebGL2 device runs) draws the same frame
+    /// as the compute path on the same adapter.
+    #[test]
+    fn the_pingpong_path_matches_the_compute_frame() {
+        use crate::shared::scaffold::testing::frame;
+        let gpu = crate::gpu::Gpu::new_headless();
+        if !crate::gpu::device_has_compute(&gpu.device) {
+            eprintln!("no compute here: only the ping-pong path exists on this adapter");
+            return;
+        }
+        let f = row();
+        let times = [0.3, 0.8, 1.4];
+        let a = frame(&gpu, &mut Solvent::new(), &f, &times);
+        let b = frame(&gpu, &mut Solvent::pingpong(), &f, &times);
+        let diff: Vec<u8> = a.iter().zip(&b).map(|(x, y)| x.abs_diff(*y)).collect();
+        let mean = diff.iter().map(|d| *d as f32).sum::<f32>() / diff.len() as f32;
+        let max = diff.iter().copied().max().unwrap_or(0);
+        println!("solvent parity: mean {mean:.4} max {max}");
+        assert!(a.iter().any(|v| *v > 8), "the frame is not black");
+        assert!(mean < 0.5, "ping-pong drifted from compute: mean {mean:.3} max {max}");
     }
 }

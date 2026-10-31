@@ -838,6 +838,57 @@ pub fn is_face_cell(key: &str) -> bool {
     key.starts_with("hw:") || key.starts_with("ctrl:hw:") || key.starts_with("ctrl:key:")
 }
 
+/// How long and how lively the universe swap is (see [`swap_visual`]); the
+/// numbers come from the theme.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SwapTiming {
+    /// Seconds from the first old payload leaving to the last new one settled.
+    pub total: f32,
+    /// The share of each half (out, in) that spreads the cells' start times.
+    pub stagger: f32,
+    /// How far a cell shrinks as it fades out (share of its size).
+    pub dip: f32,
+    /// How far a cell overshoots its size as it settles in.
+    pub overshoot: f32,
+}
+
+fn ease_in(t: f32) -> f32 {
+    t * t * t
+}
+
+fn ease_out(t: f32) -> f32 {
+    1.0 - (1.0 - t).powi(3)
+}
+
+/// The `(alpha, scale)` of the payload in grid position `(col, row)` at `t`
+/// seconds into a universe swap. The old payloads go first, column by column
+/// (right to left when `dir > 0`, the index increased; left to right when it
+/// decreased), the rows of a column top to bottom; then the new ones come in
+/// the same order. Out: ease-in fade while shrinking by `dip`; in: ease-out
+/// fade while growing from that size with a slight overshoot. Before the swap
+/// and after it a payload is fully shown at its own size. Which universe's
+/// payload to paint is `t < timing.total / 2` (old) or not (new).
+pub fn swap_visual(t: f32, col: usize, row: usize, cols: usize, rows: usize, dir: i32, tm: &SwapTiming) -> (f32, f32) {
+    let (cols, rows) = (cols.max(1), rows.max(1));
+    let col_rank = if dir > 0 { cols - 1 - col.min(cols - 1) } else { col.min(cols - 1) };
+    let rank = (col_rank * rows + row.min(rows - 1)) as f32;
+    let half = tm.total * 0.5;
+    let span = half * tm.stagger.clamp(0.0, 0.95);
+    let each = half - span;
+    let delay = span * rank / (cols * rows).saturating_sub(1).max(1) as f32;
+    if t >= tm.total {
+        return (1.0, 1.0);
+    }
+    if t < half {
+        let k = if each > 0.0 { ((t - delay) / each).clamp(0.0, 1.0) } else { (t >= delay) as u8 as f32 };
+        (1.0 - ease_in(k), 1.0 - tm.dip * ease_in(k))
+    } else {
+        let k = if each > 0.0 { ((t - half - delay) / each).clamp(0.0, 1.0) } else { (t - half >= delay) as u8 as f32 };
+        let e = ease_out(k);
+        (e, (1.0 - tm.dip) + tm.dip * e + tm.overshoot * (std::f32::consts::PI * k).sin())
+    }
+}
+
 /// Where one cell landed: its page and its corner, in sub-cells.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Placed {
@@ -1498,6 +1549,58 @@ pub fn step_ticks(current: usize, n: i32) -> usize {
 
 #[cfg(test)]
 mod tests {
+
+    fn timing() -> SwapTiming {
+        SwapTiming { total: 0.4, stagger: 0.6, dip: 0.1, overshoot: 0.06 }
+    }
+
+    /// The first time the cell's old payload is fully gone.
+    fn gone_at(col: usize, row: usize, dir: i32) -> f32 {
+        let tm = timing();
+        (0..=2000).map(|i| i as f32 * tm.total / 4000.0).find(|&t| swap_visual(t, col, row, 4, 3, dir, &tm).0 <= 0.0).unwrap()
+    }
+
+    /// Columns leave right to left when the index grows, left to right when it
+    /// shrinks, and inside a column the rows go top to bottom.
+    #[test]
+    fn the_swap_staggers_by_column_then_row_in_the_direction_of_travel() {
+        assert!(gone_at(3, 0, 1) < gone_at(2, 0, 1) && gone_at(2, 0, 1) < gone_at(0, 0, 1), "increasing: right first");
+        assert!(gone_at(0, 0, -1) < gone_at(1, 0, -1) && gone_at(1, 0, -1) < gone_at(3, 0, -1), "decreasing: left first");
+        assert!(gone_at(2, 0, 1) < gone_at(2, 1, 1) && gone_at(2, 1, 1) < gone_at(2, 2, 1), "rows in order");
+        assert!(gone_at(2, 2, 1) < gone_at(1, 0, 1), "a whole column before the next");
+    }
+
+    /// The fade starts and ends where it should: full before, gone in the
+    /// middle, full after; the new payloads come in in the same order.
+    #[test]
+    fn the_swap_fade_has_ease_endpoints() {
+        let tm = timing();
+        assert_eq!(swap_visual(0.0, 3, 0, 4, 3, 1, &tm), (1.0, 1.0), "first out cell has not started at t=0");
+        let (a, _) = swap_visual(tm.total / 2.0, 0, 2, 4, 3, 1, &tm);
+        assert_eq!(a, 0.0, "everything is gone at the turn");
+        assert_eq!(swap_visual(tm.total, 0, 2, 4, 3, 1, &tm), (1.0, 1.0));
+        assert_eq!(swap_visual(tm.total + 1.0, 1, 1, 4, 3, -1, &tm), (1.0, 1.0));
+        let first_in = |col| (0..=2000).map(|i| tm.total / 2.0 + i as f32 * tm.total / 4000.0).find(|&t| swap_visual(t, col, 0, 4, 3, 1, &tm).0 > 0.0).unwrap();
+        assert!(first_in(3) < first_in(0), "new payloads appear right to left too");
+        // Ease: slow start (cubic), so a quarter of the way is well under a quarter faded.
+        assert!(ease_in(0.25) < 0.25 && ease_out(0.25) > 0.25 && (ease_in(1.0), ease_out(1.0), ease_in(0.0), ease_out(0.0)) == (1.0, 1.0, 0.0, 0.0));
+    }
+
+    /// The scale never leaves [1 - dip, 1 + overshoot] and does overshoot.
+    #[test]
+    fn the_swap_scale_stays_within_the_dip_and_overshoot() {
+        let tm = timing();
+        let mut top = 0.0f32;
+        for (c, r) in [(0, 0), (3, 2), (1, 1)] {
+            for i in 0..=800 {
+                let (a, s) = swap_visual(i as f32 * tm.total / 800.0, c, r, 4, 3, 1, &tm);
+                assert!((0.0..=1.0).contains(&a));
+                assert!(s >= 1.0 - tm.dip - 1e-5 && s <= 1.0 + tm.overshoot + 1e-5, "scale {s}");
+                top = top.max(s);
+            }
+        }
+        assert!(top > 1.0, "a settling cell overshoots a little");
+    }
     use super::*;
 
     const SPT: f64 = 0.125;

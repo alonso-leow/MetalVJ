@@ -333,6 +333,14 @@ pub struct Theme {
     /// How far down a piano cell its black keys reach, as a share of its
     /// height.
     pub piano_black_depth: f32,
+    /// The universe swap on the overlays grid: its whole length in seconds
+    /// (old payloads out, then new ones in), the share of each half spent
+    /// staggering the cells (column by column, then row by row), and how far a
+    /// cell's scale dips and overshoots (as a share of its size).
+    pub swap_total_s: f32,
+    pub swap_stagger: f32,
+    pub swap_dip: f32,
+    pub swap_overshoot: f32,
     /// Height, in points, of the overlays grid's pager row (`‹ ● ●  ›`) under
     /// the cells. Reserved even when there is one page, so the grid's row
     /// count is the same on every page and the panel does not jump.
@@ -771,6 +779,10 @@ impl Theme {
             mask_canvas_width: 160.0,
             overlay_cell: Vec2::new(96.0, 96.0),
             piano_black_depth: 0.6,
+            swap_total_s: 0.4,
+            swap_stagger: 0.6,
+            swap_dip: 0.1,
+            swap_overshoot: 0.06,
             pager_height: 22.0,
             pager_dot: 3.0,
             colour_presets: [
@@ -991,6 +1003,10 @@ impl Theme {
             mask_canvas_width: 160.0,
             overlay_cell: Vec2::new(96.0, 96.0),
             piano_black_depth: 0.6,
+            swap_total_s: 0.4,
+            swap_stagger: 0.6,
+            swap_dip: 0.1,
+            swap_overshoot: 0.06,
             pager_height: 22.0,
             pager_dot: 3.0,
             colour_presets: [
@@ -1287,6 +1303,10 @@ impl Theme {
             mask_canvas_width: 220.0,
             overlay_cell: Vec2::new(140.0, 140.0),
             piano_black_depth: 0.6,
+            swap_total_s: 0.4,
+            swap_stagger: 0.6,
+            swap_dip: 0.1,
+            swap_overshoot: 0.06,
             pager_height: 28.0,
             pager_dot: 4.0,
             colour_presets: [
@@ -1584,6 +1604,16 @@ impl Theme {
     /// hairline so it reads as a ring.
     pub fn node_select_stroke(&self) -> Stroke {
         Stroke::new(self.accent_stroke * 2.0, self.node_select)
+    }
+
+    /// The swap animation's timing, for [`crate::surface::swap_visual`].
+    pub fn swap_timing(&self) -> crate::surface::SwapTiming {
+        crate::surface::SwapTiming {
+            total: self.swap_total_s,
+            stagger: self.swap_stagger,
+            dip: self.swap_dip,
+            overshoot: self.swap_overshoot,
+        }
     }
 
     /// The reveal's pulse ring (plan "Surface sources"): the accent, one

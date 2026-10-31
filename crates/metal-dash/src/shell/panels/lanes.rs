@@ -246,6 +246,10 @@ pub struct PanelState {
     /// universe up (the layout then wants saving).
     shown_page: usize,
     layout_dirty: bool,
+    /// The universe `(page, layer)` painted last frame, and the swap
+    /// animation a change of it started.
+    universe: Option<(usize, usize)>,
+    swap: Option<Swap>,
     /// The note each piano cell's pointer is down on.
     piano_held: HashMap<String, Option<u8>>,
     /// CC-mode pads above half, by input id: a CC pad's level becomes edges.
@@ -416,6 +420,8 @@ impl Default for PanelState {
             dial_acc: HashMap::new(),
             shown_page: 0,
             layout_dirty: false,
+            universe: None,
+            swap: None,
             piano_held: HashMap::new(),
             cc_down: BTreeSet::new(),
             hw_down: BTreeSet::new(),
@@ -2729,7 +2735,7 @@ fn overlays_grid(
     state_val: &Value,
     open_graph: Option<&str>,
 ) {
-    let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, state_val);
+    let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, state_val, None);
     let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
     state.driven_pass = Some(ui.ctx().cumulative_pass_nr());
     // What a face's control can be given from the grid's own buttons.
@@ -2742,6 +2748,25 @@ fn overlays_grid(
     // The hardware first: what the controller sent since the last frame, and
     // the loops' playback, fire before this frame paints what they changed.
     drive_surface(ui, door, state, &cells, page, pages, &wired);
+    // A change of universe (page, layer), by any route, starts the swap.
+    let now = ui.input(|i| i.time);
+    let here = (page, state.surface.layer);
+    if let Some(prev) = state.universe.filter(|p| *p != here) {
+        let dir = if here.0 != prev.0 { (here.0 as i32 - prev.0 as i32).signum() } else { (here.1 as i32 - prev.1 as i32).signum() };
+        state.swap = Some(Swap { start: now, from: prev, dir });
+    }
+    state.universe = Some(here);
+    let timing = theme.swap_timing();
+    let swap_t = state.swap.map(|s| (now - s.start) as f32);
+    if swap_t.is_some_and(|t| t >= timing.total) {
+        state.swap = None;
+    }
+    let swap = state.swap.zip(swap_t);
+    if swap.is_some() {
+        ui.ctx().request_repaint();
+    }
+    // The payloads leaving are painted from the universe left, while it lasts.
+    let old = swap.filter(|(_, t)| *t < timing.total * 0.5).map(|(s, _)| grid_plan(door, state, state_val, Some(s.from)));
     if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
         apply_overlay_drop(door, state, &drag);
     }
@@ -2774,7 +2799,22 @@ fn overlays_grid(
                 }
             }
             let rect = unit_rect(origin, cell, gap, p.x, p.y, p.w, p.h);
-            paint_cell(ui, theme, door, state, c, rect, open_graph, *slot);
+            let vis = swap_vis(swap, c, p, cols, rows, &timing);
+            // Before the turn the new payload waits for the old one to leave.
+            if vis.is_some() && swap.is_some_and(|(_, t)| t < timing.total * 0.5) {
+                continue;
+            }
+            paint_cell_swapping(ui, theme, door, state, c, rect, open_graph, *slot, vis, false);
+        }
+        if let Some(old) = &old {
+            for ((c, p), (pin, slot)) in old.cells.iter().zip(&old.placed).zip(old.pins.iter().zip(&old.slot_of)) {
+                if p.page == usize::MAX || (p.page != old.page && *pin != crate::surface::Pin::Every) {
+                    continue;
+                }
+                let Some(vis) = swap_vis(swap, c, p, cols, rows, &timing) else { continue };
+                let rect = unit_rect(origin, cell, gap, p.x, p.y, p.w, p.h);
+                paint_cell_swapping(ui, theme, door, state, c, rect, open_graph, *slot, Some(vis), true);
+            }
         }
         // A box's face: its empty slots paint as the control they are (a pad
         // still takes a dropped card), and its mark where the panel has it.
@@ -2848,6 +2888,62 @@ fn overlays_grid(
     cell_editor_popup(ui, theme, door, state, &cells, page, pages);
 }
 
+/// A universe change being shown: when it started, the universe it left and
+/// which way the index went (positive: up). Visual only — the grid already
+/// answers presses in the new universe.
+#[derive(Clone, Copy, Debug)]
+struct Swap {
+    start: f64,
+    from: (usize, usize),
+    dir: i32,
+}
+
+/// The `(alpha, scale)` a cell paints with mid-swap; control cells (roles) and
+/// the fixed ones do not swap.
+fn swap_vis(
+    swap: Option<(Swap, f32)>,
+    cell: &Cell,
+    p: &crate::surface::Placed,
+    cols: usize,
+    rows: usize,
+    timing: &crate::surface::SwapTiming,
+) -> Option<(f32, f32)> {
+    let (s, t) = swap?;
+    if matches!(cell.kind, CellKind::Role { .. }) || cell.is_fixed() {
+        return None;
+    }
+    let u = crate::surface::UNITS;
+    Some(crate::surface::swap_visual(t, p.x / u, p.y / u, cols, rows, s.dir, timing))
+}
+
+/// Paints one cell, faded and squished by `vis` `(alpha, scale)` when it is
+/// swapping; a `passive` one (a leaving payload) takes no input.
+#[allow(clippy::too_many_arguments)]
+fn paint_cell_swapping(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    cell: &Cell,
+    rect: Rect,
+    open_graph: Option<&str>,
+    slot: Option<usize>,
+    vis: Option<(f32, f32)>,
+    passive: bool,
+) {
+    let Some((alpha, scale)) = vis else {
+        return paint_cell(ui, theme, door, state, cell, rect, open_graph, slot);
+    };
+    let rect = Rect::from_center_size(rect.center(), rect.size() * scale);
+    ui.scope(|ui| {
+        ui.set_opacity(alpha);
+        if passive {
+            ui.disable();
+        }
+        paint_cell(ui, theme, door, state, cell, rect, open_graph, slot);
+    });
+}
+
 /// The grid as laid out this frame: the cells in order, where each may land
 /// and where it did, how many pages there are and which one is shown.
 struct GridPlan {
@@ -2866,7 +2962,7 @@ struct GridPlan {
     slot_of: Vec<Option<usize>>,
 }
 
-fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan {
+fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value, at: Option<(usize, usize)>) -> GridPlan {
     let cells = grid_cells(door, state, state_val);
 
     // Fixed columns × rows (`grid_surface`), in sub-cells so the halves and
@@ -2877,7 +2973,7 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
         .iter()
         .map(|c| (crate::surface::units(c.span.0), crate::surface::units(c.span.1)))
         .collect();
-    let layer = state.surface.layer;
+    let layer = at.map_or(state.surface.layer, |u| u.1);
     let in_layer = |c: &Cell| matches!(c.kind, CellKind::Role { .. }) || c.is_fixed() || state.layout.layer_of(&c.key) == layer;
     let (pins, placed, slot_of) = if state.layout.device.is_some() {
         // A box's face: its controls where the panel has them, the grid's
@@ -2964,9 +3060,9 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
     // The stored page, clamped to the pages this layout holds: a removed
     // button or a trigger stepping past an end cannot strand it. The clamped
     // value is written back so the stored and shown page agree.
-    let stored = stored_page(door);
+    let stored = at.map_or_else(|| stored_page(door), |u| u.0 as i64);
     let page = stored.clamp(0, pages as i64 - 1) as usize;
-    if stored != page as i64 {
+    if at.is_none() && stored != page as i64 {
         set_stored_page(door, page);
     }
 
@@ -3006,7 +3102,7 @@ pub(crate) fn drive_offscreen(ui: &Ui, door: &dyn Call, state: &mut PanelState) 
     }
     state.refresh(door);
     let state_val = get(door, "GET", "/state", &[]).unwrap_or_else(|| json!({}));
-    let plan = grid_plan(door, state, &state_val);
+    let plan = grid_plan(door, state, &state_val, None);
     drive_surface(ui, door, state, &plan.cells, plan.page, plan.pages, &plan.wired);
     if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
         apply_overlay_drop(door, state, &drag);
@@ -9476,6 +9572,53 @@ fn without_an_open_graph_create_button_says_so() {
         assert!(on(&recorder, "up"), "the same pad fires layer 1's payload");
     }
 
+    /// A change of layer starts the swap animation of the payloads, a press
+    /// during it already fires the new universe, and it ends on its own.
+    #[test]
+    fn a_layer_change_runs_the_swap_animation_and_it_ends() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond("GET", "/switch", json!({ "switches": [
+            { "id": "base", "name": "basebtn", "kind": "toggle", "on": false },
+            { "id": "up", "name": "upbtn", "kind": "toggle", "on": false }
+        ] }));
+        recorder.respond(
+            "GET",
+            "/settings",
+            json!({ "grid_page": 0, "grid_surface": {
+                "layers": { "sw:up": 1 },
+                "roles": { "fn-1": { "kind": "fn" } },
+                "binds": [
+                    { "input": "note:60", "page": 0, "cell": "sw:base" },
+                    { "input": "note:60", "page": 0, "layer": 1, "cell": "sw:up" }
+                ]
+            } }),
+        );
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 900.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        assert!(harness.state_mut().lanes_state_mut().swap.is_none(), "nothing swaps at rest");
+        harness.get_by_label("fn").click();
+        harness.step();
+        harness.step();
+        let swap = harness.state_mut().lanes_state_mut().swap;
+        assert!(swap.is_some_and(|s| s.dir > 0 && s.from == (0, 0)), "the layer change started the swap: {swap:?}");
+        crate::input::drain_surface();
+        for edge in [metal_midi::Edge::Press { velocity: 1.0 }, metal_midi::Edge::Release] {
+            crate::input::push_surface(crate::input::SurfaceEvent { port: "box".into(), input: "note:60".into(), edge });
+        }
+        harness.step();
+        let fired = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": "up" })
+        });
+        assert!(fired, "a press mid-animation fires the new universe");
+        harness.run();
+        assert!(harness.state_mut().lanes_state_mut().swap.is_none(), "the animation ends");
+        assert!(harness.query_by_label("upbtn").is_some(), "the new payload is shown");
+    }
+
     /// A 16-pad face reuses its pads across layers: each layer's buttons fill
     /// all of them in turn, and a pad press fires the payload of the layer up.
     #[test]
@@ -9506,7 +9649,7 @@ fn without_an_open_graph_create_button_says_so() {
         harness.get_by_label("lanes / overlays").click();
         harness.run();
         let filled = |st: &PanelState| -> usize {
-            grid_plan(&*recorder, st, &json!({})).filled.iter().filter(|f| **f).count()
+            grid_plan(&*recorder, st, &json!({}), None).filled.iter().filter(|f| **f).count()
         };
         assert_eq!(filled(harness.state_mut().lanes_state_mut()), 16, "layer 0 fills every pad");
         let press = || {

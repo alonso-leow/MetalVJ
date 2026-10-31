@@ -2879,12 +2879,23 @@ fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value) -> GridPlan
                 (None, None) => Pin::Flow,
             })
             .collect();
-        let (mut placed, mut slot_of): (Vec<_>, Vec<_>) =
-            crate::surface::pack_device(&places, &value, &pins, &state.layout.slots).into_iter().unzip();
+        // Only the fn layer up is laid out into the pads, like the free grid:
+        // the same sixteen pads hold each layer's own buttons.
+        let shown: Vec<usize> = (0..cells.len()).filter(|&i| in_layer(&cells[i])).collect();
+        let pick = |v: &[bool]| shown.iter().map(|&i| v[i]).collect::<Vec<_>>();
+        let sub_places: Vec<_> = shown.iter().map(|&i| places[i]).collect();
+        let packed = crate::surface::pack_device(&sub_places, &pick(&value), &shown.iter().map(|&i| pins[i]).collect::<Vec<_>>(), &state.layout.slots);
+        let hidden = crate::surface::Placed { page: usize::MAX, x: 0, y: 0, w: 1, h: 1 };
+        let mut placed = vec![hidden; cells.len()];
+        let mut slot_of: Vec<Option<usize>> = vec![None; cells.len()];
+        for (&i, (p, s)) in shown.iter().zip(packed) {
+            placed[i] = p;
+            slot_of[i] = s;
+        }
         // A face shows only what the operator gave its controls: the grid's
         // own buttons wait in each control's menu ([`slot_menu`]).
         for (i, at) in places.iter().enumerate() {
-            if at.is_none() || !in_layer(&cells[i]) {
+            if at.is_none() {
                 placed[i].page = usize::MAX;
                 slot_of[i] = None;
             }
@@ -9174,6 +9185,65 @@ fn without_an_open_graph_create_button_says_so() {
         harness.run();
         assert!(on(&recorder, "up"), "the same pad fires layer 1's payload");
     }
+
+    /// A 16-pad face reuses its pads across layers: each layer's buttons fill
+    /// all of them in turn, and a pad press fires the payload of the layer up.
+    #[test]
+    fn a_face_lays_out_only_the_layer_up_into_its_pads() {
+        let mut face = crate::surface::Layout::default();
+        face.apply_device(&metal_midi::devices::device("flkey-mini").unwrap());
+        let pads: Vec<usize> = (0..face.slots.len()).filter(|&i| face.slots[i].kind == crate::surface::SlotKind::Pad).collect();
+        assert_eq!(pads.len(), 16);
+        let mut switches = Vec::new();
+        for (layer, tag) in [(0usize, "a"), (1, "b")] {
+            for (n, &s) in pads.iter().enumerate() {
+                let key = format!("sw:{tag}{n}");
+                face.places.insert(key.clone(), face.slots[s].rect);
+                if layer > 0 {
+                    face.layers.insert(key, layer);
+                }
+                switches.push(json!({ "id": format!("{tag}{n}"), "name": format!("{tag}{n}"), "kind": "toggle", "on": false }));
+            }
+        }
+        let first_input = face.slots[pads[0]].input.clone().unwrap();
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+        recorder.respond("GET", "/switch", json!({ "switches": switches }));
+        recorder.respond("GET", "/settings", json!({ "grid_page": 0, "grid_surface": face.to_value() }));
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        let filled = |st: &PanelState| -> usize {
+            grid_plan(&*recorder, st, &json!({})).filled.iter().filter(|f| **f).count()
+        };
+        assert_eq!(filled(harness.state_mut().lanes_state_mut()), 16, "layer 0 fills every pad");
+        let press = || {
+            crate::input::drain_surface();
+            crate::input::push_surface(crate::input::SurfaceEvent {
+                port: "FLkey Mini".into(),
+                input: first_input.clone(),
+                edge: metal_midi::Edge::Press { velocity: 1.0 },
+            });
+        };
+        let on = |id: &str| {
+            recorder.calls.borrow().iter().any(|(m, p, params)| {
+                m == "POST" && p == "/switch" && body_of(params) == json!({ "op": "on", "id": id })
+            })
+        };
+        press();
+        harness.run();
+        assert!(on("a0") && !on("b0"));
+        harness.state_mut().lanes_state_mut().surface.layer = 1;
+        harness.run();
+        assert_eq!(filled(harness.state_mut().lanes_state_mut()), 16, "layer 1 fills every pad too");
+        press();
+        harness.run();
+        assert!(on("b0"), "the same pad fires layer 1's payload");
+    }
+
+
 
     /// The fn dial turned past the last layer opens a new, empty one that is
     /// stored, and the layer shown is the new one.

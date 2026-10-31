@@ -744,7 +744,7 @@ mod tests {
         }] }));
         let theme = Theme::phosphor();
         let mut h = Harness::builder()
-            .with_size(egui::Vec2::new(640.0, 400.0))
+            .with_size(egui::Vec2 { x: 640.0, y: 400.0 })
             .build_ui_state(
                 |ui, s: &mut PanelState| paint_devices(ui, &theme, s),
                 state,

@@ -245,6 +245,13 @@ fn networked(
             }
             None => (400, json!({ "error": "missing song" })),
         },
+        // The render farm (`farm_net.rs`): submit a `/export/video` request to be
+        // split into shards, and read the queue.
+        ("POST", "/farm/submit") => match net.club.farm_submit(body) {
+            Ok(id) => (202, json!({ "job": id })),
+            Err(e) => (400, json!({ "error": e })),
+        },
+        ("GET", "/farm") => (200, club.farm_report()),
         ("GET", "/graph/pull") | ("GET", "/model/pull") => {
             let (kind, field) = if path == "/graph/pull" { (crate::pull::Kind::Graph, "graph") } else { (crate::pull::Kind::Model, "model") };
             match arg(body, query, field) {

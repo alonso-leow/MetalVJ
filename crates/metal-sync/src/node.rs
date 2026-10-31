@@ -141,6 +141,7 @@ pub async fn run(opts: NodeOpts) -> Result<()> {
     let state = Arc::new(Mutex::new(
         SyncState::new(node_id.clone(), paths.data.clone()).with_config(config_toml),
     ));
+    let config_toml_for_farm = metal_config::default_path(&paths.config_dir);
     let engine_opts = EngineOpts {
         name: cfg.name.clone(),
         peers: cfg.peers.clone(),
@@ -153,6 +154,10 @@ pub async fn run(opts: NodeOpts) -> Result<()> {
             .join_hold_secs
             .map(std::time::Duration::from_secs)
             .unwrap_or(crate::engine::DEFAULT_HOLD_TIMEOUT),
+        // `[farm]` in the central config.toml (conductor, shard size, beats).
+        farm: metal_config::Config::load(&config_toml_for_farm)
+            .map(|c| crate::farm_net::FarmCfg::from(&c.farm))
+            .unwrap_or_default(),
     };
     let (engine, net) = SyncEngine::spawn_with(
         secret,

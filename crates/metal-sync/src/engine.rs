@@ -135,6 +135,8 @@ pub struct EngineOpts {
     /// How long the hold waits for the club before releasing. A club that
     /// stays unreachable must not stop a node from publishing its own files.
     pub hold_timeout: std::time::Duration,
+    /// The render farm's `[farm]` section (conductor, shard size, beats).
+    pub farm: crate::farm_net::FarmCfg,
 }
 
 impl Default for EngineOpts {
@@ -148,6 +150,7 @@ impl Default for EngineOpts {
             local_only: false,
             hold_joiner: true,
             hold_timeout: DEFAULT_HOLD_TIMEOUT,
+            farm: crate::farm_net::FarmCfg::default(),
         }
     }
 }
@@ -262,6 +265,7 @@ impl SyncEngine {
             discovered: Mutex::new(BTreeMap::new()),
             pulls: Mutex::new(BTreeMap::new()),
             stats: Mutex::new(crate::stats::StatsBook::default()),
+            farm: crate::farm_net::FarmHandle::load(opts.farm.clone(), &data_root),
         });
 
         let router = Router::builder(endpoint.clone())
@@ -271,9 +275,12 @@ impl SyncEngine {
             .accept(crate::pair::ALPN, PairProtocol { club: Arc::clone(&club) })
             .accept(crate::frame::ALPN, FrameProtocol { club: Arc::clone(&club) })
             .accept(crate::stats::ALPN, crate::stats::StatsProtocol { club: Arc::clone(&club) })
+            .accept(crate::farm_net::ALPN, crate::farm_net::FarmProtocol { club: Arc::clone(&club) })
             .spawn();
         let mut tasks = Tasks::default();
         tasks.0.push(spawn_stats_tick(endpoint.clone(), Arc::clone(&club)));
+        tasks.0.push(crate::farm_net::spawn_conductor(Arc::clone(&club)));
+        tasks.0.push(crate::farm_net::spawn_worker(endpoint.clone(), Arc::clone(&club)));
 
         if opts.mdns {
             tasks.0.extend(spawn_mdns(&endpoint, Arc::clone(&club)));

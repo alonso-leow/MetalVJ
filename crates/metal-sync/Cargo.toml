@@ -16,6 +16,8 @@ path = "src/main.rs"
 metal-graph = { path = "../metal-graph" }
 metal-schema = { path = "../metal-schema" }
 metal-config = { path = "../metal-config" }
+# Joining a farm export's shards goes through the ffmpeg muxer `metal-ingest` owns.
+metal-ingest = { path = "../metal-ingest" }
 tokio = { version = "1", features = ["full"] }
 # O.7b: the `stun-rs`/`precis_core` conflict that kept this commented out came
 # from `iroh 0.22`. The 1.x line does not depend on either — checked against the

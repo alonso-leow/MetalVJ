@@ -61,35 +61,16 @@ use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{
     field_row, label_row, num, panel_head, section as kit_section, section_heading,
-    segmented, toggle_row,
+    toggle_row,
 };
+use crate::shell::components::choice;
 use crate::shell::i18n::{tr, trf};
 use crate::shell::panels::Selection;
 
 /// The `section_states` key of the lanes layer card's Layer section. The
-/// header reuses `tr("layer")`; the key is distinct so opening the card's
+/// header reuses `tr("Layer")`; the key is distinct so opening the card's
 /// section never toggles the node browser's own `layer` section.
 const LAYER_CARD_SECTION: &str = "lanes/layer-card";
-
-/// A section key as the properties panel paints it: `Layer` and
-/// `Effects Chain` are title-cased (2026-10-31), other section keys keep
-/// their translated text because they are ordinary words, not proper names.
-fn section_title(key: &str) -> String {
-    let text = crate::shell::i18n::tr_dyn(key);
-    if !matches!(key, "layer" | "effects chain") {
-        return text;
-    }
-    text.split_whitespace()
-        .map(|word| {
-            let mut chars = word.chars();
-            match chars.next() {
-                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                None => String::new(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
 
 /// The one kind of the `Stack` family — spelled once in `metal-graph` and read
 /// here as the same constant, not a second literal that could drift.
@@ -571,7 +552,7 @@ impl PanelState {
             .section_states
             .entry((String::new(), String::new(), LAYER_CARD_SECTION.to_string()))
             .or_insert(true);
-        kit_section(ui, theme, &section_title("layer"), &mut open);
+        kit_section(ui, theme, tr("Layer"), &mut open);
         self.section_states
             .insert((String::new(), String::new(), LAYER_CARD_SECTION.to_string()), open);
         if !open {
@@ -684,7 +665,7 @@ impl PanelState {
         if kind.starts_with("gen.") && !surfaces::parts(door, &kind).is_empty() {
             let at = keys
                 .iter()
-                .position(|k| *k == crate::shell::i18n::tr_key("effects chain"))
+                .position(|k| *k == crate::shell::i18n::tr_key("Effects Chain"))
                 .map_or(keys.len(), |i| i + 1);
             keys.insert(at, crate::shell::i18n::tr_key("surfaces"));
         }
@@ -729,7 +710,7 @@ impl PanelState {
                 )
             } else {
                 i < 2
-                    || *key == crate::shell::i18n::tr_key("effects chain")
+                    || *key == crate::shell::i18n::tr_key("Effects Chain")
                     || *key == crate::shell::i18n::tr_key("surfaces")
                     || *key == crate::shell::i18n::tr_key("parameters")
             };
@@ -738,7 +719,7 @@ impl PanelState {
             // a screen's page shows, and two screens must not share one fold.
             let fold_key = (kind.to_string(), node_id.to_string(), (*key).to_string());
             let mut open = *self.section_states.entry(fold_key).or_insert(default_open);
-            let body = crate::shell::components::card_section(ui, theme, &section_title(key), &mut open, |ui| {
+            let body = crate::shell::components::card_section(ui, theme, key, &mut open, |ui| {
                 let _span = crate::perf::Span::new(*key);
                 self.paint_section(ui, theme, door, gid, node_id, &node, &graph, io.as_ref(), ingest, authored, key)
             });
@@ -806,7 +787,7 @@ impl PanelState {
             };
             let options = [(0usize, tr("AI")), (1, tr("AI FX")), (2, tr("manual"))];
             if label_row(ui, theme, tr("mode"), |ui| {
-                segmented(ui, theme, &mut mode, &options)
+                choice(ui, theme, &mut mode, &options)
             })
             .changed()
             {
@@ -862,7 +843,7 @@ impl PanelState {
                     ui, theme, door, self, gid, node_id, node, graph, io, ingest, authored,
                 );
             }
-            "layer" => {
+            "Layer" => {
                 layer::section(ui, theme, door, gid, node_id, node);
                 // "Renderiza en" rides inside the source's own layer section.
                 render_on::source_section(ui, theme, door, node);
@@ -870,7 +851,7 @@ impl PanelState {
             "surfaces" => surfaces::section(
                 ui, theme, door, gid, node_id, node, graph, &mut self.pending_reveal,
             ),
-            "effects chain" => {
+            "Effects Chain" => {
                 clicked = chain::section(
                     ui, theme, door, gid, node_id, graph, &mut self.pending_reveal,
                 );
@@ -1479,7 +1460,7 @@ fn own_sections(kind: &str) -> Vec<&'static str> {
         return vec![source_math::SECTION];
     }
     if kind.starts_with("gen.") {
-        return vec![crate::shell::i18n::tr_key("layer"), crate::shell::i18n::tr_key("effects chain")];
+        return vec![crate::shell::i18n::tr_key("Layer"), crate::shell::i18n::tr_key("Effects Chain")];
     }
     if kind == "output.device" {
         return vec![crate::shell::i18n::tr_key("output device")];
@@ -1665,6 +1646,9 @@ pub fn paint(
             ui.expand_to_include_rect(ui.max_rect());
             let full_rect = ui.max_rect();
             crate::shell::panels::nodes::paint_ground_grid(ui.painter(), theme, full_rect);
+            // Every control on the panel is a payload control: sharp, black
+            // outline, glass resting fill.
+            theme.payload_style(&mut ui.style_mut().visuals);
             state.ui(
                 ui,
                 theme,
@@ -1707,7 +1691,7 @@ mod tests {
         assert_eq!(own_sections("mask"), vec!["mask"]);
         assert_eq!(own_sections("output.device"), vec!["output device"]);
         assert_eq!(own_sections("script.py"), vec!["script"]);
-        assert_eq!(own_sections("gen.turing"), vec!["layer", "effects chain"]);
+        assert_eq!(own_sections("gen.turing"), vec!["Layer", "Effects Chain"]);
         assert_eq!(own_sections("fx.shake"), vec!["effect"]);
         assert_eq!(own_sections("fx.grade"), vec!["grade", "effect"]);
         assert_eq!(own_sections("fx.texture"), vec!["effect"]);
@@ -1721,7 +1705,7 @@ mod tests {
         assert_eq!(own_sections("audio.live"), vec!["input device"]);
         assert_eq!(own_sections("sensor.yolo"), vec!["sensor"]);
         assert_eq!(own_sections("cam.track"), vec!["camera track"]);
-        assert_eq!(section_keys("gen.turing", false), vec!["layer", "effects chain", "parameters", "loop", "transition in", "transition out"]);
+        assert_eq!(section_keys("gen.turing", false), vec!["Layer", "Effects Chain", "parameters", "loop", "transition in", "transition out"]);
         assert_eq!(section_keys("fx.shake", false), vec!["effect", "parameters", "loop"]);
         assert_eq!(section_keys("fx.grade", false), vec!["grade", "effect", "parameters", "loop"]);
         assert_eq!(section_keys(TEXT_SOURCE_KIND, false), vec!["text", "parameters", "transition in", "transition out"]);
@@ -1971,7 +1955,8 @@ mod tests {
         assert_eq!(posted["config"]["targets"], json!(["gen-0"]));
     }
 
-    /// cable's other end.
+    /// The node card shows the `AI FX` mode dropdown and the From/Kind/Port
+    /// summary; a clicked summary row selects the node at the cable's other end.
     #[test]
     fn the_node_card_shows_the_summary_and_a_row_selects_the_other_node() {
         let recorder = browser_door();
@@ -1982,17 +1967,16 @@ mod tests {
             .set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
 
-        harness.get_by_label("From / To");
+        harness.get_by_label("From");
         harness.get_by_label("Kind");
         harness.get_by_label("Port");
-        harness.get_by_label("AI");
-        harness.get_by_label("AI FX");
-        harness.get_by_label("manual");
+        // The mode is one payload dropdown showing the current choice.
+        harness.get_all_by_value("AI FX").next().expect("the mode dropdown");
 
-        let upstream = harness.get_by_label_contains("← Audio");
+        let upstream = harness.get_by_label("Audio");
         upstream.scroll_to_me();
         harness.run();
-        harness.get_by_label_contains("← Audio").click();
+        harness.get_by_label("Audio").click();
         harness.run();
 
         assert_eq!(
@@ -2356,6 +2340,8 @@ mod tests {
         harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
         // The mode now lives in the node card, always visible.
+        harness.get_all_by_value("AI FX").next().expect("the mode dropdown").click();
+        harness.run();
         harness.get_by_label("AI").click();
         harness.run();
 
@@ -2698,9 +2684,11 @@ mod tests {
         harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
 
-        let projector = harness.get_all_by_label("projector").next().expect("the mapping segment");
-        projector.scroll_to_me();
-        projector.click();
+        let current = harness.get_all_by_value("object").next().expect("the mapping dropdown");
+        current.scroll_to_me();
+        current.click();
+        harness.run();
+        harness.get_all_by_label("projector").next().expect("the mapping option").click();
         harness.run();
         harness.run();
 

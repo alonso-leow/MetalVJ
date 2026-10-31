@@ -168,7 +168,7 @@ pub(crate) fn section(
             })
             .response
     });
-    kv_row(ui, theme, "Layer", |ui| {
+    kv_row(ui, theme, tr("Layer"), |ui| {
         crate::shell::components::combo_box(theme, Id::new("shell/region/properties/overlay-layer"))
             .width(ui.available_width())
             .selected_text((cur_layer.clone()).to_string())

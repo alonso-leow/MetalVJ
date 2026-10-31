@@ -613,7 +613,7 @@ pub(crate) fn import_sections(door: &dyn Call, nodes: &super::nodes::PanelState)
     let fx = Item {
         kind: "fx".to_string(),
         label: "fx".to_string(),
-        family: tr("layer").to_string(),
+        family: tr("Layer").to_string(),
         inputs: vec!["image".to_string()],
         outputs: vec!["image".to_string()],
         tiles: Default::default(),

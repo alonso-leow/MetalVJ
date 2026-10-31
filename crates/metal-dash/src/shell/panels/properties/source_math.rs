@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{label_row, segmented};
+use crate::shell::components::{label_row, choice};
 use crate::shell::i18n::{tr, tr_key};
 
 use super::text::post_text;
@@ -61,7 +61,7 @@ pub(crate) fn section(
             .collect();
         let options: Vec<(usize, &str)> = options.iter().map(|(i, s)| (*i, s.as_str())).collect();
         if label_row(ui, theme, tr("wave"), |ui| {
-            segmented(ui, theme, &mut w, &options)
+            choice(ui, theme, &mut w, &options)
         })
         .changed()
         {
@@ -91,7 +91,7 @@ pub(crate) fn section(
             .map(|(i, s)| (i, s.as_str()))
             .collect();
         if label_row(ui, theme, tr("constant"), |ui| {
-            segmented(ui, theme, &mut sel, &options)
+            choice(ui, theme, &mut sel, &options)
         })
         .changed()
         {
@@ -114,7 +114,7 @@ pub(crate) fn section(
             .collect();
         let options: Vec<(usize, &str)> = options.iter().map(|(i, s)| (*i, s.as_str())).collect();
         if label_row(ui, theme, tr("axis"), |ui| {
-            segmented(ui, theme, &mut a, &options)
+            choice(ui, theme, &mut a, &options)
         })
         .changed()
         {

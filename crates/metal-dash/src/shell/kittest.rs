@@ -646,6 +646,8 @@ mod tests {
             Selection::Node("fx-0".to_string())
         );
 
+        harness.get_by_value("off").click();
+        harness.run();
         harness.get_by_label("reactivo").click();
         harness.run();
 
@@ -2678,6 +2680,8 @@ mod tests {
             .set_selection_for_test(Selection::Node("fx-0".to_string()));
         harness.run();
 
+        harness.get_by_value("off").click();
+        harness.run();
         harness.get_by_label("fijo").click();
         harness.run();
 

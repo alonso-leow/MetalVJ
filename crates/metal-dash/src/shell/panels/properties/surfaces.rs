@@ -18,7 +18,7 @@ use serde_json::{json, Map, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{kv_row, note, segmented, slider_row};
+use crate::shell::components::{kv_row, note, choice, slider_row};
 use crate::shell::i18n::{tr, tr_dyn};
 
 use super::chain::name_of;
@@ -172,7 +172,7 @@ fn part_row(
     ];
     let mut changed = slider_row(ui, theme, tr("mix"), &mut mix, 0.0..=1.0, true).changed();
     if kv_row(ui, theme, tr("mapping"), |ui| {
-        segmented(ui, theme, &mut mapping, &options)
+        choice(ui, theme, &mut mapping, &options)
     })
     .changed()
     {

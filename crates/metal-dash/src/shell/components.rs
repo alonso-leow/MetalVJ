@@ -910,41 +910,65 @@ pub fn num_value(
 // The row renderer lives against `Theme`; no visual value is written down
 // here (gate 2).
 
-/// The leading label of a row, on the kit's fixed [`Theme::label_width`]
-/// column so a stack of rows reads as a table. Weak ink, small face, and
-/// truncated rather than wrapping (a label never pushes its control out of
-/// the row).
-fn row_label(ui: &mut Ui, theme: &Theme, label: &str) {
-    let size = egui::vec2(theme.label_width, ui.spacing().interact_size.y);
-    let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
-    // The key cell: the header's grey, a sharp corner and the card's red
-    // glow offset behind it. Painted at the label's own rect, so the row's
-    // layout is unchanged.
-    ui.painter().rect_filled(
-        rect.translate(egui::vec2(theme.hairline * 0.0, theme.hairline * 2.0)),
-        theme.sharp_corner(),
-        theme.glow,
+/// The glass cell classes — one coherent set drawn from the same [`Theme`]
+/// tokens (`cell_height`, `glass_shapes`, `key_shapes`, `hard_ink`,
+/// `sharp_corner`), so a key, a payload, a glass group and a notice always
+/// agree on height, outline, corners and wash.
+///
+/// Every cell is `cell_height` tall at least, so a row of any mix of them is
+/// equally sized. `shapes` builds the cell's look once its final rect is
+/// known and is slotted *behind* the content, because the content decides how
+/// tall a cell grows.
+fn cell<R>(
+    ui: &mut Ui,
+    theme: &Theme,
+    width: Option<f32>,
+    shapes: fn(&Theme, Rect) -> Vec<egui::Shape>,
+    add: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    let slot = ui.painter().add(egui::Shape::Noop);
+    let width = width.unwrap_or_else(|| ui.available_width()).max(0.0);
+    let out = ui.allocate_ui_with_layout(
+        egui::vec2(width, theme.cell_height()),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.set_width(width);
+            ui.set_min_height(theme.cell_height());
+            add(ui)
+        },
     );
-    ui.painter()
-        .rect_filled(rect, theme.sharp_corner(), theme.panel_head);
-    ui.painter().rect_stroke(
-        rect,
-        theme.sharp_corner(),
-        theme.rule_stroke(),
-        egui::StrokeKind::Inside,
-    );
-    ui.put(
-        rect,
-        egui::Label::new(
-            RichText::new(label)
-                .font(theme.font_small.clone())
-                .color(theme.ink_weak),
-        )
-        .truncate(),
-    );
+    ui.painter().set(slot, egui::Shape::Vec(shapes(theme, out.response.rect)));
+    out.inner
 }
 
-/// A row of a leading label and one control the caller draws, both on the
+/// The standard KEY cell: the header's own grey, sharp corners and a red
+/// shadow offset behind it, so a column of labels reads as the table's left
+/// spine. `width` `None` fills what is left of the row.
+pub fn key_cell<R>(ui: &mut Ui, theme: &Theme, width: Option<f32>, add: impl FnOnce(&mut Ui) -> R) -> R {
+    cell(ui, theme, width, Theme::key_shapes, add)
+}
+
+/// The standard PAYLOAD cell: a black outline and the blurred (glass) wash,
+/// sharp corners, so the node canvas grid reads through it.
+pub fn payload_cell<R>(ui: &mut Ui, theme: &Theme, width: Option<f32>, add: impl FnOnce(&mut Ui) -> R) -> R {
+    cell(ui, theme, width, Theme::payload_shapes, add)
+}
+
+/// A key cell holding one truncated label (weak ink, small face).
+pub fn key_label(ui: &mut Ui, theme: &Theme, width: Option<f32>, label: &str) {
+    key_cell(ui, theme, width, |ui| {
+        // Put at the cell's whole rect so the label (and its accessibility
+        // node) spans the cell, not just its text.
+        let rect = ui.max_rect();
+        ui.put(
+            rect,
+            egui::Label::new(RichText::new(label).font(theme.font_small.clone()).color(theme.ink_weak).strong())
+                .truncate(),
+        );
+    });
+}
+
+/// A row of a leading KEY cell and one PAYLOAD the caller draws, both on the
 /// kit's columns — the shape `number_row`/`slider_row`/`toggle_row` are
 /// built from, exposed for a one-off control (a button, a combo, a swatch).
 /// Returns the inner control's response.
@@ -956,54 +980,12 @@ pub fn label_row(
 ) -> egui::Response {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing = theme.item_gap;
-        row_label(ui, theme, label);
+        key_label(ui, theme, Some(theme.label_width), label);
         // The value column is what the label leaves — never wider, so a
         // control cannot push the row past the panel.
-        let width = ui.available_width().max(0.0);
-        egui::Frame::new()
-            .fill(theme.glass_fill())
-            .stroke(theme.line_stroke(theme.hard_ink()))
-            .corner_radius(theme.sharp_corner())
-            .show(ui, |ui| {
-                ui.allocate_ui_with_layout(
-                    egui::vec2(width, ui.spacing().interact_size.y),
-                    egui::Layout::left_to_right(egui::Align::Center),
-                    |ui| {
-                        ui.set_max_width(width);
-                        add(ui)
-                    },
-                )
-                .inner
-            })
-            .inner
+        payload_cell(ui, theme, None, add)
     })
     .inner
-}
-
-/// The standard key cell of a properties row: the header's own grey, a sharp
-/// corner, and the card's red shadow, so a column of labels reads as the
-/// table's left spine.
-pub fn key_cell<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
-    egui::Frame::new()
-        .fill(theme.panel_head)
-        .stroke(theme.rule_stroke())
-        .corner_radius(theme.sharp_corner())
-        .inner_margin(theme.card_pad)
-        .shadow(theme.card_shadow())
-        .show(ui, add)
-        .inner
-}
-
-/// The standard payload cell: a black hairline, sharp corners and the
-/// translucent glass wash, so the node canvas grid stays visible behind it.
-pub fn payload_cell<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
-    egui::Frame::new()
-        .fill(theme.glass_fill())
-        .stroke(theme.line_stroke(theme.hard_ink()))
-        .corner_radius(theme.sharp_corner())
-        .inner_margin(theme.card_pad)
-        .show(ui, add)
-        .inner
 }
 
 /// The outlined group every properties section sits in: a quiet grey rule
@@ -1081,10 +1063,8 @@ pub fn card_section<R>(
     open: &mut bool,
     add: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    let out = egui::Frame::new()
-        .fill(theme.glass_fill())
-        .stroke(theme.rule_stroke())
-        .corner_radius(theme.sharp_corner())
+    let slot = ui.painter().add(egui::Shape::Noop);
+    let framed = egui::Frame::new()
         .inner_margin(theme.card_pad)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
@@ -1107,10 +1087,10 @@ pub fn card_section<R>(
                 ui.add_space(theme.item_gap.y);
                 add(ui)
             })
-        })
-        .inner;
+        });
+    ui.painter().set(slot, egui::Shape::Vec(theme.group_shapes(framed.response.rect)));
     ui.add_space(theme.card_gap);
-    out
+    framed.inner
 }
 
 /// A key/value row in a card: [`label_row`] by another name, so a new page
@@ -1143,16 +1123,10 @@ pub fn handle_ring(painter: &egui::Painter, theme: &Theme, at: Pos2) {
     painter.circle_stroke(at, theme.hairline * theme.handle_hairlines, theme.accent());
 }
 
-/// A quiet small-face note line (weak ink), wrapped inside its card.
+/// An information line inside a card: the panel's [`notice`] (kept under its
+/// old name for the pages that already call it).
 pub fn note(ui: &mut Ui, theme: &Theme, text: &str) {
-    ui.add(
-        egui::Label::new(
-            RichText::new(text)
-                .font(theme.font_small.clone())
-                .color(theme.ink_weak),
-        )
-        .wrap(),
-    );
+    notice(ui, theme, text);
 }
 
 /// The properties panel's notice: centred bold text with no fill of its own,
@@ -1176,16 +1150,10 @@ pub fn notice(ui: &mut Ui, theme: &Theme, text: &str) {
 pub fn kv_wrap(ui: &mut Ui, theme: &Theme, key: &str, add: impl FnOnce(&mut Ui)) {
     ui.horizontal_top(|ui| {
         ui.spacing_mut().item_spacing = theme.item_gap;
-        row_label(ui, theme, key);
-        let width = ui.available_width().max(0.0);
-        ui.allocate_ui_with_layout(
-            egui::vec2(width, 0.0),
-            egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(true),
-            |ui| {
-                ui.set_max_width(width);
-                add(ui)
-            },
-        );
+        key_label(ui, theme, Some(theme.label_width), key);
+        payload_cell(ui, theme, None, |ui| {
+            ui.horizontal_wrapped(add);
+        });
     });
 }
 
@@ -1301,6 +1269,15 @@ pub fn dropdown<T: PartialEq + Clone>(
     options: &[(T, &str)],
 ) -> egui::Response {
     dropdown_enabled(ui, theme, id, current, options, true)
+}
+
+/// A selectable option set as the standard payload dropdown — what the
+/// properties pages use wherever a config offers a choice (a segmented strip
+/// is for the toolbars, not for a config value). The id is the call site's
+/// next auto id, so rows of the same options do not collide.
+pub fn choice<T: PartialEq + Clone>(ui: &mut Ui, theme: &Theme, current: &mut T, options: &[(T, &str)]) -> egui::Response {
+    let id = ui.next_auto_id();
+    dropdown(ui, theme, id, current, options)
 }
 
 /// [`dropdown`] with an explicit `enabled`.
@@ -2321,7 +2298,7 @@ mod tests {
         let hit = Rc::new(RefCell::new((false, Rect::NOTHING)));
         let state = hit.clone();
         let mut harness = Harness::new_ui(move |ui| {
-            let rect = Rect::from_min_size(ui.max_rect().min, egui::vec2(14.0, 14.0));
+            let rect = Rect::from_min_size(ui.max_rect().min, egui::Vec2::splat(theme.gear_size));
             let r = square_icon_button(ui, &theme, "kit/square", rect, Icon::Settings, theme.panel_head, None);
             let mut s = state.borrow_mut();
             s.0 |= r.clicked();

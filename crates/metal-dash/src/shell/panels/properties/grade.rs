@@ -28,9 +28,9 @@ use serde_json::{json, Map, Value};
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{
-    curve_graph_fixed, grading_wheel_sized, histogram, hue_band_selector, kv_wrap, note, section as kit_section, segmented,
-    slider_tracked, Track,
+    curve_graph_fixed, grading_wheel_sized, histogram, hue_band_selector, kv_wrap, note, section as kit_section, slider_tracked, Track,
 };
+use crate::shell::components::choice;
 use crate::shell::i18n::{tr, tr_key};
 
 use super::shared::post;
@@ -391,7 +391,7 @@ fn mixer(ui: &mut Ui, theme: &Theme, t: &Target, p: &Params) {
     let band_key = Id::new("shell/region/properties/grade/band");
     let mut mode = ui.data(|d| d.get_temp::<usize>(mode_key)).unwrap_or(0);
     let options = [(0usize, tr("Hue")), (1, tr("Saturation")), (2, tr("Luminance")), (3, tr("band"))];
-    if segmented(ui, theme, &mut mode, &options).changed() {
+    if choice(ui, theme, &mut mode, &options).changed() {
         ui.data_mut(|d| d.insert_temp(mode_key, mode));
     }
     if mode < 3 {

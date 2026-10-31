@@ -267,6 +267,7 @@ fn tool_schema(name: &str) -> Option<&'static [&'static str]> {
         "get_io" => Some(&["graph", "node"]),
         "bind_param" => Some(&["graph", "node", "param", "from"]),
         "set_param" => Some(&["graph", "node", "name", "value"]),
+        "set_param_batch" => Some(&["graph", "updates"]),
         // M4 of the materials lote: which graph and which `mat.*` node; the
         // `part` and every override key are optional, so "just name the node"
         // is a legal call.

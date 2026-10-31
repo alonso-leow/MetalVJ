@@ -255,7 +255,7 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     // two writes, over the same metal-graph functions the routes call.
     ("get_io", "One node's inputs, outputs, parameters (with the binding on each) and every upstream node's variables, each marked used or not by this node (GET /graph/io).", true),
     ("bind_param", "Binds one parameter of a node to one variable of an upstream node — a param edge, from `<port>.<variable>` (e.g. control.rms, control.x, row.escala) to `param:<name>`, mapped onto the parameter's range — replacing whatever drove it; `from: null` unbinds (POST /graph/node op bind).", true),
-    ("set_param_batch", "Sets many held parameter values in one write: updates [{node, name, value}], each as set_param (null releases a generator float). All or nothing: one refused value refuses the whole batch and the graph is saved once (POST /graph/node op params).", true),
+    ("set_param_batch", "Sets many held parameter values in one write: updates [{node, name, value}], each as set_param (null releases a generator float; a list holds a colour slot or the camera). All or nothing: one refused value refuses the whole batch and the graph is saved once (POST /graph/node op params).", true),
     ("set_param", "Sets the value a node holds for one parameter while nothing is bound to it — an effect's amount, a script float, a generator float (null releases a generator float back to the audio drive); out-of-range values are refused (POST /graph/node op param).", true),
     // M4 of the materials lote: a `mat.*` node's part and fixed overrides, over
     // the same `POST /graph/node {op:"config"}` merge its properties page posts
@@ -1204,15 +1204,31 @@ impl Harness {
             .and_then(Value::as_array)
             .ok_or("expected `updates`: a list of {node, name, value}")?;
         let mut updates = Vec::with_capacity(list.len());
+        let mut vectors: Vec<(String, String, Option<Vec<f32>>)> = Vec::new();
         for u in list {
             let node = Self::require_str(u, "node")?;
             let name = Self::require_str(u, "name")?;
-            let value = Self::held_value(u.get("value").unwrap_or(&Value::Null))?;
-            updates.push((node.to_string(), name.to_string(), value));
+            let raw = u.get("value").unwrap_or(&Value::Null);
+            // A colour slot (12 floats) or the camera (7) is held as a list.
+            if let Some(items) = raw.as_array() {
+                let floats = items
+                    .iter()
+                    .map(|v| v.as_f64().map(|f| f as f32))
+                    .collect::<Option<Vec<f32>>>()
+                    .ok_or("a held colour or camera is a list of numbers")?;
+                vectors.push((node.to_string(), name.to_string(), Some(floats)));
+                continue;
+            }
+            updates.push((node.to_string(), name.to_string(), Self::held_value(raw)?));
         }
         let mut g = self.require_graph(args)?;
         let catalog = self.catalog()?;
+        // Nothing is saved until every update has applied, so one refusal
+        // leaves the stored graph as it was.
         metal_graph::params::set_held_all(&mut g, &updates, &catalog)?;
+        for (node, name, value) in vectors {
+            metal_graph::params::set_held_vec(&mut g, &node, &name, value, &catalog)?;
+        }
         self.save_graph(&g)?;
         Ok(Self::env_reply(&g, &catalog))
     }
@@ -1833,7 +1849,8 @@ mod tests {
             { "id": "turing", "label": "Turing", "blocks": [
                 { "type": "floats", "fields": [
                     { "name": "speed", "min": 0.0, "max": 1.0, "default": 0.5 }
-                ] }
+                ] },
+                { "type": "camera", "default": [0, 0, 4, 0, 0, 0, 45] }
             ] }
         ]
     }"#;
@@ -2722,6 +2739,42 @@ mod tests {
         assert!((speed_of(&mut h, &gen) - 0.4).abs() < 1e-6, "nothing from a refused batch is saved");
     }
 
+    /// A list in a batch holds the camera (7 floats) in the same write, and a
+    /// bad width refuses the batch with the floats beside it unsaved.
+    #[test]
+    fn set_param_batch_holds_a_camera_list_beside_a_float() {
+        let mut h = fixture("param-batch-camera");
+        let gen = h
+            .execute(&call("create_node", json!({ "graph": "g1", "kind": "gen.turing" })))
+            .unwrap()["node"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let camera = |h: &mut Harness, gen: &str| -> Option<Vec<f64>> {
+            let io = h.execute(&call("get_io", json!({ "graph": "g1", "node": gen }))).unwrap();
+            let p = io["params"].as_array().unwrap().iter().find(|p| p["name"] == "camera").cloned()?;
+            p["values"].as_array().map(|a| a.iter().filter_map(Value::as_f64).collect())
+        };
+        let bad = h.execute(&call(
+            "set_param_batch",
+            json!({ "graph": "g1", "updates": [
+                { "node": gen, "name": "speed", "value": 0.5 },
+                { "node": gen, "name": "camera", "value": [1.0, 2.0] }
+            ] }),
+        ));
+        assert!(bad.is_err(), "a camera of the wrong width refuses the batch");
+        assert_eq!(camera(&mut h, &gen), None);
+        h.execute(&call(
+            "set_param_batch",
+            json!({ "graph": "g1", "updates": [
+                { "node": gen, "name": "speed", "value": 0.5 },
+                { "node": gen, "name": "camera", "value": [0, 0, 4, 0, 0, 0, 45] }
+            ] }),
+        ))
+        .unwrap();
+        assert_eq!(camera(&mut h, &gen), Some(vec![0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 45.0]));
+    }
+
     #[test]
     fn param_tools_bind_read_and_hold_through_the_saved_graph() {
         let mut h = fixture("param-tools");
@@ -3256,6 +3309,7 @@ mod capability_tests {
         "get_io",
         "bind_param",
         "set_param",
+        "set_param_batch",
         "set_material",
         "set_palette",
         "list_scenes",

@@ -531,6 +531,14 @@ pub fn queue_control(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError
     let root = crate::output::data_root();
     let id = || body["id"].as_str().ok_or_else(|| CallError::Bad("expected id".into()));
     match body["op"].as_str().unwrap_or("add") {
+        // `farm: true`: not this machine's queue: the conductor splits it.
+        "add" if body["farm"] == json!(true) => {
+            let mut sent = body.clone();
+            if let Some(obj) = sent.as_object_mut() {
+                obj.remove("op");
+            }
+            super::sync::farm_submit_post_body(sent)
+        }
         "add" => {
             let item = enqueue(&root, &body)?;
             advance(&root, &start_job);

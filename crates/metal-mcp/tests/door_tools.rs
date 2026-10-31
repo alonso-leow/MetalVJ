@@ -447,6 +447,7 @@ fn smoke_args(name: &str, schema: &Value) -> Option<Value> {
         "set_grid_layouts" => json!({"grid_layouts": {"active": "grid-1",
             "list": [{"id": "grid-1", "name": "Custom Grid 1", "surface": {"cols": 4}}]}}),
         "export_status" => json!({}),
+        "farm_status" => json!({}),
         "list_palettes" => json!({}),
         "list_kinds" => json!({}),
         "add_effect" => json!({"graph": "col-main", "node": "gen-a", "effect": "blur",

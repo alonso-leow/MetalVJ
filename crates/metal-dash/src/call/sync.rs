@@ -116,6 +116,29 @@ pub fn pair_reject_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallEr
     pair_post_at(SYNC_PORT, "/pair/reject", json!({ "node_id": node_id }))
 }
 
+/// `GET /farm`: the render farm's jobs as the conductor's `metal-sync` keeps
+/// them (`metal-sync`'s `farm_net.rs`).
+pub fn farm_get(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+    Ok(read_at(SYNC_PORT, "/farm", json!({ "conductor": false, "jobs": [] })))
+}
+
+/// `POST /farm/submit`: an export request (a `/export/video` body) for the
+/// farm to split into shards. Also what `POST /export/queue {farm:true}` does.
+pub fn farm_submit_post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
+    let body = params.json().ok_or_else(|| CallError::Bad("expected json".into()))?;
+    farm_submit_at(SYNC_PORT, body)
+}
+
+/// [`farm_submit_post`] with the body in hand.
+pub(crate) fn farm_submit_post_body(body: Value) -> Result<Value, CallError> {
+    farm_submit_at(SYNC_PORT, body)
+}
+
+/// The submission against an explicit control port (a test points it at a stand-in).
+pub(crate) fn farm_submit_at(port: u16, body: Value) -> Result<Value, CallError> {
+    pair_post_at(port, "/farm/submit", body)
+}
+
 /// A read: forward `GET path`, and answer `fallback` (the empty shape of
 /// what the read lists) with `running: false` when nothing listens. A
 /// reply that does arrive is `metal-sync`'s own JSON with `running: true`.
@@ -325,6 +348,18 @@ mod tests {
                 crate::call::ROUTES.iter().any(|r| r.method == method && r.path == path),
                 "{method} {path} is not a row of ROUTES"
             );
+        }
+    }
+
+    #[test]
+    fn a_farm_submission_is_forwarded_and_a_missing_sync_is_a_clear_refusal() {
+        let (port, seen) = fake_sync(1, "HTTP/1.1 202 Accepted\r\nContent-Length: 14\r\nConnection: close\r\n\r\n{\"job\":\"f1\"}\n\n");
+        let sent = farm_submit_at(port, json!({ "device": "out-1", "range": [0, 60] })).expect("forwarded");
+        assert_eq!(sent["job"], "f1");
+        assert_eq!(seen.join().unwrap(), ["POST /farm/submit HTTP/1.1"]);
+        match farm_submit_at(free_port(), json!({})) {
+            Err(CallError::Bad(msg)) => assert!(msg.contains("not running"), "{msg}"),
+            other => panic!("expected a refusal, got {other:?}"),
         }
     }
 }

@@ -1016,6 +1016,7 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         "get_grid_layouts" => Some(("GET", "/settings")),
         "set_grid_layouts" => Some(("POST", "/settings")),
         "export_status" => Some(("GET", "/export")),
+        "farm_status" => Some(("GET", "/farm")),
         "export_control" => Some(("POST", "/export")),
         "list_palettes" => Some(("GET", "/author/palettes")),
         // Executor-routed: the chat's executor posts each tool's own route (rule 6).

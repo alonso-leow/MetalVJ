@@ -49,6 +49,7 @@ const READONLY: &[&str] = &[
     "perf_report",
     "get_grid_layouts",
     "export_status",
+    "farm_status",
     "list_palettes",
     "venue_report",
     "venue_view",
@@ -253,7 +254,7 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         "attach_source" => vec!["graph", "node", "port", "kind", "from", "config"],
         "export_frame" => vec!["device", "node", "dir"],
         "export_queue" => vec![
-            "op", "id", "to", "device", "node", "range", "fps", "codec", "bitrate", "audio", "path",
+            "op", "id", "to", "device", "node", "range", "fps", "codec", "bitrate", "audio", "path", "farm", "reel",
         ],
         "export_video" => vec![
             "device", "node", "range", "fps", "codec", "bitrate", "audio", "path",

@@ -299,6 +299,7 @@ fn tool_schema(name: &str) -> Option<&'static [&'static str]> {
         "get_grid_layouts" => Some(&[]),
         "set_grid_layouts" => Some(&["grid_layouts"]),
         "export_status" => Some(&[]),
+        "farm_status" => Some(&[]),
         "export_control" => Some(&["op"]),
         "list_palettes" => Some(&[]),
         "set_output_sink" => Some(&["device_id", "kind"]),

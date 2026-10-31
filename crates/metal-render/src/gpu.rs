@@ -205,6 +205,13 @@ pub(crate) fn adapter_lock() -> std::sync::MutexGuard<'static, ()> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// Whether `device` can run compute shaders. WebGL2's limits have no compute
+/// at all (the workgroup counts are zero), so this reads the device itself and
+/// a model holding only a device can pick its path without the [`Gpu`].
+pub fn device_has_compute(device: &wgpu::Device) -> bool {
+    device.limits().max_compute_workgroups_per_dimension > 0
+}
+
 impl Gpu {
     async fn from_adapter(instance: &wgpu::Instance, adapter: &wgpu::Adapter) -> Gpu {
         let (device, queue) = adapter

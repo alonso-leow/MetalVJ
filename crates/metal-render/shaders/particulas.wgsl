@@ -27,8 +27,13 @@ struct RU {
 };
 
 @group(0) @binding(0) var<uniform> u: RU;
+//@compute
 @group(0) @binding(1) var<storage, read> pos: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read> speed: array<vec4<f32>>;
+
+fn body_pos(i: u32) -> vec4<f32> { return pos[i]; }
+fn body_vel(i: u32) -> vec4<f32> { return speed[i]; }
+//@end-compute
 
 @fragment
 fn fs_bg(in: FsVOut) -> @location(0) vec4<f32> {
@@ -74,8 +79,8 @@ fn vs_p(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> POu
 
     let aspect = u.a.x;
     let kind = floor(u.c.z + 0.5);
-    let p = pos[ii].xyz * u.d.w;
-    let v = speed[ii].xyz;
+    let p = body_pos(ii).xyz * u.d.w;
+    let v = body_vel(ii).xyz;
     let clip = u.vp * vec4<f32>(p, 1.0);
     if (clip.w < 0.05) {
         return o;
@@ -87,7 +92,7 @@ fn vs_p(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> POu
     let h3 = p_unit(ii, 3u);
     let speed = length(v);
     let sn = clamp(speed / max(u.d.y * 1.6, 1.0e-4), 0.0, 1.0);
-    let rn = clamp(length(pos[ii].xy) * u.d.z, 0.0, 1.0);
+    let rn = clamp(length(body_pos(ii).xy) * u.d.z, 0.0, 1.0);
 
     // Size: world radius projected, floored at a pixel so a far body still
     // reads, and dimmed by what the floor added.

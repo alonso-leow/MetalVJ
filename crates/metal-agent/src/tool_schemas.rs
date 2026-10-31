@@ -112,7 +112,7 @@ fn type_for_key(key: &str) -> &'static str {
         // M4: a `mat.*` node's fixed overrides are all numbers.
         "mix" | "scale" | "rough" | "metal" | "bump" | "env" | "tint" | "tint_hue"
         | "glitch" | "glitch_rate" | "glitch_seed" => "number",
-        "on" | "relative" | "delete" | "monitor" | "enabled" | "stop" | "as_copy" | "loop" => "boolean",
+        "on" | "relative" | "delete" | "monitor" | "enabled" | "stop" | "as_copy" | "loop" | "hold" => "boolean",
         "outputs" | "points" | "floats" | "rgb" | "options" | "set" | "items" | "entries" | "palette"
         | "hsb" | "nodes" => "array",
         "patch" | "segment" | "config" | "matrix" | "definition" | "grid_layouts" => "object",
@@ -282,7 +282,7 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         "edit_loops" => vec!["op", "definition", "as_copy", "graph", "node", "choice", "song", "seconds", "stop"],
         "transport" => vec!["action", "song", "seconds"],
         "fire_trigger" => vec!["id"],
-        "overlay_control" => vec!["op", "device", "layer", "movement", "loop"],
+        "overlay_control" => vec!["op", "device", "layer", "movement", "loop", "hold"],
         "colour_apply" => vec!["graph", "group", "nodes", "palette", "hsb", "rgb"],
         _ => return None,
     })

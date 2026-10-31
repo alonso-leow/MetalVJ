@@ -125,6 +125,12 @@ pub enum Role {
     Octave { step: i32 },
     /// Plays or stops the focused loop (the first one when none is).
     Play,
+    /// The material glitch trigger: a one-shot burst on press, or with
+    /// `hold` on for as long as it is held (`POST /overlay {op:"glitch"}`).
+    Glitch {
+        #[serde(default)]
+        hold: bool,
+    },
     /// A box's button with nothing to do yet: it lights while pressed, and
     /// the editor gives it a job.
     Button { label: String },
@@ -165,6 +171,8 @@ impl Role {
             Role::Octave { step: -1 },
             Role::Octave { step: 1 },
             Role::Play,
+            Role::Glitch { hold: false },
+            Role::Glitch { hold: true },
         ]
     }
 
@@ -183,6 +191,7 @@ impl Role {
             Role::Page { .. } => "page",
             Role::Octave { .. } => "octave",
             Role::Play => "play",
+            Role::Glitch { .. } => "glitch",
             Role::Button { .. } => "button",
             Role::Knob { .. } => "knob",
         }
@@ -206,6 +215,8 @@ impl Role {
             Role::Octave { step } if *step < 0 => "octave −".into(),
             Role::Octave { .. } => "octave +".into(),
             Role::Play => "play".into(),
+            Role::Glitch { hold: false } => "glitch".into(),
+            Role::Glitch { hold: true } => "glitch hold".into(),
             Role::Button { label } | Role::Knob { label } => label.clone(),
         }
     }
@@ -990,6 +1001,9 @@ pub enum Out {
     LoopToggle(String),
     /// Move every piano this many octaves.
     Octave(i32),
+    /// The material glitch: `on` fires (a `hold` one stays on until the
+    /// `on: false` that follows), as `POST /overlay {op:"glitch"}`.
+    Glitch { hold: bool, on: bool },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1008,6 +1022,8 @@ pub struct Surface {
     /// not also start a recording).
     rec_down: Option<bool>,
     drop_down: Option<bool>,
+    /// A `glitch hold` button is down.
+    glitch_down: bool,
     recording: Option<Recording>,
     /// `(fn cell, pressed at, page to return to)`.
     fn_hold: Option<(String, f64, usize)>,
@@ -1047,6 +1063,7 @@ impl Surface {
             Role::Rec => self.recording.is_some() || self.rec_down.is_some(),
             Role::DropRec => self.drop_down.is_some(),
             Role::Fn { .. } => self.fn_hold.as_ref().is_some_and(|(k, _, _)| k == key),
+            Role::Glitch { hold: true } => self.glitch_down,
             _ => false,
         }
     }
@@ -1133,6 +1150,18 @@ impl Surface {
                     .or_else(|| layout.loops.keys().next().cloned());
                 if let Some(k) = key {
                     out.extend(self.loop_pressed(&k));
+                }
+            }
+            (Role::Glitch { hold: false }, Gesture::Down | Gesture::Click) => {
+                out.push(Out::Glitch { hold: false, on: true });
+            }
+            (Role::Glitch { hold: true }, Gesture::Down) => {
+                self.glitch_down = true;
+                out.push(Out::Glitch { hold: true, on: true });
+            }
+            (Role::Glitch { hold: true }, Gesture::Up) => {
+                if std::mem::take(&mut self.glitch_down) {
+                    out.push(Out::Glitch { hold: true, on: false });
                 }
             }
             _ => {}
@@ -1576,6 +1605,21 @@ mod tests {
         l.loops.insert("loop-1".into(), Loop { name: "loop 1".into(), ticks: 8, events: vec![], playing: false });
         assert_eq!(s.role(&l, "x", &Role::Play, Gesture::Down, 0.0, 0), vec![Out::LoopToggle("loop-1".into())]);
         assert!(s.role(&l, "b", &Role::Button { label: "◀◀".into() }, Gesture::Down, 0.0, 0).is_empty());
+    }
+
+    #[test]
+    fn the_glitch_button_bursts_on_a_press_and_the_hold_one_follows_its_edges() {
+        let l = Layout::default();
+        let mut s = Surface::default();
+        let one = Role::Glitch { hold: false };
+        assert_eq!(s.role(&l, "g", &one, Gesture::Click, 0.0, 0), vec![Out::Glitch { hold: false, on: true }]);
+        let hold = Role::Glitch { hold: true };
+        assert!(s.role(&l, "h", &hold, Gesture::Up, 0.0, 0).is_empty(), "a release with no press does nothing");
+        assert_eq!(s.role(&l, "h", &hold, Gesture::Down, 0.0, 0), vec![Out::Glitch { hold: true, on: true }]);
+        assert!(s.role_lit("h", &hold));
+        assert_eq!(s.role(&l, "h", &hold, Gesture::Up, 0.1, 0), vec![Out::Glitch { hold: true, on: false }]);
+        assert!(!s.role_lit("h", &hold));
+        assert!(Role::catalogue().contains(&one) && Role::catalogue().contains(&hold), "the + menu offers both");
     }
 
     #[test]

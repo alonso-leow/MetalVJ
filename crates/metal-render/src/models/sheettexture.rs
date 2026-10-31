@@ -60,7 +60,8 @@ pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     3,
     include_str!("../../shaders/sheettexture.wgsl"),
     &["imagen"],
-);
+)
+.with_material();
 
 crate::scaffold_model!(Sheettexture, DEF);
 

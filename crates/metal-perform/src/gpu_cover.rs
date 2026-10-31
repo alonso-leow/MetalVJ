@@ -280,3 +280,91 @@ impl GpuPass for Job<'_> {
         drop(aux_frame);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cx() -> GpuCx {
+        let g = metal_render::gpu::Gpu::new_headless();
+        GpuCx::new(g.device, g.queue)
+    }
+
+    fn picture(w: u32, h: u32) -> Vec<u8> {
+        (0..w * h)
+            .flat_map(|i| {
+                let (x, y) = (i % w, i / w);
+                [(x * 255 / w) as u8, (y * 255 / h) as u8, ((x * 7 + y * 3) % 256) as u8, 255]
+            })
+            .collect()
+    }
+
+    /// The shade shader against the same arithmetic on the CPU, byte for byte
+    /// within one step of rounding: cut, tint with and without a cover, and
+    /// the RGBA layer over.
+    #[test]
+    fn shade_matches_the_cpu_reference() {
+        let (w, h) = (64u32, 36u32);
+        let cx = cx();
+        let px = picture(w, h);
+        let cover: Vec<u8> = (0..w * h).map(|i| ((i * 37) % 256) as u8).collect();
+        let layer: Vec<u8> = (0..w * h).flat_map(|i| [200u8, 40, 90, ((i * 11) % 256) as u8]).collect();
+        let src = cx.upload(&px, w, h);
+        let cov = CoverTex::new(&cx, &cover, w, h);
+        let mut pass = ShadePass::new(&cx);
+        let mix = |a: f32, b: f32, t: f32| a + (b - a) * t;
+        let to8 = |v: f32| (v * 255.0).round().clamp(0.0, 255.0) as u8;
+
+        let got = cx.readback(&pass.apply(&cx, &src, &Shade::Cut(&cov)));
+        let want: Vec<u8> = px
+            .chunks_exact(4)
+            .zip(&cover)
+            .flat_map(|(p, c)| {
+                let t = *c as f32 / 255.0;
+                [to8(p[0] as f32 / 255.0 * t), to8(p[1] as f32 / 255.0 * t), to8(p[2] as f32 / 255.0 * t), p[3]]
+            })
+            .collect();
+        assert_eq!(got.len(), want.len());
+        let worst = got.iter().zip(&want).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
+        assert!(worst <= 1, "cut: max diff {worst}");
+
+        let rgb = [1.0f32, 0.25, 0.0];
+        let k = 0.5f32;
+        let got = cx.readback(&pass.apply(&cx, &src, &Shade::Tint { rgb, k, cover: Some(&cov) }));
+        let want: Vec<u8> = px
+            .chunks_exact(4)
+            .zip(&cover)
+            .flat_map(|(p, c)| {
+                let t = (k * *c as f32 / 255.0).clamp(0.0, 1.0);
+                let ch = |i: usize| to8(mix(p[i] as f32 / 255.0, rgb[i], t));
+                [ch(0), ch(1), ch(2), p[3]]
+            })
+            .collect();
+        let worst = got.iter().zip(&want).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
+        assert!(worst <= 1, "tint with cover: max diff {worst}");
+
+        let got = cx.readback(&pass.apply(&cx, &src, &Shade::Tint { rgb, k, cover: None }));
+        let want: Vec<u8> = px
+            .chunks_exact(4)
+            .flat_map(|p| {
+                let ch = |i: usize| to8(mix(p[i] as f32 / 255.0, rgb[i], k));
+                [ch(0), ch(1), ch(2), p[3]]
+            })
+            .collect();
+        let worst = got.iter().zip(&want).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
+        assert!(worst <= 1, "tint whole frame: max diff {worst}");
+
+        let got = cx.readback(&pass.apply(&cx, &src, &Shade::Over { rgba: &layer }));
+        let want: Vec<u8> = px
+            .chunks_exact(4)
+            .zip(layer.chunks_exact(4))
+            .flat_map(|(p, o)| {
+                let a = o[3] as f32 / 255.0;
+                let ch = |i: usize| to8(mix(p[i] as f32 / 255.0, o[i] as f32 / 255.0, a));
+                [ch(0), ch(1), ch(2), p[3]]
+            })
+            .collect();
+        let worst = got.iter().zip(&want).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
+        assert!(worst <= 1, "over: max diff {worst}");
+    }
+}

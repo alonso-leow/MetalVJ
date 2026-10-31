@@ -1729,7 +1729,9 @@
       "footage": false,
       "id": "geoterrain",
       "label": "Geoterrain",
-      "surfaces": [],
+      "surfaces": [
+        "strokes"
+      ],
       "technique": ""
     },
     {

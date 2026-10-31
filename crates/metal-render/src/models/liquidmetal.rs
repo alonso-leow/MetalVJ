@@ -58,7 +58,8 @@ pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     2,
     include_str!("../../shaders/liquidmetal.wgsl"),
     &["imagen"],
-);
+)
+.with_material();
 
 crate::scaffold_model!(Liquidmetal, DEF);
 

@@ -45,6 +45,7 @@
 # 2026-10-28: the control surface's cells and dial modes (`surface::Role`).
 "rec" = "grabar"
 "drop rec" = "soltar"
+"glitch hold" = "falla sostenida"
 "load" = "cargar"
 "folders" = "carpetas"
 "fn" = "fn"

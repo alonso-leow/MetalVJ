@@ -2905,6 +2905,7 @@ pub fn render_device_frame(
             crate::forge::ingest_row(&mut row, wired.unwrap_or(&Digests::zero()));
         }
         apply_node_post(&mut row, &layer.effects, layer.fijo_mask);
+        state.overlays.lift_glitch(&mut row, time);
         rows.insert(gen_id.clone(), row);
         base_rows.insert(gen_id.clone(), base);
         fondo_alpha.insert(gen_id.clone(), layer.fondo_alpha);
@@ -5094,6 +5095,7 @@ pub fn render_isolated(
             crate::forge::ingest_row(&mut row, wired.unwrap_or(&Digests::zero()));
         }
         apply_node_post(&mut row, &layer.effects, layer.fijo_mask);
+        state.overlays.lift_glitch(&mut row, time);
         fondo_alpha.insert(gen_id.clone(), layer.fondo_alpha);
         rows.insert(gen_id, row);
     }

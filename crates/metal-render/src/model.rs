@@ -260,8 +260,9 @@ pub trait Model: MaybeSend {
 
     /// Whether this model dispatches compute shaders. A device without them
     /// (WebGL2) cannot build its pipelines, so the painter draws such a model
-    /// on the CPU stand-in instead of asking the device for it. Only the four
-    /// models that run a compute pass (dla, solvent, turing, terrario) say so.
+    /// on the CPU stand-in instead of asking the device for it. A model with a
+    /// fragment ping-pong fallback for such a device does not say so; only the
+    /// ones still compute-only do.
     fn needs_compute(&self) -> bool {
         false
     }

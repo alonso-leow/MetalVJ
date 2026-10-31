@@ -78,3 +78,7 @@ half = "2"
 [[bin]]
 name = "render-bench"
 path = "src/bin/render-bench.rs"
+
+[[bin]]
+name = "material-bench"
+path = "src/bin/material-bench.rs"

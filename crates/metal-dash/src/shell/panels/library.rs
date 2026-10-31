@@ -226,6 +226,11 @@ impl PanelState {
         self.fs.as_ref().and_then(|f| f["files"].as_array().cloned()).unwrap_or_default()
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_fs_for_test(&mut self, fs: Value) {
+        self.fs = Some(fs);
+    }
+
     pub(crate) fn set_cwd(&mut self, path: &str) {
         self.cwd = PathBuf::from(path);
         self.fs = None;

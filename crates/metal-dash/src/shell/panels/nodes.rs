@@ -559,6 +559,11 @@ impl PanelState {
         self.graph = Some(graph);
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_kind_params_for_test(&mut self, kind: &str, names: &[&str]) {
+        self.kind_params.insert(kind.to_string(), names.iter().map(|n| n.to_string()).collect());
+    }
+
     pub(crate) fn set_selected_graph_for_test(&mut self, id: &str) {
         self.selected_graph = Some(id.to_string());
     }

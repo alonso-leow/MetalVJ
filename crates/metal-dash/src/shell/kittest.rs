@@ -4686,4 +4686,34 @@ mod tests {
             "the starter never runs twice"
         );
     }
+
+    /// The composer's `@` list is built from the open graph's nodes, each
+    /// node's properties, the library's files and the overlays grid's cells,
+    /// with the selected node (and its properties) focused.
+    #[test]
+    fn mention_candidates_gathers_nodes_properties_files_and_cells() {
+        use crate::shell::mention::Kind;
+        let door = std::rc::Rc::new(FakeDoor::new());
+        let mut shell = Shell::new(Theme::phosphor(), Box::new(std::rc::Rc::clone(&door)));
+        shell.nodes.set_graph_for_test(serde_json::json!({ "graph": { "id": "g1", "nodes": [
+            { "id": "gen-a", "kind": "gen.turing", "label": "" },
+            { "id": "fx-1", "kind": "fx.shake", "label": "" }] } }));
+        shell.nodes.set_kind_params_for_test("gen.turing", &["speed"]);
+        shell.library.set_fs_for_test(serde_json::json!({ "dirs": [], "files": [{ "file": "kick.wav", "kind": "audio" }] }));
+        let mut layout = crate::surface::Layout::default();
+        layout.roles.insert("rec-1".to_string(), crate::surface::Role::Rec);
+        shell.lanes.set_layout_for_test(layout);
+        shell.set_selection_for_test(Selection::Node("gen-a".to_string()));
+
+        let all = shell.mention_candidates();
+        let of = |kind: Kind| -> Vec<(&str, bool)> {
+            all.iter().filter(|c| c.kind == kind).map(|c| (c.token.as_str(), c.focused)).collect()
+        };
+        assert_eq!(of(Kind::Node), [("gen-a", true), ("fx-1", false)]);
+        assert_eq!(of(Kind::Property), [("gen-a@speed", true)]);
+        assert_eq!(of(Kind::File), [("kick.wav", false)]);
+        assert_eq!(of(Kind::Overlay), [("rec-1", false)]);
+        let ranked: Vec<_> = crate::shell::mention::rank("gen-a@sp", &all).iter().map(|c| c.token.clone()).collect();
+        assert_eq!(ranked, ["gen-a@speed"]);
+    }
 }

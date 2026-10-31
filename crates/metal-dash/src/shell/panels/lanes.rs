@@ -3022,6 +3022,11 @@ fn grid_cells(door: &dyn Call, state: &PanelState, state_val: &Value) -> Vec<Cel
 
 impl PanelState {
     /// The overlays grid's cells as `(key, label)`, for the chat's `@` completion.
+    #[cfg(test)]
+    pub(crate) fn set_layout_for_test(&mut self, layout: crate::surface::Layout) {
+        self.layout = layout;
+    }
+
     pub(crate) fn mention_cells(&self) -> Vec<(String, String)> {
         surface_cells(self).into_iter().map(|c| (c.key, c.label)).collect()
     }

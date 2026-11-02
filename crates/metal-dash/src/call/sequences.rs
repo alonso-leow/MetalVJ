@@ -84,6 +84,37 @@ fn sequences_post_at(
                 .map_err(|e| CallError::Internal(e.to_string()))?;
             Ok(json!({ "ok": true, "id": id, "sequences": ctx.state.sequences.list.len() }))
         }
+        "rename" => {
+            let Some(id) = body["id"].as_str().map(str::to_string) else {
+                return Err(CallError::Bad("which sequence".into()));
+            };
+            let name = body["name"].as_str().unwrap_or_default().trim().to_string();
+            if name.is_empty() {
+                return Err(CallError::Bad("name the sequence".into()));
+            }
+            let Some(seq) = ctx.state.sequences.list.iter_mut().find(|s| s.id == id) else {
+                return Err(CallError::NotFound);
+            };
+            seq.name = name;
+            save_at(path, &ctx.state.sequences.list)
+                .map_err(|e| CallError::Internal(e.to_string()))?;
+            Ok(json!({ "ok": true, "id": id }))
+        }
+        "remove" => {
+            let Some(id) = body["id"].as_str().map(str::to_string) else {
+                return Err(CallError::Bad("which sequence".into()));
+            };
+            // A run already in the air carries its own entries, so it plays
+            // out; only the library entry goes.
+            let before = ctx.state.sequences.list.len();
+            ctx.state.sequences.list.retain(|s| s.id != id);
+            if ctx.state.sequences.list.len() == before {
+                return Err(CallError::NotFound);
+            }
+            save_at(path, &ctx.state.sequences.list)
+                .map_err(|e| CallError::Internal(e.to_string()))?;
+            Ok(json!({ "ok": true, "id": id }))
+        }
         "run" => {
             let Some(id) = body["id"].as_str().map(str::to_string) else {
                 return Err(CallError::Bad("which sequence".into()));
@@ -121,7 +152,7 @@ fn sequences_post_at(
             Ok(json!({ "ok": true, "stopped": n }))
         }
         _ => Err(CallError::Bad(
-            "op is save / run / cue / stop / stop-all".into(),
+            "op is save / rename / remove / run / cue / stop / stop-all".into(),
         )),
     }
 }
@@ -348,5 +379,58 @@ mod tests {
         .expect("stopped");
         assert_eq!(reply["stopped"], json!(true));
         assert_eq!(state.runs.active("probe", 100.0), None);
+    }
+
+    /// The grid's button editor renames a saved sequence in place (same id,
+    /// new name, written to the file) and refuses a blank name or a wrong id.
+    #[test]
+    fn rename_changes_the_name_and_keeps_the_id() {
+        let path = scratch("rename");
+        let mut state = fixture();
+        post(
+            &mut state,
+            json!({ "op": "save", "name": "opening",
+                    "entries": [{ "collection": "cue-probe", "start": 0.0, "end": 4.0 }] }),
+            &path,
+        )
+        .expect("saved");
+        let reply = post(
+            &mut state,
+            json!({ "op": "rename", "id": "opening", "name": "  intro  " }),
+            &path,
+        )
+        .expect("renamed");
+        assert_eq!(reply["id"], json!("opening"));
+        let seq = state.sequences.find("opening").expect("same id");
+        assert_eq!(seq.name, "intro");
+        let on_disk = metal_vfs::read_to_string(&path).expect("the rename wrote the file");
+        assert!(on_disk.contains("intro"), "{on_disk}");
+
+        let blank = post(&mut state, json!({ "op": "rename", "id": "opening", "name": " " }), &path);
+        assert!(matches!(blank, Err(CallError::Bad(_))), "{blank:?}");
+        let ghost = post(&mut state, json!({ "op": "rename", "id": "nope", "name": "x" }), &path);
+        assert!(matches!(ghost, Err(CallError::NotFound)), "{ghost:?}");
+    }
+
+    /// `remove` drops the saved sequence from the list and the file; a
+    /// second remove of the same id is a 404.
+    #[test]
+    fn remove_drops_the_sequence() {
+        let path = scratch("remove");
+        let mut state = fixture();
+        post(
+            &mut state,
+            json!({ "op": "save", "name": "opening",
+                    "entries": [{ "collection": "cue-probe", "start": 0.0, "end": 4.0 }] }),
+            &path,
+        )
+        .expect("saved");
+        post(&mut state, json!({ "op": "remove", "id": "opening" }), &path).expect("removed");
+        assert!(state.sequences.find("opening").is_none());
+        let on_disk = metal_vfs::read_to_string(&path).expect("the remove wrote the file");
+        assert!(!on_disk.contains("opening"), "{on_disk}");
+
+        let again = post(&mut state, json!({ "op": "remove", "id": "opening" }), &path);
+        assert!(matches!(again, Err(CallError::NotFound)), "{again:?}");
     }
 }

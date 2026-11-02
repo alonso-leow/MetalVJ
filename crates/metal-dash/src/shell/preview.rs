@@ -185,9 +185,11 @@ impl FloatingPreview {
             })
         });
         let fps = subject.fps.unwrap_or(self.fps);
-        let readout = trf("{label} · {w}×{h} · {fps} fps",
+        // The name is the only part that can grow (a file name); the size and
+        // fps tail is fixed. The name is truncated to what the bar has left
+        // and shows in full on hover.
+        let tail = trf("· {w}×{h} · {fps} fps",
             &[
-                ("label", &subject.label),
                 ("w", &w),
                 ("h", &hpx),
                 ("fps", &format!("{fps:.0}")),
@@ -202,7 +204,26 @@ impl FloatingPreview {
                         .on_hover_text(tr("export frame"))
                         .clicked();
                 }
-                ui.label(egui::RichText::new(readout).font(theme.font_small.clone()).color(theme.ink_weak));
+                let font = theme.font_small.clone();
+                let tail_w = painter.layout_no_wrap(tail.clone(), font.clone(), theme.ink_weak).size().x;
+                let name_w = (ui.available_width() - tail_w - ui.spacing().item_spacing.x).max(0.0);
+                // Left-aligned in what is left, so a short name sits against
+                // the tail; a long one ends in "…".
+                let name = ui
+                    .allocate_ui_with_layout(
+                        egui::vec2(name_w, ui.spacing().interact_size.y),
+                        egui::Layout::left_to_right(egui::Align::Center),
+                        |ui| {
+                            ui.add(
+                                egui::Label::new(egui::RichText::new(&subject.label).font(font.clone()).color(theme.ink_weak))
+                                    .truncate(),
+                            )
+                        },
+                    )
+                    .inner;
+                name.on_hover_text(&subject.label);
+                // Only a bar narrower than the tail itself cuts it too.
+                ui.add(egui::Label::new(egui::RichText::new(tail).font(font).color(theme.ink_weak)).truncate());
             });
         });
         if let Some(body) = subject.export.clone().filter(|_| export) {
@@ -214,7 +235,7 @@ impl FloatingPreview {
         }
         if let Some((msg, at)) = &self.toast {
             if at.elapsed() < TOAST {
-                let galley = painter.layout_no_wrap(msg.clone(), theme.font_small.clone(), theme.ink);
+                let galley = painter.layout(msg.clone(), theme.font_small.clone(), theme.ink, (bar.width() - pad * 2.0).max(0.0));
                 let at_pos = Pos2::new(bar.min.x + pad, bar.min.y - galley.size().y - pad * 1.5);
                 painter.rect_filled(
                     EguiRect::from_min_size(at_pos, galley.size()).expand(pad * 0.5),
@@ -691,5 +712,51 @@ mod tests {
         run(&door, &mut fresh, &mut b);
         assert!(fresh.rect().is_none(), "never landed: nothing to paint");
         assert!(b.rect().is_some(), "before survives the after failing");
+    }
+
+    /// A long file name in the bar is cut to the bar's width (the size and
+    /// fps tail stays whole beside it) and a hover shows it in full.
+    #[test]
+    fn a_long_name_is_truncated_to_the_bar_and_shown_on_hover() {
+        use egui_kittest::kittest::Queryable as _;
+        let long = "68 - Gypsy Woman (She's Homeless) (La Da Dee La Da Da) (Basement Boy Strip To The Bone Mix) · video";
+        let door = FakeDoor::new();
+        door.respond_bytes("GET", "/node.jpg", "image/jpeg", jpeg());
+        let theme = Theme::phosphor();
+        let mut preview = FloatingPreview::default();
+        preview.set_subject(Some(PreviewSubject {
+            label: long.to_string(),
+            export: None,
+            size: Some((1920, 1080)),
+            fps: Some(30.0),
+        }));
+        // A desktop-wide host: the bar is the picture's share of it, far
+        // narrower than the name.
+        let (width, height) = (crate::shell::DESKTOP_VIEWPORT.0 as f32, crate::shell::DESKTOP_VIEWPORT.1 as f32);
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(width, height))
+            .build_ui_state(
+                |ui, p: &mut FloatingPreview| {
+                    let host = ui.max_rect();
+                    p.show(ui, &theme, &door, None, host, "/node.jpg", &[]);
+                },
+                preview,
+            );
+        harness.run();
+        harness.run();
+        let picture = harness.state().rect().expect("a landed frame paints the picture");
+        let name = harness
+            .get_by(|n| n.role() == egui::accesskit::Role::Label && n.value().is_some_and(|v| v == long))
+            .rect();
+        let tail = harness.get_by_label_contains("1920×1080").rect();
+        assert!(name.max.x <= tail.min.x, "the name stops before the tail: {name:?} {tail:?}");
+        assert!(tail.max.x <= picture.max.x + 0.5, "the tail stays inside the bar: {tail:?} {picture:?}");
+
+        harness.hover_at(name.center());
+        harness.run();
+        let shown = harness
+            .query_all_by(|n| n.role() == egui::accesskit::Role::Label && n.value().is_some_and(|v| v == long))
+            .count();
+        assert!(shown > 1, "the hover shows the full name beside the cut one");
     }
 }

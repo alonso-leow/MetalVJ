@@ -1456,7 +1456,7 @@ fn drop_node_on_canvas(
     selection: &mut Selection,
     theme: &Theme,
 ) {
-    let Some(released) = response.dnd_release_payload::<gallery::NodeDrag>() else {
+    let Some(released) = super::release_typed::<gallery::NodeDrag>(response) else {
         return;
     };
     let at = ui.input(|i| i.pointer.interact_pos()).unwrap_or(rect.center());
@@ -1505,7 +1505,7 @@ fn drop_file_on_canvas(
             }
         }
     }
-    let Some(released) = response.dnd_release_payload::<crate::shell::panels::FileDrag>() else {
+    let Some(released) = super::release_typed::<crate::shell::panels::FileDrag>(response) else {
         return;
     };
     let Some(kind) = released.source_kind() else {
@@ -5438,10 +5438,11 @@ mod tests {
         settle(&mut harness);
 
         use egui_kittest::kittest::NodeT as _;
-        let readout = harness.get_by(|n| {
-            n.role() == egui::accesskit::Role::Label && n.value().is_some_and(|l| l.starts_with("gen-0 · gen.turing · 4×4 · ") && l.ends_with(" fps"))
-        });
-        drop(readout);
+        // The name and the size/fps tail are two labels.
+        drop(harness.get_by(|n| n.role() == egui::accesskit::Role::Label && n.value().is_some_and(|l| l == "gen-0 · gen.turing")));
+        drop(harness.get_by(|n| {
+            n.role() == egui::accesskit::Role::Label && n.value().is_some_and(|l| l.starts_with("· 4×4 · ") && l.ends_with(" fps"))
+        }));
         harness.get_by_label(&glyph(Icon::Camera).to_string()).click();
         settle(&mut harness);
 
@@ -5494,9 +5495,14 @@ mod tests {
         settle(&mut harness);
 
         use egui_kittest::kittest::NodeT as _;
+        // The name and the size/fps tail are two labels: only the name can
+        // be cut to the bar.
+        drop(harness.get_by(|n| {
+            n.role() == egui::accesskit::Role::Label && n.value().is_some_and(|l| l == "cancion · sequence")
+        }));
         drop(harness.get_by(|n| {
             n.role() == egui::accesskit::Role::Label
-                && n.value().is_some_and(|l| l.starts_with("cancion · sequence · 1920×1080 · ") && l.ends_with(" fps"))
+                && n.value().is_some_and(|l| l.starts_with("· 1920×1080 · ") && l.ends_with(" fps"))
         }));
         harness.get_by_label(&glyph(Icon::Camera).to_string()).click();
         settle(&mut harness);
@@ -5678,6 +5684,45 @@ mod tests {
             }),
             "the still's config carries the card's absolute path"
         );
+    }
+
+    /// A card dragged out of the "new" gallery and released on the canvas
+    /// adds that node. The file-drop target runs first on the canvas, and a
+    /// plain `dnd_release_payload::<FileDrag>` there used to take the
+    /// `NodeDrag` and drop it ([`crate::shell::panels::release_typed`]).
+    #[test]
+    fn dragging_a_gallery_card_onto_the_canvas_adds_the_node() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        script_gen_and_effect_graph(&recorder);
+        recorder.respond(
+            "GET",
+            "/catalog",
+            json!({ "catalog": [
+                { "kind": "mat.metal", "family": "material", "label": "Brushed", "inputs": [], "outputs": [], "menu": true }
+            ] }),
+        );
+        let mut harness = shell_harness(Box::new(std::rc::Rc::clone(&recorder)));
+        harness.run();
+        harness.get_by_label("new").click();
+        harness.run();
+        harness.get_by_label("materials").click();
+        harness.run();
+
+        let card = harness.get_by_label("Brushed").rect().center();
+        let canvas = harness
+            .state()
+            .nodes_canvas_rect()
+            .expect("the canvas should have painted a rect");
+        drag_between(&mut harness, card, canvas.center());
+
+        let added = recorder.calls.borrow().iter().any(|(m, p, params)| {
+            m == "POST"
+                && p == "/graph/node"
+                && serde_json::from_slice::<Value>(&params.body)
+                    .map(|b| b["op"] == "add" && b["kind"] == "mat.metal")
+                    .unwrap_or(false)
+        });
+        assert!(added, "a gallery card released on the canvas should POST /graph/node {{op:add, kind}}");
     }
 
     /// The OS-drop double: a `DroppedFile` over a path on disk, the same

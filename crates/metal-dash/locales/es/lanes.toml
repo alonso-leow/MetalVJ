@@ -127,3 +127,5 @@
 "Delete layout" = "Eliminar disposición"
 "Delete {name}? Its bindings and loops go with it." = "¿Eliminar {name}? Sus asignaciones y bucles se van con ella."
 "{name} was deleted" = "{name} fue eliminada"
+"button" = "botón"
+"button name" = "nombre del botón"

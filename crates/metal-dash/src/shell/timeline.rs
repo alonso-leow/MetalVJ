@@ -577,10 +577,19 @@ pub fn paint(
                         }
                     }
                 } else {
+                    // A song the library does not have is not being digested:
+                    // say what is missing rather than wait on it.
+                    let empty = if ingest.song_missing() {
+                        crate::shell::i18n::trf("song not in the library — add {song} to data/audio", &[("song", &ingest.song.trim())])
+                    } else if ingest.waiting_digest {
+                        crate::shell::i18n::tr("digesting the song…").to_string()
+                    } else {
+                        crate::shell::i18n::tr("not digested — pick a song").to_string()
+                    };
                     body_painter.text(
                         Pos2::new(lane.left() + 8.0, lane.center().y),
                         Align2::LEFT_CENTER,
-                        if ingest.waiting_digest { crate::shell::i18n::tr("digesting the song…") } else { crate::shell::i18n::tr("not digested — pick a song") },
+                        empty,
                         theme.font_small.clone(),
                         theme.ink_faint,
                     );
@@ -1024,7 +1033,7 @@ pub fn paint(
                 _ => {}
             }
         }
-        if let Some(file) = b_resp.dnd_release_payload::<FileDrag>() {
+        if let Some(file) = crate::shell::panels::release_typed::<FileDrag>(&b_resp) {
             let layer = match row_at(p) {
                 Some(Row::Layer(l)) => Some(l),
                 Some(Row::Float(i, _)) => view_of(i).map(|v| v.layer),

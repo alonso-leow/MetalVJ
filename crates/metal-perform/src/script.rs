@@ -531,6 +531,14 @@ struct Pool {
     workers: HashMap<(Lang, u64), Worker>,
 }
 
+/// The pid of the pooled worker that serves `code` in `lang`, if one is
+/// alive — lets a test prove reuse by identity instead of by timing.
+#[cfg(test)]
+fn worker_pid(lang: Lang, code: &str) -> Option<u32> {
+    let pool = pool().lock().unwrap_or_else(|e| e.into_inner());
+    pool.workers.get(&(lang, hash_str(code))).map(|w| w.child.id())
+}
+
 impl Pool {
     /// The live worker for `key`, spawning one if there is none (or if the
     /// one there was has exited on its own — a harness crash between
@@ -1303,7 +1311,10 @@ def process(floats, row):
         let code = "import time\ndef process(floats, row):\n    time.sleep(30)\n    return [0.0]\n";
         let start = Instant::now();
         let err = run_with_timeout(code, &[], &[], Duration::from_millis(100)).unwrap_err();
-        assert!(start.elapsed() < Duration::from_secs(2), "must return promptly, not after the 30s sleep");
+        assert!(
+            start.elapsed() < SCRIPT_STARTUP_TIMEOUT + Duration::from_secs(2),
+            "must return promptly (boot included), not after the 30s sleep"
+        );
         assert_eq!(err, ScriptError::Timeout(Duration::from_millis(100)));
         // The worker was killed and dropped; the same code respawns lazily
         // and the next call is again a normal, bounded `Result`.
@@ -1350,20 +1361,23 @@ def process(floats, row):
 
     // --- real time: the same worker answers frame after frame ---
 
-    /// The per-frame fit: after the first call has paid the spawn, a call
-    /// is a pipe round-trip. Ten more calls must cost less than one fresh
-    /// `python3` spawn each (measured at ~10ms; the bar here is generous so
-    /// a loaded CI box does not flake, while still ruling out a respawn).
+    /// The per-frame fit: after the first call has paid the spawn, later
+    /// calls are pipe round-trips to the same process. Reuse is proven by
+    /// the worker's pid staying the same across ten more calls, not by
+    /// timing, which flakes under load.
     #[test]
     fn repeated_calls_reuse_the_worker_instead_of_respawning() {
         let code = "def process(floats, row):\n    return [row[0] * 2.0]\n";
         assert_eq!(run(code, &[], &[1.0]).unwrap(), vec![2.0]);
-        let start = Instant::now();
+        let pid = worker_pid(Lang::Python, code).expect("the first call leaves a worker in the pool");
         for i in 0..10 {
             assert_eq!(run(code, &[], &[i as f32]).unwrap(), vec![i as f32 * 2.0]);
         }
-        let per_call = start.elapsed() / 10;
-        assert!(per_call < Duration::from_millis(8), "a warm call took {per_call:?} — that is a respawn, not a round-trip");
+        assert_eq!(
+            worker_pid(Lang::Python, code),
+            Some(pid),
+            "ten warm calls must be served by the same worker process, not a respawn"
+        );
     }
 
     /// Regla 4: editing the code is a different worker, so the new code
@@ -1406,7 +1420,10 @@ function process(floats, row) {
         let code = "function process(floats, row) { while (true) {} }\n";
         let start = Instant::now();
         let err = run_js_with_timeout(code, &[], &[], Duration::from_millis(100)).unwrap_err();
-        assert!(start.elapsed() < Duration::from_secs(2), "must return promptly, not hang forever");
+        assert!(
+            start.elapsed() < SCRIPT_STARTUP_TIMEOUT + Duration::from_secs(2),
+            "must return promptly (boot included), not hang forever"
+        );
         assert_eq!(err, ScriptError::Timeout(Duration::from_millis(100)));
     }
 

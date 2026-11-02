@@ -252,7 +252,13 @@ mod tests {
         };
         let slots = metal_perform::fixture::drive_head(&root, &head, Some(&reloaded), None, &wire)
             .expect("the probe profile");
-        assert_eq!(slots, vec![(1, 0), (2, 255)], "level black, pan untouched");
+        // Pan is patch-owned in colour mode (held at 0.0, which packs to 128)
+        // and blackout never touches it, so compare against the un-blacked
+        // slots rather than a hard-coded byte.
+        let untouched = metal_perform::fixture::drive_head(&root, &head, None, None, &wire)
+            .expect("the probe profile");
+        assert_eq!(slots[0], (1, 0), "level black");
+        assert_eq!(slots[1], untouched[1], "pan untouched by blackout");
 
         metal_vfs::remove_dir_all(&root).ok();
     }
@@ -305,11 +311,13 @@ mod tests {
         let slots =
             metal_perform::fixture::drive_head(&root, &head, Some(&reloaded), None, &wire_signal)
                 .expect("the probe profile");
-        assert_eq!(
-            slots,
-            vec![(1, 0), (2, 255)],
-            "same forced-black bytes as the sibling test"
-        );
+        // Pan is patch-owned in colour mode and blackout leaves it alone, so
+        // compare against the un-blacked slots rather than a hard-coded byte.
+        let untouched =
+            metal_perform::fixture::drive_head(&root, &head, None, None, &wire_signal)
+                .expect("the probe profile");
+        assert_eq!(slots[0], (1, 0), "level black, as the sibling test");
+        assert_eq!(slots[1], untouched[1], "pan untouched by blackout");
 
         // The wire half: a loopback receiver, and the exact same slots on an
         // actual E1.31 packet — not the intermediate `Vec` any more.

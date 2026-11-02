@@ -730,6 +730,12 @@ pub fn migrate_device_modes_to_graphs_at(
                     new_edges.clear();
                 }
             }
+            // Automix is a `router` node the operator places, never a stored
+            // default: a device that only inherited automix migrates to `own`.
+            let mode = match mode {
+                layers::DeviceMode::Automix => &layers::DeviceMode::Own,
+                m => m,
+            };
             if let Err(e) = set_graph_device_mode(&mut graph, mode) {
                 eprintln!("  migrate: cannot write the mode for {id}: {e}");
                 continue;
@@ -1583,12 +1589,10 @@ fn graph_has_router(graph: &metal_graph::Graph) -> bool {
 /// behind `compile_device_plan_with`, so the rule lives in one place.
 ///
 /// 1. A `router` means automix, unless a generator is wired into the output
-///    beside it: the default graph ships router → output, and a generator the
-///    operator then wires in is what they mean to see and edit.
+///    beside it: what the operator wires in is what they mean to see.
 /// 2. An explicit declared mode (output config, or a legacy compose/stack node)
-///    stands, except a legacy `automix` on a canvas that wires a generator
-///    straight into the output: that canvas is authored, so it is `Own`. The
-///    stored automix was never the operator's choice on such a device.
+///    stands, except a declared `automix`: automix is only ever a placed
+///    `router` node, so a declaration of it without one is `Own`.
 /// 3. No declaration but a wired generator is an authored canvas: `Own`.
 /// 4. Otherwise `None` — the caller falls back to the device's stored mode,
 ///    which keeps an empty graph drawing exactly what it drew before.
@@ -1598,7 +1602,7 @@ pub fn resolve_authored_mode(graph: &metal_graph::Graph) -> Option<layers::Devic
         return Some(layers::DeviceMode::Automix);
     }
     match graph_device_mode(graph) {
-        Some(layers::DeviceMode::Automix) if wired => Some(layers::DeviceMode::Own),
+        Some(layers::DeviceMode::Automix) => Some(layers::DeviceMode::Own),
         Some(mode) => Some(mode),
         None => wired.then_some(layers::DeviceMode::Own),
     }
@@ -1627,19 +1631,14 @@ fn ensure_router_wired(graph: &mut metal_graph::Graph) {
 }
 
 /// Back-compat for the legacy `automix` mode (R22.5b), run on migrate. A
-/// device whose output declares automix and wires no generator becomes the
-/// explicit router. One that wires a generator keeps its authored canvas: the
-/// declared automix is rewritten to `own`, so a later unwiring does not
-/// resurrect it. Returns whether the graph changed.
+/// declared automix is rewritten to `own`: automix is a `router` node the
+/// operator places, so migration never wires one in. Returns whether the
+/// graph changed.
 fn migrate_legacy_automix(graph: &mut metal_graph::Graph) -> bool {
     if output_device_mode(graph) != Some(layers::DeviceMode::Automix) || graph_has_router(graph) {
         return false;
     }
-    if authored_generators_with_bindings(graph).is_empty() {
-        ensure_router_wired(graph);
-    } else {
-        let _ = set_graph_device_mode(graph, &layers::DeviceMode::Own);
-    }
+    let _ = set_graph_device_mode(graph, &layers::DeviceMode::Own);
     true
 }
 
@@ -2215,10 +2214,15 @@ pub fn compile_device_plan_with(
     // A graph that declares no mode but wires a generator into its output is
     // an authored canvas: it composes itself rather than falling to the
     // stored mode, whose default (automix) would ignore it entirely.
+    // A device with a graph never falls back to an inherited automix: that is
+    // a `router` node, and a graph without one draws what it wires (or black).
     let mode = authored
         .as_ref()
         .and_then(resolve_authored_mode)
-        .unwrap_or_else(|| stack.mode.clone());
+        .unwrap_or_else(|| match (&authored, &stack.mode) {
+            (Some(_), layers::DeviceMode::Automix) => layers::DeviceMode::Own,
+            (_, m) => m.clone(),
+        });
     // LAY.7b: for `compose.layers` — an Own device whose composition the
     // graph itself declares — the graph's own `gen.*` nodes are the list,
     // when it has any. This is the line that makes the graph the *origin* of
@@ -4794,6 +4798,18 @@ fn render_source_picture(
     h: u32,
     textures: bool,
 ) -> Option<NodePicture> {
+    // A generator that is a node of the open graph is drawn by the one node
+    // path (`render_node`): its held floats, bindings, scripts and chain are
+    // the output's. The round-robin card below never saw them, so a param
+    // edit on the canvas left the focused node's picture unchanged.
+    let is_node = preview_graph_at(&output::data_root(), device)
+        .and_then(|g| g.node(layer).map(|n| n.kind.starts_with("gen.") || is_tile_source(&n.kind)))
+        .unwrap_or(false);
+    if is_node {
+        if let Some(p) = render_node_picture(paint, sim, state, device, layer, w, h, textures) {
+            return Some(p);
+        }
+    }
     let time = state.time();
     // Same frame the router routed on, taken from the one Looper — see
     // `render_device`.
@@ -5747,10 +5763,10 @@ mod tests {
         assert_eq!(resolve_authored_mode(&g), Some(layers::DeviceMode::Own));
     }
 
-    /// The legacy `automix` output mode migrates to an explicit router when no
-    /// generator is wired; a wired canvas keeps itself and loses the automix.
+    /// The legacy `automix` output mode migrates to `own` and never gains a
+    /// router: automix is a node the operator places.
     #[test]
-    fn a_legacy_automix_output_migrates_to_a_router_or_to_own() {
+    fn a_legacy_automix_output_migrates_to_own_without_a_router() {
         use metal_graph::{Domain, Endpoint, Graph};
         let dir = std::env::temp_dir().join(format!("fw-router-mig-{}", std::process::id()));
         let _ = metal_vfs::create_dir_all(&dir);
@@ -5759,7 +5775,7 @@ mod tests {
                 metal_graph::Config::from_json_str(r#"{"mode":{"kind":"automix"}}"#).unwrap();
         };
 
-        // Empty device: the automix becomes a router wired into the output.
+        // Empty device: no router appears, and the automix is gone.
         let device = "legacy-empty".to_string();
         let mut g = Graph::new(device_graph_id(&device), &device, Domain::Live);
         let out = g.add_node("out", "output.device", [800.0, 0.0]);
@@ -5767,12 +5783,9 @@ mod tests {
         save_graph_at(&dir, &g).unwrap();
         migrate_device_modes_to_graphs_at(&dir, &[(device.clone(), layers::DeviceMode::Automix)]);
         let g = load_graph_at(&dir, &device_graph_id(&device)).unwrap();
-        let router = g.nodes.iter().find(|n| n.kind == ROUTER_KIND).expect("a router is wired in");
-        assert!(
-            g.edges.iter().any(|e| e.from.node == router.id && e.to.node == out && e.to.port == "image"),
-            "the router feeds the output's image port"
-        );
-        assert_eq!(resolve_authored_mode(&g), Some(layers::DeviceMode::Automix));
+        assert!(!g.nodes.iter().any(|n| n.kind == ROUTER_KIND), "migration never wires a router");
+        assert_eq!(output_device_mode(&g), Some(layers::DeviceMode::Own));
+        assert_eq!(resolve_authored_mode(&g), Some(layers::DeviceMode::Own));
 
         // Wired canvas: no router, and the stamped automix is rewritten to own.
         let device = "legacy-wired".to_string();
@@ -5820,6 +5833,12 @@ mod tests {
         };
         assert_eq!((pw, ph), (w, h));
         assert_eq!(preview, frame, "focusing the generator and the output show the same frame");
+        // The focused generator's own card (`/source.jpg`) is that same
+        // picture, so a held float edited on the canvas shows in it.
+        let (card, cw, ch) = render_source(&mut *paint, &mut sim, &mut state, &device, &gen, w, h)
+            .expect("the generator has a card");
+        assert_eq!((cw, ch), (w, h));
+        assert_eq!(card, preview, "the card is the node picture, not a second render");
     }
 
     #[test]
@@ -5841,8 +5860,8 @@ mod tests {
         assert!(!g.nodes.iter().any(|n| n.kind == "stack.mode"), "the legacy node is retired");
         assert_eq!(
             output_device_mode(&g),
-            Some(layers::DeviceMode::Automix),
-            "the mode lands on the output's config"
+            Some(layers::DeviceMode::Own),
+            "the mode lands on the output's config; a stored automix becomes own (automix is a router node)"
         );
 
         // 2. A `compose.layers` mixer with two members: fan-in onto the output.

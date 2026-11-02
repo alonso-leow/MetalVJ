@@ -2702,10 +2702,23 @@ fn selected_picture(
     state: &PanelState,
     selection: &Selection,
 ) -> Option<(&'static str, Vec<(&'static str, String)>)> {
-    let Selection::Node(id) = selection else {
-        return None;
-    };
-    picture_for(state, id)
+    match selection {
+        Selection::Node(id) => picture_for(state, id),
+        // Nothing in focus: the preview is the view of the graph's output.
+        Selection::None => output_node(state).and_then(|id| picture_for(state, &id)),
+        _ => None,
+    }
+}
+
+/// The open graph's first `output.device` node, the picture the preview
+/// falls back to when no node is focused.
+fn output_node(state: &PanelState) -> Option<String> {
+    state.graph.as_ref()?["graph"]["nodes"]
+        .as_array()?
+        .iter()
+        .find(|n| n["kind"].as_str() == Some("output.device"))
+        .and_then(|n| n["id"].as_str())
+        .map(str::to_string)
 }
 
 /// The floating preview bar's subject for node `id`: "name · kind" and the
@@ -4929,6 +4942,11 @@ mod tests {
             "the output shows its composed frame"
         );
         assert_eq!(pick("audio-0"), None, "no image upstream: no picture");
+        assert_eq!(
+            selected_picture(&s, &Selection::None),
+            Some(("/output.jpg", vec![("device", "HDMI-A-1".to_string())])),
+            "nothing in focus: the preview is the output's frame"
+        );
     }
 
     /// A drop onto another node slides below it — past a whole column if

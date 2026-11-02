@@ -99,6 +99,16 @@ fn solid_masks(ctx: &Ctx, device: &str, masks: &Value) -> Result<Vec<(String, [u
         .collect()
 }
 
+/// The devices a device-less op lands on: the one named, else every output
+/// (the built-in preview and each screen). The grid's buttons name none, so a
+/// press reaches whatever is showing, not one device the canvas never sees.
+fn targets(ctx: &Ctx, body: &Value) -> Vec<String> {
+    match body["device"].as_str() {
+        Some(device) => vec![device.to_string()],
+        None => ctx.state.device_ids(),
+    }
+}
+
 pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let Some(body) = params.json() else {
         return Err(CallError::Bad("expected json".into()));
@@ -117,9 +127,10 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             play(ctx, device, lid, name, looping)?;
         }
         "stop" => {
-            let device = body["device"].as_str().unwrap_or(PREVIEW).to_string();
             let lid = body["layer"].as_str().unwrap_or_default().to_string();
-            ctx.state.overlays.stop(&device, &lid);
+            for device in targets(ctx, &body) {
+                ctx.state.overlays.stop(&device, &lid);
+            }
         }
         "stop-all" => {
             ctx.state.overlays.stop_all();
@@ -135,8 +146,14 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         // is the colour outside the listed masks and may be left out
         // (black). Without it this is the one-colour body it always was.
         "solid" => {
-            let device = body["device"].as_str().unwrap_or(PREVIEW).to_string();
-            let masks = solid_masks(ctx, &device, &body["masks"])?;
+            if body["device"].is_null() && !body["masks"].is_null() {
+                return Err(CallError::Bad("per-mask colours need the `device` whose masks they name".into()));
+            }
+            let devices = targets(ctx, &body);
+            let masks = match devices.first() {
+                Some(device) => solid_masks(ctx, device, &body["masks"])?,
+                None => Vec::new(),
+            };
             let [r, g, b] = match body["rgb"].as_array() {
                 Some(rgb) => rgb_bytes(rgb)?,
                 None if !masks.is_empty() => [0, 0, 0],
@@ -154,19 +171,20 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             }
             // P-F: `pattern: "grid"` is the edge-blend test pattern —
             // `rgb` (white by default) with a black grid over the device.
-            match body["pattern"].as_str() {
-                None => ctx
-                    .state
-                    .overlays
-                    .start_solid_masks(device, [r, g, b], masks, time, duration),
-                Some("grid") if masks.is_empty() => ctx
-                    .state
-                    .overlays
-                    .start_test_pattern(device, [r, g, b], time, duration),
+            let grid = match body["pattern"].as_str() {
+                None => false,
+                Some("grid") if masks.is_empty() => true,
                 Some(other) => {
                     return Err(CallError::Bad(format!(
                         "pattern {other:?}: the only pattern is \"grid\", without `masks`"
                     )))
+                }
+            };
+            for device in devices {
+                if grid {
+                    ctx.state.overlays.start_test_pattern(device, [r, g, b], time, duration);
+                } else {
+                    ctx.state.overlays.start_solid_masks(device, [r, g, b], masks.clone(), time, duration);
                 }
             }
         }
@@ -181,8 +199,9 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             ctx.state.overlays.release_glitch();
         }
         "stop-solid" => {
-            let device = body["device"].as_str().unwrap_or(PREVIEW);
-            ctx.state.overlays.stop_solid_color(device);
+            for device in targets(ctx, &body) {
+                ctx.state.overlays.stop_solid_color(&device);
+            }
         }
         // `S.O.5`: see the module doc. Answers early with what it baked,
         // because the movement's name is what the caller needs next.

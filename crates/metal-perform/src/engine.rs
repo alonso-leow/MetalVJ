@@ -837,6 +837,13 @@ pub fn load_graph(id: &str) -> Result<metal_graph::Graph, String> {
 }
 
 pub fn load_graph_at(root: &std::path::Path, id: &str) -> Result<metal_graph::Graph, String> {
+    // A screen of the central collection is computed, not stored
+    // (`metal_graph::collection::device_graph`); its file, if any, is legacy.
+    if let Some(device) = id.strip_prefix(metal_graph::collection::DEVICE_PREFIX) {
+        if let Some(g) = metal_graph::collection::device_graph(&graphs_dir(root), device) {
+            return Ok(g);
+        }
+    }
     let path = graph_path_at(root, id);
     let text = metal_vfs::read_to_string(&path).map_err(|e| format!("no such graph {id:?}: {e}"))?;
     metal_graph::Graph::from_json(&text).map_err(|e| format!("{id:?} did not parse: {e}"))
@@ -880,6 +887,18 @@ pub fn save_graph_at(root: &std::path::Path, g: &metal_graph::Graph) -> Result<(
 /// a node in the same canvas. Idempotent.
 pub fn adopt_device_graphs_at(root: &std::path::Path) -> Vec<String> {
     metal_graph::collection::adopt_device_graphs(
+        &graphs_dir(root),
+        &metal_graph::collection::Io {
+            write: &|path, text| collection_write(path, text),
+            check: &|id| check_graph_owner_at(root, id),
+        },
+    )
+}
+
+/// Boot: the device files an earlier version published from the central
+/// collection are dropped; those screens are computed on read. Idempotent.
+pub fn drop_computed_device_graphs_at(root: &std::path::Path) -> Vec<String> {
+    metal_graph::collection::drop_computed_copies(
         &graphs_dir(root),
         &metal_graph::collection::Io {
             write: &|path, text| collection_write(path, text),
@@ -7114,7 +7133,9 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             )
             .unwrap();
             assert_eq!(out_cfg["mode"]["kind"], "own");
-            let path = graph_path_at(&root, &device_graph_id(&device));
+            // The screen is computed from the central collection: that is the
+            // file a sync writes.
+            let path = graph_path_at(&root, metal_graph::collection::CENTRAL_ID);
 
             // Nothing new: the file is left byte-identical.
             let before = metal_vfs::read(&path).unwrap();
@@ -7154,15 +7175,29 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
 
             let (graph_only, _, _) =
                 render_device(&mut *paint, &mut sim, &mut state, &device, 64, 36);
-            metal_vfs::remove_file(&path).unwrap();
+            // The screen loses its graph: central stops feeding it (written
+            // raw, so no released copy is kept).
+            let unbind = || {
+                let mut col = load_graph_at(&root, metal_graph::collection::CENTRAL_ID).unwrap();
+                let outs: Vec<String> = col
+                    .nodes
+                    .iter()
+                    .filter(|n| metal_graph::collection::node_device(n) == Some(device.as_str()))
+                    .map(|n| n.id.clone())
+                    .collect();
+                for id in outs {
+                    col.remove_node(&id);
+                }
+                metal_vfs::write(&path, col.to_json()).unwrap();
+            };
+            unbind();
+            assert!(device_graph_at(&root, &device).is_none());
             let (pool_synth, _, _) =
                 render_device(&mut *paint, &mut sim, &mut state, &device, 64, 36);
             assert_eq!(
                 graph_only, pool_synth,
                 "the written graph and the pool's synthesis are the same frame"
             );
-
-            let _ = metal_vfs::remove_file(&path);
         }
 
         /// LAY.8c, the canvas half: when the mixer is already wired, the

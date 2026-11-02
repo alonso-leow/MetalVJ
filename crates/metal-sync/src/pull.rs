@@ -86,8 +86,14 @@ pub fn servable(rel: &str) -> bool {
     }
     match rel.split_once('/') {
         Some(("audio" | "digest", name)) => !name.is_empty() && !name.contains('/'),
-        // A device graph and its owner stamp, directly under `graphs/`.
-        Some(("graphs", name)) => name.starts_with("device-") && (name.ends_with(".json") || name.ends_with(".owner")) && !name.contains('/'),
+        // A device graph and its owner stamp, directly under `graphs/`, and
+        // the central collection most screens are computed from.
+        Some(("graphs", name)) => {
+            (name.starts_with(metal_graph::collection::DEVICE_PREFIX)
+                || name.strip_suffix(".json").or_else(|| name.strip_suffix(".owner")) == Some(metal_graph::collection::CENTRAL_ID))
+                && (name.ends_with(".json") || name.ends_with(".owner"))
+                && !name.contains('/')
+        }
         // A model file, or one folder of them (`models/basic-pitch/x.onnx`).
         Some(("models", rest)) => {
             let parts: Vec<&str> = rest.split('/').collect();
@@ -140,7 +146,16 @@ impl Kind {
     pub fn names(self, data_root: &Path, name: &str) -> Vec<String> {
         match self {
             Kind::Song => bundle_names(name),
-            Kind::Graph => vec![format!("graphs/{name}.json"), format!("graphs/{name}.owner")],
+            // A screen of the central collection has no file of its own: it is
+            // computed from the collection, which travels with it.
+            Kind::Graph => {
+                let mut names = vec![format!("graphs/{name}.json"), format!("graphs/{name}.owner")];
+                if metal_graph::collection::is_device_graph_id(name) {
+                    let col = metal_graph::collection::CENTRAL_ID;
+                    names.extend([format!("graphs/{col}.json"), format!("graphs/{col}.owner")]);
+                }
+                names
+            }
             Kind::Model => {
                 let dir = data_root.join("models").join(name);
                 if dir.is_dir() {
@@ -463,6 +478,8 @@ mod tests {
     fn device_graphs_and_models_are_servable_and_nothing_near_them() {
         assert!(servable("graphs/device-ab12.json"));
         assert!(servable("graphs/device-ab12.owner"));
+        assert!(servable("graphs/col-main.json"), "the collection a screen is computed from");
+        assert!(!servable("graphs/col-other.json"));
         assert!(!servable("graphs/main.json"), "only device graphs are pulled on demand");
         assert!(!servable("graphs/nested/device-x.json"));
         assert!(servable("models/basic-pitch/model.onnx"));
@@ -481,7 +498,10 @@ mod tests {
         let mut got: Vec<String> = local_files(&dir, Kind::Model, "bp").into_iter().map(|e| e.rel).collect();
         got.sort();
         assert_eq!(got, ["models/bp/m.onnx", "models/bp/n.txt"]);
-        assert_eq!(Kind::Graph.names(&dir, "device-1"), ["graphs/device-1.json", "graphs/device-1.owner"]);
+        assert_eq!(
+            Kind::Graph.names(&dir, "device-1"),
+            ["graphs/device-1.json", "graphs/device-1.owner", "graphs/col-main.json", "graphs/col-main.owner"]
+        );
         assert_eq!(Kind::of_ask(&json!({ "graph": "device-1" })), Some((Kind::Graph, "device-1")));
         assert_eq!(Kind::Model.key("bp"), "model:bp");
         let _ = std::fs::remove_dir_all(&dir);

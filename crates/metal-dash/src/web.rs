@@ -72,6 +72,7 @@ fn boot(paint: Box<dyn Paint>) -> Shared {
     crate::sync_device_graphs_once(&shared.state, &ids);
     crate::adopt_device_graphs_at(&crate::output::data_root());
     crate::merge_device_collections_at(&crate::output::data_root());
+    crate::drop_computed_device_graphs_at(&crate::output::data_root());
     shared.state.port = 0;
     shared
 }

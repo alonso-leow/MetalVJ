@@ -405,6 +405,8 @@ fn serve_forever(
     // Both are once, then idempotent.
     adopt_device_graphs_at(&crate::output::data_root());
     crate::merge_device_collections_at(&crate::output::data_root());
+    // Its screens are computed from it now: drop the copies it used to write.
+    crate::drop_computed_device_graphs_at(&crate::output::data_root());
     // Libraries move onto the one clip slug and the one proxy folder; once, then
     // a no-op (the old index and picks are kept as `.bak-slug`).
     let moved = metal_reel::index::migrate_to_one_slug(&crate::output::data_root());

@@ -661,6 +661,12 @@ impl Harness {
     }
 
     fn load_graph(&self, id: &str) -> Result<metal_graph::Graph, String> {
+        // A screen of the central collection is computed, not stored.
+        if let Some(device) = id.strip_prefix(metal_graph::collection::DEVICE_PREFIX) {
+            if let Some(g) = metal_graph::collection::device_graph(&self.root.join("graphs"), device) {
+                return Ok(g);
+            }
+        }
         let path = self.graph_path(id);
         let text = fs::read_to_string(&path).map_err(|e| format!("no such graph {id:?}: {e}"))?;
         metal_graph::Graph::from_json(&text).map_err(|e| format!("{id:?} did not parse: {e}"))

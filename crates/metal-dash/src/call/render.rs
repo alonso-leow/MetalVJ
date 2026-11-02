@@ -147,6 +147,17 @@ fn node_bytes(ctx: &mut Ctx, params: &Params, device: &str, node: &str, frame: u
 /// real node without the operator naming its screen. `None` when no device's
 /// graph has a node by that id.
 fn device_holding_node(node: &str) -> Option<String> {
+    // The central collection's screens are computed, not files: ask it first.
+    if let Ok(col) = crate::load_graph(metal_graph::collection::CENTRAL_ID) {
+        if col.node(node).is_some() {
+            if let Some(device) = metal_graph::collection::bound_devices(&col)
+                .into_iter()
+                .find(|d| metal_graph::collection::project(&col, d).node(node).is_some())
+            {
+                return Some(device);
+            }
+        }
+    }
     for row in crate::list_graphs() {
         let Some(graph_id) = row.get("id").and_then(Value::as_str) else { continue };
         let Some(device) = graph_id.strip_prefix("device-") else { continue };

@@ -4,12 +4,19 @@
 //! The engine still runs one authored graph per device, `device-<id>`. A
 //! **collection graph** is any graph that is not one of those: its
 //! `output.device` nodes each name the screen they feed in `config.device`, and
-//! saving it **publishes** to every device it feeds — the device graph becomes
-//! the collection graph minus the other screens' output nodes, with
-//! [`Graph::source`] pointing back. Node ids are kept, so everything that
-//! addresses a node by `(device, node)` (previews, live values, scenes,
-//! bindings) keeps working unchanged. The device file is generated; the canvas
-//! edits the collection.
+//! the device graph is the collection graph minus the other screens' output
+//! nodes, with [`Graph::source`] pointing back ([`project`]). Node ids are kept,
+//! so everything that addresses a node by `(device, node)` (previews, live
+//! values, scenes, bindings) keeps working unchanged. The canvas edits the
+//! collection.
+//!
+//! **The central collection's screens are computed, never stored.** A
+//! `device-<id>` the central collection feeds is its projection, made when it
+//! is read ([`device_graph`]); no file is written for it, and a copy an earlier
+//! version wrote is dropped on the next save. A `device-<id>.json` on disk is
+//! a screen no collection feeds (an unowned one, or one released with its last
+//! graph), or one a legacy collection still publishes to until boot folds it
+//! into the central one.
 //!
 //! **One collection holds several screens.** Every output device joins the
 //! central collection ([`CENTRAL_ID`]) as an `output.device` node, not a
@@ -99,6 +106,15 @@ pub fn project(g: &Graph, device: &str) -> Graph {
     out
 }
 
+/// The graph screen `device` runs, computed: the central collection's
+/// projection when the central collection feeds the screen. `None` when it
+/// does not; the caller then reads the device's own file, if it has one.
+pub fn device_graph(dir: &Path, device: &str) -> Option<Graph> {
+    read(dir, CENTRAL_ID)
+        .filter(|col| bound_devices(col).contains(device))
+        .map(|col| project(&col, device))
+}
+
 fn read(dir: &Path, id: &str) -> Option<Graph> {
     let text = metal_vfs::read_to_string(dir.join(format!("{id}.json"))).ok()?;
     Graph::from_json(&text).ok()
@@ -179,6 +195,7 @@ pub fn store(dir: &Path, g: &Graph, io: &Io) -> Result<(), String> {
             let before = bound_devices(&col);
             let merged = unproject(&col, g, device);
             write(dir, &merged, io)?;
+            keep_released(dir, &col, &merged, io);
             publish(dir, &merged, &before, io);
             return Ok(());
         }
@@ -189,34 +206,67 @@ pub fn store(dir: &Path, g: &Graph, io: &Io) -> Result<(), String> {
     if is_device_graph_id(&g.id) {
         return write(dir, g, io);
     }
-    let before = bound_in_store(dir, &g.id);
+    let old = read(dir, &g.id);
+    let before = old.as_ref().map(bound_devices).unwrap_or_default();
     write(dir, g, io)?;
+    if let Some(old) = &old {
+        keep_released(dir, old, g, io);
+    }
     publish(dir, g, &before, io);
     Ok(())
 }
 
+/// A screen the central collection stopped feeding had no file of its own:
+/// it was computed. Its last graph (`old`'s projection) is written as a plain,
+/// released device graph so it is never silently lost.
+fn keep_released(dir: &Path, old: &Graph, new: &Graph, io: &Io) {
+    if old.id != CENTRAL_ID {
+        return;
+    }
+    for device in bound_devices(old).difference(&bound_devices(new)) {
+        let id = device_graph_id(device);
+        if read(dir, &id).is_some() || (io.check)(&id).is_err() {
+            continue;
+        }
+        let mut last = project(old, device);
+        last.source = None;
+        let _ = write(dir, &last, io);
+    }
+}
+
 /// What a save of collection graph `g` publishes, given the screens its
-/// previous version fed (`before`). Returns the devices written.
+/// previous version fed (`before`). Returns the devices published.
 ///
 /// - a screen `g` already fed and still owns is republished;
 /// - a screen `g` newly names is claimed: its device graph is replaced;
 /// - a screen another collection owns, which `g` already named, is left alone;
 /// - a screen `g` stopped naming keeps its last graph but is released
 ///   ([`Graph::source`] cleared), so it is never silently lost.
+///
+/// The central collection publishes without writing: its screens are computed
+/// ([`device_graph`]), so publishing one drops the file that would shadow it.
 pub fn publish(dir: &Path, g: &Graph, before: &BTreeSet<String>, io: &Io) -> Vec<String> {
     if is_device_graph_id(&g.id) {
         return Vec::new();
     }
+    let central = g.id == CENTRAL_ID;
     let now = bound_devices(g);
     let mut written = Vec::new();
     for device in &now {
-        let existing = read(dir, &device_graph_id(device));
+        let id = device_graph_id(device);
+        let existing = read(dir, &id);
         let mine = existing.as_ref().is_some_and(|e| e.source.as_deref() == Some(g.id.as_str()));
         let claimed = !before.contains(device);
-        if mine || claimed {
-            if (io.check)(&device_graph_id(device)).is_ok() && write(dir, &project(g, device), io).is_ok() {
-                written.push(device.clone());
-            }
+        if !(mine || claimed) || (io.check)(&id).is_err() {
+            continue;
+        }
+        let published = if central {
+            existing.is_none() || metal_vfs::remove_file(dir.join(format!("{id}.json"))).is_ok()
+        } else {
+            write(dir, &project(g, device), io).is_ok()
+        };
+        if published {
+            written.push(device.clone());
         }
     }
     for device in before.difference(&now) {
@@ -399,6 +449,25 @@ pub fn merge_device_collections(dir: &Path, io: &Io) -> Vec<String> {
     merged
 }
 
+/// Boot: the device files an earlier version published from the central
+/// collection are dropped — those screens are computed now ([`device_graph`]).
+/// A device file central did not write (unowned, released, another
+/// collection's) is kept. Returns the screens whose copy was dropped.
+pub fn drop_computed_copies(dir: &Path, io: &Io) -> Vec<String> {
+    let Some(central) = read(dir, CENTRAL_ID) else {
+        return Vec::new();
+    };
+    let bound = bound_devices(&central);
+    bound
+        .into_iter()
+        .filter(|device| {
+            read(dir, &device_graph_id(device)).is_some_and(|g| g.source.as_deref() == Some(CENTRAL_ID))
+                && (io.check)(&device_graph_id(device)).is_ok()
+                && metal_vfs::remove_file(dir.join(format!("{}.json", device_graph_id(device)))).is_ok()
+        })
+        .collect()
+}
+
 /// Gives a later copy of a node id that repeats an earlier one a fresh id (the
 /// first keeps its id). Edges that name the repeated id stay on the first node.
 fn dedupe_node_ids(g: &mut Graph) {
@@ -431,8 +500,9 @@ pub fn ensure_device(dir: &Path, device: &str, io: &Io) -> Vec<String> {
     {
         return Vec::new();
     }
+    // Already central's: its graph is computed, there is no copy to refresh.
     if before.contains(device)
-        && existing.as_ref().is_some_and(|g| g.source.as_deref() == Some(CENTRAL_ID))
+        && existing.as_ref().is_none_or(|g| g.source.as_deref() == Some(CENTRAL_ID))
     {
         return Vec::new();
     }
@@ -594,8 +664,10 @@ mod tests {
             "one output node per screen, in one collection"
         );
         for device in ["HDMI", "DP"] {
-            let published = read(&dir, &format!("device-{device}")).unwrap();
-            assert_eq!(published.source.as_deref(), Some(CENTRAL_ID));
+            assert!(read(&dir, &format!("device-{device}")).is_none(), "the adopted file is gone");
+            let computed = device_graph(&dir, device).unwrap();
+            assert_eq!(computed.source.as_deref(), Some(CENTRAL_ID));
+            assert!(computed.nodes.iter().any(|n| n.kind == "gen.turing"), "with the screen's own nodes");
         }
         assert!(adopt_device_graphs(&dir, &IO).is_empty(), "idempotent");
     }
@@ -607,7 +679,8 @@ mod tests {
         assert_eq!(ensure_device(&dir, "DP", &IO), [CENTRAL_ID]);
         let col = read(&dir, CENTRAL_ID).unwrap();
         assert_eq!(bound_devices(&col).into_iter().collect::<Vec<_>>(), ["DP", "HDMI"]);
-        assert_eq!(read(&dir, "device-HDMI").unwrap().source.as_deref(), Some(CENTRAL_ID));
+        assert!(read(&dir, "device-HDMI").is_none(), "no device file is written");
+        assert_eq!(device_graph(&dir, "HDMI").unwrap().source.as_deref(), Some(CENTRAL_ID));
         // Already a screen of central: nothing new is written.
         assert!(ensure_device(&dir, "DP", &IO).is_empty());
     }
@@ -631,7 +704,8 @@ mod tests {
         assert!(read(&dir, "col-HDMI").is_none(), "the per-device file is gone");
         assert!(read(&dir, "col-DP").is_none());
         for device in ["HDMI", "DP"] {
-            assert_eq!(read(&dir, &format!("device-{device}")).unwrap().source.as_deref(), Some(CENTRAL_ID));
+            assert!(read(&dir, &format!("device-{device}")).is_none(), "the old published copy is dropped");
+            assert_eq!(device_graph(&dir, device).unwrap().source.as_deref(), Some(CENTRAL_ID));
         }
         assert!(merge_device_collections(&dir, &IO).is_empty(), "idempotent");
     }
@@ -662,6 +736,73 @@ mod tests {
         assert_eq!(ids.len(), col.nodes.len(), "every node id is unique");
         assert_eq!(bound_devices(&col).into_iter().collect::<Vec<_>>(), ["HDMI"], "the unbound output names no screen");
         assert!(read(&dir, "col-5").is_none(), "the orphan file is gone");
+    }
+
+    fn central_two_screens() -> Graph {
+        let mut g = two_screens();
+        g.id = CENTRAL_ID.into();
+        g
+    }
+
+    #[test]
+    fn the_central_collection_computes_its_screens_and_writes_no_copy() {
+        let dir = scratch("computed");
+        // A copy an earlier version published.
+        let mut stale = project(&central_two_screens(), "A");
+        stale.nodes.clear();
+        write(&dir, &stale, &IO).unwrap();
+        store(&dir, &central_two_screens(), &IO).unwrap();
+        assert!(read(&dir, "device-A").is_none(), "the stale copy is dropped");
+        assert!(read(&dir, "device-B").is_none(), "and none is written");
+        let a = device_graph(&dir, "A").expect("computed");
+        assert_eq!(a, project(&central_two_screens(), "A"));
+        assert!(device_graph(&dir, "C").is_none(), "a screen central does not feed");
+    }
+
+    #[test]
+    fn boot_drops_only_the_copies_central_published() {
+        let dir = scratch("drop-copies");
+        let g = central_two_screens();
+        write(&dir, &g, &IO).unwrap();
+        write(&dir, &project(&g, "A"), &IO).unwrap();
+        let mut own = project(&g, "B");
+        own.source = None;
+        write(&dir, &own, &IO).unwrap();
+        assert_eq!(drop_computed_copies(&dir, &IO), ["A"]);
+        assert!(read(&dir, "device-A").is_none());
+        assert!(read(&dir, "device-B").is_some(), "a file central did not write is kept");
+        assert!(drop_computed_copies(&dir, &IO).is_empty(), "idempotent");
+    }
+
+    #[test]
+    fn an_edit_through_a_computed_screen_lands_in_the_central_collection() {
+        let dir = scratch("computed-edit");
+        store(&dir, &central_two_screens(), &IO).unwrap();
+        let mut edited = device_graph(&dir, "A").unwrap();
+        let fx = edited.add_node("fx", "fx.shake", [100.0, 0.0]);
+        store(&dir, &edited, &IO).unwrap();
+        assert!(read(&dir, "device-A").is_none(), "still no file");
+        assert!(read(&dir, CENTRAL_ID).unwrap().node(&fx).is_some(), "the edit is in central");
+        assert!(device_graph(&dir, "B").unwrap().node(&fx).is_some(), "and every screen shares it");
+    }
+
+    #[test]
+    fn a_screen_central_stops_feeding_keeps_its_last_graph() {
+        let dir = scratch("computed-release");
+        let g = central_two_screens();
+        store(&dir, &g, &IO).unwrap();
+        let mut g2 = g.clone();
+        let b = g2.nodes.iter().find(|n| node_device(n) == Some("B")).unwrap().id.clone();
+        g2.remove_node(&b);
+        store(&dir, &g2, &IO).unwrap();
+        assert!(device_graph(&dir, "B").is_none(), "central no longer feeds B");
+        let released = read(&dir, "device-B").expect("its last graph is kept");
+        assert_eq!(released.source, None);
+        assert!(released.node("gen-0").is_some());
+        // Claimed again: the projection wins and the released file is dropped.
+        store(&dir, &g, &IO).unwrap();
+        assert!(read(&dir, "device-B").is_none());
+        assert_eq!(device_graph(&dir, "B").unwrap().source.as_deref(), Some(CENTRAL_ID));
     }
 
     #[test]

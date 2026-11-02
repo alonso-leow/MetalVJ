@@ -1145,6 +1145,10 @@ fn collect_generators(
         return;
     }
     let Some(node) = graph.node(at) else { return };
+    // The router is the automix switch, not a source: it draws the group.
+    if node.kind == ROUTER_KIND {
+        return;
+    }
     if node.kind.starts_with("fx.") {
         let Some(up) = graph
             .edges
@@ -1578,7 +1582,9 @@ fn graph_has_router(graph: &metal_graph::Graph) -> bool {
 /// The mode an authored graph resolves to, for one frame. The single decision
 /// behind `compile_device_plan_with`, so the rule lives in one place.
 ///
-/// 1. A wired `router` means automix, whatever else the graph says.
+/// 1. A `router` means automix, unless a generator is wired into the output
+///    beside it: the default graph ships router → output, and a generator the
+///    operator then wires in is what they mean to see and edit.
 /// 2. An explicit declared mode (output config, or a legacy compose/stack node)
 ///    stands, except a legacy `automix` on a canvas that wires a generator
 ///    straight into the output: that canvas is authored, so it is `Own`. The
@@ -1587,10 +1593,10 @@ fn graph_has_router(graph: &metal_graph::Graph) -> bool {
 /// 4. Otherwise `None` — the caller falls back to the device's stored mode,
 ///    which keeps an empty graph drawing exactly what it drew before.
 pub fn resolve_authored_mode(graph: &metal_graph::Graph) -> Option<layers::DeviceMode> {
-    if graph_has_router(graph) {
+    let wired = !authored_generators_with_bindings(graph).is_empty();
+    if graph_has_router(graph) && !wired {
         return Some(layers::DeviceMode::Automix);
     }
-    let wired = !authored_generators_with_bindings(graph).is_empty();
     match graph_device_mode(graph) {
         Some(layers::DeviceMode::Automix) if wired => Some(layers::DeviceMode::Own),
         Some(mode) => Some(mode),
@@ -5723,6 +5729,22 @@ mod tests {
         assert_eq!(mode, layers::DeviceMode::Automix);
         assert!(list.iter().all(|l| l.id != gen), "the automix list is the group, not the canvas");
         let _ = out;
+    }
+
+    /// The default graph is router → output. A generator wired into the output
+    /// beside that router is the canvas the operator edits, so it draws.
+    #[test]
+    fn a_generator_wired_beside_the_router_draws() {
+        let mut g = metal_graph::Graph::new(&device_graph_id("beside"), "b", metal_graph::Domain::Live);
+        let out = g.add_node("out", "output.device", [800.0, 0.0]);
+        g.node_mut(&out).unwrap().config =
+            metal_graph::Config::from_json_str(r#"{"mode":{"kind":"automix"}}"#).unwrap();
+        let router = g.add_node("router", ROUTER_KIND, [400.0, 0.0]);
+        g.add_edge(metal_graph::Endpoint::new(&router, "image"), metal_graph::Endpoint::new(&out, "image"));
+        assert_eq!(resolve_authored_mode(&g), Some(layers::DeviceMode::Automix));
+        let gen = g.add_node("gen", "gen.puzzle", [0.0, 0.0]);
+        g.add_edge(metal_graph::Endpoint::new(&gen, "image"), metal_graph::Endpoint::new(&out, "image"));
+        assert_eq!(resolve_authored_mode(&g), Some(layers::DeviceMode::Own));
     }
 
     /// The legacy `automix` output mode migrates to an explicit router when no

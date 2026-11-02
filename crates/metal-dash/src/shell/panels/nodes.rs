@@ -2871,32 +2871,6 @@ fn paint_grid(painter: &egui::Painter, theme: &Theme, rect: EguiRect, state: &Pa
     }
 }
 
-/// The canvas's ground grid without a view transform, for a panel that wants
-/// the same material behind its content (the properties panel's transparent
-/// body): hairline rules every `theme.graph_grid`, anchored to `rect`.
-pub(crate) fn paint_ground_grid(painter: &egui::Painter, theme: &Theme, rect: EguiRect) {
-    let step = theme.graph_grid;
-    if step < f32::from(theme.pad) {
-        return;
-    }
-    let mut x = rect.min.x;
-    while x < rect.max.x {
-        painter.line_segment(
-            [Pos2::new(x, rect.min.y), Pos2::new(x, rect.max.y)],
-            theme.rule_stroke(),
-        );
-        x += step;
-    }
-    let mut y = rect.min.y;
-    while y < rect.max.y {
-        painter.line_segment(
-            [Pos2::new(rect.min.x, y), Pos2::new(rect.max.x, y)],
-            theme.rule_stroke(),
-        );
-        y += step;
-    }
-}
-
 /// One node's live values in the last frame the engine drew, off the cached
 /// `GET /graph/live` reply: `(params by name, output vars by name)`. Empty
 /// before the first poll or for a graph nobody renders.

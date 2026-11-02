@@ -60,7 +60,7 @@ use serde_json::json;
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{
-    field_row, label_row, num, panel_head, section as kit_section, section_heading,
+    field_row, label_row, num, panel_frame, panel_head, section as kit_section, section_heading,
     toggle_row,
 };
 use crate::shell::components::choice;
@@ -1634,18 +1634,13 @@ pub fn paint(
 ) -> Response {
     let _span = crate::perf::Span::new("properties");
     ui.push_id(Id::new(super::Region::Properties.id()), |ui| {
-        let mut frame = egui::Frame::new()
-            .fill(theme.transparent())
-            .stroke(theme.border_stroke(crate::shell::classes::Surface::Panel))
-            .inner_margin(theme.panel_margin())
-            .corner_radius(theme.corner_radius());
+        let mut frame = panel_frame(theme);
         if focused {
             frame = frame.stroke(theme.accent());
         }
         let inner = frame.show(ui, |ui| {
             ui.expand_to_include_rect(ui.max_rect());
             let full_rect = ui.max_rect();
-            crate::shell::panels::nodes::paint_ground_grid(ui.painter(), theme, full_rect);
             // Every control on the panel is a payload control: sharp, black
             // outline, glass resting fill.
             theme.payload_style(&mut ui.style_mut().visuals);

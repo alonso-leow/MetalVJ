@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown, label_row};
+use crate::shell::components::{dropdown_fill, label_row};
 use crate::shell::i18n::tr;
 
 use super::shared::get;
@@ -40,7 +40,7 @@ pub(crate) fn section(
 
     let mut kind_sel = kind.clone();
     label_row(ui, theme, tr("mode"), |ui| {
-        dropdown(
+        dropdown_fill(
             ui,
             theme,
             "shell/region/properties/device-mode",
@@ -77,7 +77,7 @@ pub(crate) fn section(
             .collect();
         let mut collection_sel = collection.clone();
         label_row(ui, theme, tr("collection"), |ui| {
-            dropdown(
+            dropdown_fill(
                 ui,
                 theme,
                 "shell/region/properties/device-mode-collection",

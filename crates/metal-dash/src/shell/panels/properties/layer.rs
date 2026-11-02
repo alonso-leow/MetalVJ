@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown, label_row, num, num_track};
+use crate::shell::components::{dropdown_fill, label_row, num, num_track};
 use crate::shell::i18n::tr;
 
 /// The four blend names `crate::layers::Blend::parse` reads.
@@ -38,7 +38,7 @@ pub(crate) fn section(
     let options: Vec<(String, &str)> = BLENDS.iter().map(|b| (b.to_string(), *b)).collect();
     let picked = blend.clone();
     label_row(ui, theme, tr("blend"), |ui| {
-        dropdown(
+        dropdown_fill(
             ui,
             theme,
             "shell/region/properties/blend",

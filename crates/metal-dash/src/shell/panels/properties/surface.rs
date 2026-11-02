@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown, kv_row, label_row, note, table};
+use crate::shell::components::{dropdown_fill, kv_row, label_row, note, table};
 use crate::shell::i18n::{tr, trf};
 
 use super::contour::{ContourEditor, ContourEvent, ContourMode};
@@ -403,7 +403,7 @@ fn mapping_table(
                 1 => p.fx.join(" · "),
                 2 => p.device.clone().unwrap_or_default(),
                 _ => {
-                    dropdown(
+                    dropdown_fill(
                         ui,
                         theme,
                         ("surface-section", node_id, row),

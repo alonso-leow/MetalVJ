@@ -35,7 +35,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{colour_row, dropdown, kv_row, kv_wrap, label_row, note, num_value};
+use crate::shell::components::{colour_row, dropdown_fill, kv_row, kv_wrap, label_row, note, num_value};
 use crate::shell::i18n::{tr, trf};
 
 use super::mask::MASK_STROKE_MAX;
@@ -192,7 +192,7 @@ pub(crate) fn section(
     // --- source ----------------------------------------------------------
     let mut source = grid.source.clone();
     if kv_row(ui, theme, tr("source"), |ui| {
-        dropdown(
+        dropdown_fill(
             ui,
             theme,
             ("shell/region/properties/sectors-source", venue_id, surface_id.as_str()),

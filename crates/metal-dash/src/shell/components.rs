@@ -1280,13 +1280,27 @@ pub fn dropdown<T: PartialEq + Clone>(
     dropdown_enabled(ui, theme, id, current, options, true)
 }
 
+/// [`dropdown`] spread over the whole width its cell leaves — a properties
+/// row's control. Anywhere unbounded (a canvas node's toolbar) keeps the
+/// kit's own width through [`dropdown`].
+pub fn dropdown_fill<T: PartialEq + Clone>(
+    ui: &mut Ui,
+    theme: &Theme,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    current: &mut T,
+    options: &[(T, &str)],
+) -> egui::Response {
+    let width = ui.available_width();
+    dropdown_at(ui, theme, id, current, options, true, Some(width))
+}
+
 /// A selectable option set as the standard payload dropdown — what the
 /// properties pages use wherever a config offers a choice (a segmented strip
 /// is for the toolbars, not for a config value). The id is the call site's
 /// next auto id, so rows of the same options do not collide.
 pub fn choice<T: PartialEq + Clone>(ui: &mut Ui, theme: &Theme, current: &mut T, options: &[(T, &str)]) -> egui::Response {
     let id = ui.next_auto_id();
-    dropdown(ui, theme, id, current, options)
+    dropdown_fill(ui, theme, id, current, options)
 }
 
 /// [`dropdown`] with an explicit `enabled`.
@@ -1298,15 +1312,25 @@ pub fn dropdown_enabled<T: PartialEq + Clone>(
     options: &[(T, &str)],
     enabled: bool,
 ) -> egui::Response {
+    dropdown_at(ui, theme, id, current, options, enabled, None)
+}
+
+fn dropdown_at<T: PartialEq + Clone>(
+    ui: &mut Ui,
+    theme: &Theme,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    current: &mut T,
+    options: &[(T, &str)],
+    enabled: bool,
+    width: Option<f32>,
+) -> egui::Response {
     let shown = options
         .iter()
         .find(|(value, _)| value == current)
         .map(|(_, label)| *label)
         .unwrap_or("");
     let mut picked = None;
-    // The whole width the cell leaves, not the kit's fixed control column.
-    let width = ui.available_width();
-    let mut response = combo(ui, theme, id, shown, Some(width), enabled, |ui| {
+    let mut response = combo(ui, theme, id, shown, width, enabled, |ui| {
         for (value, label) in options {
             if menu_item(ui, theme, value == &*current, label).clicked() {
                 picked = Some(value.clone());

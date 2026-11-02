@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{colour_row, dropdown, label_row, number_row, slider_row, toggle_row};
+use crate::shell::components::{colour_row, dropdown_fill, label_row, number_row, slider_row, toggle_row};
 use crate::shell::i18n::tr;
 
 /// `POST /graph/node {op:"config"}` with the given config fields merged.
@@ -61,7 +61,7 @@ pub(crate) fn section(
     let families: Vec<(String, &str)> = FAMILIES.iter().map(|f| (f.to_string(), *f)).collect();
     let before = family.clone();
     label_row(ui, theme, tr("font"), |ui| {
-        dropdown(
+        dropdown_fill(
             ui,
             theme,
             "shell/region/properties/font",
@@ -92,7 +92,7 @@ pub(crate) fn section(
     let aligns: Vec<(String, &str)> = ALIGNS.iter().map(|a| (a.to_string(), *a)).collect();
     let before = align.clone();
     label_row(ui, theme, tr("align"), |ui| {
-        dropdown(
+        dropdown_fill(
             ui,
             theme,
             "shell/region/properties/align",
@@ -126,7 +126,7 @@ pub(crate) fn section(
     ];
     let before = valign.clone();
     label_row(ui, theme, tr("vertical align"), |ui| {
-        dropdown(ui, theme, "shell/region/properties/valign", &mut valign, &valigns)
+        dropdown_fill(ui, theme, "shell/region/properties/valign", &mut valign, &valigns)
     });
     if valign != before {
         post_text(door, gid, node_id, json!({ "valign": valign }));

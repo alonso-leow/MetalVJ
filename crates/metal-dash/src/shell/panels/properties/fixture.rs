@@ -87,7 +87,7 @@ pub(crate) fn node_section(
     }
     let before = pick_now.clone();
     kv_row(ui, theme, tr("fixture"), |ui| {
-        crate::shell::components::dropdown(
+        crate::shell::components::dropdown_fill(
             ui,
             theme,
             ("shell/venue/fixture-node", node_id),

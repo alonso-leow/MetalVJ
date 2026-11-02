@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown, field_row, label_row, number_row};
+use crate::shell::components::{dropdown_fill, field_row, label_row, number_row};
 use crate::shell::i18n::tr;
 
 use super::text::post_text;
@@ -19,7 +19,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
 
     let mut mode = cfg["mode"].as_str().unwrap_or("read").to_string();
     let modes = [("read".to_string(), tr("read")), ("generate".to_string(), tr("generate"))];
-    if label_row(ui, theme, tr("direction"), |ui| dropdown(ui, theme, ("tc-mode", node_id), &mut mode, &modes)).changed() {
+    if label_row(ui, theme, tr("direction"), |ui| dropdown_fill(ui, theme, ("tc-mode", node_id), &mut mode, &modes)).changed() {
         post_text(door, gid, node_id, json!({ "mode": mode }));
     }
     let generate = mode == "generate";
@@ -30,7 +30,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
         ("mtc".to_string(), tr("MTC (MIDI)")),
         ("artnet".to_string(), tr("Art-Net")),
     ];
-    if label_row(ui, theme, tr("source"), |ui| dropdown(ui, theme, ("tc-source", node_id), &mut source, &sources))
+    if label_row(ui, theme, tr("source"), |ui| dropdown_fill(ui, theme, ("tc-source", node_id), &mut source, &sources))
         .changed()
     {
         post_text(door, gid, node_id, json!({ "source": source }));
@@ -69,7 +69,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
         ("29.97df".to_string(), "29.97 DF"),
         ("30".to_string(), "30"),
     ];
-    if label_row(ui, theme, tr("frame rate"), |ui| dropdown(ui, theme, ("tc-fps", node_id), &mut fps, &rates))
+    if label_row(ui, theme, tr("frame rate"), |ui| dropdown_fill(ui, theme, ("tc-fps", node_id), &mut fps, &rates))
         .changed()
     {
         let value = if fps.is_empty() { Value::Null } else { json!(fps) };
@@ -78,7 +78,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
 
     let mut chase = cfg["chase"].as_str().unwrap_or("follow").to_string();
     let chases = [("follow".to_string(), tr("follow")), ("freewheel".to_string(), tr("freewheel"))];
-    if label_row(ui, theme, tr("chase"), |ui| dropdown(ui, theme, ("tc-chase", node_id), &mut chase, &chases))
+    if label_row(ui, theme, tr("chase"), |ui| dropdown_fill(ui, theme, ("tc-chase", node_id), &mut chase, &chases))
         .changed()
     {
         post_text(door, gid, node_id, json!({ "chase": chase }));

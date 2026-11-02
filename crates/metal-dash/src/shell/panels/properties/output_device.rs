@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown, label_row, num_track};
+use crate::shell::components::{dropdown_fill, label_row, num_track};
 use crate::shell::i18n::{tr, trf};
 
 use super::mask::masks_note_and_insert;
@@ -107,7 +107,7 @@ fn screen_picker(
     let mut options: Vec<(String, &str)> = vec![(String::new(), "—")];
     options.extend(outputs.iter().map(|(id, label)| (id.clone(), label.as_str())));
     let _ = label_row(ui, theme, tr("screen"), |ui| {
-        dropdown(ui, theme, ("output/screen", node_id), &mut picked, &options)
+        dropdown_fill(ui, theme, ("output/screen", node_id), &mut picked, &options)
     });
     if picked != current {
         let body = json!({ "op": "config", "graph": gid, "node": node_id, "config": { "device": picked } });
@@ -217,7 +217,7 @@ pub(crate) fn section(
                 DEVICE_MODES.iter().map(|m| (m.to_string(), *m)).collect();
             let mode_before = kind.clone();
             let _ = label_row(ui, theme, tr("mode"), |ui| {
-                dropdown(
+                dropdown_fill(
                     ui,
                     theme,
                     "shell/region/properties/output-device-mode",
@@ -250,7 +250,7 @@ pub(crate) fn section(
                     .collect();
                 let collection_before = collection.clone();
                 let _ = label_row(ui, theme, tr("collection"), |ui| {
-                    dropdown(
+                    dropdown_fill(
                         ui,
                         theme,
                         "shell/region/properties/output-device-mode-collection",
@@ -522,7 +522,7 @@ fn sink_controls(ui: &mut Ui, theme: &Theme, door: &dyn Call, device_id: &str, s
     }
     let mut pick = current.clone();
     let _ = label_row(ui, theme, tr("send to"), |ui| {
-        dropdown(ui, theme, "shell/region/properties/output-sink", &mut pick, &options)
+        dropdown_fill(ui, theme, "shell/region/properties/output-sink", &mut pick, &options)
     });
     let targets: Vec<(String, String)> = modes
         .iter()
@@ -544,7 +544,7 @@ fn sink_controls(ui: &mut Ui, theme: &Theme, door: &dyn Call, device_id: &str, s
         let mut t = target.clone();
         let opts: Vec<(String, &str)> = targets.iter().map(|(id, l)| (id.clone(), l.as_str())).collect();
         let _ = label_row(ui, theme, tr("loopback device"), |ui| {
-            dropdown(ui, theme, "shell/region/properties/output-sink-target", &mut t, &opts)
+            dropdown_fill(ui, theme, "shell/region/properties/output-sink-target", &mut t, &opts)
         });
         if t != target {
             post_sink(door, device_id, &current, &t);

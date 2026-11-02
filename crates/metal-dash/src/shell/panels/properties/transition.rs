@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown, label_row, number_row, choice};
+use crate::shell::components::{dropdown_fill, label_row, number_row, choice};
 use crate::shell::i18n::{tr, tr_key};
 
 use super::text::post_text;
@@ -80,7 +80,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
     let mut options: Vec<(String, &str)> = vec![(String::new(), tr("cut (none)"))];
     options.extend(list.iter().map(|(id, name, _, _)| (id.clone(), name.as_str())));
     let before = chosen.clone();
-    label_row(ui, theme, tr("preset"), |ui| dropdown(ui, theme, ("transition-preset", node_id, on), &mut chosen, &options));
+    label_row(ui, theme, tr("preset"), |ui| dropdown_fill(ui, theme, ("transition-preset", node_id, on), &mut chosen, &options));
     if chosen != before {
         // A new preset starts from its own duration/unit/ease; none is a cut.
         let v = if chosen.is_empty() { Value::Null } else { json!({ "preset": chosen }) };
@@ -112,7 +112,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
     let mut ease = slot["ease"].as_str().unwrap_or("in_out").to_string();
     let eases: Vec<(String, &str)> = EASES.iter().map(|(id, l)| (id.to_string(), tr(l))).collect();
     let before = ease.clone();
-    label_row(ui, theme, tr("ease"), |ui| dropdown(ui, theme, ("transition-ease", node_id, on), &mut ease, &eases));
+    label_row(ui, theme, tr("ease"), |ui| dropdown_fill(ui, theme, ("transition-ease", node_id, on), &mut ease, &eases));
     if ease != before {
         post("ease", json!(ease));
     }

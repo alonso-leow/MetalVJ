@@ -186,6 +186,13 @@ pub struct PanelState {
     /// edited one is left alone.
     controller_name_buffer: String,
     controller_name_for: Option<String>,
+    /// The general button whose editor window is open (its cell key), and
+    /// where the window sits. Opened by a right-click on the button.
+    pub(crate) editing_cell: Option<String>,
+    pub(crate) cell_edit_pos: Option<Pos2>,
+    /// The editor's name field and the cell it was seeded for.
+    cell_name_buffer: String,
+    cell_name_for: Option<String>,
     /// 2026-09-22 (afternoon): a `files` audio card dropped on the overlays
     /// grid, held until `shell/mod.rs` drains it into the ingest lane — the
     /// lanes panel cannot reach `Shell::ingest`, so it raises the intent the
@@ -401,6 +408,10 @@ impl Default for PanelState {
             controller_edit_pos: None,
             controller_name_buffer: String::new(),
             controller_name_for: None,
+            editing_cell: None,
+            cell_edit_pos: None,
+            cell_name_buffer: String::new(),
+            cell_name_for: None,
             pending_song: None,
             sequence_dropped: None,
             new_video: None,
@@ -1228,12 +1239,27 @@ fn open_part(door: &dyn Call, state: &mut PanelState, ingest: &mut crate::shell:
     ));
 }
 
+/// Seconds between two `GET /author/songs` while the open song is missing
+/// from the library.
+const MISSING_SONG_RECHECK: f64 = 5.0;
+
 /// Fetches the song (matrix, hits) and the active track's keypoints once
 /// a model and a song are both set — and, while the song is still being
 /// digested, says how far along it is.
 fn load_song(ui: &Ui, door: &dyn Call, ingest: &mut crate::shell::lanes::IngestLane, layer: Option<&str>, state: &mut PanelState) {
     if ingest.waiting_digest {
         let song = ingest.song.trim().to_string();
+        // A song the library did not list is asked about again only every
+        // few seconds: it will not appear on its own, and the listing reads
+        // the folder.
+        let now = ui.input(|i| i.time);
+        if let Some((_, at)) = ingest.missing_song.as_ref().filter(|_| ingest.song_missing()) {
+            let left = MISSING_SONG_RECHECK - (now - at);
+            if left > 0.0 {
+                crate::shell::frames::repaint_after(ui.ctx(), std::time::Duration::from_secs_f64(left));
+                return;
+            }
+        }
         let row = get(door, "GET", "/author/songs", &[])
             .and_then(|v| v["songs"].as_array().cloned())
             .unwrap_or_default()
@@ -1242,6 +1268,7 @@ fn load_song(ui: &Ui, door: &dyn Call, ingest: &mut crate::shell::lanes::IngestL
         match row.as_ref().and_then(|s| s["status"].as_str()) {
             Some("digested") => {
                 ingest.waiting_digest = false;
+                ingest.missing_song = None;
                 ingest.note = Some(format!("{song} digested — loading…"));
             }
             Some(status) => {
@@ -1257,10 +1284,15 @@ fn load_song(ui: &Ui, door: &dyn Call, ingest: &mut crate::shell::lanes::IngestL
                     "undigested" => "undigested".to_string(),
                     other => other.to_string(),
                 };
+                ingest.missing_song = None;
                 ingest.note = Some(format!("{hint} — waiting for {song}"));
                 crate::shell::frames::repaint_after(ui.ctx(), std::time::Duration::from_secs(1));
             }
-            None => ingest.note = Some(format!("{song} is not in the library")),
+            None => {
+                ingest.missing_song = Some((song.clone(), now));
+                ingest.note = Some(format!("{song} is not in the library"));
+                crate::shell::frames::repaint_after(ui.ctx(), std::time::Duration::from_secs_f64(MISSING_SONG_RECHECK));
+            }
         }
     }
     // The fetch itself: a model's keyframes and the song's digest. Off the UI
@@ -2126,7 +2158,7 @@ fn layer_editor(
                 );
             })
         });
-        if let Some(dragged) = row.response.dnd_release_payload::<String>() {
+        if let Some(dragged) = crate::shell::panels::release_typed::<String>(&row.response) {
             let dragged = dragged.as_str();
             if dragged != id {
                 if let Some(from) = layers.iter().position(|l| l["id"].as_str() == Some(dragged)) {
@@ -2891,6 +2923,7 @@ fn overlays_grid(
     // A scene cell's `⚙` or right-click opens the one controller editor as a
     // popup anchored near that cell.
     controller_editor_popup(ui, theme, door, state);
+    grid_cell_editor_popup(ui, theme, door, state, &cells);
     // The edit mode's inspector for the selected cell.
     cell_editor_popup(ui, theme, door, state, &cells, page, pages);
 }
@@ -4389,7 +4422,7 @@ fn paint_phantom_cell(
             }
         }
     }
-    if let Some(drag) = response.dnd_release_payload::<crate::shell::panels::FileDrag>() {
+    if let Some(drag) = crate::shell::panels::release_typed::<crate::shell::panels::FileDrag>(&response) {
         apply_overlay_drop(door, state, &drag);
     }
     response
@@ -4619,14 +4652,19 @@ fn paint_cell(
     // A scene cell opens its shared editor on a right-click (the size menu
     // and delete live in [`controller_editor`]); a box's control what it can
     // hold ([`slot_menu`]); the piano gives its key a button; every other
-    // sized cell keeps the size/remove menu.
+    // sized cell opens [`grid_cell_editor_popup`].
     let piano = matches!(cell.kind, CellKind::Role { role: Role::Piano { .. } });
     match slot {
         _ if piano => {}
         Some(i) => slot_popup(theme, door, state, &response, i, page, open_graph),
         None if matches!(cell.kind, CellKind::Controller { .. }) => {}
+        // A general button opens its editor (rename, size, delete) the way a
+        // scene cell opens the controller editor.
         None if !cell.is_fixed() && state.layout.device.is_none() => {
-            response.context_menu(|ui| grid_cell_menu(ui, theme, door, state, cell));
+            if response.secondary_clicked() {
+                state.editing_cell = Some(cell.key.clone());
+                state.cell_edit_pos = Some(response.rect.min);
+            }
         }
         None => {}
     }
@@ -5212,8 +5250,9 @@ fn restore_scene_floats(door: &dyn Call, state: &mut PanelState, key: &str) {
 
 /// The sizes a cell offers (`surface::SPANS`: whole cells, the halves and
 /// thirds, the wide strips), the current one checked. Returns the freshly
-/// picked span, if any — the one place both a cell's right-click menu and the
-/// controller editor's size row keep the same set.
+/// picked span, if any — the one place both the button editor
+/// ([`grid_cell_editor_popup`]) and the controller editor's size row keep the
+/// same set.
 fn size_choices(ui: &mut Ui, theme: &Theme, current: (f32, f32)) -> Option<(f32, f32)> {
     ui.label(RichText::new(tr("size")).font(theme.font_small.clone()));
     let mut picked = None;
@@ -5231,28 +5270,131 @@ fn size_choices(ui: &mut Ui, theme: &Theme, current: (f32, f32)) -> Option<(f32,
     picked
 }
 
-/// The right-click menu of a sized non-scene cell: `size` (the four spans, the
-/// current one checked) and, for a switch, `remove` — the `POST /switch
-/// {op:"remove"}` the properties editor posts. A scene cell does not come here:
-/// its right-click opens [`controller_editor`] instead.
-fn grid_cell_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, cell: &Cell) {
-    if let Some(span) = size_choices(ui, theme, cell.span) {
-        set_grid_span(door, state, &cell.key, span);
-        ui.close();
+/// A general button's editor window, the same shape as the controller
+/// editor: a draggable header, an `x` to close, and inside it the name, the
+/// size, `save` and `delete`. A movement has no rename or delete route, so
+/// for it the window carries the size only.
+fn grid_cell_editor_popup(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, cells: &[Cell]) {
+    let Some(key) = state.editing_cell.clone() else {
+        return;
+    };
+    // Looked up each frame: a cell removed elsewhere closes the window.
+    let Some(cell) = cells.iter().find(|c| c.key == key) else {
+        state.editing_cell = None;
+        state.cell_name_for = None;
+        return;
+    };
+    let target = rename_target(&cell.kind);
+    let mut open = true;
+    let mut done = false;
+    crate::shell::gallery::overlay_window("shell/region/lanes/cell-editor", tr("button").to_string())
+        .current_pos(state.cell_edit_pos.unwrap_or(egui::pos2(theme.pad as f32, theme.pad as f32)))
+        .open(&mut open)
+        .show(ui.ctx(), |ui| {
+            ui.set_min_width(theme.text_input_width * 2.0);
+            if let Some(id) = target {
+                grid_cell_name_field(ui, theme, door, state, cell, id);
+            }
+            if state.layout.device.is_none() {
+                if let Some(span) = size_choices(ui, theme, cell.span) {
+                    set_grid_span(door, state, &key, span);
+                }
+            }
+            let Some(id) = target else {
+                return;
+            };
+            ui.separator();
+            // `save` commits the name and closes; `delete` removes the
+            // button through its own route.
+            ui.horizontal(|ui| {
+                if ui
+                    .button(RichText::new(tr("save")).font(theme.font_small.clone()))
+                    .clicked()
+                {
+                    commit_cell_name(door, state, cell, id);
+                    done = true;
+                }
+                if ui
+                    .button(RichText::new(tr("delete")).font(theme.font_small.clone()))
+                    .clicked()
+                {
+                    done = delete_cell(door, state, &cell.kind, id, &key);
+                }
+            });
+        });
+    if !open || done {
+        state.editing_cell = None;
+        state.cell_name_for = None;
     }
-    if let CellKind::Switch { id, .. }
-    | CellKind::Fixture { id, .. }
-    | CellKind::Rig { id, .. } = &cell.kind
-    {
-        ui.separator();
-        if ui
-            .button(RichText::new("remove").font(theme.font_small.clone()))
-            .clicked()
-        {
-            let _ = door.json("POST", "/switch", Some(json!({ "op": "remove", "id": id })));
-            ui.close();
-        }
+}
+
+/// The id a general button's rename and delete act on, for the kinds whose
+/// route exists: a switch, fixture or rig (`/switch`), a sequence
+/// (`/sequences`). A movement has neither route, so it has none.
+fn rename_target(kind: &CellKind) -> Option<&str> {
+    match kind {
+        CellKind::Switch { id, .. } | CellKind::Fixture { id, .. } | CellKind::Rig { id, .. } => Some(id),
+        CellKind::Sequence { id, .. } => Some(id),
+        _ => None,
     }
+}
+
+/// The button's own name: its label without the glyph a fixture or rig
+/// paints in front ([`switches_cells`]).
+fn cell_name(cell: &Cell) -> &str {
+    let glyph = match cell.kind {
+        CellKind::Fixture { .. } => "◉ ",
+        CellKind::Rig { .. } => "▣ ",
+        _ => "",
+    };
+    cell.label.strip_prefix(glyph).unwrap_or(&cell.label)
+}
+
+/// The editor's name field, seeded from the button the first time it is
+/// painted for it. Enter or a blur commits ([`commit_cell_name`]).
+fn grid_cell_name_field(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelState, cell: &Cell, id: &str) {
+    if state.cell_name_for.as_deref() != Some(cell.key.as_str()) {
+        state.cell_name_buffer = cell_name(cell).to_string();
+        state.cell_name_for = Some(cell.key.clone());
+    }
+    let resp = ui.add(
+        crate::shell::components::header_edit(theme, &mut state.cell_name_buffer, tr("button name"))
+            .id(Id::new("shell/region/lanes/cell-name")),
+    );
+    let enter = resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+    if resp.lost_focus() || enter {
+        commit_cell_name(door, state, cell, id);
+    }
+}
+
+/// Posts the name buffer through the kind's rename route — `POST /sequences
+/// {op:"rename"}` for a sequence, `POST /switch {op:"set", name}` for the
+/// rest — when it is not empty and differs from the button's name.
+fn commit_cell_name(door: &dyn Call, state: &PanelState, cell: &Cell, id: &str) {
+    let name = state.cell_name_buffer.trim();
+    if name.is_empty() || name == cell_name(cell) {
+        return;
+    }
+    let (route, body) = match cell.kind {
+        CellKind::Sequence { .. } => ("/sequences", json!({ "op": "rename", "id": id, "name": name })),
+        _ => ("/switch", json!({ "op": "set", "id": id, "name": name })),
+    };
+    let _ = door.json("POST", route, Some(body));
+}
+
+/// Deletes the button through its kind's route, then forgets its size so a
+/// new button at the same key starts at 1×1. True when the delete landed.
+fn delete_cell(door: &dyn Call, state: &mut PanelState, kind: &CellKind, id: &str, key: &str) -> bool {
+    let route = match kind {
+        CellKind::Sequence { .. } => "/sequences",
+        _ => "/switch",
+    };
+    let landed = door.json("POST", route, Some(json!({ "op": "remove", "id": id }))).is_ok();
+    if landed && state.grid_spans.remove(key).is_some() {
+        let body = json!({ "grid_spans": spans_json(&state.grid_spans) });
+        let _ = door.json("POST", "/settings", Some(body));
+    }
+    landed
 }
 
 /// Stores one cell's size and posts the whole map (`POST /settings
@@ -7879,6 +8021,147 @@ fn the_editors_delete_removes_the_controller() {
     assert_eq!(posted["grid_controllers"], json!({}));
 }
 
+/// A door with one saved toggle switch `mood` and one sequence `opening` —
+/// the general buttons the button editor tests share.
+fn button_cell_door() -> std::rc::Rc<FakeDoor> {
+    let recorder = std::rc::Rc::new(FakeDoor::new());
+    recorder.respond("GET", "/state", json!({ "outputs": [] }));
+    recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
+    recorder.respond(
+        "GET",
+        "/switch",
+        json!({ "switches": [{ "id": "mood-1", "name": "mood", "kind": "toggle", "on": false }] }),
+    );
+    recorder.respond(
+        "GET",
+        "/sequences",
+        json!({ "sequences": [{ "id": "opening", "name": "opening", "entries": [] }], "running": [] }),
+    );
+    recorder.respond("GET", "/settings", json!({ "grid_spans": {} }));
+    recorder
+}
+
+/// The overlays grid open, with the button editor opened on `label` by a
+/// right-click.
+fn open_button_editor(recorder: &std::rc::Rc<FakeDoor>, label: &str) -> egui_kittest::Harness<'static, crate::shell::Shell> {
+    let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(recorder)), 2600.0);
+    harness.run();
+    harness.get_by_label("lanes / overlays").click();
+    harness.run();
+    harness.get_by_label(label).scroll_to_me();
+    harness.run();
+    harness.get_by_label(label).click_secondary();
+    harness.run();
+    harness
+}
+
+/// The POSTs `recorder` saw to `path`, in order.
+fn posts_to(recorder: &FakeDoor, path: &str) -> Vec<Value> {
+    recorder
+        .calls
+        .borrow()
+        .iter()
+        .filter(|(m, p, _)| m == "POST" && p == path)
+        .map(|(_, _, params)| body_of(params))
+        .collect()
+}
+
+/// A right-click on a switch opens the button editor window (its title and
+/// `x`), not a context menu.
+#[test]
+fn a_switch_right_click_opens_the_button_editor() {
+    let recorder = button_cell_door();
+    let mut harness = open_button_editor(&recorder, "mood");
+    assert_eq!(harness.state_mut().lanes_state_mut().editing_cell.as_deref(), Some("sw:mood-1"));
+    harness.get_by_label("button");
+    harness.get_by_label("Close window");
+    harness.get_by_label("delete");
+}
+
+/// The editor's size row writes `grid_spans[sw:<id>]`.
+#[test]
+fn the_button_editor_sizes_the_switch() {
+    let recorder = button_cell_door();
+    let mut harness = open_button_editor(&recorder, "mood");
+    harness.get_by_label("2×1").click();
+    harness.run();
+    let posted = posts_to(&recorder, "/settings");
+    let last = posted.last().expect("choosing a size posts /settings");
+    assert_eq!(last["grid_spans"], json!({ "sw:mood-1": [2, 1] }));
+}
+
+/// `save` posts the typed name through `POST /switch {op:"set"}` and closes.
+#[test]
+fn the_button_editor_renames_the_switch() {
+    let recorder = button_cell_door();
+    let mut harness = open_button_editor(&recorder, "mood");
+    {
+        let s = harness.state_mut().lanes_state_mut();
+        s.cell_name_buffer = "calma".into();
+        s.cell_name_for = Some("sw:mood-1".into());
+    }
+    harness.run();
+    harness.get_by_label("save").click();
+    harness.run();
+    assert!(
+        posts_to(&recorder, "/switch").contains(&json!({ "op": "set", "id": "mood-1", "name": "calma" })),
+        "save renames through /switch"
+    );
+    assert!(harness.state_mut().lanes_state_mut().editing_cell.is_none(), "save closes the editor");
+}
+
+/// A sequence renames through its own route, `POST /sequences {op:"rename"}`.
+#[test]
+fn the_button_editor_renames_a_sequence() {
+    let recorder = button_cell_door();
+    let mut harness = open_button_editor(&recorder, "opening");
+    assert_eq!(harness.state_mut().lanes_state_mut().editing_cell.as_deref(), Some("seq:opening"));
+    {
+        let s = harness.state_mut().lanes_state_mut();
+        s.cell_name_buffer = "intro".into();
+        s.cell_name_for = Some("seq:opening".into());
+    }
+    harness.run();
+    harness.get_by_label("save").click();
+    harness.run();
+    assert!(
+        posts_to(&recorder, "/sequences").contains(&json!({ "op": "rename", "id": "opening", "name": "intro" })),
+        "a sequence renames through /sequences"
+    );
+}
+
+/// `delete` posts `POST /switch {op:"remove"}`; once the listing no longer
+/// has it, the cell is gone and the editor with it.
+#[test]
+fn the_button_editor_deletes_the_switch() {
+    let recorder = button_cell_door();
+    let mut harness = open_button_editor(&recorder, "mood");
+    harness.get_by_label("delete").click();
+    harness.run();
+    assert!(
+        posts_to(&recorder, "/switch").contains(&json!({ "op": "remove", "id": "mood-1" })),
+        "delete removes through /switch"
+    );
+    recorder.respond("GET", "/switch", json!({ "switches": [] }));
+    harness.run();
+    harness.run();
+    assert!(harness.query_by_label("mood").is_none(), "the cell is gone");
+    assert!(harness.state_mut().lanes_state_mut().editing_cell.is_none());
+}
+
+/// The `x` closes the editor and writes nothing.
+#[test]
+fn the_button_editors_x_closes_without_a_write() {
+    let recorder = button_cell_door();
+    let mut harness = open_button_editor(&recorder, "mood");
+    let before = recorder.calls.borrow().iter().filter(|(m, _, _)| m == "POST").count();
+    harness.get_by_label("Close window").click();
+    harness.run();
+    assert!(harness.state_mut().lanes_state_mut().editing_cell.is_none(), "the x closes it");
+    let after = recorder.calls.borrow().iter().filter(|(m, _, _)| m == "POST").count();
+    assert_eq!(before, after, "closing writes nothing");
+}
+
 /// The editor's `save` commits the typed name onto the controller, and the
 /// scene cell prints it (the assigned name reaches the button).
 #[test]
@@ -8573,6 +8856,50 @@ fn without_an_open_graph_create_button_says_so() {
             "the song's own beat hits loaded too"
         );
         assert_eq!(ingest.playhead, 0, "loading lands the playhead back at 0");
+    }
+
+    /// A song `GET /author/songs` does not list is marked missing (the
+    /// timeline then says so instead of "digesting"), and the listing is not
+    /// asked again every frame while it stays missing.
+    #[test]
+    fn a_song_missing_from_the_library_is_marked_and_not_polled_every_frame() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        recorder.respond("GET", "/state", json!({ "outputs": [] }));
+        recorder.respond("GET", "/author/models/state", json!({ "models": [] }));
+        recorder.respond("GET", "/author/songs", json!({ "songs": [{ "name": "click-100", "status": "digested" }] }));
+        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 3400.0);
+        harness.state_mut().lanes_state_mut().force_mode(crate::shell::lanes::Mode::Lanes);
+        harness.run();
+        harness.get_by_label("lanes / overlays").click();
+        harness.run();
+        // Other panels read the listing too (the library): what one frame
+        // asks with no song waited on is the baseline.
+        let asked = |r: &FakeDoor| {
+            r.calls.borrow().iter().filter(|(m, p, _)| m == "GET" && p == "/author/songs").count()
+        };
+        harness.step();
+        let before = asked(&recorder);
+        harness.step();
+        let baseline = asked(&recorder) - before;
+        {
+            let ingest = harness.state_mut().ingest_state_mut();
+            ingest.song = "05 - I Am Blessed".into();
+            ingest.waiting_digest = true;
+        }
+        harness.step();
+        {
+            let ingest = harness.state_mut().ingest_state_mut();
+            assert!(ingest.song_missing(), "a song the library does not list is missing, not digesting");
+            assert_eq!(ingest.note.as_deref(), Some("05 - I Am Blessed is not in the library"));
+        }
+        let marked = asked(&recorder);
+        harness.step();
+        harness.step();
+        assert_eq!(
+            asked(&recorder) - marked,
+            2 * baseline,
+            "a missing song is not re-polled every frame"
+        );
     }
 
     /// `S.AP`: "save dataset" posts the ingest lane's keyframes as

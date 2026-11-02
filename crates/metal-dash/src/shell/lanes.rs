@@ -771,6 +771,13 @@ pub struct IngestLane {
     /// lets [`Self::needs_load`] fire again once the digest is done —
     /// otherwise every frame would re-ask for a matrix that is not there.
     pub waiting_digest: bool,
+    /// While [`Self::waiting_digest`]: the song `GET /author/songs` does not
+    /// list at all, and when (`egui` time) that was last asked. A song
+    /// missing from the library is not a digest in progress — the timeline
+    /// says so instead of "digesting", and the panel re-asks every few
+    /// seconds rather than every frame. A different song clears it by not
+    /// matching.
+    pub missing_song: Option<(String, f64)>,
     /// The song's digest, fetched by "load" — `None` before a load, or
     /// when the song has no matrix yet (the route hands back `ticks: 0`
     /// rather than an error either way).
@@ -871,6 +878,7 @@ impl Default for IngestLane {
             song: String::new(),
             loaded_song: None,
             waiting_digest: false,
+            missing_song: None,
             matrix: None,
             song_hits: std::collections::BTreeSet::new(),
             keyframes: BTreeMap::new(),
@@ -973,6 +981,13 @@ impl IngestLane {
             && !self.model.is_empty()
             && !song.is_empty()
             && self.loaded_song.as_deref() != Some(song)
+    }
+
+    /// The song is known to be missing from the library: waiting on a
+    /// digest for the song now set, and the last listing did not have it.
+    pub fn song_missing(&self) -> bool {
+        self.waiting_digest
+            && self.missing_song.as_ref().is_some_and(|(song, _)| song == self.song.trim())
     }
 
     /// Whether the song's digest should be fetched — a song is set and the
@@ -2853,6 +2868,26 @@ mod tests {
         lane.load(matrix_with_ticks(), Default::default(), Default::default());
         assert!(!lane.waiting_digest);
         assert!(!lane.needs_load(), "and then it is quiet again");
+    }
+
+    /// A song the library listing did not have reads as missing — not as a
+    /// digest in progress — only while it is still the song set and still
+    /// waited on.
+    #[test]
+    fn a_missing_song_is_told_apart_from_a_digest_in_progress() {
+        let mut lane = IngestLane {
+            song: "ghost".into(),
+            waiting_digest: true,
+            ..Default::default()
+        };
+        assert!(!lane.song_missing(), "not asked yet: still a digest in progress");
+        lane.missing_song = Some(("ghost".into(), 0.0));
+        assert!(lane.song_missing());
+        lane.song = "other".into();
+        assert!(!lane.song_missing(), "another song is asked about afresh");
+        lane.song = "ghost".into();
+        lane.waiting_digest = false;
+        assert!(!lane.song_missing(), "nothing waited on, nothing missing");
     }
 
     /// The smallest `DigestMatrix` a load can accept: one tick, which is

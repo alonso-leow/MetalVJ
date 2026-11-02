@@ -30,6 +30,19 @@ pub mod venue_map;
 pub mod venue_popup;
 pub mod viewport;
 
+/// Releases the drag payload only when it is a `T`. egui's
+/// `dnd_release_payload` takes the stored payload before checking its type,
+/// so a plain release by one drop target would swallow a card meant for
+/// another (a `NodeDrag` lost to a `FileDrag` target). Peek first.
+pub fn release_typed<T: std::any::Any + Send + Sync>(
+    response: &egui::Response,
+) -> Option<std::sync::Arc<T>> {
+    if !egui::DragAndDrop::has_payload_of_type::<T>(&response.ctx) {
+        return None;
+    }
+    response.dnd_release_payload::<T>()
+}
+
 /// The four regions of the shell. `#panel-preview` is not one of them —
 /// it is externalised to `fw-monitor` (`plan-opus.md` § O.12.e, `S.U16`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

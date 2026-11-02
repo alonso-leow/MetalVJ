@@ -13,7 +13,7 @@
 
 # The floating preview's bar (parity lote P-G).
 "export frame" = "Exportar cuadro"
-"{label} · {w}×{h} · {fps} fps" = "{label} · {w}×{h} · {fps} fps"
+"· {w}×{h} · {fps} fps" = "· {w}×{h} · {fps} fps"
 "saved {path}" = "guardado en {path}"
 "export failed: {err}" = "no se pudo exportar: {err}"
 

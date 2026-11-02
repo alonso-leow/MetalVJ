@@ -10,5 +10,6 @@
 "{name} · {kind}" = "{name} · {kind}"
 
 "digesting the song…" = "digiriendo la canción…"
+"song not in the library — add {song} to data/audio" = "la canción no está en la biblioteca — agrega {song} a data/audio"
 "drop a video from the library: onto a layer, or here for a new one" = "suelta un video de la biblioteca: sobre una capa, o aquí para una nueva"
 "not digested — pick a song" = "sin digerir — elige una canción"

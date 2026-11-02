@@ -127,6 +127,14 @@ pub fn same_control(bound: &str, heard: &str) -> bool {
         || ((!bound.contains('@') || !heard.contains('@')) && plain_input(bound) == plain_input(heard))
 }
 
+/// Whether a control of the box, on `slot`, is what `heard` names. Stricter
+/// than [`same_control`] one way: a slot that names its channel (`note:48@10`,
+/// a pad) is answered only by that channel, never by a bare id — the
+/// on-screen piano's `note:48` is a key, not the pad that shares its note.
+pub fn slot_hears(slot: &str, heard: &str) -> bool {
+    slot == heard || (!slot.contains('@') && plain_input(slot) == plain_input(heard))
+}
+
 /// `C4`-style name of a note (MIDI 60 is `C4`).
 pub fn note_name(n: u8) -> String {
     const NAMES: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -274,6 +282,14 @@ mod tests {
         assert!(same_control("note:60@1", "note:60"), "the on-screen piano is channel-free");
         assert!(!same_control("cc:21", "cc:22@1"));
         assert_eq!(plain_input("bend@1"), "bend");
+    }
+
+    #[test]
+    fn a_pad_slot_ignores_the_on_screen_piano_key_on_its_note() {
+        assert!(!slot_hears("note:48@10", "note:48"));
+        assert!(slot_hears("note:48@10", "note:48@10"));
+        assert!(!slot_hears("note:48@10", "note:48@1"));
+        assert!(slot_hears("cc:21", "cc:21@1"));
     }
 
     #[test]

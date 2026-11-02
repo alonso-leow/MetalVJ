@@ -1047,16 +1047,30 @@ fn refresh_fs(door: &dyn Call, state: &mut PanelState) {
         return;
     }
     let path = state.cwd.to_string_lossy().into_owned();
-    match get(door, "GET", "/fs", &[("path", path)]) {
-        Some(v) => {
-            state.fs = Some(v);
-            state.files_note = None;
-        }
-        None => {
-            state.fs = Some(json!({ "dirs": [], "files": [] }));
-            state.files_note = Some("could not read the folder".to_string());
-        }
+    let mut query = HashMap::new();
+    query.insert("path".to_string(), path);
+    let params = Params { query, body: Vec::new(), tail: None };
+    match door.call("GET", "/fs", params) {
+        // The read cache answers `None` while a first read of a folder is
+        // still in flight (and wakes the UI when it lands): not a failure,
+        // so ask again next frame instead of caching an empty listing.
+        None => {}
+        Some(reply) if reply.status == 200 => match crate::json_memo::parse(&reply.body) {
+            Ok(v) => {
+                state.fs = Some(v);
+                state.files_note = None;
+            }
+            Err(_) => fs_failed(state),
+        },
+        Some(_) => fs_failed(state),
     }
+}
+
+/// A folder that cannot be read: an empty listing and a note, kept so the
+/// panel does not retry every frame.
+fn fs_failed(state: &mut PanelState) {
+    state.fs = Some(json!({ "dirs": [], "files": [] }));
+    state.files_note = Some("could not read the folder".to_string());
 }
 
 // ---------------------------------------------------------------------------

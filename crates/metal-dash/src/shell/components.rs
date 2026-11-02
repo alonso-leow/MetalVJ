@@ -1224,6 +1224,15 @@ impl Combo<'_> {
     pub fn show_ui<R>(self, ui: &mut Ui, items: impl FnOnce(&mut Ui) -> R) -> egui::InnerResponse<Option<R>> {
         let Combo { theme, id, width, text, enabled } = self;
         ui.add_enabled_ui(enabled, |ui| {
+            // A dropdown rests on a plain opaque fill, not the glass wash
+            // its payload cell gives other controls: the grid must not
+            // read through a button that opens a menu.
+            let fill = theme.panel;
+            let widgets = &mut ui.visuals_mut().widgets;
+            for w in [&mut widgets.inactive, &mut widgets.hovered, &mut widgets.active, &mut widgets.open] {
+                w.weak_bg_fill = fill;
+                w.bg_fill = fill;
+            }
             let mut combo = egui::ComboBox::from_id_salt(id)
                 .selected_text(RichText::new(text).font(theme.font_small.clone()));
             if let Some(w) = width {
@@ -1295,7 +1304,9 @@ pub fn dropdown_enabled<T: PartialEq + Clone>(
         .map(|(_, label)| *label)
         .unwrap_or("");
     let mut picked = None;
-    let mut response = combo(ui, theme, id, shown, None, enabled, |ui| {
+    // The whole width the cell leaves, not the kit's fixed control column.
+    let width = ui.available_width();
+    let mut response = combo(ui, theme, id, shown, Some(width), enabled, |ui| {
         for (value, label) in options {
             if menu_item(ui, theme, value == &*current, label).clicked() {
                 picked = Some(value.clone());

@@ -3606,7 +3606,7 @@ fn paint_empty_slot(
 ) {
     use crate::surface::SlotKind;
     let input = slot.input.as_deref().unwrap_or_default();
-    let down = !input.is_empty() && state.hw_down.iter().any(|h| metal_midi::same_control(input, h));
+    let down = !input.is_empty() && state.hw_down.iter().any(|h| metal_midi::slot_hears(input, h));
     let level = hw_level(state, input);
     let response = match slot.kind {
         SlotKind::Pad | SlotKind::Button => {
@@ -3713,7 +3713,7 @@ fn hw_level(state: &PanelState, input: &str) -> Option<f32> {
     state
         .hw_levels
         .iter()
-        .find(|(heard, _)| metal_midi::same_control(input, heard))
+        .find(|(heard, _)| metal_midi::slot_hears(input, heard))
         .map(|(_, v)| *v)
 }
 
@@ -3910,7 +3910,7 @@ fn surface_input(
         .layout
         .slots
         .iter()
-        .any(|s| s.input.as_deref().is_some_and(|i| metal_midi::same_control(i, input)));
+        .any(|s| s.input.as_deref().is_some_and(|i| metal_midi::slot_hears(i, input)));
     if let Some(n) = metal_midi::input_note(input).filter(|_| !slot_input) {
         match edge {
             Edge::Press { .. } => {
@@ -4454,7 +4454,7 @@ fn paint_cell(
     let slot_down = slot
         .and_then(|i| state.layout.slots.get(i))
         .and_then(|s| s.input.as_deref())
-        .is_some_and(|input| state.hw_down.iter().any(|h| metal_midi::same_control(input, h)));
+        .is_some_and(|input| state.hw_down.iter().any(|h| metal_midi::slot_hears(input, h)));
     let response = match &cell.kind {
         CellKind::Controller { key } => paint_controller_cell(ui, theme, door, state, key, rect, slot_kind, slot_down),
         CellKind::Role { role: Role::Piano { base, keys } } => {

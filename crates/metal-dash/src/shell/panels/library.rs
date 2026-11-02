@@ -59,7 +59,7 @@ use crate::call::{Call, Params};
 use crate::shell::classes::Theme;
 use crate::surface::LibraryIntent;
 use crate::shell::components::{
-    icon_toggle, paint_icon_stroked, square_icon_button, panel_frame, header_edit, panel_head, search_field, section_heading,
+    icon_toggle, paint_icon_stroked, square_icon_button_inked, panel_frame, header_edit, panel_head, search_field, section_heading,
     Icon,
 };
 use crate::shell::i18n::tr;
@@ -827,17 +827,15 @@ pub(crate) fn file_like_row(
         ),
         size,
     );
-    ui.painter()
-        .rect_filled(slot, theme.sharp_corner(), theme.panel_head);
-    // The tag still tints the title, but every kind glyph is black ink on the
-    // darker badge (2026-10-31 restyle) so the icon reads at a glance.
+    // The tag still tints the title. Every kind glyph is light grey stroke
+    // with no badge behind it, so the icon reads on the dark row.
     let tint = tag.map(|idx| theme.tag_colours()[idx]);
     paint_icon_stroked(
         ui.painter(),
         slot,
         icon,
         theme,
-        theme.line_stroke(theme.hard_ink()),
+        theme.line_stroke(theme.ink_weak),
     );
 
     // The text lives in a child ui that stops short of the menu column, so
@@ -945,9 +943,9 @@ fn corner_slot(rect: Rect, index: usize) -> Rect {
 fn favourite_star(ui: &mut Ui, theme: &Theme, rect: Rect, entry: &crate::shell::favorites::Entry) {
     let slot = corner_slot(rect, 1);
     let fav = crate::shell::favorites::is_favourite(ui.ctx(), &entry.key);
-    // A favourite lights its square in the accent; the glyph stays black.
+    // A favourite lights its square in the accent; the glyph is light grey.
     let fill = if fav { theme.accent_vivid } else { theme.panel_head };
-    let response = square_icon_button(
+    let response = square_icon_button_inked(
         ui,
         theme,
         ("shell/library/star", &entry.key),
@@ -955,6 +953,7 @@ fn favourite_star(ui: &mut Ui, theme: &Theme, rect: Rect, entry: &crate::shell::
         Icon::Star,
         fill,
         None,
+        theme.ink_weak,
     );
     if response.on_hover_text(tr("favourite")).clicked() {
         crate::shell::favorites::request_toggle(ui.ctx(), entry.clone());
@@ -968,7 +967,16 @@ fn row_menu(
     row: &Response,
     add_contents: impl FnOnce(&mut Ui),
 ) {
-    let response = square_icon_button(ui, theme, row.id.with("more"), corner_slot(rect, 0), Icon::Other, theme.panel_head, None);
+    let response = square_icon_button_inked(
+        ui,
+        theme,
+        row.id.with("more"),
+        corner_slot(rect, 0),
+        Icon::Other,
+        theme.panel_head,
+        None,
+        theme.ink_weak,
+    );
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, "…"));
     egui::Popup::menu(&response).show(add_contents);
 }

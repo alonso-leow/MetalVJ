@@ -1840,7 +1840,7 @@ impl Theme {
     // --- the glass cell classes (2026-10-31) ------------------------------
     // One set of tokens behind the key cell, the payload cell, the glass
     // group and the notice. egui has no backdrop blur, so "blur" is emulated
-    // by layering translucent fills over the panel's grid: a base wash (the
+    // by layering translucent fills over the panel's solid body: a base wash (the
     // panel colour at partial alpha), a faint frost veil over its lower half
     // and a one-pixel inner highlight/shade along the top/bottom edges.
 
@@ -1849,8 +1849,8 @@ impl Theme {
         self.interact_size.y
     }
 
-    /// The translucent panel wash: the panel colour at partial alpha, so the
-    /// node canvas grid reads through it.
+    /// The translucent panel wash: the panel colour at partial alpha, over the
+    /// panel's solid fill.
     pub fn glass_fill(&self) -> Color32 {
         let p = self.panel;
         Color32::from_rgba_unmultiplied(p.r(), p.g(), p.b(), 170)
@@ -2347,7 +2347,7 @@ mod tests {
     use super::*;
 
     /// The glass cell classes agree: every one is sharp-cornered, payload and
-    /// group are translucent (the grid shows through), the key is opaque grey
+    /// group are translucent (over the solid panel), the key is opaque grey
     /// with a red shadow offset behind it, and the payload outlines in black.
     #[test]
     fn the_glass_cell_classes_share_one_set_of_tokens() {

@@ -1771,8 +1771,11 @@ mod tests {
             // that never had one is already off) — the field's fallback reads
             // it. The dropdown's own `set_graph_device_mode` does write
             // `disabled` explicitly (see the round-trip test).
+            // A stored automix migrates to `own`: automix is only ever a
+            // placed `router` node, never written by migration.
             let want = match mode {
                 layers::DeviceMode::Disabled => None,
+                layers::DeviceMode::Automix => Some(layers::DeviceMode::Own),
                 other => Some(other.clone()),
             };
             assert_eq!(

@@ -2975,13 +2975,30 @@ pub fn square_icon_button(
     fill: Color32,
     outline: Option<egui::Stroke>,
 ) -> egui::Response {
+    square_icon_button_inked(ui, theme, id, rect, icon, fill, outline, theme.hard_ink())
+}
+
+/// [`square_icon_button`] with the glyph in `ink` instead of hard black. The
+/// library's corner buttons use the theme's light grey so they read on the
+/// dark rows; every other caller keeps the black glyph.
+#[allow(clippy::too_many_arguments)]
+pub fn square_icon_button_inked(
+    ui: &mut Ui,
+    theme: &Theme,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    rect: Rect,
+    icon: Icon,
+    fill: Color32,
+    outline: Option<egui::Stroke>,
+    ink: Color32,
+) -> egui::Response {
     let response = ui.interact(rect, ui.id().with(id), Sense::click());
     let fill = if response.hovered() { theme.phosphor_deep } else { fill };
     ui.painter().rect_filled(rect, theme.sharp_corner(), fill);
     if let Some(stroke) = outline {
         ui.painter().rect_stroke(rect, theme.sharp_corner(), stroke, egui::StrokeKind::Inside);
     }
-    paint_icon_stroked(ui.painter(), rect, icon, theme, theme.line_stroke(theme.hard_ink()));
+    paint_icon_stroked(ui.painter(), rect, icon, theme, theme.line_stroke(ink));
     response
 }
 

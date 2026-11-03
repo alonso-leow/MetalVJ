@@ -123,7 +123,11 @@ const PREWARM: &[&str] = &[
 /// asked once per press at a point nobody asked about before, so the cache's
 /// "first read answers `None`" rule made the first click on a node an empty
 /// press (no focus, no drag) and only a second click at the same spot worked.
-const LIVE_READS: &[&str] = &["/author/play", "/graph/hit"];
+///
+/// The same goes for any read the UI makes once, on a click, and needs the
+/// answer to in the same frame: a dataset part opening (`/author/dataset/example`)
+/// said "could not open" because its first ask was deferred.
+const LIVE_READS: &[&str] = &["/author/play", "/graph/hit", "/author/dataset/example"];
 
 /// One cached reply: when it was taken, and the reply itself (a `Reply` is
 /// not `Clone` — its `kind` is `&'static str` and its body is the only

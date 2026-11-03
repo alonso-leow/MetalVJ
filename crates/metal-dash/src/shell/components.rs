@@ -959,7 +959,12 @@ pub fn payload_cell<R>(ui: &mut Ui, theme: &Theme, width: Option<f32>, add: impl
 /// cell, so the bar reads as the head's child and sits flush with the list
 /// under it. Same cell as the properties grid; `add` lays out the row.
 pub fn subheader<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
-    payload_cell(ui, theme, None, |ui| ui.horizontal(add).inner)
+    payload_cell(ui, theme, None, |ui| {
+        // Tall enough for a lit button's frame, so it stays inside the cell.
+        ui.set_min_height(theme.icon_button_size.y + theme.field_pad.y * 2.0);
+        ui.add_space(theme.field_pad.x);
+        ui.horizontal(add).inner
+    })
 }
 
 /// A key cell holding one truncated label (weak ink, small face).

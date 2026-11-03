@@ -794,7 +794,7 @@ pub fn paint(
                                 sequence_editor(ui, theme, door, state, ingest, selection, &state_val, remaining, open_graph, focused);
                             }
                             crate::shell::lanes::Mode::Overlays => {
-                                overlays_grid(ui, theme, door, state, &state_val, open_graph);
+                                overlays_grid(ui, theme, door, state, &state_val, open_graph, remaining);
                             }
                         }
                     });
@@ -915,7 +915,8 @@ pub(crate) fn paint_show_grid(
     open_graph: Option<&str>,
 ) {
     let state_val = get(door, "GET", "/state", &[]).unwrap_or_else(|| json!({}));
-    overlays_grid(ui, theme, door, state, &state_val, open_graph);
+    let height = ui.available_height();
+    overlays_grid(ui, theme, door, state, &state_val, open_graph, height);
 }
 
 // ---------------------------------------------------------------------------
@@ -1166,7 +1167,11 @@ fn sequence_editor(
             // region and grows a second vertical scroll bar beside the
             // timeline's own.
             let used = ui.cursor().top() - ui.min_rect().top();
-            let timeline_h = (panel_h - used - editor_foot_h(ui, theme, ingest.note.is_some())).max(TIMELINE_MIN_H);
+            // The item gaps around the timeline and the foot count too: left out,
+            // the editor overshoots the region by a few points and the outer
+            // area grows a scroll of its own beside the floats rows' one.
+            let gaps = ui.spacing().item_spacing.y * 2.0;
+            let timeline_h = (panel_h - used - gaps - editor_foot_h(ui, theme, ingest.note.is_some())).max(TIMELINE_MIN_H);
             drop(_s_bars);
             let _s_tl = crate::perf::Span::new("lanes.timeline");
             let events = crate::shell::timeline::paint(ui, theme, ingest, &fields_of, timeline_h);
@@ -2767,6 +2772,7 @@ fn overlays_grid(
     state: &mut PanelState,
     state_val: &Value,
     open_graph: Option<&str>,
+    viewport_h: f32,
 ) {
     let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, None);
     let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
@@ -2809,7 +2815,11 @@ fn overlays_grid(
     let origin = ui.cursor().min;
     let gap = theme.item_gap;
     let width = ui.available_width();
-    let visible = (ui.clip_rect().bottom() - origin.y).max(0.0);
+    // The area's own height less what sits above the grid: the clip rect's
+    // bottom less the cursor moves with the scroll, which made the cells grow
+    // as the wheel went down and shrink back going up.
+    let above = origin.y - ui.min_rect().top();
+    let visible = (viewport_h - above).max(0.0);
     let bar_h = theme.pager_height.max(ui.spacing().interact_size.y);
     let cell_w = ((width - gap.x * (cols as f32 - 1.0)) / cols as f32).max(theme.gear_size);
     let cell_h = ((visible - bar_h - gap.y * rows as f32) / rows as f32)

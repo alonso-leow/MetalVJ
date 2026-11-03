@@ -1690,7 +1690,7 @@ mod tests {
     #[test]
     fn own_sections_and_section_keys_follow_the_kind() {
         assert_eq!(own_sections("mask"), vec!["mask"]);
-        assert_eq!(own_sections("output.device"), vec!["output device"]);
+        assert_eq!(own_sections("output.device"), vec!["output device", "monitor"]);
         assert_eq!(own_sections("script.py"), vec!["script"]);
         assert_eq!(own_sections("gen.turing"), vec!["Layer", "Effects Chain"]);
         assert_eq!(own_sections("fx.shake"), vec!["effect"]);

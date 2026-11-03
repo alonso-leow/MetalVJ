@@ -27,6 +27,7 @@ mod mask;
 mod material;
 mod mode;
 mod node;
+pub(crate) mod monitor;
 mod output_device;
 mod overlay;
 mod patch;
@@ -694,6 +695,7 @@ impl PanelState {
                 i < 1
             } else if room {
                 *key == crate::shell::i18n::tr_key("map")
+                    || *key == crate::shell::i18n::tr_key("monitor")
                     // The screen's grid opens too when the node names no
                     // surface yet: an empty page would hide the one step
                     // that gives it its split.
@@ -707,6 +709,7 @@ impl PanelState {
                         || k == crate::shell::i18n::tr_key("map")
                         || k == crate::shell::i18n::tr_key("venue")
                         || k == crate::shell::i18n::tr_key("draw")
+                        || k == crate::shell::i18n::tr_key("monitor")
                 )
             } else {
                 i < 2
@@ -859,6 +862,18 @@ impl PanelState {
             }
             "mode" => mode::section(ui, theme, door, gid, node_id, node),
             "output device" => output_device::section(ui, theme, door, gid, node_id, graph, self),
+            "monitor" => {
+                // A screen's own status; a venue lists every output it can drive.
+                let device = (node["kind"].as_str() == Some("output.device")).then(|| {
+                    node["config"]["device"]
+                        .as_str()
+                        .filter(|d| !d.is_empty())
+                        .or_else(|| gid.strip_prefix("device-"))
+                        .unwrap_or_default()
+                        .to_string()
+                });
+                monitor::rows(ui, theme, door, device.as_deref().filter(|d| !d.is_empty()));
+            }
             "mask" => mask::section(ui, theme, door, gid, node_id, node, graph, self),
             "material" => material::section(ui, theme, door, gid, node_id, node, graph),
             "surface" => surface::section(ui, theme, door, gid, node_id, node, graph, self),
@@ -1453,7 +1468,10 @@ fn own_sections(kind: &str) -> Vec<&'static str> {
         return vec![crate::shell::i18n::tr_key("Layer"), crate::shell::i18n::tr_key("Effects Chain")];
     }
     if kind == "output.device" {
-        return vec![crate::shell::i18n::tr_key("output device")];
+        return vec![
+            crate::shell::i18n::tr_key("output device"),
+            crate::shell::i18n::tr_key("monitor"),
+        ];
     }
     if kind == "mask" {
         return vec![crate::shell::i18n::tr_key("mask")];
@@ -1523,6 +1541,7 @@ fn own_sections(kind: &str) -> Vec<&'static str> {
         // `venue editor` page carried is gone: `map` names the room.
         return vec![
             crate::shell::i18n::tr_key("map"),
+            crate::shell::i18n::tr_key("monitor"),
             crate::shell::i18n::tr_key("venue editor"),
             crate::shell::i18n::tr_key("fixture"),
             crate::shell::i18n::tr_key("patch"),

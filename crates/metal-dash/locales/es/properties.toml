@@ -582,3 +582,8 @@
 "no signal reaches this surface yet." = "ninguna señal llega a esta superficie todavía."
 "stop {n}" = "punto {n}"
 "release {param}" = "soltar {param}"
+"monitor" = "monitor"
+"blocked · handed to {to}, not sending" = "bloqueada · cedida a {to}, no envía"
+"calibrating" = "calibrando"
+"no output on this machine" = "ninguna salida en esta máquina"
+"sending image" = "envía imagen"

@@ -2276,61 +2276,6 @@ fn wheel_zoom(ui: &Ui, theme: &Theme, state: &mut PanelState, rect: EguiRect, re
 /// Points of wheel scroll one zoom step takes — a mouse notch is about this.
 const WHEEL_NOTCH: f32 = 50.0;
 
-/// The master row's label for one screen: ceded wins over where it
-/// is shown, which wins over "local" — mirrors the order the operator cares
-/// about (a screen someone else is driving matters more than which box
-/// composes it).
-fn chip_label(id: &str, node: Option<&str>, ceded_to: Option<&str>) -> String {
-    match (ceded_to, node) {
-        (Some(to), _) => trf("{id} · handed to {to}", &[("id", &id), ("to", &to)]),
-        (None, Some(n)) => trf("{id} · on {n}", &[("id", &id), ("n", &n)]),
-        (None, None) => trf("{id} · local", &[("id", &id)]),
-    }
-}
-
-/// O.19: one chip per `outputs[]`, showing where it shows and a button to
-/// give it up or take it back — read fresh off `GET /state` every frame,
-/// the same live-read `canvas_bar`'s own `running` toggle just above it
-/// uses, for the same reason: two operators (or this bar and `lanes.rs`'s
-/// own `outputs` row) can change this between any two frames.
-pub(crate) fn master_row(ui: &mut Ui, theme: &Theme, door: &dyn Call) {
-    let outputs: Vec<Value> = door
-        .json("GET", "/state", None)
-        .ok()
-        .and_then(|s| s["outputs"].as_array().cloned())
-        .unwrap_or_default();
-    if outputs.is_empty() {
-        return;
-    }
-    ui.horizontal_wrapped(|ui| {
-        for o in &outputs {
-            let Some(id) = o["id"].as_str() else { continue };
-            let node = o["node"].as_str();
-            let ceded = o["ceded_to"].as_str();
-            ui.label(
-                RichText::new(chip_label(id, node, ceded))
-                    .font(theme.font_small.clone())
-                    .color(theme.ink),
-            );
-            let verb = if ceded.is_some() { tr("take back") } else { tr("hand over") };
-            if ui
-                .button(RichText::new(verb).font(theme.font_small.clone()))
-                .clicked()
-            {
-                let to = if ceded.is_some() {
-                    Value::Null
-                } else {
-                    json!("otro programa")
-                };
-                let _ = door.json(
-                    "POST",
-                    "/outputs",
-                    Some(json!({ "op": "cede", "id": id, "to": to })),
-                );
-            }
-        }
-    });
-}
 
 // ---------------------------------------------------------------------------
 // the canvas
@@ -5016,29 +4961,6 @@ mod tests {
         assert!((back[1] - p[1]).abs() < 1e-4);
     }
 
-    #[test]
-    fn chip_label_shows_local_when_neither_node_nor_ceded_to_is_set() {
-        assert_eq!(chip_label("screen-1", None, None), "screen-1 · local");
-    }
-
-    #[test]
-    fn chip_label_shows_the_node_when_nobody_holds_it_ceded() {
-        assert_eq!(
-            chip_label("screen-1", Some("otro-pc"), None),
-            "screen-1 · on otro-pc"
-        );
-    }
-
-    /// Ceded wins over where it is shown — the order the operator cares
-    /// about, per this helper's own doc comment.
-    #[test]
-    fn chip_label_prefers_ceded_to_over_node_when_both_are_set() {
-        assert_eq!(
-            chip_label("screen-1", Some("otro-pc"), Some("resolume")),
-            "screen-1 · handed to resolume"
-        );
-    }
-
     /// The same harness `properties.rs`/`lanes.rs` each build beside their
     /// own panel (`properties.rs::tests::shell_harness`) — this module had
     /// none before the master row landed, since every earlier test here was
@@ -5072,7 +4994,7 @@ mod tests {
 
     /// O.19's control: an output nobody has ceded shows `cede`, and
     /// clicking it posts `POST /outputs {op: "cede", id, to: "otro
-    /// programa"}` — `master_row`'s own body for the not-yet-ceded case.
+    /// programa"}` — `monitor::rows`'s own body for the not-yet-ceded case.
     #[test]
     fn clicking_cede_posts_outputs_cede_with_id_and_to_otro_programa() {
         let recorder = std::rc::Rc::new(FakeDoor::new());
@@ -5088,7 +5010,7 @@ mod tests {
         // The row lives in Settings › outputs now, so it is painted alone.
         let door = std::rc::Rc::clone(&recorder);
         let mut harness = egui_kittest::Harness::new_ui(move |ui| {
-            master_row(ui, &Theme::phosphor(), &door);
+            crate::shell::panels::properties::monitor::rows(ui, &Theme::phosphor(), &door, None);
         });
         harness.run();
 
@@ -5126,7 +5048,7 @@ mod tests {
         // Painted alone, as in the hand-over test above.
         let door = std::rc::Rc::clone(&recorder);
         let mut harness = egui_kittest::Harness::new_ui(move |ui| {
-            master_row(ui, &Theme::phosphor(), &door);
+            crate::shell::panels::properties::monitor::rows(ui, &Theme::phosphor(), &door, None);
         });
         harness.run();
 

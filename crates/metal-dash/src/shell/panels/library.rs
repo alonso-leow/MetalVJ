@@ -668,7 +668,7 @@ fn path_field(ui: &mut Ui, theme: &Theme, state: &mut PanelState) {
             // The same one-line field as the search boxes above (`header_edit`),
             // so the location reads as one of the panel's inputs.
             // The field takes what the subheader has left after the back button.
-            ui.add(header_edit(theme, &mut text, tr("path")).desired_width(ui.available_width()))
+            ui.add(header_edit(theme, &mut text, tr("path")).desired_width(ui.available_width() - theme.item_gap.x * 2.0))
         })
         .inner;
     if response.lost_focus() {
@@ -1140,6 +1140,8 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
     // folder walk; neither changes the route the column reads.
     subheader(ui, theme, |ui| {
         ui.spacing_mut().item_spacing = theme.item_gap;
+        // The lit star's frame must stay inside the cell.
+        ui.spacing_mut().button_padding = theme.field_pad;
         if icon_toggle(ui, theme, Icon::Star, state.fav_only, tr("favourites")).clicked() {
             state.fav_only = !state.fav_only;
         }
@@ -1202,6 +1204,8 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
     }
 
     let fq = state.file_query.trim().to_lowercase();
+    let ctx = ui.ctx().clone();
+    let cwd = state.cwd.clone();
     let shown: Vec<&Value> = all
         .iter()
         .filter(|f| {
@@ -1211,7 +1215,20 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
                     .unwrap_or_default()
                     .to_lowercase()
                     .contains(&fq);
-            let fav_ok = !state.fav_only || f["favourite"].as_bool() == Some(true);
+            // A star on a row writes to the favourites store, not to the
+            // listing, so the filter asks the store (a project row keeps its
+            // own flag).
+            let fav_ok = !state.fav_only
+                || f["favourite"].as_bool() == Some(true)
+                || {
+                    let file = f["file"].as_str().unwrap_or_default();
+                    let kind = f["kind"].as_str().unwrap_or_default();
+                    let path = cwd.join(file).to_string_lossy().to_string();
+                    crate::shell::favorites::is_favourite(
+                        &ctx,
+                        &crate::shell::favorites::file_entry(kind, file, &path).key,
+                    )
+                };
             let kind_ok = match state.kind_filter {
                 1 => f["kind"].as_str() == Some("audio"),
                 2 => f["kind"].as_str() == Some("video"),

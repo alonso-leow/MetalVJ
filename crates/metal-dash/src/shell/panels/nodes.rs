@@ -3658,20 +3658,7 @@ fn handle_pointer(
     selection: &mut Selection,
     theme: &Theme,
 ) {
-    // The press is read from the input, not from `is_pointer_button_down_on`:
-    // that answer needs the canvas to be hovered on the same frame as the
-    // press, so a first click that arrives without a prior hover was lost and
-    // only the second (hovered) press of a double-click counted.
-    let layer = ui.layer_id();
-    let press_origin = ui.input(|i| i.pointer.press_origin());
-    // The press must land on this canvas's own layer: a bar floating over it
-    // (the gear, the focus bar) is a different layer and keeps the press.
-    // Hovered (or already held) is what makes it the canvas's press: a bar
-    // painted over the canvas is the topmost widget there and is not hovered.
-    let on_canvas = press_origin.is_some_and(|p| rect.contains(p) && ui.ctx().layer_id_at(p) == Some(layer))
-        && (response.hovered() || response.is_pointer_button_down_on());
-    let (pressed_here, held) = ui.input(|i| (i.pointer.primary_pressed() && on_canvas, i.pointer.primary_down()));
-    let down_now = if state.pressing { held } else { pressed_here };
+    let down_now = response.is_pointer_button_down_on();
 
     if down_now && !state.pressing {
         state.pressing = true;

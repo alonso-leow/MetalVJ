@@ -412,8 +412,7 @@ pub fn paint(
                     .show(ui, |ui| {
                         // A distinct label, so the folders header stays the one
                         // `library` a test reaches.
-                        panel_head(ui, theme, "library · files", |_| {});
-                        subheader(ui, theme, |ui| {
+                        panel_head(ui, theme, "library · files", |ui| {
                             search_field(
                                 ui,
                                 theme,
@@ -668,7 +667,8 @@ fn path_field(ui: &mut Ui, theme: &Theme, state: &mut PanelState) {
             }
             // The same one-line field as the search boxes above (`header_edit`),
             // so the location reads as one of the panel's inputs.
-            ui.add(header_edit(theme, &mut text, tr("path")))
+            // The field takes what the subheader has left after the back button.
+            ui.add(header_edit(theme, &mut text, tr("path")).desired_width(ui.available_width()))
         })
         .inner;
     if response.lost_focus() {
@@ -1138,7 +1138,7 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
     // The list's own filters (2026-10-08): a favourites-only toggle and a
     // kind row. Both are view state kept in `PanelState`, so they survive a
     // folder walk; neither changes the route the column reads.
-    ui.horizontal_wrapped(|ui| {
+    subheader(ui, theme, |ui| {
         ui.spacing_mut().item_spacing = theme.item_gap;
         if icon_toggle(ui, theme, Icon::Star, state.fav_only, tr("favourites")).clicked() {
             state.fav_only = !state.fav_only;

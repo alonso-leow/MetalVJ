@@ -119,8 +119,11 @@ const PREWARM: &[&str] = &[
 ];
 
 /// Reads that are never answered from the cache: the audio clock, which the
-/// lanes playhead follows frame by frame.
-const LIVE_READS: &[&str] = &["/author/play"];
+/// lanes playhead follows frame by frame, and the canvas hit-test. A hit is
+/// asked once per press at a point nobody asked about before, so the cache's
+/// "first read answers `None`" rule made the first click on a node an empty
+/// press (no focus, no drag) and only a second click at the same spot worked.
+const LIVE_READS: &[&str] = &["/author/play", "/graph/hit"];
 
 /// One cached reply: when it was taken, and the reply itself (a `Reply` is
 /// not `Clone` — its `kind` is `&'static str` and its body is the only
@@ -563,6 +566,22 @@ mod tests {
         assert_eq!(counting.calls.get(), 3, "the clock is asked every time");
         let _ = get(&door, "/author/songs");
         assert_eq!(counting.calls.get(), 3, "its read survives the clock reads");
+    }
+
+    /// A hit-test is asked once per press at a point nobody asked about
+    /// before: with the refresher running it must still be answered at once,
+    /// not `None` until a second click at the same spot.
+    #[test]
+    fn a_canvas_hit_is_answered_on_the_first_ask() {
+        struct Hit;
+        impl Call for Hit {
+            fn call(&self, _method: &str, _path: &str, _params: Params) -> Option<Reply> {
+                Some(Reply { status: 200, kind: "application/json", body: b"{\"hit\":\"node\"}".to_vec() })
+            }
+        }
+        let door = CachedDoor::with_background(Box::new(Hit), Hit);
+        let reply = door.call("GET", "/graph/hit", Params::default());
+        assert!(reply.is_some(), "the first hit-test of a point is not deferred");
     }
 
     #[test]

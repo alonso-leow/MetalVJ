@@ -1179,6 +1179,31 @@ impl Shell {
             if let Some(r) = self.chat.pending_focus.take() {
                 self.chat_focus(&r);
             }
+            // Where the AI is working: marked in blue beside the operator's
+            // focus (`coexist`), or taking the focus when it moves (`single`,
+            // after which the next click leads again), or not at all (`ignore`).
+            let mode = self
+                .door
+                .json("GET", "/ai-config", None)
+                .ok()
+                .and_then(|c| c["focus_mode"].as_str().map(str::to_string))
+                .unwrap_or_else(|| "coexist".to_string());
+            let moved = std::mem::take(&mut self.chat.ai_target_moved);
+            let target = self.chat.ai_target.clone();
+            match (mode.as_str(), target) {
+                ("ignore", _) | (_, None) => self.nodes.set_ai_node(None),
+                ("single", Some((graph, node))) => {
+                    self.nodes.set_ai_node(None);
+                    if moved {
+                        let mut r = serde_json::json!({ "kind": "node", "id": node });
+                        if let Some(g) = graph {
+                            r["graph"] = serde_json::json!(g);
+                        }
+                        self.chat_focus(&r);
+                    }
+                }
+                (_, Some((_, node))) => self.nodes.set_ai_node(Some(node)),
+            }
         }
 
         // The long-press gesture (`S.U13`, `O.12.f`): `events.properties_button_down`

@@ -81,6 +81,33 @@ pub struct PanelState {
     mention_sel: usize,
     /// How many times each token was inserted this session (recency).
     mention_uses: std::collections::HashMap<String, u32>,
+    /// The node the AI is working on right now, as `(graph, node)`, read from
+    /// the open chat's in-flight tool calls and held a moment after they end.
+    pub(crate) ai_target: Option<(Option<String>, String)>,
+    /// When `ai_target` was last seen in flight (egui time).
+    ai_target_at: f64,
+    /// `ai_target` moved to a new node since the shell last looked.
+    pub(crate) ai_target_moved: bool,
+}
+
+/// How long the AI's mark stays on a node once its tool call is done, seconds.
+const AI_FOCUS_HOLD: f64 = 4.0;
+
+/// The `(graph, node)` the newest live tool call of `messages` names: calls
+/// still in flight, or done within a turn that is still running.
+fn live_target(messages: &[Value], busy: bool) -> Option<(Option<String>, String)> {
+    let last = messages.iter().rev().find(|m| m["role"] == "assistant")?;
+    last["tool_calls"].as_array()?.iter().rev().find_map(|c| {
+        let status = c["status"].as_str().unwrap_or("");
+        let live = matches!(status, "generating" | "generated" | "calling" | "awaiting_approval")
+            || (busy && status == "done");
+        let node = c["args"]["node"]
+            .as_str()
+            .or_else(|| c["args"]["id"].as_str())
+            .or_else(|| c["args"]["updates"][0]["node"].as_str())
+            .filter(|n| !n.is_empty())?;
+        live.then(|| (c["args"]["graph"].as_str().map(str::to_string), node.to_string()))
+    })
 }
 
 impl Default for PanelState {
@@ -97,6 +124,9 @@ impl Default for PanelState {
             pending_caret: None,
             mention_sel: 0,
             mention_uses: std::collections::HashMap::new(),
+            ai_target: None,
+            ai_target_at: 0.0,
+            ai_target_moved: false,
         }
     }
 }
@@ -442,6 +472,38 @@ fn chat_container(
     let busy = chat["status"].as_str() == Some("busy");
     let messages = chat["messages"].as_array().cloned().unwrap_or_default();
 
+    let waiting: Vec<super::proposals::Pending> = messages
+        .iter()
+        .filter_map(|m| m["tool_calls"].as_array())
+        .flatten()
+        .filter(|c| c["status"].as_str() == Some("awaiting_approval"))
+        .map(|c| super::proposals::Pending {
+            id: c["id"].as_str().unwrap_or_default().to_string(),
+            name: c["name"].as_str().unwrap_or_default().to_string(),
+            args: c["args"].clone(),
+        })
+        .collect();
+    super::proposals::publish(ui.ctx(), waiting);
+
+    let now = ui.input(|i| i.time);
+    match live_target(&messages, busy) {
+        Some(t) => {
+            if state.ai_target.as_ref() != Some(&t) {
+                state.ai_target_moved = true;
+                state.ai_target = Some(t);
+            }
+            state.ai_target_at = now;
+        }
+        None if state.ai_target.is_some() => {
+            if now - state.ai_target_at > AI_FOCUS_HOLD {
+                state.ai_target = None;
+            } else {
+                crate::shell::frames::repaint_after(ui.ctx(), std::time::Duration::from_millis(500));
+            }
+        }
+        None => {}
+    }
+
     ScrollArea::vertical()
         .max_height(height)
         .auto_shrink([false, false])
@@ -505,7 +567,7 @@ fn message_row(
             });
         }
         "assistant" => {
-            paint_markdown(ui, theme, content, theme.phosphor_lit);
+            paint_markdown(ui, theme, content, theme.ink);
             if let Some(calls) = message["tool_calls"].as_array() {
                 for call in calls {
                     tool_call_card(ui, theme, door, call);
@@ -541,12 +603,7 @@ fn ref_chips(ui: &mut Ui, theme: &Theme, state: &mut PanelState, refs: &[Value])
                 .or_else(|| r["id"].as_str())
                 .map(str::to_string)
                 .unwrap_or_else(|| r.to_string());
-            let chip = egui::Button::new(
-                RichText::new(label)
-                    .font(theme.font_small.clone())
-                    .color(theme.phosphor),
-            );
-            if ui.add(chip).clicked() {
+            if crate::shell::components::ai_button(ui, theme, &label).clicked() {
                 state.pending_focus = Some(r.clone());
             }
         }
@@ -573,14 +630,14 @@ fn tool_call_card(ui: &mut Ui, theme: &Theme, door: &dyn Call, call: &Value) {
     head.append(
         &name,
         0.0,
-        TextFormat::simple(theme.font_small.clone(), theme.ink),
+        TextFormat::simple(theme.font_small.clone(), theme.ai),
     );
     let summary = arg_summary(args);
     if !summary.is_empty() {
         head.append(
             &format!("  {summary}"),
             0.0,
-            TextFormat::simple(theme.font_small.clone(), theme.ink_weak),
+            TextFormat::simple(theme.font_small.clone(), theme.ink),
         );
     }
 
@@ -608,29 +665,25 @@ fn tool_call_card(ui: &mut Ui, theme: &Theme, door: &dyn Call, call: &Value) {
             });
 
         if status == "awaiting_approval" {
+            // The change the call would make, before the decision.
+            let pending = super::proposals::Pending { id: id.clone(), name: name.clone(), args: call["args"].clone() };
+            if let Some(node) = super::proposals::node_of(&pending) {
+                let rows = super::proposals::changes(&pending, &node, &Value::Null);
+                super::proposals::change_rows(ui, theme, &rows);
+                if let Some(src) = super::proposals::script_source(&pending, &node) {
+                    let old = fetch_script(door, &pending);
+                    super::proposals::diff_view(ui, theme, &super::proposals::diff_lines(&old, &src));
+                }
+            }
             ui.horizontal(|ui| {
-                if ui
-                    .button(
-                        RichText::new(tr("allow"))
-                            .font(theme.font_body.clone())
-                            .color(theme.ok),
-                    )
-                    .clicked()
-                {
+                if crate::shell::components::ai_button(ui, theme, &tr("allow")).clicked() {
                     let _ = door.json(
                         "POST",
                         "/ai/chat/approve",
                         Some(json!({ "call": id, "allow": true })),
                     );
                 }
-                if ui
-                    .button(
-                        RichText::new(tr("deny"))
-                            .font(theme.font_body.clone())
-                            .color(theme.warn),
-                    )
-                    .clicked()
-                {
+                if crate::shell::components::ai_button(ui, theme, &tr("deny")).clicked() {
                     let _ = door.json(
                         "POST",
                         "/ai/chat/approve",
@@ -640,6 +693,18 @@ fn tool_call_card(ui: &mut Ui, theme: &Theme, door: &dyn Call, call: &Value) {
             });
         }
     });
+}
+
+/// The script a waiting `save_script` would replace (empty when unreadable).
+fn fetch_script(door: &dyn Call, p: &super::proposals::Pending) -> String {
+    let (Some(node), graph) = (p.args["node"].as_str(), p.args["graph"].as_str().unwrap_or_default()) else {
+        return String::new();
+    };
+    door.bytes("GET", &format!("/script/{node}"), &[("graph", graph.to_string())])
+        .ok()
+        .and_then(|r| serde_json::from_slice::<Value>(&r.body).ok())
+        .and_then(|v| v["source"].as_str().map(str::to_string))
+        .unwrap_or_default()
 }
 
 /// A short `key=value` summary of a call's args, cut to [`SUMMARY_CHARS`].
@@ -743,7 +808,7 @@ fn code_block(ui: &mut Ui, theme: &Theme, lang: &str, body: &str) {
 }
 
 /// A single inline-markdown run as one [`LayoutJob`]: `code` in the monospace
-/// on the inset, **bold** in the lit phosphor, the rest in `base`.
+/// on the inset, **bold** in the AI blue, the rest in `base`.
 fn inline_job(theme: &Theme, text: &str, base: Color32) -> LayoutJob {
     let mut job = LayoutJob::default();
     let body = theme.font_body.clone();
@@ -753,7 +818,7 @@ fn inline_job(theme: &Theme, text: &str, base: Color32) -> LayoutJob {
             Inline::Bold(t) => job.append(
                 &t,
                 0.0,
-                TextFormat::simple(body.clone(), theme.phosphor_lit),
+                TextFormat::simple(body.clone(), theme.ai),
             ),
             Inline::Code(t) => job.append(
                 &t,
@@ -1065,8 +1130,9 @@ fn prompt_box(
                         egui::Button::new(
                             RichText::new("↑")
                                 .font(theme.font_body.clone())
-                                .color(theme.phosphor),
-                        ),
+                                .color(theme.ai),
+                        )
+                        .stroke(theme.ai_stroke()),
                     )
                     .on_hover_text(tr("send"));
                 // The glyph is the paint; `send` is the button's accessible

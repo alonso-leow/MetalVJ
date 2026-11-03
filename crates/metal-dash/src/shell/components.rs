@@ -963,8 +963,24 @@ pub fn subheader<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) 
         // Tall enough for a lit button's frame, so it stays inside the cell.
         ui.set_min_height(theme.icon_button_size.y + theme.field_pad.y * 2.0);
         ui.add_space(theme.field_pad.x);
-        ui.horizontal(add).inner
+        // A margin on the right as well as the left of the row.
+        ui.scope(|ui| {
+            ui.set_max_width((ui.available_width() - theme.field_pad.x * 2.0).max(0.0));
+            ui.horizontal(add).inner
+        })
+        .inner
     })
+}
+
+/// A compact button in the payload cell's look (sharp corners, black outline,
+/// glass wash), its label in the AI blue: the chat's allow/deny, ref chips and
+/// every other control that acts for the harness.
+pub fn ai_button(ui: &mut Ui, theme: &Theme, label: &str) -> egui::Response {
+    ui.scope(|ui| {
+        theme.payload_style(&mut ui.style_mut().visuals);
+        ui.add(egui::Button::new(RichText::new(label).font(theme.font_small.clone()).color(theme.ai)))
+    })
+    .inner
 }
 
 /// A key cell holding one truncated label (weak ink, small face).
@@ -1524,7 +1540,9 @@ pub fn filter_chips<T: PartialEq + Clone>(
 /// A search field: one line of text on the control column, `hint` shown when
 /// empty. The filter row the library list and the io/bind tables share.
 pub fn search_field(ui: &mut Ui, theme: &Theme, text: &mut String, hint: &str) -> egui::Response {
-    header_field(ui, theme, text, hint)
+    // Takes the head's whole width, less a margin on each side.
+    let width = (ui.available_width() - theme.item_gap.x * 2.0).max(theme.control_width * 0.5);
+    ui.add(header_edit(theme, text, hint).desired_width(width))
 }
 
 /// The one-line field a panel head carries (the library's two search boxes,

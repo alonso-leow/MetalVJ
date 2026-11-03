@@ -773,7 +773,7 @@ pub fn paint(
                 let width = ui.available_width();
                 // The sequence has its own scrollbar (the timeline's); the
                 // parent's bar stays hidden there and only takes the wheel.
-                let bars = if mode == crate::shell::lanes::Mode::Lanes {
+                let bars = if mode == crate::shell::lanes::Mode::Lanes || mode == crate::shell::lanes::Mode::Overlays {
                     egui::scroll_area::ScrollBarVisibility::AlwaysHidden
                 } else {
                     egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded
@@ -782,9 +782,7 @@ pub fn paint(
                     .max_width(width)
                     .max_height(remaining)
                     .scroll_bar_visibility(bars)
-                    // The buttons grid sizes itself to the area, so it never
-                    // needs the outer scroll.
-                    .scroll([false, mode != crate::shell::lanes::Mode::Overlays])
+                    .scroll([false, true])
                     .id_salt("shell/region/lanes/scroll")
                     .show(ui, |ui| {
                         // No tab row: the state comes from context (`resolve_mode`).
@@ -2824,9 +2822,10 @@ fn overlays_grid(
     let above = origin.y - ui.min_rect().top();
     let visible = (viewport_h - above).max(0.0);
     let bar_h = theme.pager_height.max(ui.spacing().interact_size.y);
-    let cell_w = ((width - gap.x * (cols as f32 - 1.0)) / cols as f32).max(theme.gear_size);
-    let cell_h = ((visible - bar_h - gap.y * rows as f32) / rows as f32)
-        .clamp(theme.gear_size, cell_w.max(theme.gear_size));
+    // No floor but a sliver: the grid follows the region down to any height
+    // (a floor here becomes the panel's minimum and the region can't shrink).
+    let cell_w = ((width - gap.x * (cols as f32 - 1.0)) / cols as f32).max(4.0);
+    let cell_h = ((visible - bar_h - gap.y * rows as f32) / rows as f32).clamp(4.0, cell_w);
     let cell = Vec2::new(cell_w, cell_h);
     let grid_h = rows as f32 * cell_h + (rows as f32 - 1.0) * gap.y;
 

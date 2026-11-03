@@ -100,12 +100,34 @@ fn source_section(
             ui.label(small_text(theme, lang_label(&state.lang)).color(theme.ink))
         });
     }
+    // What the AI proposes for this script: the diff against the draft and the
+    // same accept/deny the chat has.
+    for p in crate::shell::panels::proposals::pending(ui.ctx()) {
+        if let Some(src) = crate::shell::panels::proposals::script_source(&p, node_id) {
+            crate::shell::components::payload_cell(ui, theme, None, |ui| {
+                ui.vertical(|ui| {
+                    ui.label(small_text(theme, tr("the AI proposes")).color(theme.ai).strong());
+                    let lines = crate::shell::panels::proposals::diff_lines(&state.draft, &src);
+                    crate::shell::panels::proposals::diff_view(ui, theme, &lines);
+                    crate::shell::panels::proposals::decision_row(ui, theme, door, &p.id);
+                });
+            });
+        }
+    }
+    let editor_id = Id::new("shell/panel/properties/script");
+    super::code::handle_keys(ui.ctx(), editor_id, &mut state.draft, &state.lang);
+    let lang = state.lang.clone();
+    let mut layouter = |ui: &Ui, text: &dyn egui::TextBuffer, wrap: f32| {
+        ui.fonts_mut(|f| f.layout_job(super::code::job(theme, text.as_str(), &lang, wrap)))
+    };
     ui.add(
         egui::TextEdit::multiline(&mut state.draft)
-            .id(Id::new("shell/panel/properties/script"))
+            .id(editor_id)
             .desired_width(ui.available_width())
             .margin(theme.field_pad)
             .desired_rows(theme.code_rows)
+            .code_editor()
+            .layouter(&mut layouter)
             .font(theme.font_small.clone()),
     );
     let save = ui

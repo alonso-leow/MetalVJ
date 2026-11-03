@@ -169,6 +169,12 @@ pub struct Theme {
     /// The logo's `Metal` run: a blue that reads on the tube and the cream ground
     /// alike (the `MetalVJ` wordmark).
     pub logo_metal: Color32,
+    /// The AI's blue: everything the harness does or is asked to do (tool
+    /// names, send, allow/deny, the focus it holds) is lit in this one hue,
+    /// kept apart from the operator's red.
+    pub ai: Color32,
+    /// The AI blue at rest — washes and the quiet edge of its focus.
+    pub ai_dim: Color32,
     /// The logo's `VJ` run: the phosphor red, the wordmark's second half.
     pub logo_vj: Color32,
     /// The cold second accent, for two lit things that must be told apart
@@ -734,6 +740,8 @@ impl Theme {
             phosphor_deep: Color32::from_rgb(0x7d, 0x10, 0x1f),
             accent_vivid: Color32::from_rgb(0xff, 0x10, 0x3c),
             logo_metal: Color32::from_rgb(0x4d,0x8d,0xff),
+            ai: Color32::from_rgb(0x4d,0x9e,0xff),
+            ai_dim: Color32::from_rgb(0x1f,0x3f,0x6e),
             logo_vj: Color32::from_rgb(0xff,0x2e,0x2e),
             soft: Color32::from_rgb(0xc8, 0xcc, 0xd2),
             soft_dim: Color32::from_rgb(0x6a, 0x70, 0x79),
@@ -958,6 +966,8 @@ impl Theme {
             phosphor_deep: Color32::from_rgb(0xf3, 0xd2, 0xcd),
             accent_vivid: Color32::from_rgb(0xff, 0x17, 0x44),
             logo_metal: Color32::from_rgb(0x1f,0x5f,0xd6),
+            ai: Color32::from_rgb(0x1f,0x6f,0xe0),
+            ai_dim: Color32::from_rgb(0x9d,0xc0,0xf2),
             logo_vj: Color32::from_rgb(0xd6,0x28,0x28),
             soft: Color32::from_rgb(0x3c, 0x41, 0x48),
             soft_dim: Color32::from_rgb(0x9a, 0xa0, 0xa8),
@@ -1258,6 +1268,8 @@ impl Theme {
             phosphor_deep: Color32::from_rgb(0xd6, 0xe0, 0xf5),
             accent_vivid: Color32::from_rgb(0x2b, 0x6c, 0xff),
             logo_metal: Color32::from_rgb(0x1f,0x5f,0xd6),
+            ai: Color32::from_rgb(0x1f,0x6f,0xe0),
+            ai_dim: Color32::from_rgb(0x9d,0xc0,0xf2),
             logo_vj: Color32::from_rgb(0xd6,0x28,0x28),
             soft: Color32::from_rgb(0xe0, 0x3a, 0x1a),
             soft_dim: Color32::from_rgb(0x9a, 0x5b, 0x4a),
@@ -1602,6 +1614,11 @@ impl Theme {
 
     /// The outline a selected node's box carries — the accent, twice the
     /// hairline so it reads as a ring.
+    /// The AI's focus edge: the selection's weight in the AI blue.
+    pub fn ai_stroke(&self) -> Stroke {
+        Stroke::new(self.accent_stroke, self.ai)
+    }
+
     pub fn node_select_stroke(&self) -> Stroke {
         Stroke::new(self.accent_stroke * 2.0, self.node_select)
     }

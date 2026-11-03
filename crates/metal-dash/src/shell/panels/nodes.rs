@@ -227,6 +227,8 @@ enum Undo {
 pub struct PanelState {
     opened: bool,
     graph_ids: Vec<String>,
+    /// The node the AI is working on, marked in blue (`Shell` sets it each frame).
+    ai_node: Option<String>,
     /// Each listed collection's display name, by graph id.
     graph_names: HashMap<String, String>,
     selected_graph: Option<String>,
@@ -391,6 +393,7 @@ impl Default for PanelState {
         PanelState {
             opened: false,
             graph_ids: Vec::new(),
+            ai_node: None,
             graph_names: HashMap::new(),
             selected_graph: None,
             graph: None,
@@ -549,6 +552,11 @@ impl PanelState {
     /// Every kind's property names, as the catalog listed them at boot.
     pub(crate) fn kind_param_names(&self) -> &HashMap<String, Vec<String>> {
         &self.kind_params
+    }
+
+    /// Marks (or clears) the node the AI is working on.
+    pub(crate) fn set_ai_node(&mut self, node: Option<String>) {
+        self.ai_node = node;
     }
 
     pub(crate) fn selected_graph(&self) -> Option<&str> {
@@ -2938,6 +2946,10 @@ fn paint_node_box(
         theme.node_box_stroke()
     };
     painter.rect(r, theme.corner_radius(), theme.node_body, stroke, egui::StrokeKind::Middle);
+    // Where the AI is working: a blue edge beside the operator's own.
+    if state.ai_node.as_deref().is_some_and(at_box) {
+        painter.rect_stroke(r.expand(theme.hairline * 2.0), theme.corner_radius(), theme.ai_stroke(), egui::StrokeKind::Outside);
+    }
     // The reveal's pulse: the accent outline, fading over [`PULSE`].
     if let Some((id, left)) = state.pulsing() {
         let here = find_node_pos(state, id)

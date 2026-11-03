@@ -20,6 +20,7 @@ pub mod pairing;
 pub mod properties;
 pub mod props_colour;
 pub mod props_shader;
+pub mod proposals;
 pub mod props_venue;
 pub mod scenes;
 pub mod sequence;

@@ -58,7 +58,7 @@ pub fn post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     };
     // Tool picks, capability permissions and the operator's instructions all
     // live in `ai_tools.json`; none of them carries a provider `preset`.
-    let tools_file_key = ["tools", "permissions", "instructions"]
+    let tools_file_key = ["tools", "permissions", "instructions", "focus_mode"]
         .iter()
         .any(|k| body.get(*k).is_some());
     if tools_file_key && body.get("preset").is_none() {

@@ -718,9 +718,18 @@ pub fn paint(
                 // an inset from the label column's edge, so they sit inside it.
                 let side = (lab.height() - 2.0).clamp(18.0, 26.0);
                 let chip = Vec2::splat(side);
+                // The chips take what they need; the name gets the rest, and a
+                // column too narrow for it shows the bare number, never a
+                // label the chips paint over.
+                let chips_w = if active_here.is_some() { 3.0 * (side + theme.item_gap.x) } else { 0.0 };
+                let name = if lab.width() - chips_w < 64.0 {
+                    format!("{mark}{}", layer + 1)
+                } else {
+                    name
+                };
                 ui.scope_builder(egui::UiBuilder::new().max_rect(lab), |ui| {
                     ui.spacing_mut().item_spacing.x = theme.item_gap.x;
-                    ui.spacing_mut().button_padding = theme.field_pad;
+                    ui.spacing_mut().button_padding = theme.field_pad * 0.25;
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if active_here.is_some() {
                             let blend = meta.blend.clone();

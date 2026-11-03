@@ -14,6 +14,7 @@
 
 mod browser;
 mod cam_track;
+mod code;
 mod chain;
 mod describe;
 pub(crate) mod contour;
@@ -656,6 +657,9 @@ impl PanelState {
                 self.node_card(ui, theme, door, gid, node_id, &node, &kind, io.as_ref())
             })
             .inner;
+
+        // What the AI proposes for this node, ahead of its folders.
+        crate::shell::panels::proposals::review_bar(ui, theme, door, node_id, &node);
 
         let authored = kind
             .strip_prefix("gen.")

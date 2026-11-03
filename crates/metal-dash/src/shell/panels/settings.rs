@@ -1148,6 +1148,64 @@ fn section_ai(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelStat
     section_ai_instructions(ui, theme, door, state);
     ui.separator();
     section_ai_permissions(ui, theme, door, &cfg);
+    ui.separator();
+    section_ai_focus(ui, theme, door, &cfg);
+}
+
+/// How the AI's focus shows on the canvas: not at all, beside the operator's
+/// own (a guide only), or as the one focus, led by the last click or the last
+/// tool the AI used.
+/// The tools that write a property value or a script: held for review when asked.
+const REVIEWED_TOOLS: [&str; 5] = ["set_params", "set_param", "set_param_batch", "save_script", "save_shader"];
+
+const FOCUS_MODES: [&str; 3] = ["ignore", "coexist", "single"];
+
+fn section_ai_focus(ui: &mut Ui, theme: &Theme, door: &dyn Call, cfg: &serde_json::Value) {
+    section_heading(ui, theme, tr("AI focus"));
+    let current = cfg["focus_mode"].as_str().unwrap_or("coexist").to_string();
+    ui.horizontal_wrapped(|ui| {
+        for wire in FOCUS_MODES {
+            let label = match wire {
+                "ignore" => tr("ignore"),
+                "coexist" => tr("coexist"),
+                _ => tr("single focus"),
+            };
+            let selected = current == wire;
+            if ui
+                .selectable_label(selected, RichText::new(label).font(theme.font_small.clone()))
+                .clicked()
+                && !selected
+            {
+                let _ = door.json("POST", "/ai-config", Some(json!({ "focus_mode": wire })));
+            }
+        }
+    });
+    // Property writes held for the operator's accept/deny (the chat and the
+    // node's own properties both show the change).
+    let policy_of = |name: &str| {
+        cfg["tools"]
+            .as_array()
+            .and_then(|t| t.iter().find(|t| t["name"].as_str() == Some(name)))
+            .and_then(|t| t["policy"].as_str())
+            .unwrap_or("auto")
+            .to_string()
+    };
+    let mut review = REVIEWED_TOOLS.iter().all(|t| policy_of(t) == "ask");
+    if crate::shell::components::toggle_row(ui, theme, tr("review AI changes"), &mut review).changed() {
+        let wire = if review { "ask" } else { "auto" };
+        let tools: serde_json::Map<String, serde_json::Value> =
+            REVIEWED_TOOLS.iter().map(|t| (t.to_string(), json!(wire))).collect();
+        let _ = door.json("POST", "/ai-config", Some(json!({ "tools": tools })));
+    }
+    ui.label(
+        RichText::new(match current.as_str() {
+            "ignore" => tr("the AI's work is not marked"),
+            "single" => tr("the AI's work takes the focus; the last click or tool leads"),
+            _ => tr("the AI's work is marked in blue beside your focus"),
+        })
+        .font(theme.font_small.clone())
+        .color(theme.ink_weak),
+    );
 }
 
 /// The free-text box the system prompt carries under "Operator instructions"

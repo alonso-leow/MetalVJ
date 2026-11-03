@@ -1125,10 +1125,16 @@ fn ai_tools_reply(tools_path: impl AsRef<std::path::Path>) -> Value {
         })
         .collect();
     let instructions = saved["instructions"].as_str().unwrap_or("");
+    // How the AI's focus shows: `ignore`, `coexist` (the default) or `single`.
+    let focus_mode = match saved["focus_mode"].as_str() {
+        Some(m @ ("ignore" | "single")) => m,
+        _ => "coexist",
+    };
     json!({
         "tools": tools,
         "permissions": permissions,
         "instructions": instructions,
+        "focus_mode": focus_mode,
     })
 }
 
@@ -1161,6 +1167,9 @@ fn ai_tools_post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<V
     }
     if let Some(text) = body["instructions"].as_str() {
         saved["instructions"] = json!(text);
+    }
+    if let Some(mode) = body["focus_mode"].as_str().filter(|m| matches!(*m, "ignore" | "coexist" | "single")) {
+        saved["focus_mode"] = json!(mode);
     }
     if let Some(patch) = body["tools"].as_object() {
         for (name, v) in patch {

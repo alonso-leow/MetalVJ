@@ -63,7 +63,7 @@ use crate::shell::components::{
     field_row, label_row, num, panel_frame, panel_head, section as kit_section, section_heading,
     toggle_row,
 };
-use crate::shell::components::choice;
+use crate::shell::components::dropdown_fill;
 use crate::shell::i18n::{tr, trf};
 use crate::shell::panels::Selection;
 
@@ -780,14 +780,15 @@ impl PanelState {
         }
 
         if kind.starts_with("gen.") {
+            // A missing or unknown mode shows `ai`, the migration default.
             let mut mode = match node["config"]["mode"].as_str() {
-                Some("ai") => 0usize,
+                Some("ai_fx") => 1usize,
                 Some("manual") => 2,
-                _ => 1,
+                _ => 0,
             };
             let options = [(0usize, tr("AI")), (1, tr("AI FX")), (2, tr("manual"))];
             if label_row(ui, theme, tr("mode"), |ui| {
-                choice(ui, theme, &mut mode, &options)
+                dropdown_fill(ui, theme, ("properties/gen_mode", node_id), &mut mode, &options)
             })
             .changed()
             {
@@ -1952,7 +1953,7 @@ mod tests {
         harness.get_by_label("Kind");
         harness.get_by_label("Port");
         // The mode is one payload dropdown showing the current choice.
-        harness.get_all_by_value("AI FX").next().expect("the mode dropdown");
+        harness.get_all_by_value("AI").next().expect("the mode dropdown");
 
         let upstream = harness.get_by_label("Audio");
         upstream.scroll_to_me();

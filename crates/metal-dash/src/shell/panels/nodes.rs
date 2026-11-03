@@ -2070,13 +2070,14 @@ fn focus_bar(
                     // node is. `ai` = fitted colourist, `ai_fx` = deterministic
                     // map, `manual` = the held row. One field, one route.
                     if kind.starts_with("gen.") {
+                        // A missing or unknown mode shows `ai`, the migration default.
                         let mut mode = match node_record(state, id)
                             .and_then(|n| n["config"]["mode"].as_str().map(str::to_string))
                             .as_deref()
                         {
-                            Some("ai") => 0,
+                            Some("ai_fx") => 1,
                             Some("manual") => 2,
-                            _ => 1,
+                            _ => 0,
                         };
                         let picked = mode;
                         let options = [(0usize, tr("AI")), (1, tr("AI FX")), (2, tr("manual"))];

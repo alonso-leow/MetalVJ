@@ -664,7 +664,7 @@ impl TrackView<'_> {
 /// of it — with its own layers of clips. G2 adds two more page kinds beside
 /// those: a **fixture** page (one venue fixture) and a **rig** page (every
 /// fixture of a `Fixture.group`), each with its own lanes.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Page {
     pub device: Option<String>,
     pub mask: Option<String>,
@@ -872,6 +872,32 @@ pub struct IngestLane {
     pending_view: Option<usize>,
 }
 
+/// The page tabs the operator last picked, from settings.json. Tests start
+/// empty so they never read or touch the live file.
+fn restored_pages() -> BTreeMap<String, Page> {
+    #[cfg(test)]
+    {
+        BTreeMap::new()
+    }
+    #[cfg(not(test))]
+    {
+        settings_file()
+            .and_then(|v| v.get("page_by_device").and_then(|m| m.as_object().cloned()))
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|(device, v)| serde_json::from_value::<Page>(v).ok().map(|p| (device, p)))
+            .collect()
+    }
+}
+
+/// settings.json as a JSON object, if it is one. The shell reads the file
+/// directly, as `favorites` and `keybinds` do; `call` owns its validation.
+#[cfg(not(test))]
+fn settings_file() -> Option<serde_json::Map<String, serde_json::Value>> {
+    let text = std::fs::read_to_string(crate::output::data_root().join("settings.json")).ok()?;
+    serde_json::from_str::<serde_json::Value>(&text).ok()?.as_object().cloned()
+}
+
 /// `span`'s default — `page/suite.js`'s `SPAN` constant — everything else
 /// starts empty/zero, which `#[derive(Default)]` would already give.
 impl Default for IngestLane {
@@ -879,7 +905,7 @@ impl Default for IngestLane {
         IngestLane {
             model: String::new(),
             song: String::new(),
-            page_by_device: BTreeMap::new(),
+            page_by_device: restored_pages(),
             loaded_song: None,
             waiting_digest: false,
             missing_song: None,
@@ -1548,6 +1574,23 @@ impl IngestLane {
         out
     }
 
+    /// Writes the remembered page tabs to settings.json (live runs only),
+    /// keeping every other key in the file.
+    fn persist_pages(&self) {
+        #[cfg(not(test))]
+        {
+            let Some(mut file) = settings_file() else { return };
+            let map: serde_json::Map<String, serde_json::Value> = self
+                .page_by_device
+                .iter()
+                .filter_map(|(d, p)| serde_json::to_value(p).ok().map(|v| (d.clone(), v)))
+                .collect();
+            file.insert("page_by_device".into(), serde_json::Value::Object(map));
+            let path = crate::output::data_root().join("settings.json");
+            let _ = std::fs::write(path, serde_json::Value::Object(file).to_string());
+        }
+    }
+
     /// The page tab last open on `device`, if any was selected there.
     pub fn page_for_device(&self, device: &str) -> Option<Page> {
         self.page_by_device.get(device).cloned()
@@ -1559,6 +1602,7 @@ impl IngestLane {
     pub fn select_page(&mut self, page: &Page) {
         if let Some(device) = &page.device {
             self.page_by_device.insert(device.clone(), page.clone());
+            self.persist_pages();
         }
         if let Some(i) = self.track_views().iter().find(|t| &t.page() == page).map(|t| t.index) {
             self.select_track(i);

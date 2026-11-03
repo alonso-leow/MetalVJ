@@ -32,10 +32,11 @@ pub const THEME_STYLES: [&str; 2] = ["phosphor", "daylight"];
 pub const BORDER_SURFACES: [&str; 4] = ["panel", "header", "card", "control"];
 pub const BORDER_WEIGHTS: [&str; 3] = ["none", "hairline", "bold"];
 
-const KEYS: [&str; 21] = [
+const KEYS: [&str; 22] = [
     "shell_mode", "language", "tick_level", "grid_spans", "grid_page", "grid_controllers",
     "shell_view", "colour_rule", "export_dir", "fps_cap", "file_tags", "ingest_proxy",
     "ui_scale", "theme", "grid_surface", "grid_layouts", "tone_mode", "tone_sample_s",
+    "page_by_device",
     "theme_style", "borders", "grid_layer",
 ];
 
@@ -194,6 +195,8 @@ fn defaults() -> Map<String, Value> {
         Value::Object(BORDER_SURFACES.iter().map(|s| ((*s).into(), json!("hairline"))).collect()),
     );
     m.insert("language".into(), json!("en"));
+    // The page tab each device last showed: `{ "<device>": <Page object> }`.
+    m.insert("page_by_device".into(), json!({}));
     // The minimum a fresh install can always afford; `fine` is one pick away.
     // The vocabulary is `metal_schema::TickRate`'s, so the route and the digester
     // cannot disagree about what "base" means (the voice design notes § "Two complete
@@ -576,6 +579,18 @@ fn post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<Value, Str
     if let Some(name) = body.get("theme") {
         let name = name.as_str().ok_or_else(|| "theme must be a string".to_string())?;
         next.insert("theme".into(), json!(name));
+        changed = true;
+    }
+    if let Some(pages) = body.get("page_by_device") {
+        // The whole map, replaced: the sequence panel posts every device it
+        // holds, so a device left out has no remembered tab.
+        let obj = pages
+            .as_object()
+            .ok_or_else(|| "page_by_device must be an object".to_string())?;
+        if let Some((device, bad)) = obj.iter().find(|(_, v)| !v.is_object()) {
+            return Err(format!("page_by_device[{device}] must be a page object, got {bad}"));
+        }
+        next.insert("page_by_device".into(), pages.clone());
         changed = true;
     }
     if changed {

@@ -160,7 +160,7 @@ fn sequences_post_at(
 /// The run half, shared by `POST /sequences {op:"run"}` and
 /// `POST /trigger/<id>` on a `sequence-<id>` target (`S.O.4a`), the same
 /// way `overlay::play` backs both `POST /overlay {op:"play"}` and an
-/// `overlay-<movement>` trigger.
+/// `overlay-<movement>` trigger (a Project clip, Clip::Movement).
 pub(crate) fn run(ctx: &mut Ctx, id: &str, device: &str) -> Result<Value, CallError> {
     let time = ctx.state.time();
     let Some(seq) = ctx.state.sequences.find(id) else {

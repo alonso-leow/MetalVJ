@@ -10332,7 +10332,7 @@ fn without_an_open_graph_create_button_says_so() {
     }
 
     /// Point 4: `save also as movement` writes the chosen mask into
-    /// the posted `Movement`.
+    /// the posted Project clip.
     #[test]
     fn saving_a_sequence_records_its_mask() {
         let recorder = preview_door();

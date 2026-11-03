@@ -2655,11 +2655,6 @@ mod tests {
             "picking a blend should POST /graph/node {{op: layer, blend: add}}"
         );
     }
-
-    /// Setting an effect to `fijo` posts `POST /graph/effects` with a
-    /// numeric `value` — `plan-sonnet.md` § S.U12's third test, re-keyed to
-    /// B5's model: the effect is a node, the `fijo` control is that node's
-    /// own, and the post names the gen the chain hangs on.
     #[test]
     fn setting_an_effect_to_fijo_posts_graph_effects_with_a_value() {
         let recorder = std::rc::Rc::new(FakeDoor::new());

@@ -10,7 +10,7 @@
 //! now. This module is the "secuencial" half: a named, ordered timeline of
 //! the same kind of statement — *this* collection, from *this* second to
 //! *that* one — evaluated the same way `overlay::Overlays` evaluates a
-//! movement: a pure function of `State::time()`, consulted at the point
+//! Project clip (Clip::Movement): a pure function of `State::time()`, consulted at the point
 //! `compile_device_plan` already resolves what a device is showing, never
 //! written back to the device's own saved `mode`.
 //!
@@ -22,7 +22,7 @@
 //! that shape again — one device instead of one device *and* one layer (a
 //! `Collection` replaces a whole stack; there is no per-layer target to
 //! name), a span of entries instead of a per-tick row (a `Collection` has no
-//! per-instant payload the way a movement's floats do, so there is nothing to
+//! per-instant payload the way a Project clip's floats do, so there is nothing to
 //! sample — only a start and an end to be inside of or not). The doc's own
 //! words for why this has to be one mechanism: *"hay que reusarlo entero."*
 //!
@@ -40,9 +40,9 @@
 //! - **Sequential** (the `"run"` op in `main.rs`): a saved [`Sequence`]'s
 //!   entries, copied onto a device at the moment it is loaded — `started` is
 //!   that instant, and every entry's `start`/`end` counts seconds from
-//!   there, the same way a movement's ticks count from `Play::started`.
+//!   there, the same way a Project clip's ticks count from `Play::started`.
 //!   Editing or re-saving the `Sequence` afterwards cannot change what is
-//!   already scheduled, for the same reason renaming a movement mid-play
+//!   already scheduled, for the same reason renaming a Project clip mid-play
 //!   cannot: the entries are a copy, taken once, at arm time.
 //!
 //! Neither trigger is a second scheduling system. Both produce exactly one
@@ -69,7 +69,7 @@
 //!
 //! [`check`] runs when a [`Sequence`] is saved *and* again when one is
 //! loaded onto a device (`main.rs`'s `"run"` op) — the second check mirrors
-//! `overlay.rs`'s own `"play"` op re-checking a movement's row width even
+//! `overlay.rs`'s own `"play"` op re-checking a Project clip's row width even
 //! though `library::check` already ran at save time: a file can be
 //! hand-edited, or a `Collection` it names can be deleted, in between. Both
 //! paths reject by naming the missing collection, not by rendering black on
@@ -94,7 +94,7 @@ use crate::layers::Collections;
 /// exclusive, so two entries may touch (`a.end == b.start`) without
 /// overlapping.
 ///
-/// Deliberately not "ticks" in `overlay::Play`'s sense: a movement's ticks
+/// Deliberately not "ticks" in `overlay::Play`'s sense: a Project clip's ticks
 /// are eighths of a second because the payload underneath them (a model's
 /// float row) was authored at that rate. A `Collection` has no per-instant
 /// payload — it is the same subgraph for the whole span — so there is
@@ -265,7 +265,7 @@ pub struct Run {
     pub sequence: Option<String>,
     /// A copy, taken at arm time. Re-saving or deleting the `Sequence` this
     /// came from cannot change what is already scheduled — the same
-    /// discipline `overlay::Play::ticks` applies to a movement.
+    /// discipline `overlay::Play::ticks` applies to a Project clip.
     pub entries: Vec<SequenceEntry>,
     /// `State::time()` when this was armed, in the app's seconds.
     pub started: f32,

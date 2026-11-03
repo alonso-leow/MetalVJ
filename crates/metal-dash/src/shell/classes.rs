@@ -1619,6 +1619,12 @@ impl Theme {
         Stroke::new(self.accent_stroke, self.ai)
     }
 
+    /// Padding of the square chips in a narrow label column (a layer's eye, S
+    /// and blend): a fraction of a field's, so the glyph fills the square.
+    pub fn chip_padding(&self) -> Vec2 {
+        self.field_pad * 0.25
+    }
+
     pub fn node_select_stroke(&self) -> Stroke {
         Stroke::new(self.accent_stroke * 2.0, self.node_select)
     }

@@ -729,7 +729,7 @@ pub fn paint(
                 };
                 ui.scope_builder(egui::UiBuilder::new().max_rect(lab), |ui| {
                     ui.spacing_mut().item_spacing.x = theme.item_gap.x;
-                    ui.spacing_mut().button_padding = theme.field_pad * 0.25;
+                    ui.spacing_mut().button_padding = theme.chip_padding();
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if active_here.is_some() {
                             let blend = meta.blend.clone();

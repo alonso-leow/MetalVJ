@@ -33,6 +33,15 @@ fn reply() -> Result<Value, CallError> {
             obj.insert(k.clone(), val.clone());
         }
     }
+    // The presets the settings dropdown offers, each with the standard URL the
+    // server assigns on save (`manual` has none: its URL is typed).
+    if let Some(obj) = v.as_object_mut() {
+        let presets: Vec<Value> = metal_agent::config::Preset::ALL
+            .iter()
+            .map(|p| serde_json::json!({ "name": p.wire(), "url": p.default_url(), "local": p.is_local() }))
+            .collect();
+        obj.insert("presets".to_string(), Value::Array(presets));
+    }
     Ok(v)
 }
 
@@ -75,6 +84,25 @@ pub fn post(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         }
         Err(e) => Err(CallError::Bad(e)),
     }
+}
+
+/// `GET /ai-models` — the models the saved provider lists (`{ models: [...] }`),
+/// or `{ models: [], error }` when it has no listing or cannot be reached. It
+/// reads the stored key, never one from the query.
+pub fn models(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+    let cfg = metal_agent::config::ProviderConfig::load_at(
+        crate::ai_config_path(),
+        &metal_agent::config::ProviderConfig::default_config_toml(),
+    )
+    .ok()
+    .flatten();
+    let Some(cfg) = cfg else {
+        return Ok(serde_json::json!({ "models": [], "error": "no provider saved" }));
+    };
+    Ok(match metal_agent::config::list_models(cfg.preset, &cfg.url, &cfg.key) {
+        Ok(models) => serde_json::json!({ "models": models }),
+        Err(e) => serde_json::json!({ "models": [], "error": e }),
+    })
 }
 
 /// `POST /ai/ask` — the sidebar's send button. `crate::chat::ask_at`

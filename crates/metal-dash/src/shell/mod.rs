@@ -1403,7 +1403,11 @@ impl Shell {
                         )
                     })
                 });
-            if escape || (!hold_releasing && area.response.clicked_elsewhere()) {
+            if escape
+                || (!hold_releasing
+                    && area.response.clicked_elsewhere()
+                    && !click_landed_on_other_layer(ui.ctx(), area.response.layer_id))
+            {
                 self.properties_overlay_open = false;
             }
         }
@@ -1457,7 +1461,12 @@ impl Shell {
                 });
             if !open {
                 self.settings_open = false;
-            } else if !events.settings_toggled && (escape || window.is_some_and(|w| w.response.clicked_elsewhere())) {
+            } else if !events.settings_toggled
+                && (escape
+                    || window.is_some_and(|w| {
+                        w.response.clicked_elsewhere() && !click_landed_on_other_layer(ui.ctx(), w.response.layer_id)
+                    }))
+            {
                 self.settings_open = false;
             }
         }
@@ -1850,4 +1859,15 @@ impl Call for std::rc::Rc<FakeDoor> {
     ) -> Option<crate::call::Reply> {
         FakeDoor::call(self, method, path, params)
     }
+}
+
+/// Whether the pointer's last click landed on a floating layer other than
+/// `own` — a dropdown's popup is its own layer and reaches past the window
+/// that opened it, so picking from it is not a click outside that window.
+fn click_landed_on_other_layer(ctx: &egui::Context, own: egui::LayerId) -> bool {
+    let Some(at) = ctx.input(|i| i.pointer.interact_pos()) else {
+        return false;
+    };
+    ctx.layer_id_at(at)
+        .is_some_and(|layer| layer != own && layer.order >= egui::Order::Foreground)
 }

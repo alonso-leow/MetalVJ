@@ -80,6 +80,7 @@ pub enum Section {
 /// `metal_agent::config::Preset` parses (`claude`/`openai`/`deepinfra`/`manual`)
 /// — read from the door's reply, never imported (gate 1).
 const PROVIDER_PRESETS: [&str; 4] = ["claude", "openai", "deepinfra", "manual"];
+// (the live list, with each preset's standard URL, comes from `GET /ai-config`)
 
 /// The three capability permissions, `(key, label)`: the key is what
 /// `POST /ai-config {"permissions": {key: ...}}` names (`metal_agent::harness::
@@ -137,6 +138,11 @@ pub struct PanelState {
     provider_preset: String,
     provider_url: String,
     provider_model: String,
+    /// The models the saved provider lists (`GET /ai-models`); empty means no
+    /// listing, so the model stays a typed field.
+    provider_models: Vec<String>,
+    /// What `provider_models` was fetched for (preset), so a change refetches.
+    provider_models_for: Option<String>,
     provider_key: String,
     /// The `IA` section's "AI instructions" box: seeded once from the
     /// first `GET /ai-config`, then saved on focus loss or `save`. Kept out
@@ -216,6 +222,8 @@ impl Default for PanelState {
             provider_preset: "manual".to_string(),
             provider_url: String::new(),
             provider_model: String::new(),
+            provider_models: Vec::new(),
+            provider_models_for: None,
             provider_key: String::new(),
             provider_instructions: String::new(),
             fetched_provider: false,
@@ -1004,6 +1012,16 @@ fn section_ai(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelStat
             .color(theme.ink_weak),
     );
 
+    // The presets come from the door's reply with their standard URLs; the
+    // const is only the fallback when a reply carries none.
+    let presets: Vec<(String, Option<String>)> = cfg["presets"]
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|r| Some((r["name"].as_str()?.to_string(), r["url"].as_str().map(str::to_string))))
+                .collect()
+        })
+        .unwrap_or_else(|| PROVIDER_PRESETS.iter().map(|p| (p.to_string(), None)).collect());
     ui.horizontal_wrapped(|ui| {
         ui.label(
             RichText::new(tr("preset"))
@@ -1013,28 +1031,51 @@ fn section_ai(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelStat
         crate::shell::components::combo_box(theme, Id::new("shell/panel/ajustes/provider-preset"))
             .selected_text(&state.provider_preset)
             .show_ui(ui, |ui| {
-                for preset in PROVIDER_PRESETS {
+                for (name, url) in &presets {
                     if ui
                         .selectable_label(
-                            state.provider_preset == preset,
-                            RichText::new(preset).font(theme.font_small.clone()),
+                            &state.provider_preset == name,
+                            RichText::new(name).font(theme.font_small.clone()),
                         )
                         .clicked()
                     {
-                        state.provider_preset = preset.to_string();
+                        state.provider_preset = name.clone();
+                        // A named provider gets its standard URL; only `manual`
+                        // keeps what was typed.
+                        if let Some(url) = url {
+                            state.provider_url = url.clone();
+                        }
                     }
                 }
             });
     });
 
-    ui.horizontal_wrapped(|ui| {
-        ui.label(
-            RichText::new(tr("url"))
-                .font(theme.font_small.clone())
-                .color(theme.ink_weak),
-        );
-        ui.add(TextEdit::singleline(&mut state.provider_url).desired_width(theme.text_input_width));
-    });
+    // The URL is typed only for `manual`; every other preset has its own.
+    if state.provider_preset == "manual" {
+        ui.horizontal_wrapped(|ui| {
+            ui.label(
+                RichText::new(tr("url"))
+                    .font(theme.font_small.clone())
+                    .color(theme.ink_weak),
+            );
+            ui.add(TextEdit::singleline(&mut state.provider_url).desired_width(theme.text_input_width));
+        });
+    }
+
+    // The saved provider's own model list, when its API has one. Asked until
+    // it lands (the first read is answered in the background), once per saved
+    // preset; a save asks again.
+    let saved_preset = cfg["preset"].as_str().map(str::to_string);
+    if configured && state.provider_models_for != saved_preset {
+        if let Ok(reply) = door.json("GET", "/ai-models", None) {
+            state.provider_models = reply["models"]
+                .as_array()
+                .map(|m| m.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+                .unwrap_or_default();
+            state.provider_models_for = saved_preset.clone();
+        }
+    }
+    let listed = saved_preset.as_deref() == Some(state.provider_preset.as_str()) && !state.provider_models.is_empty();
 
     ui.horizontal_wrapped(|ui| {
         ui.label(
@@ -1042,9 +1083,28 @@ fn section_ai(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelStat
                 .font(theme.font_small.clone())
                 .color(theme.ink_weak),
         );
-        ui.add(
-            TextEdit::singleline(&mut state.provider_model).desired_width(theme.text_input_width),
-        );
+        if listed {
+            let models = state.provider_models.clone();
+            crate::shell::components::combo_box(theme, Id::new("shell/panel/ajustes/provider-model"))
+                .selected_text(&state.provider_model)
+                .show_ui(ui, |ui| {
+                    egui::ScrollArea::vertical().max_height(theme.text_input_width * 2.0).show(ui, |ui| {
+                        for model in &models {
+                            if ui
+                                .selectable_label(
+                                    &state.provider_model == model,
+                                    RichText::new(model).font(theme.font_small.clone()),
+                                )
+                                .clicked()
+                            {
+                                state.provider_model = model.clone();
+                            }
+                        }
+                    });
+                });
+        } else {
+            ui.add(TextEdit::singleline(&mut state.provider_model).desired_width(theme.text_input_width));
+        }
     });
 
     let key_hint = cfg["key_masked"].as_str().unwrap_or("").to_string();
@@ -1079,6 +1139,8 @@ fn section_ai(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelStat
         }
         if let Ok(reply) = door.json("POST", "/ai-config", Some(body)) {
             adopt_provider(state, &reply);
+            // The key may have changed what the provider lists.
+            state.provider_models_for = None;
         }
     }
 

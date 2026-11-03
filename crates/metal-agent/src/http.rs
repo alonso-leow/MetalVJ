@@ -109,6 +109,28 @@ pub fn post_bytes(
     round_trip(&mut stream, &head, payload)
 }
 
+/// One blocking GET — the model-listing read. Same socket and response
+/// handling as [`post_bytes`], with no body.
+pub fn get(url: &str, headers: &[(&str, &str)]) -> Result<HttpResponse, String> {
+    let parsed = Url::parse(url)?;
+    let mut head = format!(
+        "GET {} HTTP/1.1\r\nHost: {}\r\nAccept: application/json\r\nConnection: close\r\n",
+        parsed.path, parsed.host
+    );
+    for (k, v) in headers {
+        head.push_str(&format!("{k}: {v}\r\n"));
+    }
+    head.push_str("\r\n");
+    if parsed.tls {
+        let mut stream = tls_stream(&parsed)?;
+        return round_trip(&mut stream, &head, &[]);
+    }
+    let mut stream = TcpStream::connect((parsed.host.as_str(), parsed.port))
+        .map_err(|e| format!("connect {}:{}: {e}", parsed.host, parsed.port))?;
+    set_socket_timeouts(&mut stream);
+    round_trip(&mut stream, &head, &[])
+}
+
 /// Writes the prepared request head + payload once and reads one response
 /// back — the one place `post_bytes` does its I/O, generic over the socket
 /// kind (plain `TcpStream` or the rustls wrapper, same trait bound).

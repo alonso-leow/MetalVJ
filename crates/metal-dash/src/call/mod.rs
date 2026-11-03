@@ -837,6 +837,12 @@ pub static ROUTES: &[Route] = &[
         prefix: false,
         handler: Handler::Json(ai::post),
     },
+    Route {
+        method: "GET",
+        path: "/ai-models",
+        prefix: false,
+        handler: Handler::Json(ai::models),
+    },
     // S.X: the chat. `POST /ai/ask` appends to a conversation and hands the
     // turn to a worker thread (`crate::chat`, the harness's own loop);
     // `/ai/log` keeps the cross-chat prompt journal. The chat menu and the

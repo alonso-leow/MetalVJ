@@ -85,6 +85,18 @@ pub enum Preset {
     Claude,
     Openai,
     Deepinfra,
+    Openrouter,
+    Groq,
+    Fireworks,
+    Together,
+    Mistral,
+    Deepseek,
+    Xai,
+    Cerebras,
+    Moonshot,
+    Google,
+    Ollama,
+    Lmstudio,
     Manual,
 }
 
@@ -93,16 +105,98 @@ impl Preset {
         Preset::Manual
     }
 
+    /// Every preset, in the order the settings dropdown lists them.
+    pub const ALL: [Preset; 16] = [
+        Preset::Claude,
+        Preset::Openai,
+        Preset::Google,
+        Preset::Openrouter,
+        Preset::Groq,
+        Preset::Fireworks,
+        Preset::Together,
+        Preset::Deepinfra,
+        Preset::Mistral,
+        Preset::Deepseek,
+        Preset::Xai,
+        Preset::Cerebras,
+        Preset::Moonshot,
+        Preset::Ollama,
+        Preset::Lmstudio,
+        Preset::Manual,
+    ];
+
+    /// The wire name (`serde`'s lowercase), what `POST /ai-config` carries.
+    pub fn wire(self) -> String {
+        serde_json::to_value(self)
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_string))
+            .unwrap_or_default()
+    }
+
     /// The base URL a preset prefills. `Manual` has none — the whole point
-    /// of manual is that the user supplies it.
+    /// of manual is that the user supplies it. Every one but Claude speaks the
+    /// OpenAI `chat/completions` shape the loop sends.
     pub fn default_url(self) -> Option<&'static str> {
         match self {
             Preset::Claude => Some("https://api.anthropic.com/v1/messages"),
             Preset::Openai => Some("https://api.openai.com/v1/chat/completions"),
             Preset::Deepinfra => Some("https://api.deepinfra.com/v1/openai/chat/completions"),
+            Preset::Openrouter => Some("https://openrouter.ai/api/v1/chat/completions"),
+            Preset::Groq => Some("https://api.groq.com/openai/v1/chat/completions"),
+            Preset::Fireworks => Some("https://api.fireworks.ai/inference/v1/chat/completions"),
+            Preset::Together => Some("https://api.together.xyz/v1/chat/completions"),
+            Preset::Mistral => Some("https://api.mistral.ai/v1/chat/completions"),
+            Preset::Deepseek => Some("https://api.deepseek.com/chat/completions"),
+            Preset::Xai => Some("https://api.x.ai/v1/chat/completions"),
+            Preset::Cerebras => Some("https://api.cerebras.ai/v1/chat/completions"),
+            Preset::Moonshot => Some("https://api.moonshot.ai/v1/chat/completions"),
+            Preset::Google => Some("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"),
+            Preset::Ollama => Some("http://localhost:11434/v1/chat/completions"),
+            Preset::Lmstudio => Some("http://localhost:1234/v1/chat/completions"),
             Preset::Manual => None,
         }
     }
+
+    /// Whether the endpoint runs on this machine and needs no real key.
+    pub fn is_local(self) -> bool {
+        matches!(self, Preset::Ollama | Preset::Lmstudio)
+    }
+}
+
+/// The models a provider lists for `url` (its chat URL) and `key`: the same
+/// base with `/models` in place of `/chat/completions` (Claude: `/v1/models`).
+/// `Err` when the endpoint has no listing or cannot be reached — the caller
+/// then keeps a free-text model field.
+pub fn list_models(preset: Preset, url: &str, key: &str) -> Result<Vec<String>, String> {
+    let models_url = if let Some(base) = url.strip_suffix("/chat/completions") {
+        format!("{base}/models")
+    } else if let Some(base) = url.strip_suffix("/messages") {
+        format!("{base}/models")
+    } else {
+        return Err("no model listing for this URL".to_string());
+    };
+    let bearer = format!("Bearer {key}");
+    let headers: Vec<(&str, &str)> = if preset == Preset::Claude {
+        vec![("x-api-key", key), ("anthropic-version", "2023-06-01")]
+    } else {
+        vec![("Authorization", bearer.as_str())]
+    };
+    let response = crate::http::get(&models_url, &headers)?;
+    if !(200..300).contains(&response.status) {
+        return Err(format!("the provider answered {}", response.status));
+    }
+    let body = response.json().ok_or_else(|| "the model list is not JSON".to_string())?;
+    let mut ids: Vec<String> = body["data"]
+        .as_array()
+        .or_else(|| body.as_array())
+        .map(|rows| rows.iter().filter_map(|m| m["id"].as_str().map(str::to_string)).collect())
+        .unwrap_or_default();
+    ids.sort();
+    ids.dedup();
+    if ids.is_empty() {
+        return Err("the provider listed no models".to_string());
+    }
+    Ok(ids)
 }
 
 /// `{ url, model, key, preset, stt?, tts? }`, persisted at `data/ai.json`.
@@ -256,7 +350,7 @@ impl ProviderConfig {
                         std::io::ErrorKind::InvalidData,
                         format!(
                             "{}: [agent.provider].preset = {name:?} is not one of \
-                             claude/openai/deepinfra/manual",
+                             a known preset (see `Preset::ALL`)",
                             config_toml.display()
                         ),
                     )
@@ -745,5 +839,20 @@ mod tests {
         let raw = std::fs::read_to_string(&ai).unwrap();
         assert!(raw.contains("sk-mirrors-as-usual"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Every named preset has a standard URL, every wire name round-trips, and
+    /// only `manual` is left for the user to type.
+    #[test]
+    fn every_preset_has_a_standard_url_except_manual() {
+        for preset in Preset::ALL {
+            let wire = preset.wire();
+            let back: Preset = serde_json::from_value(serde_json::Value::String(wire.clone())).unwrap();
+            assert_eq!(back, preset, "{wire} round-trips");
+            assert_eq!(preset.default_url().is_none(), preset == Preset::Manual, "{wire}");
+        }
+        assert_eq!(Preset::ALL.len(), 16);
+        assert!(Preset::Openrouter.default_url().unwrap().contains("openrouter.ai"));
+        assert!(Preset::Ollama.is_local() && !Preset::Groq.is_local());
     }
 }

@@ -787,7 +787,11 @@ fn ai_config_post_at(
 ) -> Result<Value, String> {
     let preset: metal_agent::config::Preset = serde_json::from_value(body["preset"].clone())
         .map_err(|_| "invalid or missing preset".to_string())?;
-    let url = body["url"].as_str().unwrap_or_default().to_string();
+    // A named provider has its own standard URL; only `manual` takes one typed.
+    let url = match preset.default_url() {
+        Some(standard) => standard.to_string(),
+        None => body["url"].as_str().unwrap_or_default().to_string(),
+    };
     let model = body["model"].as_str().unwrap_or_default().to_string();
     let path = path.as_ref();
     let existing = metal_agent::config::ProviderConfig::load_at(path, config_toml)
@@ -799,6 +803,8 @@ fn ai_config_post_at(
             // an empty key — there is nothing on disk to keep, so it is the
             // same 400 as no file at all.
             Some(cfg) if !cfg.key.is_empty() => cfg.key.clone(),
+            // A server on this machine (Ollama, LM Studio) needs no real key.
+            _ if preset.is_local() => "local".to_string(),
             _ => return Err("expected a key".to_string()),
         },
     };

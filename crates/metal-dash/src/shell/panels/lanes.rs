@@ -782,6 +782,9 @@ pub fn paint(
                     .max_width(width)
                     .max_height(remaining)
                     .scroll_bar_visibility(bars)
+                    // The buttons grid sizes itself to the area, so it never
+                    // needs the outer scroll.
+                    .scroll([false, mode != crate::shell::lanes::Mode::Overlays])
                     .id_salt("shell/region/lanes/scroll")
                     .show(ui, |ui| {
                         // No tab row: the state comes from context (`resolve_mode`).

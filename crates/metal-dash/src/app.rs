@@ -738,11 +738,6 @@ pub fn primitive_json(p: &metal_graph::layout::Primitive) -> Value {
                 "node": node,
                 "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
             }),
-            RectTag::Chip { node, source, ai } => json!({
-                "type": "rect", "tag": "chip",
-                "node": node, "source": source, "ai": ai,
-                "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
-            }),
         },
         Primitive::Path(p) => json!({
             "type": "path",

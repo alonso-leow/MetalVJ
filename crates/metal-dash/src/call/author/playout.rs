@@ -534,7 +534,7 @@ pub fn video_frame(_ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> 
 }
 
 /// `data/projects/<song>.json` — the song's name made a safe file name.
-fn project_path(song: &str) -> Option<PathBuf> {
+pub(crate) fn project_path(song: &str) -> Option<PathBuf> {
     let name = Path::new(song).file_name()?.to_str()?;
     (!name.is_empty() && !name.starts_with('.')).then(|| Path::new(PROJECTS).join(format!("{name}.json")))
 }

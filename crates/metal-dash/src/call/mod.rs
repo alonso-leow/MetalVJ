@@ -890,10 +890,10 @@ pub static ROUTES: &[Route] = &[
         prefix: false,
         handler: Handler::Json(ai::chat_approve),
     },
-    // S.AM: the train gesture of a trainable `ai.*` node — the same body the
+    // S.AM: the train gesture of a `gen.*` source — the same body the
     // `train_ai` tool posts and the lane's `entrenar` button will post. It
-    // dispatches by kind; `ai.colourist` writes the same grade file the
-    // studio's `/author/grade/train` does.
+    // writes the grade the source's `config.weights` names (or the model's
+    // default grade), the same file the studio's `/author/grade/train` does.
     Route {
         method: "POST",
         path: "/ai/train",
@@ -1040,6 +1040,19 @@ pub static ROUTES: &[Route] = &[
         path: "/sequences",
         prefix: false,
         handler: Handler::Json(sequences::sequences_post),
+    },
+    // author/project_play.rs — a saved song's project played as one run.
+    Route {
+        method: "GET",
+        path: "/project/play",
+        prefix: false,
+        handler: Handler::Json(author::project_play::get),
+    },
+    Route {
+        method: "POST",
+        path: "/project/play",
+        prefix: false,
+        handler: Handler::Json(author::project_play::post),
     },
     Route {
         method: "GET",

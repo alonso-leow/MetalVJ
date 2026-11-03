@@ -907,7 +907,6 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         "connect_nodes",
         "set_params",
         "raster",
-        "embed_ai",
         "bind_param",
         "set_param",
         "edit_mask",
@@ -960,8 +959,6 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
     match name {
         "list_tools" => Some(("GET", "/ai-config")),
         "search_nodes" => Some(("GET", "/catalog")),
-        // A1/A3.3: the embedded reaction is a setting in the source, over the
-        // same `POST /graph/node` op its properties toggle posts.
         // S.AM: the train gesture of an `ai.*` node — the same route its
         // `entrenar` button posts (`POST /ai/train { node }`).
         "train_ai" => Some(("POST", "/ai/train")),
@@ -1285,11 +1282,6 @@ fn primitive_json(p: &metal_graph::layout::Primitive) -> Value {
             RectTag::More { node } => json!({
                 "type": "rect", "tag": "more",
                 "node": node,
-                "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
-            }),
-            RectTag::Chip { node, source, ai } => json!({
-                "type": "rect", "tag": "chip",
-                "node": node, "source": source, "ai": ai,
                 "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
             }),
         },
@@ -2004,11 +1996,7 @@ mod tests {
             2,
             "color and palette — the sources of control (K)"
         );
-        assert_eq!(
-            count(NodeFamily::Ai),
-            1,
-            "ai.colourist — the trained reaction (S.AM, wave 1)"
-        );
+        assert_eq!(count(NodeFamily::Ai), 0, "no ai.* kind ships until ai.router lands");
         assert_eq!(
             count(NodeFamily::Input),
             1,

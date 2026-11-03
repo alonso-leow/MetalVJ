@@ -5,8 +5,6 @@
 //! - `capture` → **capture source**: a camera (the a6400's loopback or
 //!   `gphoto2` direct included), a screen, or one program's window, written to
 //!   the node's config (`source`) — `metal_perform::capture` opens it.
-//! - `ai.colourist` → **colourist**: `AI Auto` (the fitted grade) or `Auto`
-//!   (the deterministic round robin), the node's config `mode`.
 //!
 //! The lists come off `GET /io`, cached for [`LIST_TTL`] in egui memory: the
 //! route spawns `pactl`/`niri`, which is not a per-frame cost.
@@ -18,10 +16,10 @@ use serde_json::{json, Value};
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{float_row, kv_row, kv_wrap, lucide, note, Float, Icon};
-use crate::shell::i18n::{tr, tr_dyn, trf};
+use crate::shell::i18n::{tr, tr_dyn};
 
 use super::listen;
-use super::shared::{get, post};
+use super::shared::get;
 use super::text::post_text;
 
 /// How long one `GET /io` answer is reused, in seconds.
@@ -124,40 +122,6 @@ pub(crate) fn capture_section(
     if current == "gphoto:" {
         note(ui, theme, tr("camera on, USB mode PC Remote; stop launch-camera first, only one program can hold it."));
     }
-}
-
-/// `ai.colourist`'s page: AI Auto vs Auto.
-pub(crate) fn colourist_section(
-    ui: &mut Ui,
-    theme: &Theme,
-    door: &dyn Call,
-    gid: &str,
-    node_id: &str,
-    node: &Value,
-) {
-    let current = match node["config"]["mode"].as_str() {
-        Some("auto") => "auto",
-        _ => "ai",
-    };
-    let choices = vec![
-        ("ai".to_string(), tr("AI Auto — fitted grade").to_string()),
-        (
-            "auto".to_string(),
-            tr("Auto — deterministic math").to_string(),
-        ),
-    ];
-    if let Some(pick) = pick_row(ui, theme, "colourist-mode", tr("mode"), current, &choices) {
-        post_text(door, gid, node_id, json!({ "mode": pick }));
-    }
-    note(
-        ui,
-        theme,
-        if current == "auto" {
-            tr("Auto: each float follows one digest column (rms, bandwidth, onset, centroid…) around its base value — plain math, no model.")
-        } else {
-            tr("AI Auto: each float follows a fitted map over all sixteen digest columns; with no trained grade it falls back to Auto.")
-        },
-    );
 }
 
 /// 2026-10-01: `reel.batch`'s page — its list (videos, stills, saved or
@@ -369,30 +333,9 @@ fn scenes_listing(ui: &Ui, door: &dyn Call, refresh: bool) -> Value {
     v
 }
 
-/// The `ai.*` kinds a source offers as an embedded reaction (plan A3.1),
-/// mirroring `call::graph::offered_ai_for` — the one place the shell answers
-/// it. `gen.*` offers the colourist; a `router` will offer `ai.router` and a
-/// `reel.*` the curator when those nodes exist, which is the mapping hook, not
-/// an invented name.
-fn offered_ai(kind: &str) -> &'static [&'static str] {
-    if kind.starts_with("gen.") {
-        &[metal_graph::AI_COLOURIST_KIND]
-    } else {
-        &[]
-    }
-}
-
-/// A source's **reaction** page (plan A3.1): how it reacts to the audio. The
-/// deterministic half is the drive dials [`listen::reaction_section`] already
-/// paints (`direct`); the trained half is an embedded `ai.*` (`ai.embed`) the
-/// source owns (`trained`). Per offered AI: a toggle, the weights in use,
-/// `train` (`POST /ai/train { node }`) and `separate` (the same `ai.embed`
-/// op with `on: false`).
-///
-/// Nothing here is a second state (rule 4): what it shows is read off the
-/// `GET /graph` reply the browser already fetched, and every write is the
-/// `ai.embed` op through the door (rule 6) — the same route the agent's
-/// `embed_ai` tool posts.
+/// A source's **reaction** page (plan A3.1): how it reacts to the audio. What
+/// it paints is the drive dials [`listen::reaction_section`]; the trained
+/// half (the embedded `ai.*` toggle) is retired with the `ai.colourist` node.
 pub(crate) fn reaction_section(
     ui: &mut Ui,
     theme: &Theme,
@@ -411,74 +354,5 @@ pub(crate) fn reaction_section(
     // trained half below.
     if kind.starts_with("gen.") || kind == metal_graph::TEXT_SOURCE_KIND {
         listen::reaction_section(ui, theme, door, gid, node_id, node, graph);
-    }
-
-    let offered = offered_ai(kind);
-    if offered.is_empty() {
-        return;
-    }
-    let nodes: Vec<Value> = graph["graph"]["nodes"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    let owner = |ai: &str| {
-        nodes
-            .iter()
-            .find(|n| n["embedded_in"].as_str() == Some(node_id) && n["kind"].as_str() == Some(ai))
-    };
-    let state = if nodes
-        .iter()
-        .any(|n| n["embedded_in"].as_str() == Some(node_id))
-    {
-        tr("trained")
-    } else {
-        tr("direct")
-    };
-
-    ui.separator();
-    crate::shell::components::field_row(ui, theme, tr("reaction"), state);
-
-    for ai in offered {
-        let embedded = owner(ai);
-        let mut on = embedded.is_some();
-        let label = tr_dyn(ai.strip_prefix("ai.").unwrap_or(ai));
-        if ui
-            .checkbox(&mut on, small_text(theme, label))
-            .changed()
-        {
-            post(
-                door,
-                "/graph/node",
-                json!({ "op": "ai.embed", "graph": gid, "node": node_id, "ai": ai, "on": on }),
-            );
-            continue;
-        }
-        let Some(embedded) = embedded else { continue };
-        let ai_node = embedded["id"].as_str().unwrap_or_default().to_string();
-        let weights = embedded["config"]["weights"]
-            .as_str()
-            .filter(|w| !w.is_empty());
-        let shown = weights
-            .map(str::to_string)
-            .unwrap_or_else(|| tr("untrained").to_string());
-        note(ui, theme, &trf("weights: {name}", &[("name", &shown)]));
-        kv_wrap(ui, theme, "", |ui| {
-            if ui
-                .button(small_text(theme, tr("train")))
-                .clicked()
-            {
-                post(door, "/ai/train", json!({ "node": ai_node }));
-            }
-            if ui
-                .button(small_text(theme, tr("separate")))
-                .clicked()
-            {
-                post(
-                    door,
-                    "/graph/node",
-                    json!({ "op": "ai.embed", "graph": gid, "node": node_id, "ai": ai, "on": false }),
-                );
-            }
-        });
     }
 }

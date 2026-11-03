@@ -33,6 +33,7 @@ pub mod ingest;
 pub mod models;
 pub mod palette;
 pub mod playout;
+pub mod project_play;
 pub mod render;
 pub mod rig;
 pub mod router;

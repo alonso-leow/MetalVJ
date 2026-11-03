@@ -64,7 +64,6 @@ impl Graph {
         lint_text_effects(self, &mut issues);
         lint_mask_stroke(self, &mut issues);
         lint_colour_ports(self, &by_kind, &mut issues);
-        lint_ai_ports(self, &by_kind, &mut issues);
         lint_venue_surface(self, &by_kind, &mut issues);
         lint_venue_device_port(self, &mut issues);
         lint_venue_fixture(self, &mut issues);
@@ -557,76 +556,6 @@ fn lint_colour_ports(g: &Graph, by_kind: &HashMap<&str, &NodeKind>, issues: &mut
     }
 }
 
-/// S.AM: a trained reaction hears the music and drives a picture — nothing
-/// else. An `ai.*` node's `control` input may only come from an `audio.*` or
-/// `sensor.*` source (the digest row it was trained on), and its `control`
-/// output may only enter a `gen.*`/`text.source`/`fx.*` consumer (a source's
-/// own floats, a text setting or an effect's amount). Anything else is a
-/// cable that can never mean anything, so it is an error naming the node.
-///
-/// **No input is a warning, not an error.** An `ai.*` node dropped on the
-/// canvas before its `audio.live` is wired is the ordinary mid-edit state,
-/// and the plan is explicit: "an `ai.*` with no input is a warning, not an
-/// error". `lint_orphans` covers the wholly unconnected node; this warning is
-/// the narrower "it has an output but nothing to hear".
-fn lint_ai_ports(g: &Graph, _by_kind: &HashMap<&str, &NodeKind>, issues: &mut Vec<Issue>) {
-    let kind_of = |id: &str| g.node(id).map(|n| n.kind.as_str()).unwrap_or_default();
-    for n in &g.nodes {
-        if !n.kind.starts_with("ai.") {
-            continue;
-        }
-        // A wholly unconnected node is `lint_orphans`'s to name; adding a
-        // second warning for the same fact is noise on every mid-drag graph
-        // (the same reason `lint_capability_requirements` skips untouched
-        // nodes). "No input" here means "it is wired, but not to a source".
-        if !g.edges.iter().any(|e| e.from.node == n.id || e.to.node == n.id) {
-            continue;
-        }
-        // Bindings carry one float and are not a digest cable — the same
-        // exclusion `lint_colour_ports` makes for `param:` edges.
-        let mut has_input = false;
-        for e in &g.edges {
-            if crate::params::is_param_edge(e) {
-                continue;
-            }
-            if e.to.node == n.id && e.to.port == "control" {
-                has_input = true;
-                let from = kind_of(&e.from.node);
-                if !(from.starts_with("audio.") || from.starts_with("sensor.")) {
-                    issues.push(Issue::error(
-                        Some(&n.id),
-                        format!(
-                            "{} hears {}'s {} — an ai node only accepts control from audio.* or sensor.*",
-                            n.kind, e.from.node, e.from.port
-                        ),
-                    ));
-                }
-            }
-            if e.from.node == n.id && e.from.port == "control" {
-                let to = kind_of(&e.to.node);
-                if !(to.starts_with("gen.")
-                    || to == crate::TEXT_SOURCE_KIND
-                    || to.starts_with("fx."))
-                {
-                    issues.push(Issue::error(
-                        Some(&n.id),
-                        format!(
-                            "{} feeds {}'s {} — an ai node's control only enters gen.*/text.source/fx.*",
-                            n.kind, e.to.node, e.to.port
-                        ),
-                    ));
-                }
-            }
-        }
-        if !has_input {
-            issues.push(Issue::warning(
-                Some(&n.id),
-                format!("{} has no control input — wire an audio.* or sensor.* source into it", n.kind),
-            ));
-        }
-    }
-}
-
 /// P1: the `venue.surface` node. Three rules, all about the space a contour
 /// lives in:
 ///
@@ -960,12 +889,6 @@ fn lint_orphans(g: &Graph, node_ids: &HashSet<&str>, issues: &mut Vec<Issue>) {
         if n.kind == crate::STACK_MODE_KIND || crate::is_compose_kind(&n.kind) {
             continue;
         }
-        // An embedded node (`ai.embed`) is owned by its source, not a free
-        // node: "unconnected" is not its to answer, and the source's own
-        // cables are what touch it.
-        if n.embedded_in.is_some() {
-            continue;
-        }
         if !touched.contains(n.id.as_str()) {
             issues.push(Issue::warning(Some(&n.id), "node is not connected to anything"));
         }
@@ -1097,13 +1020,6 @@ mod tests {
                 NodeFamily::Colour,
                 "Colour",
                 vec![],
-                vec![Port::new("control", PortType::Control)],
-            ),
-            NodeKind::new(
-                crate::AI_COLOURIST_KIND,
-                NodeFamily::Ai,
-                "Colourist",
-                vec![Port::new("control", PortType::Control)],
                 vec![Port::new("control", PortType::Control)],
             ),
             NodeKind::new(
@@ -1608,107 +1524,6 @@ mod tests {
             !issues.iter().any(|i| i.severity == Severity::Error && i.node.as_deref() == Some(m.as_str())),
             "a width answers the rule: {issues:?}"
         );
-    }
-
-    // -- S.AM: an ai.* node's cables -----------------------------------------
-
-    /// The legal shape: `audio.live → ai.colourist → gen.turing.control`.
-    #[test]
-    fn an_ai_node_hears_audio_and_feeds_a_generator() {
-        let mut g = Graph::new("g", "t", Domain::Live);
-        let audio = g.add_node("audio", "audio.live", [0.0, 0.0]);
-        let ai = g.add_node("ai", crate::AI_COLOURIST_KIND, [1.0, 0.0]);
-        let gen = g.add_node("gen", "gen.turing", [2.0, 0.0]);
-        g.add_edge(Endpoint::new(&audio, "control"), Endpoint::new(&ai, "control"));
-        g.add_edge(Endpoint::new(&ai, "control"), Endpoint::new(&gen, "control"));
-        let issues = g.lint(&catalog());
-        assert!(
-            !issues.iter().any(|i| i.severity == Severity::Error && i.node.as_deref() == Some(ai.as_str())),
-            "audio in, gen out is exactly what an ai node is for: {issues:?}"
-        );
-    }
-
-    /// A generator (or anything that is not `audio.*`/`sensor.*`) into an
-    /// `ai.*` input is an error: it was trained on the digest row.
-    #[test]
-    fn an_ai_node_hearing_a_generator_is_an_error() {
-        let mut g = Graph::new("g", "t", Domain::Live);
-        let gen = g.add_node("gen", "gen.turing", [0.0, 0.0]);
-        let ai = g.add_node("ai", crate::AI_COLOURIST_KIND, [1.0, 0.0]);
-        g.add_edge(Endpoint::new(&gen, "row"), Endpoint::new(&ai, "control"));
-        let issues = g.lint(&catalog());
-        assert!(
-            issues.iter().any(|i| i.severity == Severity::Error
-                && i.node.as_deref() == Some(ai.as_str())
-                && i.message.contains("only accepts control from audio")),
-            "{issues:?}"
-        );
-    }
-
-    /// An `ai.*` output into a screen is an error: its offsets drive a
-    /// source's floats, not a picture.
-    #[test]
-    fn an_ai_node_feeding_an_output_is_an_error() {
-        let mut g = Graph::new("g", "t", Domain::Live);
-        let audio = g.add_node("audio", "audio.live", [0.0, 0.0]);
-        let ai = g.add_node("ai", crate::AI_COLOURIST_KIND, [1.0, 0.0]);
-        let out = g.add_node("out", "output.device", [2.0, 0.0]);
-        g.add_edge(Endpoint::new(&audio, "control"), Endpoint::new(&ai, "control"));
-        g.add_edge(Endpoint::new(&ai, "control"), Endpoint::new(&out, "control"));
-        let issues = g.lint(&catalog());
-        assert!(
-            issues.iter().any(|i| i.severity == Severity::Error
-                && i.node.as_deref() == Some(ai.as_str())
-                && i.message.contains("only enters gen.*")),
-            "{issues:?}"
-        );
-    }
-
-    /// An `ai.*` with an output but no input is a warning, never an error —
-    /// the ordinary mid-edit state.
-    #[test]
-    fn an_ai_node_with_no_input_is_a_warning_not_an_error() {
-        let mut g = Graph::new("g", "t", Domain::Live);
-        let ai = g.add_node("ai", crate::AI_COLOURIST_KIND, [0.0, 0.0]);
-        let gen = g.add_node("gen", "gen.turing", [1.0, 0.0]);
-        g.add_edge(Endpoint::new(&ai, "control"), Endpoint::new(&gen, "control"));
-        let issues = g.lint(&catalog());
-        assert!(
-            issues.iter().any(|i| i.severity == Severity::Warning
-                && i.node.as_deref() == Some(ai.as_str())
-                && i.message.contains("no control input")),
-            "{issues:?}"
-        );
-        assert!(
-            !issues.iter().any(|i| i.severity == Severity::Error && i.node.as_deref() == Some(ai.as_str())),
-            "an unwired ai node is not an error: {issues:?}"
-        );
-    }
-
-    /// An embedded `ai.*` (`ai.embed`) is owned by its source, so it is never
-    /// reported as an orphan even before its wires are read.
-    #[test]
-    fn an_embedded_ai_node_is_not_an_orphan() {
-        let mut g = Graph::new("g", "t", Domain::Live);
-        let gen = g.add_node("gen", "gen.turing", [0.0, 0.0]);
-        let ai = g.add_node("ai", crate::AI_COLOURIST_KIND, [1.0, 0.0]);
-        g.node_mut(&ai).unwrap().embedded_in = Some(gen.clone());
-        let issues = g.lint(&catalog());
-        assert!(
-            !issues.iter().any(|i| i.node.as_deref() == Some(ai.as_str())),
-            "an embedded ai is owned by its source, not an orphan: {issues:?}"
-        );
-    }
-
-    /// A wholly unconnected `ai.*` node is `lint_orphans`'s one warning, not
-    /// two — the same "no double warning" rule the capability check follows.
-    #[test]
-    fn an_orphan_ai_node_is_warned_once_by_orphans_not_twice() {
-        let mut g = Graph::new("g", "t", Domain::Live);
-        g.add_node("ai", crate::AI_COLOURIST_KIND, [0.0, 0.0]);
-        let issues = g.lint(&catalog());
-        assert_eq!(issues.len(), 1, "{issues:?}");
-        assert!(issues[0].message.contains("not connected"), "{issues:?}");
     }
 
     // -- P1: the venue.surface node -----------------------------------------

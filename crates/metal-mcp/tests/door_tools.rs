@@ -495,8 +495,6 @@ fn smoke_args(name: &str, schema: &Value) -> Option<Value> {
         "remove_switch" => json!({"id": "smoke"}),
         "blackout" => json!({"on": false}),
         "solid_color" => json!({"rgb": [0, 0, 0], "duration_seconds": 1}),
-        "embed_ai" => json!({"graph": "col-main", "node": "gen-a",
-            "ai": "ai.colourist", "on": false}),
         "attach_source" => json!({"graph": "col-main", "node": "out-a",
             "port": "image", "kind": "gen.domain"}),
         "insert_node" => json!({"graph": "col-main", "after": "gen-a", "kind": "fx.level"}),

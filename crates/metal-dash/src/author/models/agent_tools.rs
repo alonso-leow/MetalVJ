@@ -561,27 +561,6 @@ impl AgentHarness {
     /// the same body the surface panel posts (rule 6). `points` is four
     /// `[x, y, z]` corners; `delete: true` removes the surface (and every
     /// projector's pins for it).
-    /// `embed_ai { graph, node, ai, on }`: the properties panel's reaction
-    /// toggle, `POST /graph/node {op: "ai.embed"}` verbatim (rule 6). `on`
-    /// mints the owned `ai.*` node wired `audio → ai → source.control`; `off`
-    /// frees it into a normal node.
-    fn embed_ai(&self, args: &Value) -> Result<Value, String> {
-        let graph = Self::require_str(args, "graph")?;
-        let node = Self::require_str(args, "node")?;
-        let ai = Self::require_str(args, "ai")?;
-        let on = args
-            .get("on")
-            .and_then(Value::as_bool)
-            .ok_or("expected `on` (true or false)")?;
-        let door = self.door()?;
-        door.json(
-            "POST",
-            "/graph/node",
-            Some(json!({ "op": "ai.embed", "graph": graph, "node": node, "ai": ai, "on": on })),
-        )
-        .map_err(|(status, msg)| format!("/graph/node answered {status}: {msg}"))
-    }
-
     /// `attach_source { graph, node, port, kind?, from?, config? }`: the
     /// properties panel's `attach` body, verbatim (rule 6). Without `kind` or
     /// `from` it detaches the port.
@@ -2751,6 +2730,19 @@ impl AgentHarness {
     /// G2: `colour_apply(graph, group | nodes, palette | hsb | rgb)` — the
     /// colourist rule, through `POST /colour/apply`. The route refuses a
     /// body with none or several of the three sources.
+    /// `train_ai(node, graph?)` — the `entrenar` gesture, through
+    /// `POST /ai/train { node, graph? }`; `node` is a `gen.*` source id.
+    fn train_ai(&self, args: &Value) -> Result<Value, String> {
+        let node = Self::require_str(args, "node")?;
+        let mut body = json!({ "node": node });
+        if let Some(graph) = args.get("graph").and_then(Value::as_str) {
+            body["graph"] = json!(graph);
+        }
+        let door = self.door()?;
+        door.json("POST", "/ai/train", Some(body))
+            .map_err(|(status, msg)| format!("/ai/train answered {status}: {msg}"))
+    }
+
     fn colour_apply(&self, args: &Value) -> Result<Value, String> {
         let graph = Self::require_str(args, "graph")?;
         let targets = match (args.get("group").and_then(Value::as_str), args.get("nodes")) {
@@ -2850,7 +2842,6 @@ impl ToolExecutor for AgentHarness {
             "timecode_status" => self.sync_read("/timecode"),
             "add_switch" => self.add_switch(&call.arguments),
             "remove_switch" => self.remove_switch(&call.arguments),
-            "embed_ai" => self.embed_ai(&call.arguments),
             "attach_source" => self.attach_source(&call.arguments),
             "insert_node" => self.insert_node(&call.arguments),
             // K — the palette node's write, the same route its folder posts.
@@ -2878,6 +2869,7 @@ impl ToolExecutor for AgentHarness {
             "fire_trigger" => self.fire_trigger(&call.arguments),
             "overlay_control" => self.overlay_control(&call.arguments),
             "colour_apply" => self.colour_apply(&call.arguments),
+            "train_ai" => self.train_ai(&call.arguments),
             "perf_report" => self.perf_report(),
             "get_grid_layouts" => self.get_grid_layouts(),
             "set_grid_layouts" => self.set_grid_layouts(&call.arguments),
@@ -3414,42 +3406,6 @@ mod tests {
 
     /// `R22.4` (rule 6): `add_switch` posts exactly the body the grid's
     /// `+ create button` popover writes (`name` defaults to the id, `unset`
-    /// `embed_ai` posts the properties panel's `ai.embed` body verbatim, on and off.
-    #[test]
-    fn embed_ai_posts_the_ai_embed_op_the_panel_posts() {
-        let door = std::sync::Arc::new(ScriptedDoor::new());
-        let mut h = with_door(&door);
-        h.execute(&call(
-            "embed_ai",
-            json!({ "graph": "g1", "node": "gen-0", "ai": "ai.colourist", "on": true }),
-        ))
-        .expect("embed_ai on");
-        assert_eq!(
-            posted(&door, "POST", "/graph/node"),
-            Some(json!({
-                "op": "ai.embed", "graph": "g1", "node": "gen-0",
-                "ai": "ai.colourist", "on": true
-            }))
-        );
-        h.execute(&call(
-            "embed_ai",
-            json!({ "graph": "g1", "node": "gen-0", "ai": "ai.colourist", "on": false }),
-        ))
-        .expect("embed_ai off");
-        assert_eq!(
-            door.calls.lock().unwrap().last().map(|c| c.1.clone()),
-            Some("/graph/node".to_string())
-        );
-        assert!(
-            h.execute(&call(
-                "embed_ai",
-                json!({ "graph": "g1", "node": "gen-0", "ai": "ai.colourist" })
-            ))
-            .is_err(),
-            "`on` is required, not defaulted"
-        );
-    }
-
     /// stays out unless given), `remove_switch` posts the same
     /// `{op:"remove"}` the grid's right-click fires — one route, three
     /// callers.

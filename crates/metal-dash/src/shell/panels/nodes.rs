@@ -2935,7 +2935,6 @@ fn paint_primitive(
         }
         Some("swatch") => paint_swatch(painter, theme, origin, state, p, drag),
         Some("tile") => paint_tile(painter, theme, origin, state, p, tiles, drag),
-        Some("chip") => paint_chip(painter, theme, origin, state, p, drag, selected),
         Some("more") => {
             let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
             painter.rect_filled(r, theme.corner_radius(), theme.node_body);
@@ -3146,61 +3145,6 @@ fn paint_tile(
     }
 }
 
-/// An embedded `ai.*` (`ai.embed`) as a chip on its source: a small pill with
-/// the AI's name, painted above the source's top-right corner. It is not a
-/// free node — the layout gives it no box of its own — so this is the only
-/// thing that draws it.
-fn paint_chip(
-    painter: &egui::Painter,
-    theme: &Theme,
-    origin: EguiRect,
-    state: &PanelState,
-    p: &Value,
-    drag: Option<DragOffset>,
-    selected: Option<&str>,
-) {
-    let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
-    let node = p["node"].as_str().unwrap_or_default();
-    let stroke = if selected == Some(node) {
-        theme.node_select_stroke()
-    } else {
-        theme.node_box_stroke()
-    };
-    painter.rect(r, theme.corner_radius(), theme.node_header, stroke, egui::StrokeKind::Middle);
-    let ai = p["ai"].as_str().unwrap_or("ai");
-    painter.text(
-        r.center(),
-        Align2::CENTER_CENTER,
-        ai.strip_prefix("ai.").unwrap_or(ai),
-        theme.font_small.clone(),
-        theme.ink,
-    );
-}
-
-/// The source an embedded `ai.*` node hangs off (`ai.embed`), read off the
-/// cached `GET /graph` reply — never recomputed (rule 5). `None` for a free
-/// node.
-fn embedded_source(state: &PanelState, node: &str) -> Option<String> {
-    let nodes = state.graph.as_ref()?["graph"]["nodes"].as_array()?;
-    nodes
-        .iter()
-        .find(|n| n["id"].as_str() == Some(node))
-        .and_then(|n| n["embedded_in"].as_str().map(str::to_string))
-}
-
-/// Whether a cable primitive is one of an embedded `ai.*`'s wires, and so is
-/// hidden unless its source is the selection (plan A3.2). The wires exist in
-/// the layout so a selected source can show them; everything else hides them.
-fn embedded_cable_hidden(p: &Value, state: &PanelState, selected: Option<&str>) -> bool {
-    for end in ["from", "to"] {
-        let Some(id) = p[end]["node"].as_str() else { continue };
-        if let Some(source) = embedded_source(state, id) {
-            return selected != Some(source.as_str());
-        }
-    }
-    false
-}
-
 /// Whether a cable primitive touches the selected node at either end — the
 /// "selected node's cables draw in the accent" rule (`nodes-reference.png`),
 /// factored out so it is testable without a painter.
@@ -3239,11 +3183,6 @@ fn edge_near(state: &PanelState, at: [f32; 2], tol: f32) -> Option<String> {
     let mut best: Option<(f32, String)> = None;
     for p in prims.iter().filter(|p| p["type"] == "path") {
         let Some(edge) = p["edge"].as_str() else { continue };
-        // A hidden embedded `ai.*` wire is not hoverable either: it must not
-        // light up on its own while the source is unselected.
-        if embedded_cable_hidden(p, state, None) {
-            continue;
-        }
         let c = [pt(p, "p0"), pt(p, "p1"), pt(p, "p2"), pt(p, "p3")];
         let mut prev = bezier_at(c, 0.0);
         for i in 1..=32 {
@@ -3279,11 +3218,6 @@ fn paint_cable(
     selected: Option<&str>,
     lit_edges: [Option<&str>; 2],
 ) {
-    // An embedded `ai.*`'s wires are hidden unless its source is selected
-    // (plan A3.2) — the chip is the reaction's only visible mark otherwise.
-    if embedded_cable_hidden(p, state, selected) {
-        return;
-    }
     let raw = [pt(p, "p0"), pt(p, "p1"), pt(p, "p2"), pt(p, "p3")];
     // Each end of a cable moves with whichever node it lands on — `p0`/`p1`
     // together if the *from* port is the dragged node's, `p2`/`p3` together
@@ -3843,7 +3777,7 @@ fn finish_cable(door: &dyn Call, state: &mut PanelState, theme: &Theme) {
     let origin = state.last_canvas_rect.map(|r| r.min).unwrap_or_default();
     let [gx, gy] = to_graph(origin, state.pan, state.zoom, cable.cur_screen);
     let gid = state.selected_graph.clone().unwrap_or_default();
-    let hit = hit_at(door, state, &gid, gx, gy);
+    let hit = hit_at(door, &gid, gx, gy);
     let lands = hit.as_ref().and_then(|h| {
         Some((
             h["node"].as_str()?.to_string(),
@@ -3971,7 +3905,7 @@ fn press_hit_test(
         return;
     };
     let [gx, gy] = to_graph(rect.min, state.pan, state.zoom, press_pos);
-    let hit = hit_at(door, state, &gid, gx, gy);
+    let hit = hit_at(door, &gid, gx, gy);
     // Ctrl+click on a node toggles it in the multi-selection and starts no
     // drag; every other press starts a fresh single selection.
     let hit_node = match hit.as_ref() {
@@ -4641,25 +4575,15 @@ fn edges_of(state: &PanelState) -> Vec<Value> {
 /// [`Params`] directly and calls [`Call::call`] itself, exactly the surface
 /// gate 1 allows (`Params`/`Call` are both named in the door's public
 /// surface, `crate::call`'s top-level re-exports).
-/// What is under graph-space `(x, y)` on the open graph `gid`. Answered on
-/// this thread from the `GET /graph` reply the canvas paints
-/// (`shell::graph_hit::local_hit`, the server's own rule), so a press costs no
-/// round trip. `GET /graph/hit` asks the door when that reply is not the open
-/// graph, or does not describe it.
-fn hit_at(door: &dyn Call, state: &PanelState, gid: &str, gx: f32, gy: f32) -> Option<Value> {
-    state
-        .graph
-        .as_ref()
-        .filter(|g| g["graph"]["id"].as_str() == Some(gid))
-        .and_then(|g| crate::shell::graph_hit::local_hit(g, gx, gy))
-        .or_else(|| {
-            get(
-                door,
-                "GET",
-                "/graph/hit",
-                &[("id", gid.to_string()), ("x", gx.to_string()), ("y", gy.to_string())],
-            )
-        })
+/// What is under graph-space `(x, y)` on the open graph `gid`: the door's
+/// `GET /graph/hit`, the one hit-test.
+fn hit_at(door: &dyn Call, gid: &str, gx: f32, gy: f32) -> Option<Value> {
+    get(
+        door,
+        "GET",
+        "/graph/hit",
+        &[("id", gid.to_string()), ("x", gx.to_string()), ("y", gy.to_string())],
+    )
 }
 
 fn get(door: &dyn Call, method: &str, path: &str, query: &[(&str, String)]) -> Option<Value> {

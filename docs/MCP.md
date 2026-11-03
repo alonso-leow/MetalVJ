@@ -111,7 +111,7 @@ Two kinds of tool take another path:
   `sleep` never stalls the app.
 - **Executor-routed tools** (`get_env`, `list_nodes`, `get_params`,
   `read_shader`, `get_io`, `create_node`, `delete_node`, `connect_nodes`,
-  `set_params`, `raster`, `embed_ai`, `attach_source`, `insert_node`, `bind_param`,
+  `set_params`, `raster`, `attach_source`, `insert_node`, `bind_param`,
   `set_param`, `edit_mask`,
   `set_switch`, `solid_color`, `rasterize_overlay`, `edit_layer`,
   `import_segment`, `move_segment`, `remove_segment`, `set_layer_mix`,

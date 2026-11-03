@@ -229,8 +229,14 @@ pub const PARED_SURFACE_VERSION: u32 = 2;
 /// live `gen.room`; the old id stays a tombstone (rule 1) and draws nothing.
 pub const MODEL_ROOM_VERSION: u32 = 3;
 
+/// Version 4 (retire `ai.colourist`): the fitted colourist is a property of
+/// its source. An `ai.colourist` becomes `mode: "ai"` plus `weights` on each
+/// source it fed through `control`; the node and its edges are removed. A
+/// free one (fed nowhere) is removed alone.
+pub const COLOURIST_SOURCE_VERSION: u32 = 4;
+
 /// The version [`Graph::new`] writes and [`upgrade`] brings a graph to.
-pub const CURRENT: u32 = MODEL_ROOM_VERSION;
+pub const CURRENT: u32 = COLOURIST_SOURCE_VERSION;
 
 /// Whether `kind` is a source the audio drives (`gen.*`, `text.source`).
 pub fn is_audio_driven_source(kind: &str) -> bool {
@@ -320,6 +326,50 @@ pub fn upgrade(g: &mut Graph) -> bool {
                 n.kind = "gen.room".to_string();
                 changed = true;
             }
+        }
+    }
+    if g.version < COLOURIST_SOURCE_VERSION {
+        let colourists: Vec<NodeId> = g
+            .nodes
+            .iter()
+            .filter(|n| n.kind == crate::AI_COLOURIST_KIND)
+            .map(|n| n.id.clone())
+            .collect();
+        for ai in colourists {
+            let Some(node) = g.node(&ai) else { continue };
+            let config: serde_json::Value =
+                serde_json::from_str(&node.config.to_json_str()).unwrap_or(serde_json::Value::Null);
+            let weights = config.get("weights").cloned().unwrap_or(serde_json::Value::Null);
+            // `mode: "auto"` on the node meant the deterministic round robin,
+            // which is what a source without a `mode` already does.
+            let auto = config.get("mode").and_then(serde_json::Value::as_str) == Some("auto");
+            let sources: Vec<NodeId> = g
+                .edges
+                .iter()
+                .filter(|e| e.from.node == ai && e.to.port == "control")
+                .map(|e| e.to.node.clone())
+                .collect();
+            if !auto {
+                for source in sources {
+                    if let Some(n) = g.node_mut(&source) {
+                        let mut value: serde_json::Value =
+                            serde_json::from_str(&n.config.to_json_str())
+                                .unwrap_or(serde_json::Value::Null);
+                        if !value.is_object() {
+                            value = serde_json::json!({});
+                        }
+                        if let Some(obj) = value.as_object_mut() {
+                            if obj.get("mode").and_then(serde_json::Value::as_str) != Some("ai_fx") {
+                                obj.insert("mode".into(), "ai".into());
+                            }
+                            obj.insert("weights".into(), weights.clone());
+                        }
+                        n.config = crate::Config::from_value(value);
+                    }
+                }
+            }
+            g.remove_node(&ai);
+            changed = true;
         }
     }
     g.version = CURRENT;
@@ -413,6 +463,31 @@ mod tests {
         g.add_node("gen", "gen.turing", [0.0, 0.0]);
         let back = Graph::from_json(&g.to_json()).unwrap();
         assert_eq!(back, g);
+    }
+
+    /// Retire `ai.colourist`: the node becomes `mode: "ai"` + `weights` on the
+    /// source it fed, and both the node and its edges are gone.
+    #[test]
+    fn an_embedded_colourist_migrates_to_source_modo() {
+        let mut old = Graph::new("g", "g", Domain::Live);
+        old.version = MODEL_ROOM_VERSION;
+        let gen = old.add_node("gen", "gen.turing", [0.0, 0.0]);
+        let ai = old.add_node("ai", crate::AI_COLOURIST_KIND, [-100.0, 0.0]);
+        let audio = old.add_node("audio", "audio.live", [-200.0, 0.0]);
+        if let Some(n) = old.node_mut(&ai) {
+            n.config = crate::Config::from_value(serde_json::json!({ "weights": "night" }));
+        }
+        old.add_edge(Endpoint::new(&audio, "control"), Endpoint::new(&ai, "control"));
+        old.add_edge(Endpoint::new(&ai, "control"), Endpoint::new(&gen, "control"));
+
+        assert!(upgrade(&mut old));
+        assert_eq!(old.version, CURRENT);
+        assert!(!old.nodes.iter().any(|n| n.kind == crate::AI_COLOURIST_KIND));
+        assert!(old.edges.iter().all(|e| e.from.node != ai && e.to.node != ai));
+        assert!(!old.edges.iter().any(|e| e.from.node == audio), "the audio node's cable went with the colourist");
+        let source = old.node(&gen).unwrap();
+        assert_eq!(source.config.get("mode"), Some(&serde_json::json!("ai")));
+        assert_eq!(source.config.get("weights"), Some(&serde_json::json!("night")));
     }
 
     /// P1: a `mask` that carried a wall (the `pared` mode) becomes `mask`

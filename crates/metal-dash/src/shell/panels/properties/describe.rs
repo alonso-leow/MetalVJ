@@ -800,11 +800,6 @@ const ENTRIES: &[Entry] = &[
         description: tr_key("A named four-slot palette cabled to colour slots, one colour for each role."),
         keypoints: [tr_key("base"), tr_key("accent"), tr_key("flash")],
     },
-    Entry {
-        kind: "ai.colourist",
-        description: tr_key("A trainable colour model that proposes a grade for the generator it feeds."),
-        keypoints: [tr_key("trained model"), tr_key("control input"), tr_key("control output")],
-    },
     // ---- value sources and control rows ----
     Entry {
         kind: "source.osc",

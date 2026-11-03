@@ -128,6 +128,9 @@ pub struct State {
     /// step). Same discipline as `overlays` and for the same reason — see
     /// `sequence::Runs`'s own doc comment.
     pub runs: sequence::Runs,
+    /// Songs armed as a whole project (`POST /project/play`), at most one run
+    /// per song. Their plays live in `overlays`; this is the run state over them.
+    pub project_runs: crate::project_runs::ProjectRuns,
     /// V4: one face solver per `gen.*` node, keyed by node id. Its springs are
     /// the coarticulation state, so it must outlive a frame — but only for the
     /// set: a face that came up in the morning still on last night's vowel
@@ -331,6 +334,7 @@ impl State {
             reels: Reels::new(&output::data_root()),
             overlays: overlay::Overlays::default(),
             runs: sequence::Runs::default(),
+            project_runs: crate::project_runs::ProjectRuns::default(),
             faces: HashMap::new(),
             head: HashMap::new(),
             head_detectors: HashMap::new(),
@@ -4022,8 +4026,8 @@ pub fn apply_script_masks(
 /// column assignment unless a wired `ai.*` node answers, and a transmission is
 /// just a model that also needs its footage attached. The Colourist itself
 /// (`metal_reel::grade`) is untouched; what changed is who chooses to call it —
-/// [`row_for_node`] reads the `ai.colourist` node wired to the source's
-/// `control` port, and the `footage` flag only decides the cue above.
+/// [`row_for_node`] reads the fit the source owns (`mode`/`weights`), and the
+/// `footage` flag only decides the cue above.
 pub fn row_for(
     paint: &mut dyn Paint,
     state: &mut State,
@@ -4327,6 +4331,21 @@ fn ai_offsets(
     smooth: f32,
 ) -> Option<Vec<f32>> {
     let (graph, node) = (graph?, node?);
+    let source = graph.node(node)?;
+    let music = drive::blended(frame, smooth);
+    let ctx = LogicContext::new(0.0, 0.0, 0, Budget::DEFAULT);
+    // The source owns its fit (the wired `ai.*` node is the fallback): `mode: "ai"|"ai_fx"`
+    // or a `weights` key on the source itself. `weights: null` is the model's
+    // own default grade, as the studio's train button writes it.
+    let owns_fit = matches!(node_modo(Some(source)), Modo::Ai | Modo::AiFx)
+        || source.config.get("weights").is_some();
+    if owns_fit {
+        let weights = ai_weights(state, source, schema, model)?;
+        let mut logic = metal_logic::ColouristLogic::new(weights);
+        let out = run_with_budget(&mut logic, &AuxInput::new(&music), &ctx).ok()?;
+        return Some(out.row);
+    }
+    // Fallback: the old wired `ai.*` node, until every graph is migrated.
     let edge = graph.edges.iter().find(|e| e.to.node == node && e.to.port == "control")?;
     let from = graph.node(&edge.from.node)?;
     if !from.kind.starts_with("ai.") {
@@ -4339,9 +4358,7 @@ fn ai_offsets(
         return None;
     }
     let weights = ai_weights(state, from, schema, model)?;
-    let music = drive::blended(frame, smooth);
     let mut logic = metal_logic::ColouristLogic::new(weights);
-    let ctx = LogicContext::new(0.0, 0.0, 0, Budget::DEFAULT);
     let out = run_with_budget(&mut logic, &AuxInput::new(&music), &ctx).ok()?;
     Some(out.row)
 }
@@ -4728,10 +4745,10 @@ pub fn ai_mode(node: &metal_graph::Node) -> AiMode {
     }
 }
 
-/// The fitted rows an `ai.colourist` node should apply, or `None` when its
-/// model is untrained.
+/// The fitted rows a source should apply, or `None` when its model is
+/// untrained.
 ///
-/// The node's config is `{ "weights": "<name>" | null }`. `null` uses the
+/// The source's config is `{ "weights": "<name>" | null }`. `null` uses the
 /// downstream model's own default (`state.reels.colourist`, cached per model),
 /// which is the file the studio's train button writes. A name loads a grade
 /// from the same directory `Colourist::model_path` uses — the plan says
@@ -8207,7 +8224,7 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             );
         }
 
-        // -- S.AM: the ai.colourist node ------------------------------------
+        // -- S.AM: the source's own colourist fit ---------------------------
 
         /// A scratch reels root with a fitted grade per `(model, schema)`: the
         /// bias on float 0 is `bias`, every other float is zero, so the fitted
@@ -8230,18 +8247,16 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             dir
         }
 
-        /// `audio.live → ai.colourist → gen.<model>.control`, once per model,
-        /// all fed by the one `ai.*` node — the fan-out shape.
+        /// One `gen.<model>` source per model, each in `mode: "ai"` so it
+        /// owns its fit — the fan-out shape of one fit per schema.
         fn ai_graph(name: &str, models: &[&str]) -> (metal_graph::Graph, Vec<String>) {
-            use metal_graph::{Domain, Endpoint, Graph};
+            use metal_graph::{Domain, Graph};
             let mut g = Graph::new(name, name, Domain::Live);
-            let audio = g.add_node("audio", "audio.live", [0.0, 0.0]);
-            let ai = g.add_node("ai", metal_graph::AI_COLOURIST_KIND, [1.0, 0.0]);
-            g.add_edge(Endpoint::new(&audio, "control"), Endpoint::new(&ai, "control"));
             let mut gens = Vec::new();
             for (i, model) in models.iter().enumerate() {
                 let gen = g.add_node("gen", &format!("gen.{model}"), [2.0, i as f32 * 40.0]);
-                g.add_edge(Endpoint::new(&ai, "control"), Endpoint::new(&gen, "control"));
+                g.node_mut(&gen).unwrap().config =
+                    metal_graph::Config::from_json_str(r#"{"mode":"ai"}"#).unwrap();
                 gens.push(gen);
             }
             (g, gens)
@@ -8457,7 +8472,7 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
         }
 
         #[test]
-        fn an_ai_node_between_audio_and_source_uses_the_colourist() {
+        fn a_source_in_ai_mode_uses_its_own_colourist_fit() {
             let mut paint = crate::paint::painter();
             let mut state = State::new(paint.as_ref());
             let ids = paint.ids();
@@ -8483,10 +8498,10 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             let _ = metal_vfs::remove_dir_all(&dir);
         }
 
-        /// `mode: "auto"` keeps the node wired but drives the source with the
-        /// deterministic round robin, trained grade or not.
+        /// A source with no `mode` and no `weights` owns no fit: it drives
+        /// with the round robin even when a trained grade sits on disk.
         #[test]
-        fn an_ai_node_in_auto_mode_drives_with_the_round_robin() {
+        fn a_source_without_a_fit_drives_with_the_round_robin() {
             let mut paint = crate::paint::painter();
             let mut state = State::new(paint.as_ref());
             let ids = paint.ids();
@@ -8498,14 +8513,12 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
 
             let dir = ai_reels("auto", &[(model, schema, 1.0)]);
             state.reels = Reels::new(&dir);
-            let (mut g, gens) = ai_graph("ai-auto", &[model]);
-            let ai = g.nodes.iter_mut().find(|n| n.kind == metal_graph::AI_COLOURIST_KIND).unwrap();
-            ai.config = metal_graph::Config::from_json_str(r#"{"mode":"auto"}"#).unwrap();
-            assert_eq!(ai_mode(ai), AiMode::Auto);
+            let mut g = metal_graph::Graph::new("ai-auto", "ai-auto", metal_graph::Domain::Live);
+            let gen = g.add_node("gen", &format!("gen.{model}"), [2.0, 0.0]);
 
-            assert!(ai_offsets(Some(&g), Some(&gens[0]), &mut state, schema, model, &frame, 1.0).is_none());
+            assert!(ai_offsets(Some(&g), Some(&gen), &mut state, schema, model, &frame, 1.0).is_none());
             let row = row_for_node(
-                Some(&g), Some(&gens[0]), &mut *paint, &mut state, 0, &base, Some(&frame), 0.5, None, None,
+                Some(&g), Some(&gen), &mut *paint, &mut state, 0, &base, Some(&frame), 0.5, None, None,
             );
             assert_eq!(row, drive::row(schema, &base, &frame, &Drive::default()));
             let _ = metal_vfs::remove_dir_all(&dir);
@@ -8538,6 +8551,7 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             let (mut g, gens) = ai_graph("mode", &[model]);
             let gen = gens[0].clone();
 
+            g.node_mut(&gen).unwrap().config = metal_graph::Config::from_json_str("{}").unwrap();
             assert_eq!(node_modo(g.node(&gen)), Modo::Inherit);
 
             set_mode(&mut g, &gen, "manual");

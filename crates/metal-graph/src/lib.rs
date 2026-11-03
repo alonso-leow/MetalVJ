@@ -498,12 +498,8 @@ impl Stage {
 /// a kind the operator cannot reach for would be a kind that is not in the
 /// catalog at all.
 ///
-/// `ai.colourist` is retired too: it is not a node an operator adds. It is
-/// the configured sub-feature of the `gen.*` nodes (switched on from their
-/// own config, which mints the owned node), so it stays in the catalog for
-/// lint and the canvas but is never offered in a gallery or an add list.
 pub fn kind_menu(kind: &str) -> bool {
-    !(kind == STACK_MODE_KIND || kind == AI_COLOURIST_KIND || is_compose_kind(kind))
+    !(kind == STACK_MODE_KIND || is_compose_kind(kind))
 }
 
 /// The domains a kind may exist in — **the same rule `lint` applies, in one
@@ -850,13 +846,6 @@ pub struct Node {
     /// can name, because that pairing spans a config and a cable.
     #[serde(default)]
     pub config: Config,
-    /// The source this node is embedded in, if any (`ai.embed`, plan
-    /// "AI embedded in the source's properties"). An embedded `ai.*` node is
-    /// owned by its source: it is excluded from layout and hit-testing as a
-    /// free node (it draws as a chip on the source instead), and deleting the
-    /// source deletes it. `None` is the ordinary, free-standing node.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub embedded_in: Option<NodeId>,
 }
 
 impl Node {
@@ -870,7 +859,6 @@ impl Node {
             solo: false,
             expanded: false,
             config: Config::default(),
-            embedded_in: None,
         }
     }
 }
@@ -1684,21 +1672,6 @@ impl NodeKind {
             vec![Port::new("control", PortType::Control)],
         ));
 
-        // The trained reaction (S.AM, wave 1): a digest row in, a row of
-        // signed offsets out, one per own float of whatever `gen.*` consumes
-        // it. `control` in and `control` out — the same port type the digest
-        // and a script already carry, because the offsets are numbers that
-        // drive a float, not pixels. The three kinds are separate nodes, not
-        // one combo inside the source: a fan-out evaluates per schema, and
-        // the plan's `ai.router`/`ai.curator` arrive in their own batches.
-        out.push(NodeKind::new(
-            AI_COLOURIST_KIND,
-            NodeFamily::Ai,
-            "Colourist",
-            vec![Port::new("control", PortType::Control)],
-            vec![Port::new("control", PortType::Control)],
-        ));
-
         // LAY.7b: the composition — one kind per `DeviceMode` the bridge
         // table maps, so the render path can read *which* composition applies
         // off the graph. LAY.7c gave it §2.1's mixer shape: N images in (one
@@ -1859,12 +1832,9 @@ pub const REEL_BATCH_KIND: &str = "reel.batch";
 /// through `POST /palettes`.
 pub const PALETTE_KIND: &str = "palette";
 
-/// The first [`NodeFamily::Ai`] kind: a fitted [`metal_reel::grade`]-style grade
-/// over the digest's sixteen columns, offered as `control` offsets. Named once
-/// so the catalog, the lint and the engine cannot spell it three ways. Its
-/// config is `{ "weights": "<name>" | null }`; `null` uses the downstream
-/// model's default weights.
-pub const AI_COLOURIST_KIND: &str = "ai.colourist";
+/// The retired `ai.colourist` kind name, kept only so `migrate.rs` can read
+/// old graphs until its own migration drops it. Not a catalog kind.
+pub(crate) const AI_COLOURIST_KIND: &str = "ai.colourist";
 
 /// P-D: the Art-Net receiver (`metal_perform::artnet::in_row`). Its row is
 /// the latest ArtDmx on one universe, `first..first+count` as floats 0..1.
@@ -2347,31 +2317,6 @@ mod tests {
         assert!(stage_edge_allowed(Stage::Source, Stage::Modulate).is_ok());
     }
 
-    // -- S.AM: the trained reaction (`NodeFamily::Ai`) -----------------------
-
-    /// The first `ai.*` kind is a source of control at `Stage::Source`: a
-    /// `control` in and a `control` out, `HasAux` for its D1 inference, and
-    /// neither `NeedsGpu` nor `NeedsAudio`.
-    #[test]
-    fn the_ai_family_is_a_control_source_with_aux() {
-        let catalog = NodeKind::catalog(&sample_manifest());
-        let ai: Vec<&NodeKind> = catalog.iter().filter(|k| k.family == NodeFamily::Ai).collect();
-        assert_eq!(ai.len(), 1, "wave 1 ships the colourist; router and curator follow");
-        let k = ai.iter().find(|k| k.kind == AI_COLOURIST_KIND).expect("ai.colourist");
-        assert_eq!(k.label, "Colourist");
-        assert_eq!(k.stage(), Stage::Source, "a source of control, like a colour");
-        assert!(!k.menu, "the colourist is a gen.* sub-feature, never a menu item");
-        assert_eq!(k.inputs.len(), 1);
-        assert_eq!((k.inputs[0].name.as_str(), k.inputs[0].ty), ("control", PortType::Control));
-        assert_eq!(k.outputs.len(), 1);
-        assert_eq!((k.outputs[0].name.as_str(), k.outputs[0].ty), ("control", PortType::Control));
-        let c = k.capabilities();
-        assert!(c.has(Capability::ControlIn) && c.has(Capability::ControlOut));
-        assert!(c.has(Capability::HasAux), "its inference is an AuxLogic (D1)");
-        assert!(!c.has(Capability::NeedsGpu), "it runs on the CPU before drawing");
-        assert!(!c.has(Capability::NeedsAudio), "the digest arrives over the cable");
-    }
-
     // -- LAY.1: the stage contract (`docs/plan-architecture.md` §2) ---------------
 
     #[test]
@@ -2514,7 +2459,6 @@ mod tests {
         for (kind, _) in COMPOSE_KINDS {
             assert!(!find(kind).menu, "{kind} is the output's mode, not a menu item");
         }
-        assert!(!find(AI_COLOURIST_KIND).menu, "ai.colourist is a gen.* sub-feature, not a menu item");
         for kind in
             ["gen.turing", "fx.shake", "output.device", "audio.live", "audio.file", "export.video"]
         {

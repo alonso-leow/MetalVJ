@@ -297,7 +297,6 @@ mod tests {
             solo: false,
             expanded: false,
             config: Config::default(),
-            embedded_in: None,
         };
         assert_eq!(output_count(&node), 1, "per defaults to one");
         node.config = Config::from_json_str("{\"per\": 4}").unwrap();
@@ -326,7 +325,6 @@ mod tests {
             solo: false,
             expanded: false,
             config: Config::from_json_str("{\"amp\": 2.0, \"offset\": 1.0}").unwrap(),
-            embedded_in: None,
         };
         assert_eq!(output_range(&osc), (-1.0, 3.0));
         let mut rand = osc.clone();

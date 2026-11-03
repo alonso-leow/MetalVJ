@@ -987,17 +987,10 @@ mod tests {
         std::env::set_current_dir(&prior_cwd).expect("restore cwd");
     }
 
-    /// `load` a sequence in the library loads it into the lanes scratch.
+    /// `load` a sequence in the library opens its project in the sequence editor.
     #[test]
     fn load_from_library_loads_the_sequence_into_the_scratch() {
         let recorder = std::rc::Rc::new(FakeDoor::new());
-        recorder.respond(
-            "GET",
-            "/author/models/movement",
-            serde_json::json!({
-                "name": "drop", "model": "geoterrain", "ticks": [[0.1, 0.2]]
-            }),
-        );
         let mut harness =
             harness_with_door(Theme::phosphor(), Box::new(std::rc::Rc::clone(&recorder)));
         harness
@@ -1006,10 +999,9 @@ mod tests {
             .set_sequence_to_load_for_test("drop");
         harness.run();
 
-        assert_eq!(
-            harness.state_mut().lanes_state_mut().mv.name,
-            "drop",
-            "load should load the named sequence into the scratch"
+        assert!(
+            harness.state_mut().lanes_state_mut().mv.note.as_deref().unwrap_or_default().contains("drop"),
+            "load should open the named project in the sequence editor"
         );
     }
 

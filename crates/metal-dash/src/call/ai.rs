@@ -171,16 +171,14 @@ pub fn chat_delete(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> 
 }
 
 /// `POST /ai/train { node }` (optionally `{ graph }`) — the train gesture of a
-/// trainable `ai.*` node, the route an `entrenar` button and the `train_ai`
-/// tool both post.
+/// `gen.*` source, the route an `entrenar` button and the `train_ai` tool both
+/// post.
 ///
-/// **Dispatches by kind.** Today only `ai.colourist` has a trainer: it resolves
-/// the `gen.<model>` source(s) the node feeds, assembles the takes through the
-/// same [`crate::author::grade::takes_for`] the studio's train button uses, and
-/// writes the grade through [`crate::atomic::write`] to the *same* path
-/// (`metal_reel::grade::model_path`) — so training from the node and training from
-/// the studio produce one file, not two. `ai.router`/`ai.curator` gain their
-/// own arm in their own batches.
+/// **The source owns its fit.** The grade lives on the source: its
+/// `config.weights` names the grade file (`<reels>/<name>.json`), or is absent
+/// and the model's own default grade (`metal_reel::grade::model_path`) is
+/// written — the same file the studio's train button writes, so training from
+/// the node and from the studio produce one file, not two.
 ///
 /// The node is found by id. A node id is unique inside one graph, so `graph`
 /// is optional: without it, every graph under `data/graphs/` is searched for
@@ -235,29 +233,8 @@ fn graph_with_node(
     Err(CallError::Bad(format!("no graph contains node {node:?}")))
 }
 
-/// The `gen.<model>` sources an `ai.*` node's `control` output feeds, in
-/// first-seen order and without repeats.
-fn downstream_models(g: &metal_graph::Graph, node: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    for e in &g.edges {
-        if e.from.node != node || e.from.port != "control" {
-            continue;
-        }
-        let Some(to) = g.node(&e.to.node) else {
-            continue;
-        };
-        let Some(model) = to.kind.strip_prefix("gen.") else {
-            continue;
-        };
-        if !out.iter().any(|m| m == model) {
-            out.push(model.to_string());
-        }
-    }
-    out
-}
-
 /// The core of [`train`], against an explicit data root so a test can point it
-/// at a scratch tree (rule 8). Returns the reply and the models it trained, so
+/// at a scratch tree (rule 8). Returns the reply and the model it trained, so
 /// the caller can invalidate the engine's cache.
 ///
 /// `#[cfg(feature = "gpu")]`: `crate::author` — the module that owns
@@ -275,72 +252,70 @@ fn train_at(
     use crate::author::SONGS;
 
     let g = graph_with_node(root, node, graph)?;
-    let kind = g
+    let source = g
         .node(node)
-        .ok_or_else(|| CallError::Bad(format!("no node {node:?} in that graph")))?
-        .kind
-        .clone();
-    if !kind.starts_with("ai.") {
-        return Err(CallError::Bad(format!("{kind} is not an ai.* node")));
-    }
-    if kind != metal_graph::AI_COLOURIST_KIND {
-        return Err(CallError::Bad(format!("no trainer for {kind} yet")));
-    }
-    let models = downstream_models(&g, node);
-    if models.is_empty() {
-        return Err(CallError::Bad(
-            "ai.colourist feeds no gen.* source — wire its control output into a generator".into(),
-        ));
-    }
+        .ok_or_else(|| CallError::Bad(format!("no node {node:?} in that graph")))?;
+    let kind = source.kind.clone();
+    let Some(model) = kind.strip_prefix("gen.") else {
+        return Err(CallError::Bad(format!("{kind} is not a gen.* source; only a source owns a fit")));
+    };
+    let model = model.to_string();
+    let weights = source
+        .config
+        .get("weights")
+        .and_then(|v| v.as_str())
+        .filter(|n| !n.is_empty())
+        .map(str::to_string);
+    let idx = ids
+        .iter()
+        .position(|i| *i == model)
+        .ok_or_else(|| CallError::Bad(format!("no model {model:?} in the renderer")))?;
+    let real_schema = schemas[idx];
     let manifest =
         crate::author::models::schema::Manifest::load(&crate::output::data_root().join("schema.json"))
             .map_err(CallError::Bad)?;
-
-    let mut trained = Vec::new();
-    let mut rows = Vec::new();
-    for model in models {
-        let Some(idx) = ids.iter().position(|i| *i == model) else {
-            continue;
-        };
-        let real_schema = schemas[idx];
-        let Some(model_schema) = manifest.model(&model) else {
-            continue;
-        };
-        let takes = crate::author::grade::takes_for(
-            std::path::Path::new(EXAMPLES_DIR),
-            std::path::Path::new(SONGS),
-            &model,
-            model_schema,
-            real_schema,
-        );
-        // The same guard the studio button applies: an empty run must not
-        // erase a grade a previous, real run produced.
-        let standing = metal_reel::grade::Colourist::load(root, &model, real_schema);
-        if takes.is_empty() && standing.trained() {
-            return Err(CallError::Bad(format!(
-                "refusing: no authored examples found for {model} and there is a \
-                 trained grade on disk. Nothing was overwritten."
-            )));
-        }
-        let fitted = metal_reel::grade::train(&model, real_schema, &takes);
-        let (songs, n_takes, error) = (fitted.songs, fitted.takes, fitted.error);
-        let text = serde_json::to_string_pretty(&fitted)
-            .map_err(|e| CallError::Bad(e.to_string()))?;
-        let path = metal_reel::grade::model_path(root, &model);
-        if let Some(parent) = path.parent() {
-            metal_vfs::create_dir_all(parent).map_err(|e| CallError::Bad(e.to_string()))?;
-        }
-        crate::atomic::write(path, text).map_err(|e| CallError::Bad(e.to_string()))?;
-        trained.push(model.clone());
-        rows.push(serde_json::json!({
-            "model": model,
-            "trained": true,
-            "songs": songs,
-            "takes": n_takes,
-            "error": error.map(|(ours, base)| serde_json::json!({ "ours": ours, "base": base })),
-        }));
+    let model_schema = manifest
+        .model(&model)
+        .ok_or_else(|| CallError::Bad(format!("{model} is not in schema.json")))?;
+    let takes = crate::author::grade::takes_for(
+        std::path::Path::new(EXAMPLES_DIR),
+        std::path::Path::new(SONGS),
+        &model,
+        model_schema,
+        real_schema,
+    );
+    // The same guard the studio button applies: an empty run must not
+    // erase a grade a previous, real run produced.
+    let standing = metal_reel::grade::Colourist::load(root, &model, real_schema);
+    if takes.is_empty() && standing.trained() {
+        return Err(CallError::Bad(format!(
+            "refusing: no authored examples found for {model} and there is a \
+             trained grade on disk. Nothing was overwritten."
+        )));
     }
-    Ok((serde_json::json!({ "node": node, "kind": kind, "trained": rows }), trained))
+    let fitted = metal_reel::grade::train(&model, real_schema, &takes);
+    let (songs, n_takes, error) = (fitted.songs, fitted.takes, fitted.error);
+    let text = serde_json::to_string_pretty(&fitted).map_err(|e| CallError::Bad(e.to_string()))?;
+    // `weights` names the grade file the source reads; absent, the model's
+    // own default grade (the studio's file) is the one written.
+    let path = match &weights {
+        Some(name) => root.join(metal_reel::index::DIR).join(format!("{name}.json")),
+        None => metal_reel::grade::model_path(root, &model),
+    };
+    if let Some(parent) = path.parent() {
+        metal_vfs::create_dir_all(parent).map_err(|e| CallError::Bad(e.to_string()))?;
+    }
+    crate::atomic::write(path, text).map_err(|e| CallError::Bad(e.to_string()))?;
+    let reply = serde_json::json!({
+        "node": node,
+        "kind": kind,
+        "weights": weights,
+        "trained": true,
+        "songs": songs,
+        "takes": n_takes,
+        "error": error.map(|(ours, base)| serde_json::json!({ "ours": ours, "base": base })),
+    });
+    Ok((reply, vec![model]))
 }
 
 #[cfg(not(feature = "gpu"))]
@@ -352,7 +327,7 @@ fn train_at(
     _schemas: &[&metal_schema::Schema],
 ) -> Result<(Value, Vec<String>), CallError> {
     Err(CallError::Bad(
-        "training an ai.* node needs the gpu build (the model schemas come from the renderer)".into(),
+        "training a source needs the gpu build (the model schemas come from the renderer)".into(),
     ))
 }
 
@@ -534,10 +509,10 @@ mod tests {
         assert_eq!(sleep_on["enabled"], true);
     }
 
-    /// `POST /ai/train { node }` writes the very file the studio's train
-    /// button writes: same takes (`takes_for`), same fit (`grade::train`),
-    /// same path (`model_path`), same pretty JSON — so the graph gesture and
-    /// the lane are one product, not two.
+    /// `POST /ai/train { node }` on a `gen.*` source writes the very file the
+    /// studio's train button writes: same takes (`takes_for`), same fit
+    /// (`grade::train`), same path (`model_path`), same pretty JSON — so the
+    /// graph gesture and the lane are one product, not two.
     #[test]
     #[cfg(feature = "gpu")]
     fn training_from_the_node_writes_the_same_file_as_the_studio_button() {
@@ -556,23 +531,13 @@ mod tests {
         let real_schema = schemas[0];
 
         let mut g = metal_graph::Graph::new("ai-train", "t", metal_graph::Domain::Live);
-        let audio = g.add_node("audio", "audio.live", [0.0, 0.0]);
-        let ai = g.add_node("ai", metal_graph::AI_COLOURIST_KIND, [1.0, 0.0]);
         let gen = g.add_node("gen", &format!("gen.{model}"), [2.0, 0.0]);
-        g.add_edge(
-            metal_graph::Endpoint::new(&audio, "control"),
-            metal_graph::Endpoint::new(&ai, "control"),
-        );
-        g.add_edge(
-            metal_graph::Endpoint::new(&ai, "control"),
-            metal_graph::Endpoint::new(&gen, "control"),
-        );
         crate::save_graph_at(&tmp, &g).expect("saves the graph");
 
         let (reply, trained) =
-            train_at(&tmp, &ai, Some("ai-train"), &ids, &schemas).expect("trains from the node");
+            train_at(&tmp, &gen, Some("ai-train"), &ids, &schemas).expect("trains from the source");
         assert_eq!(trained, vec![model.to_string()]);
-        assert_eq!(reply["kind"], serde_json::json!(metal_graph::AI_COLOURIST_KIND));
+        assert_eq!(reply["kind"], serde_json::json!(format!("gen.{model}")));
         let path = metal_reel::grade::model_path(&tmp, model);
         let from_node = metal_vfs::read(&path).expect("the node wrote a grade");
 

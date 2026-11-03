@@ -1197,26 +1197,19 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
             .cloned()
     };
 
-    // The folder's files, plus the movements library's own entries as
-    // `sequence` rows: movements all live in one file
-    // (`data/library/movements.json`), so a sequence has to be named by its
-    // movement for `view`/`load` to mean anything. The raw `.json` row
-    // `/fs` reports as a `sequence` is dropped, so it is not listed twice;
-    // the movement's own `favourite` rides along for the card's status line.
+    // The folder's files, plus every saved project (`GET /project/play`) as a
+    // `sequence` row named by its song. The raw `.json` row `/fs` reports as a
+    // `sequence` is dropped, so it is not listed twice.
     let mut all = state
         .fs
         .as_ref()
         .and_then(|f| f["files"].as_array().cloned())
         .unwrap_or_default();
     all.retain(|f| f["kind"] != "sequence");
-    if let Some(listing) = get(door, "GET", "/author/models/library", &[]) {
-        for m in listing["movements"].as_array().cloned().unwrap_or_default() {
-            if let Some(name) = m["name"].as_str() {
-                all.push(json!({
-                    "file": name,
-                    "kind": "sequence",
-                    "favourite": m["favourite"],
-                }));
+    if let Some(listing) = get(door, "GET", "/project/play", &[]) {
+        for p in listing["projects"].as_array().cloned().unwrap_or_default() {
+            if let Some(song) = p["song"].as_str() {
+                all.push(json!({ "file": song, "kind": "sequence", "favourite": false }));
             }
         }
     }
@@ -1753,11 +1746,13 @@ mod tests {
         let recorder = std::rc::Rc::new(FakeDoor::new());
         recorder.respond("GET", "/fs", json!({ "dirs": [], "files": files }));
         recorder.respond("GET", "/author/songs", json!({ "songs": songs }));
-        recorder.respond(
-            "GET",
-            "/author/models/library",
-            json!({ "movements": movements }),
-        );
+        let projects: Vec<Value> = movements
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|m| Some(json!({ "song": m["name"].as_str()?, "clips": 1, "running": false })))
+            .collect();
+        recorder.respond("GET", "/project/play", json!({ "projects": projects }));
         let mut harness = library_harness(Box::new(std::rc::Rc::clone(&recorder)));
         harness.state_mut().library_state_mut().set_cwd("/music");
         (harness, recorder)
@@ -1852,7 +1847,7 @@ mod tests {
         harness.run();
         harness.get_by_label("a.mp3");
         harness.get_by_label("b.mp4");
-        harness.get_by_label("drop");
+        assert!(harness.get_all_by_label("drop").count() > 0);
 
         harness
             .state_mut()
@@ -1905,29 +1900,20 @@ mod tests {
         );
     }
 
-    /// Clicking a sequence card is `load`: the movement loads into the
-    /// lanes scratch through `route_library_intents`, the same path the
-    /// old `load` button took.
+    /// Clicking a sequence card is `load`: the project (a saved song) is
+    /// handed to the sequence editor, the same drain an audio card's `play`
+    /// uses.
     #[test]
     fn clicking_a_sequence_card_loads_it() {
-        let (mut harness, recorder) = scripted_harness(
-            json!([]),
-            json!([]),
-            json!([{ "name": "drop", "favourite": true }]),
-        );
-        recorder.respond(
-            "GET",
-            "/author/models/movement",
-            json!({ "name": "drop", "model": "geoterrain", "ticks": [[0.1, 0.2]] }),
-        );
+        let (mut harness, recorder) = scripted_harness(json!([]), json!([]), json!([]));
+        recorder.respond("GET", "/project/play", json!({ "projects": [{ "song": "drop", "clips": 2, "running": false }] }));
         harness.run();
-        harness.get_by_label("drop").click();
+        harness.get_all_by_label("drop").next().expect("a sequence card").click();
         harness.run();
         harness.run();
-        assert_eq!(
-            harness.state_mut().lanes_state_mut().mv.name,
-            "drop",
-            "clicking a sequence card should load it into the scratch"
+        assert!(
+            harness.state_mut().lanes_state_mut().mv.note.as_deref().unwrap_or_default().contains("drop"),
+            "clicking a sequence card should open its project in the sequence editor"
         );
     }
 
@@ -1941,7 +1927,7 @@ mod tests {
             json!([{ "name": "drop", "favourite": true }]),
         );
         harness.run();
-        harness.get_by_label("drop").click_secondary();
+        harness.get_all_by_label("drop").next().expect("a sequence card").click_secondary();
         harness.run();
         harness.get_by_label("view");
     }
@@ -1956,10 +1942,10 @@ mod tests {
         recorder.respond("GET", "/author/songs", json!({ "songs": [] }));
         recorder.respond(
             "GET",
-            "/author/models/library",
-            json!({ "movements": [
-                { "name": "s" },
-                { "name": "a-much-longer-sequence-name-that-has-to-be-cut-short-in-the-row" }
+            "/project/play",
+            json!({ "projects": [
+                { "song": "s", "clips": 1, "running": false },
+                { "song": "a-much-longer-sequence-name-that-has-to-be-cut-short-in-the-row", "clips": 1, "running": false }
             ] }),
         );
         let mut harness = library_harness(Box::new(std::rc::Rc::clone(&recorder)));

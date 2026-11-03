@@ -223,6 +223,8 @@ pub fn allowseed_default() -> Vec<String> {
         // Top-level authored state.
         "outputs.json", "trims.json", "collections.json", "sequences.json",
         "switches.json", "palettes.json",
+        // One project per song: the `<song>.json` sequence format (`data/projects/`).
+        "projects/*.json",
         // One file per graph / timeline / library page / track.
         "graphs/*.json", "graphs/*.owner", "timelines/*.json", "library/*.json", "tracks/*.json",
         // The global scene favourites and their groups (`metal_reel::scenes`):

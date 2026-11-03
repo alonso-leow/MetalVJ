@@ -57,12 +57,6 @@ pub const COLLAPSED_ROWS: usize = 6;
 /// click 2px from a cable hits the cable" — this has to be strictly greater
 /// than 2 for that test to pass.
 pub const EDGE_HIT_TOLERANCE: f32 = 4.0;
-/// Width of an embedded `ai.*` chip drawn on its source (`ai.embed`).
-pub const CHIP_W: f32 = 84.0;
-/// Height of an embedded `ai.*` chip.
-pub const CHIP_H: f32 = 18.0;
-/// The gap between the chip and the top edge of its source.
-pub const CHIP_GAP: f32 = 6.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
@@ -199,12 +193,6 @@ pub enum RectTag {
     Tile { node: NodeId },
     /// The `▸ n more` row that expands the folded rows.
     More { node: NodeId },
-    /// An embedded `ai.*` (`ai.embed`) drawn as a chip on its source. `node`
-    /// is the owned AI, `source` the node it hangs off and `ai` its kind (the
-    /// label a painter shows). The chip is not a free node: it has no box of
-    /// its own, no hit as a node, and its wires stay hidden until `source` is
-    /// selected.
-    Chip { node: NodeId, source: NodeId, ai: String },
 }
 
 /// A cable, tagged with its endpoints and its type.
@@ -304,10 +292,6 @@ pub struct Layout {
     edge_tags: BTreeMap<String, ((NodeId, String), (NodeId, String), EdgeKind)>,
     node_labels: BTreeMap<NodeId, String>,
     nodes: BTreeMap<NodeId, NodeGeom>,
-    /// The embedded `ai.*` chips (`ai.embed`), by owned node id: the chip's
-    /// rect, its source and its kind. A chip is painted on its source and is
-    /// never a free node — see [`RectTag::Chip`].
-    chips: BTreeMap<NodeId, (Rect, NodeId, String)>,
 }
 
 fn config_json(node: &Node) -> Value {
@@ -341,7 +325,7 @@ fn config_swatches(config: &Value) -> Vec<(String, [f32; 3])> {
 }
 
 /// The rect one colour swatch paints at — the geometry [`Layout::primitives`]
-/// emits and [`Layout::hit`] tests, so a click lands where the chip is drawn.
+/// emits and [`Layout::hit`] tests, so a click lands where the swatch is drawn.
 fn swatch_rect(geom: &NodeGeom, pg: &ParamGeom, i: usize) -> Rect {
     Rect {
         x: geom.rect.x + PORT_R + SWATCH * i as f32,
@@ -421,13 +405,6 @@ impl Graph {
         let mut nodes = BTreeMap::new();
 
         for n in &self.nodes {
-            // An embedded node (`Node::embedded_in`) is not a free node: it
-            // draws as a chip on its source and never takes part in the
-            // layout or the hit-test as a box. It is left out here and its
-            // chip is built below, once every free node's box is known.
-            if n.embedded_in.is_some() {
-                continue;
-            }
             let kind = by_kind.get(n.kind.as_str()).copied();
             let params = params::node_params(n, kind);
             let (geom, label) = node_geom(n, kind, &params);
@@ -443,40 +420,12 @@ impl Graph {
             nodes.insert(n.id.clone(), geom);
         }
 
-        // The embedded `ai.*` chips (`ai.embed`), and the port points their
-        // cables land on. A chip's ports live here, never in `port_points`, so
-        // [`Layout::hit`] cannot answer a free-node port where a chip sits —
-        // "excluded from layout and hit-testing as a free node".
-        let mut chips: BTreeMap<NodeId, (Rect, NodeId, String)> = BTreeMap::new();
-        let mut chip_ports: BTreeMap<(NodeId, String, Dir), Point> = BTreeMap::new();
-        for n in &self.nodes {
-            let Some(source) = n.embedded_in.as_deref() else {
-                continue;
-            };
-            let Some(src) = nodes.get(source) else {
-                continue;
-            };
-            let rect = chip_rect(src.rect);
-            let mid = Point { x: rect.x, y: rect.y + rect.h / 2.0 };
-            let mid_out = Point { x: rect.x + rect.w, y: rect.y + rect.h / 2.0 };
-            if let Some(kind) = by_kind.get(n.kind.as_str()) {
-                for p in &kind.inputs {
-                    chip_ports.insert((n.id.clone(), p.name.clone(), Dir::In), mid);
-                }
-                for p in &kind.outputs {
-                    chip_ports.insert((n.id.clone(), p.name.clone(), Dir::Out), mid_out);
-                }
-            }
-            chips.insert(n.id.clone(), (rect, source.to_string(), n.kind.clone()));
-        }
-
         let mut edge_paths = BTreeMap::new();
         let mut edge_tags = BTreeMap::new();
         for e in &self.edges {
             // A binding's `to.port` is `param:<name>`; find that node's row by
             // name and take the row's dot. Anything else is an ordinary input
-            // port, keyed by its own name — a chip's port when the node is an
-            // embedded `ai.*`.
+            // port, keyed by its own name.
             let to_point = params::param_name(&e.to.port)
                 .and_then(|name| {
                     nodes
@@ -488,11 +437,6 @@ impl Graph {
                     nodes
                         .get(&e.to.node)
                         .and_then(|g| port_point_of(g, &e.to.port, Dir::In))
-                })
-                .or_else(|| {
-                    chip_ports
-                        .get(&(e.to.node.clone(), e.to.port.clone(), Dir::In))
-                        .copied()
                 });
             // A binding's `from.port` is `<port>.<var>` (`control.rms`), so the
             // port dot is keyed by the *port* half; an ordinary cable names
@@ -505,11 +449,6 @@ impl Graph {
                 .and_then(|g| port_point_of(g, from_port, Dir::Out))
                 .or_else(|| {
                     port_points
-                        .get(&(e.from.node.clone(), from_port.to_string(), Dir::Out))
-                        .copied()
-                })
-                .or_else(|| {
-                    chip_ports
                         .get(&(e.from.node.clone(), from_port.to_string(), Dir::Out))
                         .copied()
                 });
@@ -528,7 +467,7 @@ impl Graph {
             // path — nothing to draw, nothing to hit-test, no panic.
         }
 
-        Layout { node_rects, port_points, edge_paths, edge_tags, node_labels, nodes, chips }
+        Layout { node_rects, port_points, edge_paths, edge_tags, node_labels, nodes }
     }
 
     /// The kind of one edge's cable: a binding, or the type of the output port
@@ -701,18 +640,6 @@ fn dot_rect(p: Point) -> Rect {
     Rect { x: p.x - PORT_R, y: p.y - PORT_R, w: PORT_R * 2.0, h: PORT_R * 2.0 }
 }
 
-/// The chip an embedded `ai.*` draws on its source: a small band above the
-/// source's top-right corner, clear of its header so it reads as attached to
-/// the card rather than part of it.
-fn chip_rect(src: Rect) -> Rect {
-    Rect {
-        x: src.x + src.w - CHIP_W,
-        y: src.y - CHIP_H - CHIP_GAP,
-        w: CHIP_W,
-        h: CHIP_H,
-    }
-}
-
 /// One node's port dot by name and direction — a header dot or a body row,
 /// they live in the same map. `None` when the node has no such port.
 fn port_point_of(geom: &NodeGeom, port: &str, dir: Dir) -> Option<Point> {
@@ -806,12 +733,6 @@ impl Layout {
                 }));
             }
         }
-        for (id, (rect, source, ai)) in &self.chips {
-            out.push(Primitive::Rect(TaggedRect {
-                rect: *rect,
-                tag: RectTag::Chip { node: id.clone(), source: source.clone(), ai: ai.clone() },
-            }));
-        }
         for (id, path) in &self.edge_paths {
             // An edge that reached here has both endpoints; the tag carries
             // them and the kind so a painter styles a param cable differently.
@@ -874,14 +795,6 @@ impl Layout {
         }
 
         for (id, path) in &self.edge_paths {
-            // An embedded `ai.*`'s wires stay hidden until its source is
-            // selected, so they are never hit where they would be drawn —
-            // the same "not a free node" rule the chip's box follows.
-            if let Some((from, to, _)) = self.edge_tags.get(id) {
-                if self.chips.contains_key(&from.0) || self.chips.contains_key(&to.0) {
-                    continue;
-                }
-            }
             if path.distance_to(p) <= EDGE_HIT_TOLERANCE {
                 return Hit::Edge(id.clone());
             }
@@ -992,77 +905,6 @@ mod tests {
         g.add_node("gen", "gen.turing", [0.0, 0.0]);
         let layout = g.layout(&catalog());
         assert_eq!(layout.hit(10_000.0, 10_000.0), Hit::Empty);
-    }
-
-    /// An embedded node (`Node::embedded_in`, `ai.embed`) is not a free node:
-    /// it gets no box and cannot be hit where its box would have been.
-    #[test]
-    fn an_embedded_node_is_not_laid_out_as_a_free_node() {
-        let mut g = Graph::new("g", "t", Domain::Live);
-        let gen = g.add_node("gen", "gen.turing", [0.0, 0.0]);
-        let ai = g.add_node("ai", "gen.turing", [400.0, 0.0]);
-        g.node_mut(&ai).unwrap().embedded_in = Some(gen.clone());
-        let layout = g.layout(&catalog());
-        assert!(layout.node_rect(&gen).is_some(), "the source is a free node");
-        assert!(layout.node_rect(&ai).is_none(), "the embedded node has no box");
-        assert_eq!(layout.hit(420.0, 20.0), Hit::Empty, "and cannot be hit as a free node");
-    }
-
-    /// The embedded `ai.*` draws as a chip on its source, and both of its
-    /// wires resolve — so a selected source can reveal them — even though the
-    /// chip is not a free node and its wires are never hit as cables.
-    #[test]
-    fn an_embedded_ai_is_a_chip_on_its_source_with_resolvable_wires() {
-        let cat = vec![
-            NodeKind::new(
-                "audio.live",
-                NodeFamily::Audio,
-                "Audio",
-                vec![],
-                vec![Port::new("control", PortType::Control)],
-            ),
-            NodeKind::new(
-                "gen.turing",
-                NodeFamily::Generator,
-                "Turing",
-                vec![Port::new("control", PortType::Control)],
-                vec![Port::new("image", PortType::Image)],
-            ),
-            NodeKind::new(
-                crate::AI_COLOURIST_KIND,
-                NodeFamily::Ai,
-                "Colourist",
-                vec![Port::new("control", PortType::Control)],
-                vec![Port::new("control", PortType::Control)],
-            ),
-        ];
-        let mut g = Graph::new("g", "t", Domain::Live);
-        let audio = g.add_node("audio", "audio.live", [0.0, 0.0]);
-        let gen = g.add_node("gen", "gen.turing", [200.0, 0.0]);
-        let ai = g.add_node("ai", crate::AI_COLOURIST_KIND, [0.0, 0.0]);
-        g.node_mut(&ai).unwrap().embedded_in = Some(gen.clone());
-        g.add_edge(Endpoint::new(&audio, "control"), Endpoint::new(&ai, "control"));
-        g.add_edge(Endpoint::new(&ai, "control"), Endpoint::new(&gen, "control"));
-
-        let layout = g.layout(&cat);
-        let chip = layout
-            .primitives()
-            .into_iter()
-            .find_map(|p| match p {
-                Primitive::Rect(TaggedRect { rect, tag: RectTag::Chip { node, source, ai } }) => {
-                    Some((rect, node, source, ai))
-                }
-                _ => None,
-            })
-            .expect("the embedded ai draws a chip");
-        assert_eq!(chip.1, ai);
-        assert_eq!(chip.2, gen);
-        assert_eq!(chip.3, crate::AI_COLOURIST_KIND);
-        assert!(layout.node_rect(&ai).is_none(), "the chip is not a free box");
-        assert_eq!(layout.edge_paths.len(), 2, "both wires resolve so a selected source can show them");
-        // The chip sits above the source's top-right corner.
-        let src = layout.node_rect(&gen).unwrap();
-        assert!(chip.0.y < src.y, "the chip is above the source");
     }
 
     #[test]

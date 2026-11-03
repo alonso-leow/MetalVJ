@@ -2715,15 +2715,9 @@ enum CellKind {
     /// stores the page it names (`grid_page` in settings, the same value the
     /// `grid-page-next`/`-prev` triggers step).
     PageTo(usize),
-    /// `POST /overlay` — `play`/`stop` a movement on `device`/`layer`.
-    Movement {
-        name: String,
-        device: String,
-        layer: String,
-        looping: bool,
-    },
-    /// `POST /sequences` — `run`/`stop` a saved sequence on `device`.
-    Sequence { id: String, device: String },
+    /// `POST /project/play` — `play`/`stop` one saved song's project. The
+    /// project names its own devices and layers, so a cell carries none.
+    Project { song: String },
     /// `POST /switch` — `on`/`off`, or the hold edges.
     Switch { id: String, kind: String },
     /// G1: a `fixture` button — one saved switch (`kind = "fixture"`) whose
@@ -2774,7 +2768,7 @@ fn overlays_grid(
     state_val: &Value,
     open_graph: Option<&str>,
 ) {
-    let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, state_val, None);
+    let GridPlan { cells, pins, placed, pages, page, wired, filled, slot_of } = grid_plan(door, state, None);
     let (cols, rows) = (state.layout.cols as usize, state.layout.rows as usize);
     state.driven_pass = Some(ui.ctx().cumulative_pass_nr());
     // What a face's control can be given from the grid's own buttons.
@@ -2805,7 +2799,7 @@ fn overlays_grid(
         ui.ctx().request_repaint();
     }
     // The payloads leaving are painted from the universe left, while it lasts.
-    let old = swap.filter(|(_, t)| *t < timing.total * 0.5).map(|(s, _)| grid_plan(door, state, state_val, Some(s.from)));
+    let old = swap.filter(|(_, t)| *t < timing.total * 0.5).map(|(s, _)| grid_plan(door, state, Some(s.from)));
     if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
         apply_overlay_drop(door, state, &drag);
     }
@@ -3009,8 +3003,8 @@ struct GridPlan {
     slot_of: Vec<Option<usize>>,
 }
 
-fn grid_plan(door: &dyn Call, state: &PanelState, state_val: &Value, at: Option<(usize, usize)>) -> GridPlan {
-    let cells = grid_cells(door, state, state_val);
+fn grid_plan(door: &dyn Call, state: &PanelState, at: Option<(usize, usize)>) -> GridPlan {
+    let cells = grid_cells(door, state);
 
     // Fixed columns × rows (`grid_surface`), in sub-cells so the halves and
     // thirds pack beside whole cells. Pinned cells land on their page first;
@@ -3148,49 +3142,21 @@ pub(crate) fn drive_offscreen(ui: &Ui, door: &dyn Call, state: &mut PanelState) 
         return;
     }
     state.refresh(door);
-    let state_val = get(door, "GET", "/state", &[]).unwrap_or_else(|| json!({}));
-    let plan = grid_plan(door, state, &state_val, None);
+    let plan = grid_plan(door, state, None);
     drive_surface(ui, door, state, &plan.cells, plan.page, plan.pages, &plan.wired);
     if let Some(drag) = super::pads::take_loaded(ui.ctx()) {
         apply_overlay_drop(door, state, &drag);
     }
 }
 
-/// Every cell the grid holds, in the stored order, sized: the movement
-/// library, the saved sequences, the switches, the controllers, then the
-/// control cells and the recorded loops.
-fn grid_cells(door: &dyn Call, state: &PanelState, state_val: &Value) -> Vec<Cell> {
-    // The targets, off `/state` (rule 5): outputs, and the routed layers of
-    // the first one. The `play` route re-resolves the layer itself and
-    // refuses a bad name.
-    let outputs = state_val["outputs"].as_array().cloned().unwrap_or_default();
-    let device = state
-        .mv
-        .device
-        .clone()
-        .filter(|d| outputs.iter().any(|o| o["id"].as_str() == Some(d.as_str())))
-        .or_else(|| outputs.first()?["id"].as_str().map(str::to_string));
-    let layers = outputs
-        .iter()
-        .find(|o| o["id"].as_str() == Some(device.as_deref().unwrap_or_default()))
-        .and_then(|o| o["layers"].as_array().cloned())
-        .unwrap_or_default();
-    let layer = state
-        .mv
-        .layer
-        .clone()
-        .filter(|l| {
-            layers
-                .iter()
-                .any(|ly| ly["id"].as_str() == Some(l.as_str()))
-        })
-        .or_else(|| layers.first()?["id"].as_str().map(str::to_string));
-
+/// Every cell the grid holds, in the stored order, sized: the saved
+/// projects, the switches, the controllers, then the control cells and the
+/// recorded loops.
+fn grid_cells(door: &dyn Call, state: &PanelState) -> Vec<Cell> {
     // No built-in cells: blackout, identify, stop all, the HSB faders, the
     // palettes and RGB are all buttons made through the creation pipeline now.
     let mut cells: Vec<Cell> = Vec::new();
-    cells.extend(movement_cells(door, state_val, device.as_deref(), layer.as_deref()));
-    cells.extend(sequences_cells(door, device.as_deref()));
+    cells.extend(projects_cells(door));
     cells.extend(switches_cells(door));
     cells.extend(controller_cells(state));
     cells.extend(surface_cells(state));
@@ -4234,28 +4200,16 @@ fn fire_cell(now: f64, door: &dyn Call, state: &mut PanelState, cell: &Cell, g: 
     use crate::surface::Gesture;
     let press = matches!(g, Gesture::Down | Gesture::Click);
     match &cell.kind {
-        CellKind::Movement { name, device, layer, looping } => {
-            if !press {
-                return;
-            }
-            state.focused_overlay = Some(name.clone());
-            let body = if cell.running {
-                json!({ "op": "stop", "device": device, "layer": layer })
-            } else {
-                json!({ "op": "play", "device": device, "layer": layer, "movement": name, "loop": looping })
-            };
-            let _ = door.json("POST", "/overlay", Some(body));
-        }
-        CellKind::Sequence { id, device } => {
+        CellKind::Project { song } => {
             if !press {
                 return;
             }
             let body = if cell.running {
-                json!({ "op": "stop", "device": device })
+                json!({ "op": "stop", "song": song })
             } else {
-                json!({ "op": "run", "id": id, "device": device })
+                json!({ "op": "play", "song": song })
             };
-            let _ = door.json("POST", "/sequences", Some(body));
+            let _ = door.json("POST", "/project/play", Some(body));
         }
         // G1: a fixture/rig button fires the same `POST /switch {op}` a
         // `toggle` switch does; G3: a `hold` one fires on the press/release
@@ -5318,7 +5272,7 @@ fn grid_cell_editor_popup(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &m
                     .button(RichText::new(tr("delete")).font(theme.font_small.clone()))
                     .clicked()
                 {
-                    done = delete_cell(door, state, &cell.kind, id, &key);
+                    done = delete_cell(door, state, id, &key);
                 }
             });
         });
@@ -5329,12 +5283,11 @@ fn grid_cell_editor_popup(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &m
 }
 
 /// The id a general button's rename and delete act on, for the kinds whose
-/// route exists: a switch, fixture or rig (`/switch`), a sequence
-/// (`/sequences`). A movement has neither route, so it has none.
+/// route exists: a switch, fixture or rig (`/switch`). A project has no
+/// rename or delete route on the grid, so it has none.
 fn rename_target(kind: &CellKind) -> Option<&str> {
     match kind {
         CellKind::Switch { id, .. } | CellKind::Fixture { id, .. } | CellKind::Rig { id, .. } => Some(id),
-        CellKind::Sequence { id, .. } => Some(id),
         _ => None,
     }
 }
@@ -5375,20 +5328,14 @@ fn commit_cell_name(door: &dyn Call, state: &PanelState, cell: &Cell, id: &str) 
     if name.is_empty() || name == cell_name(cell) {
         return;
     }
-    let (route, body) = match cell.kind {
-        CellKind::Sequence { .. } => ("/sequences", json!({ "op": "rename", "id": id, "name": name })),
-        _ => ("/switch", json!({ "op": "set", "id": id, "name": name })),
-    };
+    let (route, body) = ("/switch", json!({ "op": "set", "id": id, "name": name }));
     let _ = door.json("POST", route, Some(body));
 }
 
 /// Deletes the button through its kind's route, then forgets its size so a
 /// new button at the same key starts at 1×1. True when the delete landed.
-fn delete_cell(door: &dyn Call, state: &mut PanelState, kind: &CellKind, id: &str, key: &str) -> bool {
-    let route = match kind {
-        CellKind::Sequence { .. } => "/sequences",
-        _ => "/switch",
-    };
+fn delete_cell(door: &dyn Call, state: &mut PanelState, id: &str, key: &str) -> bool {
+    let route = "/switch";
     let landed = door.json("POST", route, Some(json!({ "op": "remove", "id": id }))).is_ok();
     if landed && state.grid_spans.remove(key).is_some() {
         let body = json!({ "grid_spans": spans_json(&state.grid_spans) });
@@ -7005,87 +6952,27 @@ fn create_video_button(
 /// `playhead_for` is the one place the `/state` overlay list is read (rule
 /// 5). The empty-library line this used to also report is gone (2026-09-22,
 /// afternoon): the grid's own phantom squares show it is empty now.
-fn movement_cells(
-    door: &dyn Call,
-    state_val: &Value,
-    device: Option<&str>,
-    layer: Option<&str>,
-) -> Vec<Cell> {
-    let listing = get(door, "GET", "/author/models/library", &[]);
-    let movements = listing
+/// One cell per saved project, off `GET /project/play`: a song's whole
+/// project played as one run. A running song's button is accented and a
+/// second click stops it.
+fn projects_cells(door: &dyn Call) -> Vec<Cell> {
+    let listing = get(door, "GET", "/project/play", &[]);
+    let projects = listing
         .as_ref()
-        .and_then(|v| v["movements"].as_array().cloned())
+        .and_then(|v| v["projects"].as_array().cloned())
         .unwrap_or_default();
-    movements
+    projects
         .iter()
-        .filter_map(|mv| {
-            let name = mv["name"].as_str()?.to_string();
-            let ticks = mv["ticks"].as_u64().unwrap_or(0).max(1);
-            let star = if mv["favourite"].as_bool().unwrap_or(false) {
-                " ★"
-            } else {
-                ""
-            };
-            let running_tick = playhead_for(&name, state_val);
-            // `P5`: the sequence's own trigger decides where it plays;
-            // without one, the first output / first layer / not-looping
-            // are the defaults.
-            let (dev, lay, looping) = trigger_target(state_val, &name).unwrap_or_else(|| {
-                (
-                    device.unwrap_or_default().to_string(),
-                    layer.unwrap_or_default().to_string(),
-                    false,
-                )
-            });
+        .filter_map(|p| {
+            let song = p["song"].as_str()?.to_string();
             Some(Cell {
-                kind: CellKind::Movement {
-                    name: name.clone(),
-                    device: dev,
-                    layer: lay,
-                    looping,
-                },
-                key: format!("mv:{name}"),
+                key: format!("proj:{song}"),
                 span: (1.0, 1.0),
-                label: format!("{name}{star}"),
+                label: song.clone(),
                 on: false,
-                running: running_tick.is_some(),
-                progress: running_tick.map(|tick| (tick / ticks as f32).clamp(0.0, 1.0)),
-            })
-        })
-        .collect()
-}
-
-/// `S.O.4a`: one cell per saved `POST /sequences {op:"save"}` entry, off
-/// `GET /sequences` — the grid's own sequences, distinct from the movement
-/// library. Click arms `run` on the panel's current device; a running
-/// sequence's button is accented, and a second click `stop`s it.
-fn sequences_cells(door: &dyn Call, device: Option<&str>) -> Vec<Cell> {
-    let listing = get(door, "GET", "/sequences", &[]);
-    let sequences = listing
-        .as_ref()
-        .and_then(|v| v["sequences"].as_array().cloned())
-        .unwrap_or_default();
-    let running = listing
-        .as_ref()
-        .and_then(|v| v["running"].as_array().cloned())
-        .unwrap_or_default();
-    sequences
-        .iter()
-        .filter_map(|seq| {
-            let id = seq["id"].as_str()?;
-            let name = seq["name"].as_str().unwrap_or(id);
-            let is_running = running.iter().any(|r| r["sequence"].as_str() == Some(id));
-            Some(Cell {
-                kind: CellKind::Sequence {
-                    id: id.to_string(),
-                    device: device.unwrap_or_default().to_string(),
-                },
-                key: format!("seq:{id}"),
-                span: (1.0, 1.0),
-                label: name.to_string(),
-                on: false,
-                running: is_running,
+                running: p["running"].as_bool().unwrap_or(false),
                 progress: None,
+                kind: CellKind::Project { song },
             })
         })
         .collect()
@@ -7229,29 +7116,6 @@ fn playhead_for(name: &str, state_val: &Value) -> Option<f32> {
         .find(|ov| ov["movement"].as_str() == Some(name))
         .and_then(|ov| ov["tick"].as_u64())
         .map(|t| t as f32)
-}
-
-/// The `(device, layer, loop)` a sequence's own trigger carries, read off
-/// `/state`'s per-screen `triggers` (`P5`, rule 5). `None` when there is no
-/// trigger yet — the grid falls back to the first output / first layer /
-/// not-looping.
-fn trigger_target(state_val: &Value, name: &str) -> Option<(String, String, bool)> {
-    let target = format!("overlay-{name}");
-    for o in state_val["outputs"].as_array()? {
-        if let Some(t) = o["triggers"]
-            .as_array()
-            .and_then(|ts| ts.iter().find(|t| t["target"] == json!(target)))
-        {
-            let p = &t["params"];
-            let device = p["device"].as_str().unwrap_or_default().to_string();
-            let layer = p["layer"].as_str().unwrap_or_default().to_string();
-            let looping = p["loop"].as_bool().unwrap_or(false);
-            if !device.is_empty() && !layer.is_empty() {
-                return Some((device, layer, looping));
-            }
-        }
-    }
-    None
 }
 
 // ---------------------------------------------------------------------------
@@ -8110,25 +7974,6 @@ fn the_button_editor_renames_the_switch() {
     assert!(harness.state_mut().lanes_state_mut().editing_cell.is_none(), "save closes the editor");
 }
 
-/// A sequence renames through its own route, `POST /sequences {op:"rename"}`.
-#[test]
-fn the_button_editor_renames_a_sequence() {
-    let recorder = button_cell_door();
-    let mut harness = open_button_editor(&recorder, "opening");
-    assert_eq!(harness.state_mut().lanes_state_mut().editing_cell.as_deref(), Some("seq:opening"));
-    {
-        let s = harness.state_mut().lanes_state_mut();
-        s.cell_name_buffer = "intro".into();
-        s.cell_name_for = Some("seq:opening".into());
-    }
-    harness.run();
-    harness.get_by_label("save").click();
-    harness.run();
-    assert!(
-        posts_to(&recorder, "/sequences").contains(&json!({ "op": "rename", "id": "opening", "name": "intro" })),
-        "a sequence renames through /sequences"
-    );
-}
 
 /// `delete` posts `POST /switch {op:"remove"}`; once the listing no longer
 /// has it, the cell is gone and the editor with it.
@@ -9007,97 +8852,44 @@ fn without_an_open_graph_create_button_says_so() {
         assert_eq!(clips[1]["layer"], json!(1), "a dropped video opens a layer over the model's");
     }
 
-    /// A click on an idle sequence button posts the `play` body
-    /// `call::overlay` has answered since §16.7 — movement, device, layer,
-    /// loop — against the first output's first layer, and focuses the button
-    /// it hit.
+    /// A click on an idle project button plays its song: `POST /project/play`
+    /// with `op: play` and the song's name.
     #[test]
     fn clicking_an_idle_overlay_button_posts_play() {
         let recorder = std::rc::Rc::new(FakeDoor::new());
-        recorder.respond(
-            "GET",
-            "/state",
-            json!({ "outputs": [{ "id": "screen-1", "layers": [{ "id": "l0" }] }], "overlays": [] }),
-        );
-        recorder.respond(
-            "GET",
-            "/author/models/library",
-            json!({ "movements": [{ "name": "drop", "kind": "model", "ticks": 3, "favourite": false }] }),
-        );
+        recorder.respond("GET", "/state", json!({ "outputs": [{ "id": "screen-1", "layers": [{ "id": "l0" }] }], "overlays": [] }));
+        recorder.respond("GET", "/project/play", json!({ "projects": [{ "song": "drop", "running": false }] }));
         let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
         harness.run();
         harness.get_by_label("lanes / overlays").click();
         harness.run();
 
-
-        let button = harness.get_by_role_and_label(egui::accesskit::Role::Button, "drop");
-        button.scroll_to_me();
+        grid_button(&harness, "drop").expect("the grid paints the button").scroll_to_me();
         harness.run();
-        harness.get_by_role_and_label(egui::accesskit::Role::Button, "drop").click();
+        grid_button(&harness, "drop").expect("the grid paints the button").click();
         harness.run();
 
-        assert_eq!(
-            harness.state_mut().lanes_state_mut().focused_overlay(),
-            Some("drop"),
-            "clicking a sequence button focuses it"
-        );
-        let calls = recorder.calls.borrow();
-        let posted = calls
-            .iter()
-            .filter(|(m, p, _)| m == "POST" && p == "/overlay")
-            .map(|(_, _, params)| body_of(params))
-            .next()
-            .expect("clicking an idle sequence button should POST /overlay");
-        assert_eq!(
-            posted,
-            json!({
-                "op": "play", "device": "screen-1", "layer": "l0",
-                "movement": "drop", "loop": false
-            })
-        );
+        assert_eq!(posts_to(&recorder, "/project/play"), vec![json!({ "op": "play", "song": "drop" })]);
     }
 
-    /// A click on a sequence button whose movement is already in the air
-    /// posts the `stop` body — the same toggle, the other half.
+    /// A click on a running project button stops it: `POST /project/play`
+    /// with `op: stop` and the same song.
     #[test]
     fn clicking_a_running_overlay_button_posts_stop() {
         let recorder = std::rc::Rc::new(FakeDoor::new());
-        recorder.respond(
-            "GET",
-            "/state",
-            json!({
-                "outputs": [{ "id": "screen-1", "layers": [{ "id": "l0" }] }],
-                "overlays": [{ "device": "screen-1", "layer": "l0", "movement": "drop", "tick": 5 }]
-            }),
-        );
-        recorder.respond(
-            "GET",
-            "/author/models/library",
-            json!({ "movements": [{ "name": "drop", "kind": "model", "ticks": 10, "favourite": false }] }),
-        );
+        recorder.respond("GET", "/state", json!({ "outputs": [{ "id": "screen-1", "layers": [{ "id": "l0" }] }], "overlays": [] }));
+        recorder.respond("GET", "/project/play", json!({ "projects": [{ "song": "drop", "running": true }] }));
         let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
         harness.run();
         harness.get_by_label("lanes / overlays").click();
         harness.run();
 
-
-        let button = harness.get_by_role_and_label(egui::accesskit::Role::Button, "drop");
-        button.scroll_to_me();
+        grid_button(&harness, "drop").expect("the grid paints the button").scroll_to_me();
         harness.run();
-        harness.get_by_role_and_label(egui::accesskit::Role::Button, "drop").click();
+        grid_button(&harness, "drop").expect("the grid paints the button").click();
         harness.run();
 
-        let calls = recorder.calls.borrow();
-        let posted = calls
-            .iter()
-            .filter(|(m, p, _)| m == "POST" && p == "/overlay")
-            .map(|(_, _, params)| body_of(params))
-            .next()
-            .expect("clicking a running sequence button should POST /overlay");
-        assert_eq!(
-            posted,
-            json!({ "op": "stop", "device": "screen-1", "layer": "l0" })
-        );
+        assert_eq!(posts_to(&recorder, "/project/play"), vec![json!({ "op": "stop", "song": "drop" })]);
     }
 
     /// `+` → `create sequence` switches to the authoring state with a clean
@@ -9170,20 +8962,18 @@ fn without_an_open_graph_create_button_says_so() {
         );
     }
 
-    /// The grid paints one square button per sequence, plus the `+` that
-    /// opens the two-way menu — so the library is the whole listing, not
-    /// a row per movement. 2026-09-22 (afternoon): the empty grid itself is
-    /// painted as built-but-empty phantom squares (asserted separately).
+    /// The grid paints one square button per saved project, plus the `+`
+    /// that opens the menu that fills the grid.
     #[test]
-    fn the_grid_paints_one_button_per_sequence_plus_create() {
+    fn the_grid_paints_one_button_per_project_plus_create() {
         let recorder = std::rc::Rc::new(FakeDoor::new());
         recorder.respond("GET", "/state", json!({ "outputs": [] }));
         recorder.respond(
             "GET",
-            "/author/models/library",
-            json!({ "movements": [
-                { "name": "drop", "kind": "model", "ticks": 3, "favourite": false },
-                { "name": "pad", "kind": "model", "ticks": 4, "favourite": true }
+            "/project/play",
+            json!({ "projects": [
+                { "song": "drop", "running": false },
+                { "song": "pad", "running": false }
             ] }),
         );
         let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
@@ -9191,10 +8981,18 @@ fn without_an_open_graph_create_button_says_so() {
         harness.get_by_label("lanes / overlays").click();
         harness.run();
 
-
-        harness.get_by_role_and_label(egui::accesskit::Role::Button, "drop");
-        harness.get_by_label("pad ★");
+        grid_button(&harness, "drop").expect("the grid paints the button");
+        grid_button(&harness, "pad").expect("the grid paints the button");
         the_overlays_plus(&harness);
+    }
+
+    /// The button a grid cell labelled `label` paints. The label is also drawn
+    /// on a child node, so an exact-label query finds two; the button is the
+    /// bigger one.
+    fn grid_button<'a>(harness: &'a egui_kittest::Harness<'static, Shell>, label: &'a str) -> Option<egui_kittest::Node<'a>> {
+        harness
+            .query_all_by_label(label)
+            .max_by(|a, b| a.rect().area().total_cmp(&b.rect().area()))
     }
 
     /// The `+` cell in the overlays grid. `menu_button` draws its `⏵`
@@ -9367,77 +9165,12 @@ fn without_an_open_graph_create_button_says_so() {
         assert_eq!(posted, json!({ "op": "on", "id": "sw-2" }));
     }
 
-    /// `S.O.4a`: the grid shows `GET /sequences` entries as buttons too,
-    /// distinct from the movement library; clicking an idle one posts
-    /// `run` on the panel's current device.
+
+    /// The running project's button is painted with the accent stroke on a
+    /// cell-sized rect (the grid's fixed columns share the width, so a cell is
+    /// narrower than the panel).
     #[test]
-    fn a_sequence_button_runs_it() {
-        let recorder = std::rc::Rc::new(FakeDoor::new());
-        recorder.respond("GET", "/state", json!({ "outputs": [{ "id": "probe" }] }));
-        recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
-        recorder.respond(
-            "GET",
-            "/sequences",
-            json!({ "sequences": [{ "id": "opening", "name": "opening" }], "running": [] }),
-        );
-        let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
-        harness.run();
-        harness.get_by_label("lanes / overlays").click();
-        harness.run();
-
-        let button = harness.get_by_label("opening");
-        button.scroll_to_me();
-        harness.run();
-        harness.get_by_label("opening").click();
-        harness.run();
-
-        let calls = recorder.calls.borrow();
-        let posted = calls
-            .iter()
-            .filter(|(m, p, _)| m == "POST" && p == "/sequences")
-            .map(|(_, _, params)| body_of(params))
-            .next()
-            .expect("clicking an idle sequence button should POST /sequences");
-        assert_eq!(
-            posted,
-            json!({ "op": "run", "id": "opening", "device": "probe" })
-        );
-    }
-
-    /// P5: the grid reads a sequence's own trigger for `device`/`layer`/`loop`
-    /// off `/state`, falling back to the caller's defaults when there is no
-    /// trigger yet.
-    #[test]
-    fn the_grid_reads_device_and_layer_from_the_trigger() {
-        let state_val = json!({
-            "outputs": [
-                { "id": "a", "layers": [{ "id": "l1" }], "triggers": [] },
-                { "id": "b", "layers": [{ "id": "l2" }], "triggers": [
-                    { "id": "seq-x", "target": "overlay-x",
-                      "params": { "device": "b", "layer": "l2", "loop": true } }
-                ] },
-            ]
-        });
-        assert_eq!(
-            trigger_target(&state_val, "x"),
-            Some(("b".to_string(), "l2".to_string(), true)),
-            "the trigger's own params win over the first output"
-        );
-        assert_eq!(
-            trigger_target(&state_val, "nope"),
-            None,
-            "no trigger means the caller's defaults"
-        );
-    }
-
-    /// The running sequence's button is accented and carries its playhead
-    /// tick as a bar at the foot — read straight off `/state.overlays[].tick`
-    /// (rule 5). Inspects the frame's rect shapes: the button's accent
-    /// stroke is `theme.phosphor` on a cell-sized rect (the grid's fixed
-    /// columns share the width, so a cell is narrower than the panel), and
-    /// the bar is a phosphor fill one hairline tall.
-    #[test]
-    fn a_running_sequence_button_is_accented_and_shows_its_tick() {
+    fn a_running_project_button_is_accented() {
         fn collect_rects(shape: &egui::Shape, out: &mut Vec<egui::epaint::RectShape>) {
             match shape {
                 egui::Shape::Rect(r) => out.push(r.clone()),
@@ -9447,25 +9180,13 @@ fn without_an_open_graph_create_button_says_so() {
         }
 
         let recorder = std::rc::Rc::new(FakeDoor::new());
-        recorder.respond(
-            "GET",
-            "/state",
-            json!({
-                "outputs": [{ "id": "screen-1", "layers": [{ "id": "l0" }] }],
-                "overlays": [{ "device": "screen-1", "layer": "l0", "movement": "drop", "tick": 5 }]
-            }),
-        );
-        recorder.respond(
-            "GET",
-            "/author/models/library",
-            json!({ "movements": [{ "name": "drop", "kind": "model", "ticks": 10, "favourite": false }] }),
-        );
+        recorder.respond("GET", "/state", json!({ "outputs": [{ "id": "screen-1", "layers": [{ "id": "l0" }] }], "overlays": [] }));
+        recorder.respond("GET", "/project/play", json!({ "projects": [{ "song": "drop", "running": true }] }));
         let theme = Theme::phosphor();
         let mut harness = shell_harness_of_height(Box::new(std::rc::Rc::clone(&recorder)), 2600.0);
         harness.run();
         harness.get_by_label("lanes / overlays").click();
         harness.run();
-
 
         let mut rects = Vec::new();
         for cs in &harness.output().shapes {
@@ -9481,15 +9202,7 @@ fn without_an_open_graph_create_button_says_so() {
             .count();
         assert!(
             accented >= 1,
-            "the running sequence's button should be painted with the accent stroke"
-        );
-        let tick_bars = rects
-            .iter()
-            .filter(|r| r.fill == theme.phosphor && r.rect.height() <= theme.hairline + 0.5)
-            .count();
-        assert!(
-            tick_bars >= 1,
-            "the running sequence should show its playhead tick as a bar"
+            "the running project's button should be painted with the accent stroke"
         );
     }
 
@@ -9525,10 +9238,10 @@ fn without_an_open_graph_create_button_says_so() {
         for _ in 0..24 {
             for i in 0..n {
                 if s[i].is_none() {
-                    s[i] = harness.query_by_label(&format!("s{i}")).map(|x| x.rect().left());
+                    s[i] = grid_button(harness, &format!("s{i}")).map(|x| x.rect().left());
                 }
                 if w[i].is_none() {
-                    w[i] = harness.query_by_label(&format!("w{i}")).map(|x| x.rect().left());
+                    w[i] = grid_button(harness, &format!("w{i}")).map(|x| x.rect().left());
                 }
             }
             if s.iter().chain(&w).all(Option::is_some) {
@@ -9545,7 +9258,7 @@ fn without_an_open_graph_create_button_says_so() {
 
     /// `R22.3` decision 2: every button — fixed controls, movements,
     /// sequences and switches — is one cell of the same placed grid.
-    /// Enough of each saved kind is scripted that a sequence and a switch
+    /// Enough of each saved kind is scripted that a project and a switch
     /// each cover every column, so the two must land on the same column
     /// `x`s; a per-row `horizontal_wrapped` could not promise that.
     #[test]
@@ -9558,13 +9271,9 @@ fn without_an_open_graph_create_button_says_so() {
         );
         recorder.respond("GET", "/author/models/library", json!({ "movements": [] }));
         let sequences: Vec<Value> = (0..12)
-            .map(|i| json!({ "id": format!("s{i}"), "name": format!("s{i}") }))
+            .map(|i| json!({ "song": format!("s{i}"), "running": false }))
             .collect();
-        recorder.respond(
-            "GET",
-            "/sequences",
-            json!({ "sequences": sequences, "running": [] }),
-        );
+        recorder.respond("GET", "/project/play", json!({ "projects": sequences }));
         let switches: Vec<Value> = (0..12)
             .map(|i| {
                 json!({ "id": format!("w{i}"), "name": format!("w{i}"),
@@ -9578,9 +9287,9 @@ fn without_an_open_graph_create_button_says_so() {
         harness.get_by_label("lanes / overlays").click();
         harness.run();
 
-        let (sequence_x, switch_x) = xs_across_pages(&mut harness, 12);
+        let (project_x, switch_x) = xs_across_pages(&mut harness, 12);
         // Twelve consecutive cells cover every column of the grid, so each
-        // kind sees the whole column set — and a sequence and a switch in
+        // kind sees the whole column set — and a project and a switch in
         // the same column must land on the same `x`.
         let columns_of = |xs: &[f32]| {
             let mut v: Vec<f32> = xs.to_vec();
@@ -9588,16 +9297,16 @@ fn without_an_open_graph_create_button_says_so() {
             v.dedup_by(|a, b| (*a - *b).abs() < 0.5);
             v
         };
-        let sequence_columns = columns_of(&sequence_x);
+        let project_columns = columns_of(&project_x);
         let switch_columns = columns_of(&switch_x);
         assert!(
-            sequence_columns.len() == switch_columns.len()
-                && sequence_columns
+            project_columns.len() == switch_columns.len()
+                && project_columns
                     .iter()
                     .zip(&switch_columns)
                     .all(|(a, b)| (a - b).abs() < 0.5),
-            "a sequence and a switch in the same column must share x: \
-             sequences {sequence_columns:?}, switches {switch_columns:?}"
+            "a project and a switch in the same column must share x: \
+             projects {project_columns:?}, switches {switch_columns:?}"
         );
     }
     // -- grid layout: the packer, the pages, the sizes ----------------------
@@ -10020,7 +9729,7 @@ fn without_an_open_graph_create_button_says_so() {
         harness.get_by_label("lanes / overlays").click();
         harness.run();
         let filled = |st: &PanelState| -> usize {
-            grid_plan(&*recorder, st, &json!({}), None).filled.iter().filter(|f| **f).count()
+            grid_plan(&*recorder, st, None).filled.iter().filter(|f| **f).count()
         };
         assert_eq!(filled(harness.state_mut().lanes_state_mut()), 16, "layer 0 fills every pad");
         let press = || {

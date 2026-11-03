@@ -758,6 +758,9 @@ pub struct IngestLane {
     /// Which model's schema `row` fits — `""` until a model is picked.
     pub model: String,
     pub song: String,
+    /// The page tab last selected on each device (keyed by the device name),
+    /// so returning to a device reopens its own tab.
+    pub page_by_device: BTreeMap<String, Page>,
     /// The song [`Self::load`] last actually fetched for — `None` (or a
     /// name that no longer matches [`Self::song`]) is what
     /// [`Self::needs_load`] reads as "fetch again": opening a different
@@ -876,6 +879,7 @@ impl Default for IngestLane {
         IngestLane {
             model: String::new(),
             song: String::new(),
+            page_by_device: BTreeMap::new(),
             loaded_song: None,
             waiting_digest: false,
             missing_song: None,
@@ -1544,8 +1548,18 @@ impl IngestLane {
         out
     }
 
+    /// The page tab last open on `device`, if any was selected there.
+    pub fn page_for_device(&self, device: &str) -> Option<Page> {
+        self.page_by_device.get(device).cloned()
+    }
+
     /// Switches to `page`'s first clip — or opens the page with an empty clip.
+    /// The page is remembered under its device, so [`Self::page_for_device`]
+    /// hands the same tab back when the operator returns to that device.
     pub fn select_page(&mut self, page: &Page) {
+        if let Some(device) = &page.device {
+            self.page_by_device.insert(device.clone(), page.clone());
+        }
         if let Some(i) = self.track_views().iter().find(|t| &t.page() == page).map(|t| t.index) {
             self.select_track(i);
             return;
@@ -2228,6 +2242,23 @@ mod tests {
         assert_eq!(lane.bounds, Some((12, 12)));
         assert!(lane.move_clip(1, 0, 1) || lane.video.is_none());
         assert!(!lane.move_clip(0, 12, 3), "nowhere to go");
+    }
+
+    /// The page tab last open on each device is remembered per device: going
+    /// away from a device and back restores its own tab, not the other's.
+    #[test]
+    fn the_page_tab_is_remembered_per_device() {
+        let mut lane = IngestLane { model: "a".into(), ..IngestLane::default() };
+        assert_eq!(lane.page_for_device("wall"), None);
+        let wall_a = Page { device: Some("wall".into()), mask: Some("a".into()), ..Page::default() };
+        let wall_b = Page { device: Some("wall".into()), mask: Some("b".into()), ..Page::default() };
+        let tv = Page { device: Some("tv".into()), ..Page::default() };
+        lane.select_page(&wall_a);
+        lane.select_page(&tv);
+        lane.select_page(&wall_b);
+        assert_eq!(lane.page_for_device("wall"), Some(wall_b.clone()));
+        assert_eq!(lane.page_for_device("tv"), Some(tv));
+        assert_eq!(lane.page_for_device("projector"), None);
     }
 
     /// Pages: one per output; switching opens the page's own clips, and a

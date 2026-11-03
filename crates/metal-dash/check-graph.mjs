@@ -548,42 +548,6 @@ check(
   await post("/graph", { op: "delete", id });
 }
 
-// --- 7e. The embedded reaction is a chip, not a free node -----------------------
-// Plan "AI embedded in the source's properties" (A1/A3.2): `ai.embed` creates
-// the owned `ai.*` node with `embedded_in` and the chain `audio → ai →
-// source.control`. `GET /graph` then lays it out as a `chip` on the source and
-// not as a node box, and the chip's wires are in the primitives (hidden by the
-// painter until the source is selected).
-{
-  const id = GRAPH_IDS.embed;
-  await post("/graph", { op: "create", id, name: "embed", domain: "live" });
-  const gen = await addNode(id, GEN.kind, [0, 0]);
-
-  const embedded = await post("/graph/node", {
-    graph: id, op: "ai.embed", node: gen, ai: "ai.colourist", on: true,
-  });
-  check("ai.embed succeeds", embedded.ok, `${embedded.status}`);
-  const body = await embedded.json();
-  const ai = body.node;
-  check("the reply names the owned ai node", typeof ai === "string" && ai.length > 0, JSON.stringify(body));
-
-  const loaded = await json(`/graph?id=${id}`);
-  const aiNode = loaded.graph.nodes.find((n) => n.id === ai);
-  check("the ai node is owned by the source, not free",
-    aiNode && aiNode.embedded_in === gen, JSON.stringify(aiNode));
-  const chip = loaded.primitives.find((p) => p.tag === "chip");
-  check("the embedded ai is laid out as a chip",
-    !!chip && chip.node === ai && chip.source === gen, JSON.stringify(chip));
-  const boxes = loaded.primitives.filter((p) => p.tag === "node");
-  check("and not as a free node box", boxes.length === 1, `${boxes.length} node boxes`);
-  const wires = loaded.primitives.filter((p) => p.type === "path" &&
-    (p.from.node === ai || p.to.node === ai));
-  check("its two wires are in the primitives (so a selected source can show them)",
-    wires.length === 2, `${wires.length}`);
-
-  await post("/graph", { op: "delete", id });
-}
-
 // --- 8. S.A: Mask grids — invalid grids are rejected without saving state --------
 // Per plan-sonnet.md S.A.4: an invalid grid that gets rejected must leave state
 // untouched. Precedent: check-agent.mjs's same rule for connect_nodes.

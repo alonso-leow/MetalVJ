@@ -275,15 +275,10 @@
 "not in the song library yet" = "todavía no está en la biblioteca de canciones"
 "input device" = "dispositivo de entrada"
 "capture source" = "fuente de captura"
-"colourist" = "colorista"
 "— none —" = "— ninguno —"
 "refresh list" = "actualizar lista"
 "the first window capture asks the screen-share picker once: choose \"Dynamic Cast Target\"." = "la primera captura de ventana abre una vez el selector de compartir pantalla: elegí \"Dynamic Cast Target\"."
 "camera on, USB mode PC Remote; stop launch-camera first, only one program can hold it." = "cámara encendida, modo USB PC Remote; detené launch-camera antes, solo un programa puede tomarla."
-"AI Auto — fitted grade" = "AI Auto — grade entrenado"
-"Auto — deterministic math" = "Auto — matemática determinista"
-"Auto: each float follows one digest column (rms, bandwidth, onset, centroid…) around its base value — plain math, no model." = "Auto: cada flotante sigue una columna del digest (rms, bandwidth, onset, centroid…) alrededor de su valor base — matemática simple, sin modelo."
-"AI Auto: each float follows a fitted map over all sixteen digest columns; with no trained grade it falls back to Auto." = "AI Auto: cada flotante sigue un mapa entrenado sobre las dieciséis columnas del digest; sin grade entrenado vuelve a Auto."
 "reel list" = "lista del reel"
 "runtime" = "runtime"
 "seconds" = "segundos"
@@ -334,12 +329,6 @@
 
 # The source reaction page's trained half (plan A3.1, `ai.embed`): the
 # directa/entrenada state and the per-AI toggle, weights, entrenar, separar.
-"direct" = "directa"
-"trained" = "entrenada"
-"untrained" = "sin entrenar"
-"weights: {name}" = "pesos: {name}"
-"train" = "entrenar"
-"separate" = "separar"
 
 # The head-tracking pages (H5): `sensor.yolo`'s camera, preview, smoothing and
 # lost-track indicator, and `cam.track`'s targets, strength and per-axis flip.
@@ -534,7 +523,6 @@
 "Loads and shows an image file." = "Carga y muestra un archivo de imagen."
 "Still image" = "Imagen fija"
 "An image held for the interval." = "Una imagen que se sostiene durante el intervalo."
-"A trained automatic grade read from the song." = "Un grade automático entrenado leído de la canción."
 "How a stack combines its layers." = "Cómo combina sus capas un stack."
 "An Avenue-style mappable surface." = "Una superficie mapeable estilo Avenue."
 "Fixtures, patch and mapping for the venue." = "Fixtures, patch y mapeo del venue."

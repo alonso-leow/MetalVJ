@@ -851,6 +851,14 @@ pub fn trigger(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         // through `super::sequences::run`, with `device` off the trigger's
         // own saved `params` (same shape as `overlay-`'s `device`/`layer`
         // above).
+        // `project-<song>`: plays the song's whole project through the same
+        // body `POST /project/play {op:"play"}` runs, looping when the
+        // trigger's own `params.loop` says so.
+        target if target.starts_with("project-") => {
+            let song = target.trim_start_matches("project-").to_string();
+            let looping = trigger.params["loop"].as_bool().unwrap_or(false);
+            super::author::project_play::play_song(ctx, &song, looping)?;
+        }
         target if target.starts_with("sequence-") => {
             let id = target.trim_start_matches("sequence-").to_string();
             let device = trigger

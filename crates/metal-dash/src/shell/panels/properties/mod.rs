@@ -904,7 +904,6 @@ impl PanelState {
                 ui, theme, door, gid, node_id, node, graph, &mut self.runtime,
             ),
             "reel list" => sources::reel_batch_section(ui, theme, door, gid, node_id, node),
-            "colourist" => sources::colourist_section(ui, theme, door, gid, node_id, node),
             "loop" => loops::section(ui, theme, door, gid, node_id, &mut self.loop_edit),
             "map" => {
                 crate::shell::panels::venue_map::map_card(
@@ -1347,16 +1346,6 @@ fn describe_kind(kind: &str, _label: &str, model: Option<&str>) -> Option<(Strin
                 crate::shell::i18n::tr_key("transition in"),
             ],
         )
-    } else if kind == metal_graph::AI_COLOURIST_KIND {
-        (
-            crate::shell::i18n::tr_key("colourist"),
-            crate::shell::i18n::tr_key("A trained automatic grade read from the song."),
-            [
-                crate::shell::i18n::tr_key("trained"),
-                crate::shell::i18n::tr_key("colour"),
-                crate::shell::i18n::tr_key("source"),
-            ],
-        )
     } else if kind == STACK_MODE_KIND {
         (
             crate::shell::i18n::tr_key("mode"),
@@ -1504,9 +1493,6 @@ fn own_sections(kind: &str) -> Vec<&'static str> {
     }
     if kind.starts_with("reel.") || kind == "router" {
         return vec![crate::shell::i18n::tr_key("reaction")];
-    }
-    if kind == metal_graph::AI_COLOURIST_KIND {
-        return vec![crate::shell::i18n::tr_key("colourist")];
     }
     if kind == "out.sacn" {
         return vec![crate::shell::i18n::tr_key("sACN (E1.31)")];
@@ -2247,128 +2233,6 @@ mod tests {
         assert!(
             ingest.layer_meta(&ingest.current_page(), 0).opacity > 0.0,
             "the opacity track writes the active layer"
-        );
-    }
-
-    // -- A3: the reaction section (`ai.embed`) ------------------------------
-
-    /// One `gen.turing` source, optionally with an `ai.colourist` embedded in
-    /// it — the two states the reaction page shows (`directa`/`entrenada`).
-    fn reaction_door(embedded: bool) -> Rc<FakeDoor> {
-        let recorder = Rc::new(FakeDoor::new());
-        recorder.respond(
-            "GET",
-            "/graphs",
-            json!({ "graphs": [{ "id": "g1", "name": "g1", "domain": "live" }] }),
-        );
-        let mut nodes = vec![json!({
-            "id": "gen-0", "kind": "gen.turing", "pos": [0.0, 0.0], "label": "",
-            "bypass": false, "solo": false, "config": {}
-        })];
-        if embedded {
-            nodes.push(json!({
-                "id": "ai-0", "kind": metal_graph::AI_COLOURIST_KIND, "pos": [0.0, 0.0], "label": "",
-                "bypass": false, "solo": false, "config": { "weights": null }, "embedded_in": "gen-0"
-            }));
-        }
-        recorder.respond(
-            "GET",
-            "/graph",
-            json!({ "graph": { "id": "g1", "nodes": nodes, "edges": [] }, "primitives": [], "issues": [] }),
-        );
-        recorder.respond("GET", "/catalog", json!({ "catalog": [] }));
-        recorder
-    }
-
-    fn posted_embed(recorder: &FakeDoor) -> Option<Value> {
-        recorder
-            .calls
-            .borrow()
-            .iter()
-            .filter(|(m, p, _)| m == "POST" && p == "/graph/node")
-            .map(|(_, _, params)| serde_json::from_slice::<Value>(&params.body).unwrap())
-            .find(|b| b["op"] == "ai.embed")
-    }
-
-    /// The reaction toggle posts `ai.embed on: true` — the op that mints an
-    /// owned chip on the source, never a free `op: "add"` node. The graph
-    /// gesture and the UI control are one route (rule 6).
-    #[test]
-    fn the_reaction_toggle_creates_a_chip_not_a_free_node() {
-        let recorder = reaction_door(false);
-        let mut harness = shell_harness(Box::new(Rc::clone(&recorder)));
-        harness.run();
-        harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
-        harness.run();
-        // The reaction controls fold into Parameters, open by default.
-        // The checkbox sits below the properties column's fold at the default
-        // size; scroll it into view before the click.
-        harness.get_by_label("colourist").scroll_to_me();
-        harness.run();
-        harness.get_by_label("colourist").click();
-        harness.run();
-
-        assert_eq!(
-            posted_embed(&recorder),
-            Some(json!({ "op": "ai.embed", "graph": "g1", "node": "gen-0",
-                          "ai": metal_graph::AI_COLOURIST_KIND, "on": true })),
-            "the toggle posts the ai.embed op"
-        );
-        let added = recorder.calls.borrow().iter().any(|(m, p, params)| {
-            m == "POST"
-                && p == "/graph/node"
-                && serde_json::from_slice::<Value>(&params.body)
-                    .map(|b| b["op"] == "add")
-                    .unwrap_or(false)
-        });
-        assert!(!added, "a reaction is a chip, not a free node");
-    }
-
-    /// The source's own `mode` (2026-10-08): the three-way segment on a
-    /// `gen.*`'s reaction page posts one `config` merge with `mode` — the
-    /// single field the engine reads to pick the drive.
-    #[test]
-    fn the_source_modo_posts_the_config_mode() {
-        let recorder = reaction_door(false);
-        let mut harness = shell_harness(Box::new(Rc::clone(&recorder)));
-        harness.run();
-        harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
-        harness.run();
-        // The mode now lives in the node card, always visible.
-        harness.get_all_by_value("AI FX").next().expect("the mode dropdown").click();
-        harness.run();
-        harness.get_by_label("AI").click();
-        harness.run();
-
-        let posted = recorder.calls.borrow().iter().any(|(m, p, params)| {
-            m == "POST"
-                && p == "/graph/node"
-                && serde_json::from_slice::<Value>(&params.body)
-                    .map(|b| b["op"] == "config" && b["config"]["mode"] == "ai")
-                    .unwrap_or(false)
-        });
-        assert!(posted, "the mode segment posts config mode: ai");
-    }
-
-    /// `separar` posts the same op with `on: false`, detaching the owned node
-    /// so it becomes a normal free node — one gesture, one route.
-    #[test]
-    fn separar_turns_the_chip_into_a_node() {
-        let recorder = reaction_door(true);
-        let mut harness = shell_harness(Box::new(Rc::clone(&recorder)));
-        harness.run_steps(3);
-        harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
-        harness.run_steps(3);
-        harness.get_by_label("separate").scroll_to_me();
-        harness.run_steps(3);
-        harness.get_by_label("separate").click();
-        harness.run_steps(3);
-
-        assert_eq!(
-            posted_embed(&recorder),
-            Some(json!({ "op": "ai.embed", "graph": "g1", "node": "gen-0",
-                          "ai": metal_graph::AI_COLOURIST_KIND, "on": false })),
-            "separar posts the same ai.embed op with on: false"
         );
     }
 

@@ -201,10 +201,6 @@ fn tool_schema(name: &str) -> Option<&'static [&'static str]> {
         // S.AM — the train gesture of an `ai.*` node: the node id (the graph
         // is optional; `POST /ai/train` finds it when absent).
         "train_ai" => Some(&["node"]),
-        // A1 — the embedded reaction: the source it lands in, which `ai.*`
-        // it is, and `on` (the same body `POST /graph/node {op:"ai.embed"}`
-        // takes; `on` decides embed vs. the `separar` wire value).
-        "embed_ai" => Some(&["graph", "node", "ai", "on"]),
         // Surface sources: `attach` needs the node and its port; `insert`
         // needs the node it goes after and the kind.
         "attach_source" => Some(&["graph", "node", "port"]),

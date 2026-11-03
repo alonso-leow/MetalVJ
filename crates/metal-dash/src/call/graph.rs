@@ -431,19 +431,7 @@ pub fn graph_node(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             let Some(id) = body["node"].as_str() else {
                 return Err(CallError::Bad("which node".into()));
             };
-            // An embedded `ai.*` is owned by its source: deleting the source
-            // deletes it and its wires too (`ai.embed`). A detached one
-            // (`embedded_in = None`) is a normal node and stays.
-            let owned: Vec<String> = g
-                .nodes
-                .iter()
-                .filter(|n| n.embedded_in.as_deref() == Some(id))
-                .map(|n| n.id.clone())
-                .collect();
             g.remove_node(id);
-            for o in owned {
-                g.remove_node(&o);
-            }
             if let Err(e) = crate::save_graph(&g) {
                 return Err(CallError::Bad(e));
             }
@@ -943,106 +931,6 @@ pub fn graph_node(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             reply["node"] = json!(new);
             Ok(reply)
         }
-        // Plan "AI embedded in the source's properties" (A1): the reaction is
-        // a setting in the source, not a node the operator wires by hand.
-        // `{op: "ai.embed", graph, node, ai, on}`. `on` creates the `ai.*`
-        // node with `embedded_in = Some(source)` and the one chain
-        // `audio → ai → source.control`; `off` is `detach` — the owned node
-        // keeps its wires and becomes a normal, free node (config is a reading
-        // of the graph, never a second state — rule 4).
-        "ai.embed" => {
-            let Some(id) = body["node"].as_str() else {
-                return Err(CallError::Bad("which node".into()));
-            };
-            let Some(ai) = body["ai"].as_str() else {
-                return Err(CallError::Bad("which ai".into()));
-            };
-            let Some(source) = g.node(id) else {
-                return Err(CallError::Bad(format!("no such node: {id}")));
-            };
-            let source_kind = source.kind.clone();
-            let source_pos = source.pos;
-            let on = body["on"].as_bool().unwrap_or(true);
-
-            if !on {
-                for n in g.nodes.iter_mut() {
-                    if n.embedded_in.as_deref() == Some(id) && n.kind == ai {
-                        n.embedded_in = None;
-                    }
-                }
-                if let Err(e) = crate::save_graph(&g) {
-                    return Err(CallError::Bad(e));
-                }
-                return Ok(crate::graph_reply(&g, &catalog));
-            }
-
-            // Which AIs a source offers comes from its kind (plan A1.3):
-            // every `gen.*` offers `ai.colourist`. `ai.router`/`ai.curator`
-            // are not built yet — they slot in here when they are, and no
-            // caller should invent their names before then.
-            let offered = offered_ai_for(&source_kind);
-            if !offered.contains(&ai) {
-                return Err(CallError::Bad(format!("{source_kind} does not offer {ai}")));
-            }
-            if !catalog.iter().any(|k| k.kind == ai) {
-                return Err(CallError::Bad(format!("no such node kind: {ai}")));
-            }
-            // One owned node per (source, ai): a repeat is a no-op, so the
-            // toggle cannot mint a second chip. The reply still names the one
-            // that is already there.
-            if let Some(existing) = g
-                .nodes
-                .iter()
-                .find(|n| n.embedded_in.as_deref() == Some(id) && n.kind == ai)
-                .map(|n| n.id.clone())
-            {
-                if let Err(e) = crate::save_graph(&g) {
-                    return Err(CallError::Bad(e));
-                }
-                let mut reply = crate::graph_reply(&g, &catalog);
-                reply["node"] = json!(existing);
-                return Ok(reply);
-            }
-
-            let audio = embed_audio_node(&mut g, id);
-            let ai_id = g.add_node("ai", ai, [source_pos[0] + 24.0, source_pos[1] + 24.0]);
-            if let Some(n) = g.node_mut(&ai_id) {
-                n.embedded_in = Some(id.to_string());
-                // A2: sensible defaults — no manual config. Pin the newest
-                // trained weights for the model this reaction drives, as the
-                // *name* the runtime's `ai_weights` named branch resolves
-                // (`<data_root>/reels/<name>.json`), or `null` when there is
-                // none: the runtime then falls back to the downstream model's
-                // own default and says "untrained", exactly as today. No
-                // second copy of any state — the name is a reading of the
-                // directory the trainer writes.
-                if ai == metal_graph::AI_COLOURIST_KIND {
-                    let model = source_kind.strip_prefix("gen.").unwrap_or("");
-                    let weights = newest_weights(&crate::output::data_root(), ai, model);
-                    n.config =
-                        metal_graph::Config::from_json_str(&json!({ "weights": weights }).to_string())
-                            .map_err(|e| CallError::Bad(e.to_string()))?;
-                }
-            }
-            // The one chain the reaction is. The source's own `control`
-            // cable (from the audio node the chain reuses) is folded into
-            // `ai`, so the port is never driven twice.
-            g.edges.retain(|e| !(e.to.node == id && e.to.port == "control"));
-            g.add_edge(
-                metal_graph::Endpoint::new(&audio, "control"),
-                metal_graph::Endpoint::new(&ai_id, "control"),
-            );
-            g.add_edge(
-                metal_graph::Endpoint::new(&ai_id, "control"),
-                metal_graph::Endpoint::new(id, "control"),
-            );
-            if let Err(e) = crate::save_graph(&g) {
-                return Err(CallError::Bad(e));
-            }
-            let mut reply = crate::graph_reply(&g, &catalog);
-            reply["node"] = json!(ai_id);
-            Ok(reply)
-        }
         // `load script…` (2026-10-10): a `.wgsl` file becomes the `shader`
         // of a node. The file is read here, not in the shell (the shell does
         // no I/O); the naga gate checks it, it is saved as
@@ -1149,104 +1037,6 @@ fn add_kind(
         }
     }
     Ok(id)
-}
-
-/// The `ai.*` kinds a source of `kind` offers as an embedded reaction (plan
-/// A1.3). Only `ai.colourist` exists as a node kind today; every `gen.*`
-/// offers it. When `ai.router` and `ai.curator` are built, a `router` source
-/// offers `ai.router` and a `reel.*` source offers `ai.curator` — added here,
-/// the one place that answers the question, so no caller spells the mapping
-/// a second time.
-fn offered_ai_for(kind: &str) -> &'static [&'static str] {
-    if kind.starts_with("gen.") {
-        &[metal_graph::AI_COLOURIST_KIND]
-    } else {
-        &[]
-    }
-}
-
-/// The newest trained weights for an `ai.*` reaction (plan A2.1), as the
-/// **name** the runtime's `ai_weights` named branch resolves: a file
-/// `<data_root>/reels/<name>.json` for the colourist. Only a grade fitted for
-/// the model this reaction drives counts — `Grade::fits` refuses the rest, so
-/// pinning another model's grade would make the reaction silently do nothing
-/// — and among those the newest by mtime wins. `None` when there is none,
-/// which leaves `weights: null` (the runtime's own per-model default, the file
-/// the trainer writes) and its "untrained" fallback as today.
-fn newest_weights(root: &std::path::Path, ai: &str, model: &str) -> Option<String> {
-    // A2.2: `ai.router` reads `data/router/gate.json` for the current song and
-    // its weights live under `data/router/`; the node is not built yet, so
-    // this arm answers nothing until it is. TODO(A2.2).
-    if ai != metal_graph::AI_COLOURIST_KIND {
-        return None;
-    }
-    let dir = root.join(metal_reel::index::DIR);
-    let prefix = format!("colourist-{model}");
-    let mut best: Option<(web_time::SystemTime, String)> = None;
-    for entry in metal_vfs::read_dir(&dir).ok()?.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("json") {
-            continue;
-        }
-        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        if stem != prefix && !stem.starts_with(&format!("{prefix}-")) {
-            continue;
-        }
-        let at = entry
-            .metadata()
-            .and_then(|m| m.modified())
-            .unwrap_or(web_time::UNIX_EPOCH);
-        if best.as_ref().is_none_or(|(t, _)| at > *t) {
-            best = Some((at, stem.to_string()));
-        }
-    }
-    best.map(|(_, name)| name)
-}
-
-/// The audio node an embedded chain hangs off (plan A1.2): the graph's only
-/// `audio.live`; if there are several, the one the source already listens to;
-/// if there is none, a new `audio.live {source: null}` on the default input.
-/// Mirrors `metal_graph::migrate::wire_to_audio`'s choice of node and position.
-fn embed_audio_node(g: &mut metal_graph::Graph, source: &str) -> String {
-    let live: Vec<String> = g
-        .nodes
-        .iter()
-        .filter(|n| n.kind == "audio.live")
-        .map(|n| n.id.clone())
-        .collect();
-    if let [only] = live.as_slice() {
-        return only.clone();
-    }
-    if let Some(from) = g
-        .edges
-        .iter()
-        .find(|e| {
-            e.to.node == source
-                && e.to.port == "control"
-                && g.node(&e.from.node).is_some_and(|n| n.kind.starts_with("audio."))
-        })
-        .map(|e| e.from.node.clone())
-    {
-        return from;
-    }
-    if let Some(id) = g
-        .nodes
-        .iter()
-        .find(|n| n.kind == "audio.live" || n.kind == "audio.file")
-        .map(|n| n.id.clone())
-    {
-        return id;
-    }
-    let x = g.nodes.iter().map(|n| n.pos[0]).fold(f32::INFINITY, f32::min);
-    let x = if x.is_finite() { x - 240.0 } else { 0.0 };
-    let id = g.add_node("audio", "audio.live", [x, 0.0]);
-    if let Some(n) = g.node_mut(&id) {
-        n.config = metal_graph::Config::from_json_str(r#"{"source":null}"#)
-            .expect("a literal config always parses");
-    }
-    id
 }
 
 /// A held value off a request body: a number, or `null` to release it.
@@ -1409,10 +1199,6 @@ mod tests {
         assert!(!has(&live, "audio.file"), "audio.file is an Offline graph's audio");
         assert!(!has(&live, metal_graph::STACK_MODE_KIND), "the legacy mode is retired from the menu");
         assert!(!has(&live, "compose.layers"), "the composition is retired from the menu");
-        assert!(
-            !has(&live, metal_graph::AI_COLOURIST_KIND),
-            "the colourist is the gen.* sub-feature, never offered as a node"
-        );
 
         let offline = menu_kinds(kinds.clone(), Some("offline")).unwrap();
         assert!(has(&offline, "export.video"));
@@ -2011,144 +1797,12 @@ mod param_tests {
         let _ = metal_vfs::remove_file(crate::graph_path(&ids.graph));
     }
 
-    // -- A1: the embedded reaction (`ai.embed`) ---------------------------
-
     fn has_edge(g: &metal_graph::Graph, a: &str, ap: &str, b: &str, bp: &str) -> bool {
         g.edges.iter().any(|e| {
             e.from.node == a && e.from.port == ap && e.to.node == b && e.to.port == bp
         })
     }
 
-    fn embed(ctx: &mut Ctx, ids: &Ids, on: bool) -> Value {
-        graph_node(
-            ctx,
-            &body(json!({
-                "op": "ai.embed", "graph": ids.graph, "node": ids.gen,
-                "ai": metal_graph::AI_COLOURIST_KIND, "on": on,
-            })),
-        )
-        .expect("ai.embed")
-    }
-
-    /// Turning the reaction on mints exactly one owned `ai.colourist` node
-    /// (embedded in the source) and the one chain
-    /// `audio → ai → source.control`, folding away the source's own direct
-    /// cable so its control port has a single driver. Its `weights` is the
-    /// newest trained grade for the model it drives, or `null` when there is
-    /// none — either way a name the runtime can resolve.
-    #[test]
-    fn embedding_creates_one_owned_node_and_its_wires() {
-        let (mut paint, mut state, mut sim, author) = fixture();
-        let mut ctx = Ctx { state: &mut state, paint: paint.as_mut(), sim: &mut sim, author: &author };
-        let (_, ids) = saved_graph("embed-on");
-
-        let reply = embed(&mut ctx, &ids, true);
-        let ai_id = reply["node"].as_str().expect("the reply names the new node").to_string();
-
-        let g = crate::load_graph(&ids.graph).unwrap();
-        let ai = g.node(&ai_id).expect("the owned node exists");
-        assert_eq!(ai.kind, metal_graph::AI_COLOURIST_KIND);
-        assert_eq!(ai.embedded_in.as_deref(), Some(ids.gen.as_str()));
-        match ai.config.get("weights") {
-            Some(serde_json::Value::Null) => {}
-            Some(serde_json::Value::String(name)) => assert!(
-                crate::output::data_root()
-                    .join(metal_reel::index::DIR)
-                    .join(format!("{name}.json"))
-                    .exists(),
-                "a pinned weights name must resolve to a real grade file: {name}"
-            ),
-            other => panic!("weights is a name or null, got {other:?}"),
-        }
-        assert_eq!(
-            g.nodes.iter().filter(|n| n.embedded_in.as_deref() == Some(ids.gen.as_str())).count(),
-            1,
-            "one owned node per source"
-        );
-        assert!(has_edge(&g, &ids.audio, "control", &ai_id, "control"), "audio → ai");
-        assert!(has_edge(&g, &ai_id, "control", &ids.gen, "control"), "ai → source.control");
-        assert!(
-            !has_edge(&g, &ids.audio, "control", &ids.gen, "control"),
-            "the source's own cable is folded into the chain, not left beside it"
-        );
-
-        // A repeat is a no-op: the toggle cannot mint a second chip.
-        let again = embed(&mut ctx, &ids, true);
-        assert_eq!(again["node"], json!(ai_id));
-        let g = crate::load_graph(&ids.graph).unwrap();
-        assert_eq!(g.nodes.iter().filter(|n| n.embedded_in.as_deref() == Some(ids.gen.as_str())).count(), 1);
-    }
-
-    /// A2: the weights default is the newest trained grade for the model the
-    /// reaction drives, and only that model's — a grade fitted for another
-    /// model is never pinned (`Grade::fits` would refuse it anyway). None of
-    /// this reads the real `data/`: it takes a scratch root (rule 8).
-    #[test]
-    fn the_newest_weights_are_the_model_s_own_and_never_another_s() {
-        let root = std::env::temp_dir().join(format!("fw-ai-embed-weights-{}", std::process::id()));
-        let reels = root.join(metal_reel::index::DIR);
-        metal_vfs::create_dir_all(&reels).unwrap();
-        metal_vfs::write(reels.join("colourist-turing.json"), "{}").unwrap();
-        metal_vfs::write(reels.join("colourist-estela.json"), "{}").unwrap();
-        metal_vfs::write(reels.join("colourist-turing-warm.json"), "{}").unwrap();
-        metal_vfs::write(reels.join("index.json"), "{}").unwrap();
-
-        let picked = newest_weights(&root, metal_graph::AI_COLOURIST_KIND, "turing");
-        assert!(
-            matches!(picked.as_deref(), Some("colourist-turing" | "colourist-turing-warm")),
-            "only the driven model's grades count, got {picked:?}"
-        );
-        assert_eq!(
-            newest_weights(&root, metal_graph::AI_COLOURIST_KIND, "forge"),
-            None,
-            "no grade for this model is not a grade for another"
-        );
-        // A2.2: the router arm answers nothing until `ai.router` is built.
-        assert_eq!(newest_weights(&root, "ai.router", "turing"), None);
-
-        let _ = metal_vfs::remove_dir_all(&root);
-    }
-
-    /// Deleting the source deletes its embedded `ai.*` and its wires with it.
-    #[test]
-    fn deleting_the_source_deletes_its_embedded_ai() {
-        let (mut paint, mut state, mut sim, author) = fixture();
-        let mut ctx = Ctx { state: &mut state, paint: paint.as_mut(), sim: &mut sim, author: &author };
-        let (_, ids) = saved_graph("embed-del");
-
-        let reply = embed(&mut ctx, &ids, true);
-        let ai_id = reply["node"].as_str().unwrap().to_string();
-
-        graph_node(&mut ctx, &body(json!({ "op": "remove", "graph": ids.graph, "node": ids.gen })))
-            .expect("remove the source");
-
-        let g = crate::load_graph(&ids.graph).unwrap();
-        assert!(g.node(&ids.gen).is_none(), "the source is gone");
-        assert!(g.node(&ai_id).is_none(), "its embedded ai went with it");
-        assert!(
-            !g.edges.iter().any(|e| e.from.node == ai_id || e.to.node == ai_id),
-            "and none of its wires are left dangling"
-        );
-    }
-
-    /// `detach` (off) detaches: the owned node stays and keeps its wires, it
-    /// just stops being owned.
-    #[test]
-    fn detach_keeps_the_wires_and_clears_embedded_in() {
-        let (mut paint, mut state, mut sim, author) = fixture();
-        let mut ctx = Ctx { state: &mut state, paint: paint.as_mut(), sim: &mut sim, author: &author };
-        let (_, ids) = saved_graph("embed-off");
-
-        let reply = embed(&mut ctx, &ids, true);
-        let ai_id = reply["node"].as_str().unwrap().to_string();
-        embed(&mut ctx, &ids, false);
-
-        let g = crate::load_graph(&ids.graph).unwrap();
-        let ai = g.node(&ai_id).expect("the detached node stays");
-        assert_eq!(ai.embedded_in, None, "it is no longer owned");
-        assert!(has_edge(&g, &ids.audio, "control", &ai_id, "control"), "audio → ai stays");
-        assert!(has_edge(&g, &ai_id, "control", &ids.gen, "control"), "ai → source.control stays");
-    }
     /// A graph saved to the scratch dir with `gen.turing → output.device` on
     /// its image, and a `mask` on its own: the two shapes the source ops
     /// are tested on.

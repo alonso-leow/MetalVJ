@@ -48,7 +48,6 @@ pub mod frames;
 pub mod favorites;
 pub mod gallery;
 pub mod gallery_anim;
-pub mod graph_hit;
 pub(crate) use crate::i18n;
 pub mod insets;
 mod keybinds;
@@ -870,20 +869,13 @@ impl Shell {
                 }
             }
         }
+        // A library sequence is a saved project (`GET /project/play`), opened
+        // in the sequence editor the way an audio card's `play` opens its song.
         if let Some(name) = self.library.take_sequence_to_load() {
-            if let Some(m) = get_json(door, "/author/models/movement", &[("name", name.clone())]) {
-                if self.lanes.mv.load(&m) {
-                    self.lanes.force_mode(lanes::Mode::Lanes);
-                    self.lanes.mv.note = Some(format!("opened: {name}"));
-                }
-            }
+            self.lanes.pending_song = Some(name);
         }
-        let shown = self.library.take_sequence_to_show().or_else(|| self.lanes.sequence_dropped.take());
-        if let Some(name) = shown {
-            if let Some(m) = get_json(door, "/author/models/movement", &[("name", name)]) {
-                self.lanes.show_sequence(m);
-                self.lanes.force_mode(lanes::Mode::Lanes);
-            }
+        if let Some(name) = self.library.take_sequence_to_show().or_else(|| self.lanes.sequence_dropped.take()) {
+            self.lanes.pending_song = Some(name);
         }
         // 22-sept-2026 (tarde): an `archivos` **audio** card dropped on the
         // overlays grid raises the same intent `tocar` does, but the lanes

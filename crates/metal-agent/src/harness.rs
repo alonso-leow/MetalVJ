@@ -190,10 +190,6 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     // struct: training reads `data/animations` and the model schemas, both
     // one layer up from `metal-graph`.
     ("train_ai", "Trains a trainable ai.* node from the authored takes (POST /ai/train { node }): the same gesture as its `entrenar` button.", true),
-    // A1 (plan "AI embedded in the source's properties", A3.3): the reaction
-    // is a setting in the source, over `POST /graph/node {op:"ai.embed"}` —
-    // the same route the properties panel posts.
-    ("embed_ai", "Embeds an ai.* reaction in a source (POST /graph/node op ai.embed { node, ai, on }): `on` creates the owned ai node and wires audio → ai → source.control; `off` separates it into a free node.", true),
     // Surface sources (plan "Surface sources and less-friction authoring"):
     // the two generic graph ops, the same bodies the properties panel posts.
     ("attach_source", "Wires an image source into one image input of a node (POST /graph/node op attach { graph, node, port, kind?, from?, config? }): `from` reuses an existing node, `kind` creates one beside it, neither detaches; whatever fed the port is replaced.", true),
@@ -3317,7 +3313,6 @@ mod capability_tests {
         "remove_segment",
         "set_keyframe",
         "train_ai",
-        "embed_ai",
         "set_layer_mix",
         "rasterize_overlay",
         "edit_layer",

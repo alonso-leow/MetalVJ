@@ -429,8 +429,6 @@
 "base" = "base"
 "accent" = "acento"
 "flash" = "destello"
-"A trainable colour model that proposes a grade for the generator it feeds." = "Un modelo de color entrenable que propone una gradación para el generador al que alimenta."
-"trained model" = "modelo entrenado"
 "A wave generator, sine, square, triangle or saw, that outputs a value over time." = "Un generador de onda, senoidal, cuadrada, triangular o diente de sierra, que entrega un valor en el tiempo."
 "A fixed number, or a named constant such as pi, e or tau." = "Un número fijo, o una constante con nombre como pi, e o tau."
 "constant" = "constante"

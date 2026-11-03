@@ -1221,7 +1221,7 @@ mod tests {
 #[cfg(test)]
 mod paint_tests {
     use super::*;
-    use crate::engine::{fan_out_stack, render_device, State, PREVIEW};
+    use crate::engine::{fan_out_stack, render_device, State, MAIN};
     use crate::layers::{Composition, DeviceMode};
     use crate::live::Input;
     use crate::paint;
@@ -1236,8 +1236,8 @@ mod paint_tests {
         let sim = crate::listeners::Listeners::stand_in();
         let mut state = State::new(paint.as_ref());
         state.layers = fan_out_stack();
-        state.preview.mode = DeviceMode::Own;
-        state.preview.composition = Composition::Overlap;
+        state.stack_mut(MAIN).unwrap().mode = DeviceMode::Own;
+        state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
         state.paused_at = Some(3.0);
         (paint, sim, state)
     }
@@ -1392,18 +1392,18 @@ mod paint_tests {
     #[test]
     fn a_solid_color_overlay_renders_as_that_color() {
         let (mut paint, mut sim, mut state) = preview_stack();
-        let (before, _, _) = render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
+        let (before, _, _) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
         assert!(!all(&before, [0, 200, 30]), "the stack draws something else first");
 
         let t = state.time();
-        state.overlays.start_solid_color(PREVIEW.into(), [0, 200, 30], t, 5.0);
-        let (solid, _, _) = render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
+        state.overlays.start_solid_color(MAIN.into(), [0, 200, 30], t, 5.0);
+        let (solid, _, _) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
         assert!(all(&solid, [0, 200, 30]), "every pixel is the solid");
 
         // Expired — the clock is what ends it, and the very next frame
         // draws the stack again (rule 4: read live, no cached flag).
         state.paused_at = Some(t + 6.0);
-        let (after, _, _) = render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
+        let (after, _, _) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
         assert!(!all(&after, [0, 200, 30]), "over is over");
     }
 
@@ -1413,9 +1413,9 @@ mod paint_tests {
     fn a_timed_blackout_renders_black_and_beats_a_solid() {
         let (mut paint, mut sim, mut state) = preview_stack();
         let t = state.time();
-        state.overlays.start_solid_color(PREVIEW.into(), [255, 0, 0], t, 5.0);
-        state.overlays.start_blackout(PREVIEW.into(), t, 5.0);
-        let (frame, _, _) = render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
+        state.overlays.start_solid_color(MAIN.into(), [255, 0, 0], t, 5.0);
+        state.overlays.start_blackout(MAIN.into(), t, 5.0);
+        let (frame, _, _) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
         assert!(all(&frame, [0, 0, 0]));
     }
 

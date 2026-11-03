@@ -202,8 +202,7 @@ pub mod midi;
 /// - `learn` is `Some(trigger)` when the learn arm is armed for `"osc"` —
 ///   the reader posts the learned source there and clears it (`regla 4`:
 ///   the arm is a read of the one learn state).
-/// - otherwise `ids` is every active trigger (`state.sources` and the built
-///   in `state.preview`) whose `TriggerSource::Osc.addr` matches exactly.
+/// - otherwise `ids` is every active trigger (`state.sources`) whose `TriggerSource::Osc.addr` matches exactly.
 pub fn osc_targets(shared: &crate::Shared, addr: &str) -> (Vec<String>, Option<String>) {
     if let Some(arm) = learn().lock().ok().and_then(|g| g.clone()) {
         if arm.kind == "osc" {
@@ -216,11 +215,6 @@ pub fn osc_targets(shared: &crate::Shared, addr: &str) -> (Vec<String>, Option<S
             if t.source.matches_osc(addr) {
                 ids.push(t.id.clone());
             }
-        }
-    }
-    for t in &shared.state.preview.triggers {
-        if t.source.matches_osc(addr) {
-            ids.push(t.id.clone());
         }
     }
     (ids, None)

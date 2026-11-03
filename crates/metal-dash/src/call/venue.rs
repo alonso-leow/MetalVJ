@@ -2694,7 +2694,7 @@ fn add_outputs(ctx: &mut Ctx, v: &Venue) {
             (d.output.clone(), d.name.clone(), d.resolution, node)
         }));
     for (id, label, [w, h], node) in wanted {
-        if state.outputs.find(&id).is_some() || id == crate::PREVIEW {
+        if state.outputs.find(&id).is_some() {
             continue;
         }
         let mut out = crate::output::Output::new(&id, &label, w, h);

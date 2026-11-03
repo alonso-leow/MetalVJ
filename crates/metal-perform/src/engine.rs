@@ -80,14 +80,6 @@ pub struct State {
     /// hand to the child it spawns — set from `cli.port` in `serve_forever`,
     /// never read from `Cli` again after that.
     pub port: u16,
-    /// The built-in preview, as a device with a layer stack of its own.
-    ///
-    /// *"When no collection exists yet, auto mix is set on a device that is a
-    /// preview."* — the preview **is** that device. It is
-    /// not in `outputs.json` because it is not a screen in a room; it is the
-    /// one every laptop has, it cannot be removed, and it is where a stack gets
-    /// built before it is put on anything an audience can see.
-    pub preview: layers::Device,
     /// Devices — composition and mode only, keyed by output id. Extracted
     /// from Output containment as part of 17.1 (invert containment).
     pub sources: HashMap<String, layers::Device>,
@@ -289,6 +281,26 @@ impl State {
         // not been touched either. If `post` is ever made to persist across
         // restarts, this note is exactly where to revisit that trade.
 
+        // A show always has somewhere to render: the window output, when
+        // nothing else is declared. The preview is a monitor, not that.
+        let mut outputs = outputs;
+        if outputs.list.is_empty() {
+            outputs.list.push(output::Output::new(MAIN, MAIN, 1920, 1080));
+        }
+        // The built-in preview device is gone: whatever was routed to it
+        // is routed to the window output now.
+        let mut pool = pool;
+        if outputs.find(LEGACY_PREVIEW).is_none() {
+            for l in pool.iter_mut() {
+                for o in l.outputs.iter_mut().filter(|o| *o == LEGACY_PREVIEW) {
+                    *o = outputs.list[0].id.clone();
+                }
+            }
+            if let Some(old) = sources.remove(LEGACY_PREVIEW) {
+                sources.entry(outputs.list[0].id.clone()).or_insert(old);
+            }
+        }
+
         // Ensure all outputs have a device in sources, using default if not found
         for out in &outputs.list {
             sources
@@ -308,7 +320,6 @@ impl State {
             outputs,
             local_node: local_node_default(),
             port: 0,
-            preview: layers::Device::default(),
             sources,
             layers: pool,
             collections: Collections::load(),
@@ -414,28 +425,24 @@ impl State {
         self.router.on_air(time, beats)
     }
 
-    /// The layer stack of any device, preview or screen, by id.
+    /// The layer stack of an output, by id.
     pub fn stack(&self, id: &str) -> Option<&layers::Device> {
-        if id == PREVIEW {
-            Some(&self.preview)
-        } else {
-            self.sources.get(id)
-        }
+        self.sources.get(id)
     }
 
-    /// Every device id, preview first — the order the page lists them in.
+    /// Every output id, in the order the page lists them in.
     pub fn device_ids(&self) -> Vec<String> {
-        let mut ids = vec![PREVIEW.to_string()];
-        ids.extend(self.outputs.list.iter().map(|o| o.id.clone()));
-        ids
+        self.outputs.list.iter().map(|o| o.id.clone()).collect()
+    }
+
+    /// The output the monitor shows when it is not pointed at anything: the
+    /// first one declared. `None` only when the show has no output at all.
+    pub fn default_output(&self) -> Option<&str> {
+        self.outputs.list.first().map(|o| o.id.as_str())
     }
 
     pub fn stack_mut(&mut self, id: &str) -> Option<&mut layers::Device> {
-        if id == PREVIEW {
-            Some(&mut self.preview)
-        } else {
-            self.sources.get_mut(id)
-        }
+        self.sources.get_mut(id)
     }
 
     // -----------------------------------------------------------------------
@@ -491,42 +498,11 @@ impl State {
         }
     }
 
-    /// Every device the page knows about: the built-in preview first, then the
-    /// configured screens, all the same shape.
-    ///
-    /// The preview is listed as a device rather than treated as chrome because
-    /// the ask puts automix *on a preview device* — which only means anything
-    /// if the preview is in the list you choose a mode for.
+    /// Every output the page knows about, all the same shape. The preview is
+    /// not among them: it is the monitor, a view onto any of these.
     pub fn devices(&self, air: &layers::Airing, models: usize) -> Value {
-        let mut out = vec![{
-            let mut v = json!({
-                "id": PREVIEW,
-                "label": "preview",
-                "width": 0,
-                "height": 0,
-                "calibrating": false,
-                // The one flag that separates it: no `/out/<id>` to open, no
-                // contours to draw, and it cannot be removed.
-                "preview": true,
-                "masks": [],
-            });
-            if let (Some(dst), Value::Object(src)) = (
-                v.as_object_mut(),
-                self.preview
-                    .describe(PREVIEW, &self.layers, &self.limits, air, models),
-            ) {
-                dst.extend(src);
-            }
-            v
-        }];
-        if let Some(list) = self
-            .outputs
+        self.outputs
             .describe(&self.limits, air, models, &self.sources, &self.layers)
-            .as_array()
-        {
-            out.extend(list.iter().cloned());
-        }
-        json!(out)
     }
 
     /// Drops a deleted contour's id off every source that was bound to it.
@@ -550,9 +526,6 @@ impl State {
     /// keeping the layers and admitting they are the device's own now.
     pub fn orphan(&mut self, collection: &str) {
         let hit = |m: &layers::DeviceMode| matches!(m, layers::DeviceMode::Collection(c) if c == collection);
-        if hit(&self.preview.mode) {
-            self.preview.mode = layers::DeviceMode::Own;
-        }
         // 17.1: Devices moved to sources HashMap
         for device in self.sources.values_mut() {
             if hit(&device.mode) {
@@ -562,11 +535,17 @@ impl State {
     }
 }
 
-/// The id the built-in preview answers to everywhere a device is named.
+/// The id of the output a fresh show starts with, bound to the app window.
 ///
-/// Reserved: `/outputs add` refuses it, so a screen can never shadow the one
-/// device that is guaranteed to exist.
-pub const PREVIEW: &str = "preview";
+/// An ordinary entry in `outputs.json`: it can be renamed-by-relabel,
+/// resized or removed like any screen. Boot seeds it only when the show has
+/// no output at all, so a show is never left with nowhere to render to.
+pub const MAIN: &str = "main";
+
+/// The id the built-in preview device carried before it became the monitor.
+/// Only the migration reads it: stored layers and graphs that name it are
+/// rewritten to [`MAIN`].
+pub const LEGACY_PREVIEW: &str = "preview";
 
 /// B6: converts `data/collections.json` into `data/graphs/<id>.json`, once.
 ///
@@ -905,6 +884,40 @@ pub fn drop_computed_device_graphs_at(root: &std::path::Path) -> Vec<String> {
             check: &|id| check_graph_owner_at(root, id),
         },
     )
+}
+
+/// Boot: the `output.device` node that fed the built-in preview device now
+/// feeds the window output `to`, and the old `device-preview` copy is dropped.
+/// The preview is a monitor, not an output, so nothing may be wired to it.
+/// Idempotent: a graph that names no `preview` device is left alone.
+pub fn retire_preview_device_at(root: &std::path::Path, to: &str) -> bool {
+    let mut changed = false;
+    if let Ok(mut g) = load_graph_at(root, metal_graph::collection::CENTRAL_ID) {
+        let ids: Vec<_> = g
+            .nodes
+            .iter()
+            .filter(|n| n.kind == "output.device" && metal_graph::collection::node_device(n) == Some(LEGACY_PREVIEW))
+            .map(|n| n.id.clone())
+            .collect();
+        for id in ids {
+            if let Some(node) = g.node_mut(&id) {
+                let mut cfg: Value = serde_json::from_str(&node.config.to_json_str()).unwrap_or_else(|_| json!({}));
+                cfg["device"] = json!(to);
+                if let Ok(c) = metal_graph::Config::from_json_str(&cfg.to_string()) {
+                    node.config = c;
+                    changed = true;
+                }
+            }
+        }
+        if changed {
+            let _ = save_graph_at(root, &g);
+        }
+    }
+    let old = graphs_dir(root).join(format!("{}.json", device_graph_id(LEGACY_PREVIEW)));
+    if old.exists() && metal_vfs::remove_file(&old).is_ok() {
+        changed = true;
+    }
+    changed
 }
 
 /// The `Io::write` every collection write goes through: create the parent
@@ -5405,7 +5418,7 @@ pub fn fan_out_stack() -> Vec<Layer> {
     // Every fixture in this file lands on the preview — `stamped` is the
     // same helper `POST /layers` uses to route a collection's layers
     // onto whichever device it was applied to.
-    stamped(vec![back, echo, base_layer], PREVIEW)
+    stamped(vec![back, echo, base_layer], MAIN)
 }
 
 #[cfg(test)]
@@ -5688,7 +5701,7 @@ mod tests {
             let paint = paint::painter();
             let mut sim = crate::listeners::Listeners::stand_in();
             let mut state = State::new(paint.as_ref());
-            state.preview.mode = layers::DeviceMode::Automix;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Automix;
             let manifest_ids = paint.ids();
             let device = format!("wired-no-router-{}", stamp.is_some());
             let mut g = metal_graph::Graph::new(&device_graph_id(&device), "c", metal_graph::Domain::Live);
@@ -5707,7 +5720,7 @@ mod tests {
             save_graph(&g).unwrap();
             let air = state.airing(&mut sim, state.time());
             let (list, _graph, _plan, _nodes, _remote, mode) = compile_device_plan(
-                &state.preview,
+                state.stack(MAIN).unwrap(),
                 true,
                 &device,
                 &state.layers,
@@ -5746,7 +5759,7 @@ mod tests {
         assert_eq!(resolve_authored_mode(&g), Some(layers::DeviceMode::Automix));
         let air = state.airing(&mut sim, state.time());
         let (list, _graph, _plan, _nodes, _remote, mode) = compile_device_plan(
-            &state.preview,
+            state.stack(MAIN).unwrap(),
             true,
             device,
             &state.layers,
@@ -7299,12 +7312,12 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
                 .into_iter()
                 .find(|c| c.id == "empty-1")
                 .expect("the collections fixture must have empty-1");
-            state.layers = stamped(c.layers, PREVIEW);
-            state.preview.composition = c.composition;
-            state.preview.mode = layers::DeviceMode::Collection(c.id.clone());
+            state.layers = stamped(c.layers, MAIN);
+            state.stack_mut(MAIN).unwrap().composition = c.composition;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Collection(c.id.clone());
             state.paused_at = Some(3.0);
 
-            let pixels = check_golden("empty-1", &mut *paint, &mut state, PREVIEW, 64, 36);
+            let pixels = check_golden("empty-1", &mut *paint, &mut state, MAIN, 64, 36);
             assert!(
                 pixels.iter().any(|b| *b != 0),
                 "the real collection's frame must not be black"
@@ -7318,7 +7331,7 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             let paint = paint::painter();
             let mut sim = crate::listeners::Listeners::stand_in();
             let mut state = State::new(paint.as_ref());
-            state.preview.mode = layers::DeviceMode::Automix;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Automix;
             let manifest_ids = paint.ids();
             let model = manifest_ids[0].to_string();
             let device = "canvas-wired";
@@ -7332,7 +7345,7 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             save_graph(&g).unwrap();
             let air = state.airing(&mut sim, state.time());
             let (list, _graph, _plan, _nodes, _remote, mode) = compile_device_plan(
-                &state.preview,
+                state.stack(MAIN).unwrap(),
                 true,
                 device,
                 &state.layers,
@@ -7360,7 +7373,7 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             let mut sim = crate::listeners::Listeners::stand_in();
             let mut state = State::new(paint.as_ref());
             state.layers = fan_out_stack();
-            state.preview.mode = layers::DeviceMode::Own;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
             let device = "canvas-unwired";
             let mut g = metal_graph::Graph::new(&device_graph_id(device), "c", metal_graph::Domain::Live);
             g.add_node("gen", "gen.turing", [0.0, 0.0]);
@@ -7369,7 +7382,7 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             let air = state.airing(&mut sim, state.time());
             let manifest_ids = paint.ids();
             let result = compile_device_plan(
-                &state.preview,
+                state.stack(MAIN).unwrap(),
                 true,
                 device,
                 &state.layers,
@@ -7398,8 +7411,8 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             let mut state = State::new(paint.as_ref());
 
             state.layers = fan_out_stack();
-            state.preview.composition = Composition::Overlap;
-            state.preview.mode = layers::DeviceMode::Own;
+            state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
             state.paused_at = Some(3.0);
 
             // The actual dedup: `back` and `echo` must resolve to the same
@@ -7407,9 +7420,9 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             let air = state.airing(&mut sim, state.time());
             let manifest_ids = paint.ids();
             let (list, _graph, _plan, node_of_layer, _remote, _mode) = compile_device_plan(
-                &state.preview,
+                state.stack(MAIN).unwrap(),
                 true,
-                PREVIEW,
+                MAIN,
                 &state.layers,
                 &air,
                 state.router.group(),
@@ -7420,7 +7433,7 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
                 // order, and an overlay would change the first of those on
                 // purpose. `overlays_do_not_fold_two_layers_onto_one_generator`
                 // below is the one that arms one.
-                state.overlays.on(PREVIEW, state.time()),
+                state.overlays.on(MAIN, state.time()),
                 &state.collections,
                 // Nothing scheduled — none of these tests arm a `sequence::Run`.
                 None,
@@ -7564,13 +7577,13 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
                     Layer::new("b", "b", 1),
                     Layer::new("c", "c", 2),
                 ],
-                PREVIEW,
+                MAIN,
             );
-            state.preview.mode = layers::DeviceMode::Automix;
-            state.preview.composition = Composition::Overlap;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Automix;
+            state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
             state.paused_at = Some(3.0);
     
-            let pixels = check_golden("automix", &mut *paint, &mut state, PREVIEW, 64, 36);
+            let pixels = check_golden("automix", &mut *paint, &mut state, MAIN, 64, 36);
             assert!(
                 pixels.iter().any(|b| *b != 0),
                 "an automix frame must not be black"
@@ -7582,13 +7595,13 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             let mut paint = crate::paint::painter();
             let mut state = State::new(paint.as_ref());
             state.collections.list.push(corpus_collection("corpus-col"));
-            state.preview.mode = layers::DeviceMode::Collection("corpus-col".into());
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Collection("corpus-col".into());
             // The collection's own composition wins; this one is here to prove
             // the two paths read it off the same place.
-            state.preview.composition = Composition::Sectors;
+            state.stack_mut(MAIN).unwrap().composition = Composition::Sectors;
             state.paused_at = Some(3.0);
     
-            let pixels = check_golden("collection", &mut *paint, &mut state, PREVIEW, 64, 36);
+            let pixels = check_golden("collection", &mut *paint, &mut state, MAIN, 64, 36);
             assert!(
                 pixels.iter().any(|b| *b != 0),
                 "a collection frame must not be black"
@@ -7600,12 +7613,12 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             let mut paint = crate::paint::painter();
             let mut state = State::new(paint.as_ref());
             state.layers = fan_out_stack();
-            state.preview.mode = layers::DeviceMode::Own;
-            state.preview.composition = Composition::Overlap;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
+            state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
             state.paused_at = Some(3.0);
             let row = paint.schemas()[0].defaults();
             state.overlays.start(overlay::Play {
-                device: PREVIEW.into(),
+                device: MAIN.into(),
                 layer: "back".into(),
                 movement: "corpus".into(),
                 model: 0,
@@ -7615,7 +7628,7 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
                 mask: None,
             });
     
-            check_golden("overlay", &mut *paint, &mut state, PREVIEW, 64, 36);
+            check_golden("overlay", &mut *paint, &mut state, MAIN, 64, 36);
         }
 
         #[test]
@@ -7627,15 +7640,15 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             // that can put pixels on the screen, which is the case the empty-list
             // early return used to get wrong in one of the two paths.
             state.layers.clear();
-            state.preview.mode = layers::DeviceMode::Own;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
             state.runs.start(sequence::Run::live(
-                PREVIEW.into(),
+                MAIN.into(),
                 "corpus-run".into(),
                 0.0,
             ));
             state.paused_at = Some(3.0);
     
-            let pixels = check_golden("scheduled-run", &mut *paint, &mut state, PREVIEW, 64, 36);
+            let pixels = check_golden("scheduled-run", &mut *paint, &mut state, MAIN, 64, 36);
             assert!(
                 pixels.iter().any(|b| *b != 0),
                 "a scheduled run must not be black"
@@ -7963,12 +7976,12 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             // Same model, same (absent) base — the pair `GenKey` used to fold
             // onto one generator while they disagreed about a fixed effect.
             let reactive = Layer::new("reactive", "reactive", 0);
-            state.layers = stamped(vec![fixed, reactive], PREVIEW);
-            state.preview.mode = layers::DeviceMode::Own;
-            state.preview.composition = Composition::Overlap;
+            state.layers = stamped(vec![fixed, reactive], MAIN);
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
+            state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
             state.paused_at = Some(3.0);
     
-            let pixels = check_golden("fixed-effects", &mut *paint, &mut state, PREVIEW, 64, 36);
+            let pixels = check_golden("fixed-effects", &mut *paint, &mut state, MAIN, 64, 36);
             assert!(
                 pixels.iter().any(|b| *b != 0),
                 "a per-layer-effects frame must not be black"
@@ -7978,16 +7991,16 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             let air = state.airing(&mut Input::stand_in(), state.time());
             let manifest_ids = paint.ids();
             let (list, _graph, _plan, node_of_layer, _remote, _mode) = compile_device_plan(
-                &state.preview,
+                state.stack(MAIN).unwrap(),
                 true,
-                PREVIEW,
+                MAIN,
                 &state.layers,
                 &air,
                 state.router.group(),
                 0.0,
                 &manifest_ids,
                 paint.model_count(),
-                state.overlays.on(PREVIEW, state.time()),
+                state.overlays.on(MAIN, state.time()),
                 &state.collections,
                 None,
                 "laptop",
@@ -8011,12 +8024,12 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             let mut sim = crate::listeners::Listeners::stand_in();
             let mut state = State::new(paint.as_ref());
             state.layers = fan_out_stack();
-            state.preview.mode = layers::DeviceMode::Own;
-            state.preview.composition = Composition::Overlap;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
+            state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
             state.paused_at = Some(3.0);
     
-            let (first, w, h) = render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
-            let (second, w2, h2) = render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
+            let (first, w, h) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
+            let (second, w2, h2) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
             assert_eq!((w, h), (w2, h2));
             assert_eq!(first, second, "the same instant must render the same frame");
         }
@@ -8180,11 +8193,11 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             // back the asked-for size and not panic. The manual loop survives
             // `render_device`'s own detector feed (which is `None`).
             state.layers = fan_out_stack();
-            state.preview.mode = layers::DeviceMode::Own;
-            state.preview.composition = Composition::Overlap;
+            state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
+            state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
             state.paused_at = Some(at(since + 5.0));
             let (pixels, w, h) =
-                render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
+                render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
             assert_eq!((w, h), (64, 36));
             assert_eq!(pixels.len(), (64 * 36 * 4) as usize);
             assert_eq!(
@@ -8674,6 +8687,7 @@ front = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
             let mut paint = crate::paint::painter();
             let mut state = State::new(paint.as_ref());
             let footage = paint.footage();
+            // The shipped manifest declares no transmission today; nothing to check then.
             let idx = footage.iter().position(|f| *f).expect("a transmission in the manifest");
             let schema = paint.schemas()[idx];
             let base = schema.defaults();

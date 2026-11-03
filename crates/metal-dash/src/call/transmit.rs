@@ -766,7 +766,6 @@ fn learn_trigger(ctx: &mut Ctx, trigger_id: &str, body: Value) -> Result<Value, 
             .state
             .sources
             .values()
-            .chain(std::iter::once(&ctx.state.preview))
             .flat_map(|d| d.triggers.iter())
             .any(|t| t.id != trigger_id && t.source == source);
         if let Some(dev) = ctx.state.sources.get_mut(&device_id) {
@@ -839,7 +838,7 @@ pub fn trigger(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         // {op:"play"}` runs, through the same fn (`super::overlay::play`).
         target if target.starts_with("overlay-") => {
             let movement = target.trim_start_matches("overlay-");
-            let device = trigger.params["device"].as_str().unwrap_or(crate::PREVIEW);
+            let device = trigger.params["device"].as_str().ok_or_else(|| CallError::Bad("which output".into()))?;
             let layer = trigger.params["layer"].as_str().ok_or_else(|| {
                 CallError::Bad(format!(
                     "trigger {trigger_id:?}: an overlay trigger needs a layer in params"
@@ -858,7 +857,7 @@ pub fn trigger(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
                 .params
                 .get("device")
                 .and_then(Value::as_str)
-                .unwrap_or(crate::PREVIEW)
+                .ok_or_else(|| CallError::Bad("which output".into()))?
                 .to_string();
             super::sequences::run(ctx, &id, &device)?;
         }

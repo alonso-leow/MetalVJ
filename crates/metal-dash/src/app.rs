@@ -22,7 +22,7 @@ use crate::listeners::Listeners;
 use crate::output::Output;
 use crate::paint::Paint;
 use crate::store::Store;
-use crate::{call, layers, output, stamped, write_device_mode_at, State, PREVIEW};
+use crate::{call, layers, output, stamped, write_device_mode_at, State};
 use metal_web::Request;
 
 /// Owns the absorbed studio's state and answers `/author/*`.
@@ -1294,7 +1294,7 @@ pub fn apply_post_op(state: &mut State, sim: &mut Listeners, body: &Value) {
 /// against the pool, then flip `stack.mode` off automix) cannot hold one
 /// `&mut Device` borrow across a `state.layers` mutation — it has to ask for
 /// the device again after it is done with the pool. Cheap (a `HashMap`
-/// lookup or the `PREVIEW` special case) and exactly what the original
+/// lookup) and exactly what the original
 /// "mode" arm already did twice within itself, so this is not a new shape,
 /// just a more consistent use of the one that was already here.
 ///
@@ -1310,7 +1310,16 @@ pub fn apply_layers_op(
     limits: Limits,
     body: &Value,
 ) -> Result<Option<Layer>, String> {
-    let device = body["device"].as_str().unwrap_or(PREVIEW).to_string();
+    // The output is named, or implied by the layer the op is about (its first
+    // output); never a default.
+    let device = body["device"]
+        .as_str()
+        .map(str::to_string)
+        .or_else(|| {
+            let lid = body["layer"].as_str()?;
+            state.layers.iter().find(|l| l.id == lid)?.outputs.first().cloned()
+        })
+        .ok_or("which output")?;
     let op = body["op"].as_str().unwrap_or_default().to_string();
 
     // Resolved before anything else, because applying a collection reads one

@@ -407,6 +407,8 @@ fn serve_forever(
     crate::merge_device_collections_at(&crate::output::data_root());
     // Its screens are computed from it now: drop the copies it used to write.
     crate::drop_computed_device_graphs_at(&crate::output::data_root());
+    // The built-in preview device is gone; its output node feeds the window output.
+    crate::retire_preview_device_at(&crate::output::data_root(), crate::MAIN);
     // Libraries move onto the one clip slug and the one proxy folder; once, then
     // a no-op (the old index and picks are kept as `.bak-slug`).
     let moved = metal_reel::index::migrate_to_one_slug(&crate::output::data_root());
@@ -2780,10 +2782,10 @@ mod tests {
         let mut fixed = Layer::new("fixed", "fixed", 0);
         fixed.effects.shake = 0.6;
         fixed.fijo_mask = 1 << 0; // bit 0 — shake, apply_node_post's own order
-        fixed.outputs = vec![PREVIEW.to_string()];
+        fixed.outputs = vec![MAIN.to_string()];
 
         let mut reactive = Layer::new("reactive", "reactive", 0);
-        reactive.outputs = vec![PREVIEW.to_string()];
+        reactive.outputs = vec![MAIN.to_string()];
         // `reactive.effects`/`fijo_mask` stay at `Layer::new`'s own
         // defaults — `Post::default()` and 0 — i.e. fully reactive.
 
@@ -2902,7 +2904,7 @@ mod tests {
     /// frozen clock the fixtures use.
     fn arm(state: &mut State, layer: &str, model: usize, row: Vec<f32>) {
         state.overlays.start(overlay::Play {
-            device: PREVIEW.to_string(),
+            device: MAIN.to_string(),
             layer: layer.to_string(),
             movement: "fixture".into(),
             model,
@@ -2928,7 +2930,7 @@ mod tests {
         let mut sim = Listeners::stand_in();
         let mut state = State::new(paint.as_ref());
         state.layers = fan_out_stack();
-        state.preview.mode = layers::DeviceMode::Own;
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
 
         arm(&mut state, "back", 0, extreme_row(paint.schemas()[0]));
@@ -2936,16 +2938,16 @@ mod tests {
         let air = state.airing(&mut sim, state.time());
         let manifest_ids = paint.ids();
         let (list, _graph, _plan, node_of_layer, _remote, _mode) = compile_device_plan(
-            &state.preview,
+            state.stack(MAIN).unwrap(),
             true,
-            PREVIEW,
+            MAIN,
             &state.layers,
             &air,
             state.router.group(),
             0.0,
             &manifest_ids,
             paint.model_count(),
-            state.overlays.on(PREVIEW, state.time()),
+            state.overlays.on(MAIN, state.time()),
             &state.collections,
             // Nothing scheduled — none of these tests arm a `sequence::Run`.
             None,
@@ -2978,11 +2980,11 @@ mod tests {
         let mut sim = Listeners::stand_in();
         let mut state = State::new(paint.as_ref());
         state.layers = fan_out_stack();
-        state.preview.composition = Composition::Overlap;
-        state.preview.mode = layers::DeviceMode::Own;
+        state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
 
-        let (resting, w, h) = render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
+        let (resting, w, h) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
 
         let row = extreme_row(paint.schemas()[0]);
         assert_ne!(
@@ -2992,7 +2994,7 @@ mod tests {
         );
         arm(&mut state, "back", 0, row);
 
-        let (played, w2, h2) = render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 64, 36);
+        let (played, w2, h2) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
         assert_eq!((w, h), (w2, h2));
         assert_ne!(
             resting, played,
@@ -3014,12 +3016,12 @@ mod tests {
         let mut sim = Listeners::stand_in();
         let mut state = State::new(paint.as_ref());
         state.layers = fan_out_stack();
-        state.preview.mode = layers::DeviceMode::Own;
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
-        let pixels = render_source(&mut *paint, &mut sim, &mut state, PREVIEW, "back", 32, 18)
+        let pixels = render_source(&mut *paint, &mut sim, &mut state, MAIN, "back", 32, 18)
             .expect("the layer exists");
         let frame =
-            render_source_texture(&mut *paint, &mut sim, &mut state, PREVIEW, "back", 32, 18)
+            render_source_texture(&mut *paint, &mut sim, &mut state, MAIN, "back", 32, 18)
                 .expect("a GPU painter keeps the source as a texture");
         assert_eq!((frame.width(), frame.height()), (pixels.1, pixels.2));
         let texture = paint.readback(&frame);
@@ -3043,13 +3045,13 @@ mod tests {
         let mut sim = Listeners::stand_in();
         let mut state = State::new(paint.as_ref());
         state.layers = fan_out_stack();
-        state.preview.mode = layers::DeviceMode::Own;
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
 
-        let resting = render_source(&mut *paint, &mut sim, &mut state, PREVIEW, "back", 32, 18)
+        let resting = render_source(&mut *paint, &mut sim, &mut state, MAIN, "back", 32, 18)
             .expect("the layer exists");
         arm(&mut state, "back", 0, extreme_row(paint.schemas()[0]));
-        let played = render_source(&mut *paint, &mut sim, &mut state, PREVIEW, "back", 32, 18)
+        let played = render_source(&mut *paint, &mut sim, &mut state, MAIN, "back", 32, 18)
             .expect("the layer exists");
         assert_ne!(
             resting.0, played.0,
@@ -3058,9 +3060,9 @@ mod tests {
 
         // The layer with nothing armed is untouched, which is what says the
         // lookup is by layer and not by device.
-        let a = render_source(&mut *paint, &mut sim, &mut state, PREVIEW, "echo", 32, 18);
+        let a = render_source(&mut *paint, &mut sim, &mut state, MAIN, "echo", 32, 18);
         arm(&mut state, "back", 0, paint.schemas()[0].defaults());
-        let b = render_source(&mut *paint, &mut sim, &mut state, PREVIEW, "echo", 32, 18);
+        let b = render_source(&mut *paint, &mut sim, &mut state, MAIN, "echo", 32, 18);
         assert_eq!(
             a, b,
             "a movement on one layer must not move another one's picture"
@@ -3078,16 +3080,16 @@ mod tests {
         let mut state = State::new(paint.as_ref());
 
         state.layers = fan_out_stack();
-        state.preview.composition = Composition::Overlap;
-        state.preview.mode = layers::DeviceMode::Own;
+        state.stack_mut(MAIN).unwrap().composition = Composition::Overlap;
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
 
         let air = state.airing(&mut sim, state.time());
         let manifest_ids = paint.ids();
         let (list, graph, plan, node_of_layer, _remote, _mode) = compile_device_plan(
-            &state.preview,
+            state.stack(MAIN).unwrap(),
             true,
-            PREVIEW,
+            MAIN,
             &state.layers,
             &air,
             state.router.group(),
@@ -3098,7 +3100,7 @@ mod tests {
             // order, and an overlay would change the first of those on
             // purpose. `overlays_do_not_fold_two_layers_onto_one_generator`
             // below is the one that arms one.
-            state.overlays.on(PREVIEW, state.time()),
+            state.overlays.on(MAIN, state.time()),
             &state.collections,
             // Nothing scheduled — none of these tests arm a `sequence::Run`.
             None,
@@ -3346,7 +3348,7 @@ mod tests {
         let paint = paint::painter();
         let mut sim = Listeners::stand_in();
         let mut state = State::new(paint.as_ref());
-        state.preview.mode = layers::DeviceMode::Own;
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
         let models = paint.model_count();
         let limits = state.limits;
@@ -3356,7 +3358,7 @@ mod tests {
             models,
             limits,
             &json!({
-                "op": "add", "device": PREVIEW, "model": 0,
+                "op": "add", "device": MAIN, "model": 0,
             }),
         )
         .expect("add must succeed");
@@ -3385,23 +3387,23 @@ mod tests {
         assert_ne!(copy.id, original_id, "the copy must have its own id");
         assert_eq!(
             copy.outputs,
-            vec![PREVIEW.to_string()],
+            vec![MAIN.to_string()],
             "no device named in the request — the copy inherits the original's own destination"
         );
 
         let air = state.airing(&mut sim, state.time());
         let manifest_ids = paint.ids();
         let (list, graph, plan, node_of_layer, _remote, _mode) = compile_device_plan(
-            &state.preview,
+            state.stack(MAIN).unwrap(),
             true,
-            PREVIEW,
+            MAIN,
             &state.layers,
             &air,
             state.router.group(),
             0.0,
             &manifest_ids,
             models,
-            state.overlays.on(PREVIEW, state.time()),
+            state.overlays.on(MAIN, state.time()),
             &state.collections,
             // Nothing scheduled — none of these tests arm a `sequence::Run`.
             None,
@@ -3468,7 +3470,7 @@ mod tests {
             models,
             limits,
             &json!({
-                "op": "add", "device": PREVIEW, "model": 0,
+                "op": "add", "device": MAIN, "model": 0,
             }),
         )
         .expect("add must succeed");
@@ -3623,13 +3625,13 @@ mod tests {
             models,
             limits,
             &json!({
-                "op": "mode", "device": PREVIEW, "mode": "collection", "collection": "night-1",
+                "op": "mode", "device": MAIN, "mode": "collection", "collection": "night-1",
             }),
         )
         .expect("selecting an existing collection must succeed");
 
         assert_eq!(
-            state.stack(PREVIEW).unwrap().mode,
+            state.stack(MAIN).unwrap().mode,
             layers::DeviceMode::Collection("night-1".to_string()),
             "the dropdown must record which collection is selected"
         );
@@ -3641,16 +3643,16 @@ mod tests {
         let manifest_ids = paint.ids();
         let air = state.airing(&mut sim, state.time());
         let (list, _graph, _plan, _node_of_layer, _remote, _mode) = compile_device_plan(
-            state.stack(PREVIEW).unwrap(),
+            state.stack(MAIN).unwrap(),
             true,
-            PREVIEW,
+            MAIN,
             &state.layers,
             &air,
             state.router.group(),
             0.0,
             &manifest_ids,
             models,
-            state.overlays.on(PREVIEW, state.time()),
+            state.overlays.on(MAIN, state.time()),
             &state.collections,
             // Nothing scheduled — none of these tests arm a `sequence::Run`.
             None,
@@ -3676,16 +3678,16 @@ mod tests {
 
         let air = state.airing(&mut sim, state.time());
         let (list, _graph, _plan, _node_of_layer, _remote, _mode) = compile_device_plan(
-            state.stack(PREVIEW).unwrap(),
+            state.stack(MAIN).unwrap(),
             true,
-            PREVIEW,
+            MAIN,
             &state.layers,
             &air,
             state.router.group(),
             0.0,
             &manifest_ids,
             models,
-            state.overlays.on(PREVIEW, state.time()),
+            state.overlays.on(MAIN, state.time()),
             &state.collections,
             // Nothing scheduled — none of these tests arm a `sequence::Run`.
             None,
@@ -3739,14 +3741,14 @@ mod tests {
             models,
             limits,
             &json!({
-                "op": "mode", "device": PREVIEW, "mode": "collection", "collection": "duo-1",
+                "op": "mode", "device": MAIN, "mode": "collection", "collection": "duo-1",
             }),
         )
         .expect("selecting an existing collection must succeed");
         state.paused_at = Some(3.0);
 
         let (sectors_frame, _w, _h) =
-            render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 16, 16);
+            render_device(&mut *paint, &mut sim, &mut state, MAIN, 16, 16);
 
         state
             .collections
@@ -3757,7 +3759,7 @@ mod tests {
             .composition = Composition::Overlap;
 
         let (overlap_frame, _w, _h) =
-            render_device(&mut *paint, &mut sim, &mut state, PREVIEW, 16, 16);
+            render_device(&mut *paint, &mut sim, &mut state, MAIN, 16, 16);
 
         assert_ne!(
             sectors_frame, overlap_frame,
@@ -3791,13 +3793,13 @@ mod tests {
             models,
             limits,
             &json!({
-                "op": "apply", "device": PREVIEW, "collection": "night-1",
+                "op": "apply", "device": MAIN, "collection": "night-1",
             }),
         )
         .expect("applying an existing collection must succeed");
 
         assert_eq!(
-            state.stack(PREVIEW).unwrap().mode,
+            state.stack(MAIN).unwrap().mode,
             layers::DeviceMode::Own,
             "apply must fork into an editable stack, not leave the device pointed at the \
              collection it forked from"
@@ -3829,7 +3831,7 @@ mod tests {
         let models = paint.model_count();
         let limits = state.limits;
 
-        let mode_before = state.stack(PREVIEW).unwrap().mode.clone();
+        let mode_before = state.stack(MAIN).unwrap().mode.clone();
         let layers_before = state.layers.len();
 
         let err = apply_layers_op(
@@ -3837,7 +3839,7 @@ mod tests {
             models,
             limits,
             &json!({
-                "op": "mode", "device": PREVIEW, "mode": "collection", "collection": "ghost",
+                "op": "mode", "device": MAIN, "mode": "collection", "collection": "ghost",
             }),
         )
         .expect_err("a collection that does not exist must be rejected");
@@ -3847,7 +3849,7 @@ mod tests {
         );
 
         assert_eq!(
-            state.stack(PREVIEW).unwrap().mode,
+            state.stack(MAIN).unwrap().mode,
             mode_before,
             "a rejected selection must not change the device's mode"
         );
@@ -3949,13 +3951,13 @@ mod tests {
             .find("empty-1")
             .expect("the empty-1 fixture")
             .clone();
-        state.layers = stamped(c.layers, PREVIEW);
-        state.preview.mode = layers::DeviceMode::Collection(c.id.clone());
+        state.layers = stamped(c.layers, MAIN);
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Collection(c.id.clone());
         state.paused_at = Some(3.0);
         let air = state.airing(sim, state.time());
         let models = paint.model_count();
         let ids = paint.ids();
-        let list: Vec<Layer> = layers::layers_on(&state.layers, PREVIEW)
+        let list: Vec<Layer> = layers::layers_on(&state.layers, MAIN)
             .into_iter()
             .cloned()
             .collect();
@@ -3974,7 +3976,7 @@ mod tests {
         let (list, air, models, ids) = stack_for_authored(paint.as_ref(), &mut state, &mut sim);
         let root = graph_scratch("absent");
         assert!(
-            authored_device_plan_at(&root, PREVIEW, &list, &air, models, &ids).is_none(),
+            authored_device_plan_at(&root, MAIN, &list, &air, models, &ids).is_none(),
             "an empty graph directory must decline, not half-answer"
         );
     }
@@ -3991,10 +3993,10 @@ mod tests {
         let root = graph_scratch("match");
 
         let showing: Vec<&str> = list.iter().map(|l| ids[l.showing(&air, models)]).collect();
-        save_graph_at(&root, &authored(PREVIEW, &showing)).expect("save");
+        save_graph_at(&root, &authored(MAIN, &showing)).expect("save");
 
         let (out_list, graph, _plan, node_of_layer) =
-            authored_device_plan_at(&root, PREVIEW, &list, &air, models, &ids)
+            authored_device_plan_at(&root, MAIN, &list, &air, models, &ids)
                 .expect("a graph that names exactly what is showing must be used");
         assert_eq!(node_of_layer.len(), list.len(), "one node per layer");
         assert_eq!(
@@ -4028,10 +4030,10 @@ mod tests {
             .copied()
             .expect("more than one model");
         showing[0] = other;
-        save_graph_at(&root, &authored(PREVIEW, &showing)).expect("save");
+        save_graph_at(&root, &authored(MAIN, &showing)).expect("save");
 
         assert!(
-            authored_device_plan_at(&root, PREVIEW, &list, &air, models, &ids).is_none(),
+            authored_device_plan_at(&root, MAIN, &list, &air, models, &ids).is_none(),
             "a graph that disagrees with what is showing must decline, not draw its own idea"
         );
     }
@@ -4055,9 +4057,9 @@ mod tests {
             .take(list.len() - 1)
             .map(|l| ids[l.showing(&air, models)])
             .collect();
-        save_graph_at(&root, &authored(PREVIEW, &showing)).expect("save");
+        save_graph_at(&root, &authored(MAIN, &showing)).expect("save");
         assert!(
-            authored_device_plan_at(&root, PREVIEW, &list, &air, models, &ids).is_none(),
+            authored_device_plan_at(&root, MAIN, &list, &air, models, &ids).is_none(),
             "one generator short must fall back, not drop a layer"
         );
     }
@@ -4073,10 +4075,10 @@ mod tests {
         let (list, air, models, ids) = stack_for_authored(paint.as_ref(), &mut state, &mut sim);
         let root = graph_scratch("offline");
         let showing: Vec<&str> = list.iter().map(|l| ids[l.showing(&air, models)]).collect();
-        let mut g = authored(PREVIEW, &showing);
+        let mut g = authored(MAIN, &showing);
         g.domain = metal_graph::Domain::Offline;
         save_graph_at(&root, &g).expect("save");
-        assert!(authored_device_plan_at(&root, PREVIEW, &list, &air, models, &ids).is_none());
+        assert!(authored_device_plan_at(&root, MAIN, &list, &air, models, &ids).is_none());
     }
 
     /// B3 paso 4's own pixel-identity gate: a graph with generators but no
@@ -4091,10 +4093,10 @@ mod tests {
         let (list, air, models, ids) = stack_for_authored(paint.as_ref(), &mut state, &mut sim);
         let root = graph_scratch("no-config");
         let showing: Vec<&str> = list.iter().map(|l| ids[l.showing(&air, models)]).collect();
-        save_graph_at(&root, &authored(PREVIEW, &showing)).expect("save");
+        save_graph_at(&root, &authored(MAIN, &showing)).expect("save");
 
         let (out_list, _graph, _plan, _node_of_layer) =
-            authored_device_plan_at(&root, PREVIEW, &list, &air, models, &ids)
+            authored_device_plan_at(&root, MAIN, &list, &air, models, &ids)
                 .expect("a graph that names exactly what is showing must be used");
         assert_eq!(
             out_list, list,
@@ -4117,7 +4119,7 @@ mod tests {
         );
         let root = graph_scratch("node-config");
         let showing: Vec<&str> = list.iter().map(|l| ids[l.showing(&air, models)]).collect();
-        let mut g = authored(PREVIEW, &showing);
+        let mut g = authored(MAIN, &showing);
 
         let gens = authored_generators(&g);
         let cfg = node_layer::NodeLayerConfig {
@@ -4137,7 +4139,7 @@ mod tests {
         save_graph_at(&root, &g).expect("save");
 
         let (out_list, _graph, _plan, _node_of_layer) =
-            authored_device_plan_at(&root, PREVIEW, &list, &air, models, &ids)
+            authored_device_plan_at(&root, MAIN, &list, &air, models, &ids)
                 .expect("a graph that names exactly what is showing must be used");
         let before = &list[0];
         let after = &out_list[0];
@@ -4342,22 +4344,22 @@ mod tests {
         let mut sim = Listeners::stand_in();
         let mut state = State::new(paint.as_ref());
         state.layers = fan_out_stack();
-        state.preview.mode = layers::DeviceMode::Own;
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
 
         let air = state.airing(&mut sim, state.time());
         let manifest_ids = paint.ids();
         let result = compile_device_plan(
-            &state.preview,
+            state.stack(MAIN).unwrap(),
             false,
-            PREVIEW,
+            MAIN,
             &state.layers,
             &air,
             state.router.group(),
             0.0,
             &manifest_ids,
             paint.model_count(),
-            state.overlays.on(PREVIEW, state.time()),
+            state.overlays.on(MAIN, state.time()),
             &state.collections,
             None,
             "laptop",
@@ -4383,7 +4385,7 @@ mod tests {
     /// always composes on whichever machine is running it.
     #[test]
     fn a_screen_with_no_output_entry_is_the_preview_and_composes_here() {
-        assert!(composes_here(&Outputs::default(), PREVIEW, "laptop"));
+        assert!(composes_here(&Outputs::default(), MAIN, "laptop"));
     }
 
     // -----------------------------------------------------------------------
@@ -4412,7 +4414,7 @@ mod tests {
     /// The preview has no `Output` entry at all, so it is never ceded.
     #[test]
     fn a_screen_with_no_output_entry_is_the_preview_and_is_never_ceded() {
-        assert!(!is_ceded(&Outputs::default(), PREVIEW));
+        assert!(!is_ceded(&Outputs::default(), MAIN));
     }
 
     /// `render_device`'s own guard mirrors `compile_device_plan`'s: a device
@@ -4540,31 +4542,31 @@ mod tests {
         let mut pinned_state = State::new(paint.as_ref());
         let mut layer = Layer::new("solo", "solo", 0);
         layer.render_on = layers::RenderOn::Node("laptop".to_string());
-        pinned_state.layers = stamped(vec![layer], PREVIEW);
-        pinned_state.preview.mode = layers::DeviceMode::Own;
+        pinned_state.layers = stamped(vec![layer], MAIN);
+        pinned_state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         pinned_state.paused_at = Some(3.0);
 
         let mut each_state = State::new(paint.as_ref());
         let mut layer = Layer::new("solo", "solo", 0);
         layer.render_on = layers::RenderOn::Each;
-        each_state.layers = stamped(vec![layer], PREVIEW);
-        each_state.preview.mode = layers::DeviceMode::Own;
+        each_state.layers = stamped(vec![layer], MAIN);
+        each_state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         each_state.paused_at = Some(3.0);
 
         let manifest_ids = paint.ids();
         let air = pinned_state.airing(&mut sim, pinned_state.time());
         let (_list, pinned_graph, _plan, _node_of_layer, pinned_remote, _mode) =
             compile_device_plan(
-                &pinned_state.preview,
+                pinned_state.stack(MAIN).unwrap(),
                 true,
-                PREVIEW,
+                MAIN,
                 &pinned_state.layers,
                 &air,
                 pinned_state.router.group(),
                 0.0,
                 &manifest_ids,
                 paint.model_count(),
-                pinned_state.overlays.on(PREVIEW, pinned_state.time()),
+                pinned_state.overlays.on(MAIN, pinned_state.time()),
                 &pinned_state.collections,
                 None,
                 "laptop",
@@ -4573,16 +4575,16 @@ mod tests {
 
         let air = each_state.airing(&mut sim, each_state.time());
         let (_list, each_graph, _plan, _node_of_layer, each_remote, _mode) = compile_device_plan(
-            &each_state.preview,
+            each_state.stack(MAIN).unwrap(),
             true,
-            PREVIEW,
+            MAIN,
             &each_state.layers,
             &air,
             each_state.router.group(),
             0.0,
             &manifest_ids,
             paint.model_count(),
-            each_state.overlays.on(PREVIEW, each_state.time()),
+            each_state.overlays.on(MAIN, each_state.time()),
             &each_state.collections,
             None,
             "laptop",
@@ -4613,23 +4615,23 @@ mod tests {
         here.render_on = layers::RenderOn::Each;
         let mut elsewhere = Layer::new("elsewhere", "elsewhere", 0);
         elsewhere.render_on = layers::RenderOn::Node("pi".to_string());
-        state.layers = stamped(vec![here, elsewhere], PREVIEW);
-        state.preview.mode = layers::DeviceMode::Own;
+        state.layers = stamped(vec![here, elsewhere], MAIN);
+        state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
 
         let air = state.airing(&mut sim, state.time());
         let manifest_ids = paint.ids();
         let (list, _graph, _plan, _node_of_layer, remote, _mode) = compile_device_plan(
-            &state.preview,
+            state.stack(MAIN).unwrap(),
             true,
-            PREVIEW,
+            MAIN,
             &state.layers,
             &air,
             state.router.group(),
             0.0,
             &manifest_ids,
             paint.model_count(),
-            state.overlays.on(PREVIEW, state.time()),
+            state.overlays.on(MAIN, state.time()),
             &state.collections,
             None,
             "laptop",

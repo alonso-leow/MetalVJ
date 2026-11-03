@@ -73,6 +73,8 @@ fn boot(paint: Box<dyn Paint>) -> Shared {
     crate::adopt_device_graphs_at(&crate::output::data_root());
     crate::merge_device_collections_at(&crate::output::data_root());
     crate::drop_computed_device_graphs_at(&crate::output::data_root());
+    // The built-in preview device is gone; its output node feeds the window output.
+    crate::retire_preview_device_at(&crate::output::data_root(), crate::MAIN);
     shared.state.port = 0;
     shared
 }

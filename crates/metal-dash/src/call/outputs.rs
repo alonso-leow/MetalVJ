@@ -9,7 +9,6 @@ use serde_json::{json, Value};
 use crate::call::{CallError, Ctx, Params};
 use crate::layers::{Collection, Layer};
 use crate::output::{BoolOp, Compose, Mask, MaskStroke, Output};
-use crate::PREVIEW;
 
 pub fn outputs(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let Some(body) = params.json() else {
@@ -21,9 +20,6 @@ pub fn outputs(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         "add" => {
             if id.is_empty() {
                 return Err(CallError::Bad("a device needs an id".into()));
-            }
-            if id == PREVIEW {
-                return Err(CallError::Bad("that id is reserved for the preview".into()));
             }
             if state.outputs.find(&id).is_none() {
                 let label = body["label"].as_str().unwrap_or(&id).to_string();
@@ -334,7 +330,7 @@ pub fn layers(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     // pool when the device renders (`NodeLayerConfig::apply_to`). Syncing
     // only `device` left the other copy stale: a source moved through device
     // A kept drawing at its old place on device B.
-    let device = body["device"].as_str().unwrap_or(PREVIEW).to_string();
+    let device = body["device"].as_str().ok_or_else(|| CallError::Bad("which output".into()))?.to_string();
     let after = lid
         .as_deref()
         .and_then(|l| ctx.state.layers.iter().find(|x| x.id == l))
@@ -394,7 +390,7 @@ pub fn collections(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let state = &mut *ctx.state;
     match body["op"].as_str().unwrap_or_default() {
         "save" => {
-            let device = body["device"].as_str().unwrap_or(PREVIEW).to_string();
+            let device = body["device"].as_str().ok_or_else(|| CallError::Bad("which output".into()))?.to_string();
             let name = body["name"].as_str().unwrap_or("collection").to_string();
             let Some(stack) = state.stack(&device) else {
                 return Err(CallError::Bad("no such device".into()));

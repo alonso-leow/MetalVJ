@@ -771,7 +771,6 @@ impl Shell {
             .into_iter()
             .flatten()
             .filter_map(|o| o["id"].as_str())
-            .filter(|id| *id != crate::PREVIEW)
             .map(str::to_string)
             .collect();
         for id in devices {

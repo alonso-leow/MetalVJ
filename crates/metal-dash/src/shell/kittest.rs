@@ -4047,7 +4047,7 @@ mod tests {
             "/state",
             serde_json::json!({
                 "running": false,
-                "outputs": [{ "id": "device-A" }, { "id": "device-B" }, { "id": crate::PREVIEW }],
+                "outputs": [{ "id": "device-A" }, { "id": "device-B" }],
             }),
         );
         let mut shell = Shell::new(Theme::phosphor(), Box::new(std::rc::Rc::clone(&door)));
@@ -4064,7 +4064,7 @@ mod tests {
                         .to_string()
                 })
                 .collect();
-            assert_eq!(monitors, ["device-A", "device-B"], "one per real output, never the preview");
+            assert_eq!(monitors, ["device-A", "device-B"], "one per real output");
             let transports = calls.iter().filter(|(m, p, _)| m == "POST" && p == "/transport").count();
             assert_eq!(transports, 1, "a frozen clock is unfrozen on entry");
         }

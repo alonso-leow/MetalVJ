@@ -245,12 +245,26 @@ fn image(params: &Params, pixels: Vec<u8>, w: u32, h: u32) -> Result<Bytes, Call
     Ok(codec.encode(&pixels, w, h))
 }
 
+/// What the monitor is pointed at: a source (`device` + `layer`, in the open
+/// `graph` when one is named) or an output (`device`, the first one when
+/// absent). The preview is a view; it has no stack or graph of its own.
 pub fn preview_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
+    if params.param("layer").is_some() {
+        return source_jpg(ctx, params);
+    }
     let w = params.num("w", 640.0).clamp(64.0, 1920.0) as u32;
     let h = params.num("h", 360.0).clamp(36.0, 1080.0) as u32;
-    let (pixels, pw, ph) =
-        crate::render_device(ctx.paint, ctx.sim, ctx.state, crate::PREVIEW, w, h);
+    let device = monitored(ctx, params).ok_or(CallError::NotFound)?;
+    let (pixels, pw, ph) = crate::render_device(ctx.paint, ctx.sim, ctx.state, &device, w, h);
     image(params, pixels, pw, ph)
+}
+
+/// The output the monitor shows: the one named, else the first declared.
+fn monitored(ctx: &Ctx, params: &Params) -> Option<String> {
+    match params.param("device") {
+        Some(d) => ctx.state.outputs.find(d).map(|_| d.to_string()),
+        None => ctx.state.default_output().map(str::to_string),
+    }
 }
 
 pub fn source_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
@@ -810,8 +824,12 @@ pub fn texture_of(ctx: &mut Ctx, path: &str, params: &Params) -> Option<metal_pe
         "/preview.jpg" => {
             let w = params.num("w", 640.0).clamp(64.0, 1920.0) as u32;
             let h = params.num("h", 360.0).clamp(36.0, 1080.0) as u32;
+            if params.param("layer").is_some() {
+                return None;
+            }
+            let device = monitored(ctx, params)?;
             metal_perform::engine::render_device_frame(
-                ctx.paint, ctx.sim, ctx.state, crate::PREVIEW, w, h, &mut |_| None,
+                ctx.paint, ctx.sim, ctx.state, &device, w, h, &mut |_| None,
             )
         }
         "/output.jpg" => {

@@ -33,7 +33,7 @@
 use serde_json::{json, Value};
 
 use crate::call::{CallError, Ctx, Params};
-use crate::{layers, overlay, PREVIEW};
+use crate::{layers, overlay};
 
 /// `[R, G, B]` as three `u8`s, 0-255 — the one shape both `POST /overlay
 /// {op:"solid"}` and the `solid_color` tool take. A `Vec<Value>` rather
@@ -116,7 +116,7 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let time = ctx.state.time();
     match body["op"].as_str().unwrap_or_default() {
         "play" => {
-            let device = body["device"].as_str().unwrap_or(PREVIEW);
+            let device = body["device"].as_str().ok_or_else(|| CallError::Bad("which output".into()))?;
             let Some(lid) = body["layer"].as_str() else {
                 return Err(CallError::Bad("which layer".into()));
             };
@@ -260,7 +260,7 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         #[cfg(feature = "gpu")]
         "to-timeline" => {
             let timeline = body["timeline"].as_str().ok_or_else(|| CallError::Bad("which timeline".into()))?;
-            let device = body["device"].as_str().unwrap_or(PREVIEW);
+            let device = body["device"].as_str().ok_or_else(|| CallError::Bad("which output".into()))?;
             let view = ctx
                 .state
                 .overlays
@@ -276,7 +276,7 @@ pub fn overlay(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         "color-clip" => {
             let timeline = body["timeline"].as_str().ok_or_else(|| CallError::Bad("which timeline".into()))?;
             let segment = body["segment"].as_str().ok_or_else(|| CallError::Bad("which segment".into()))?;
-            let device = body["device"].as_str().unwrap_or(PREVIEW).to_string();
+            let device = body["device"].as_str().ok_or_else(|| CallError::Bad("which output".into()))?.to_string();
             let tl = crate::author::models::timeline::load(std::path::Path::new(crate::author::TIMELINES), timeline)
                 .ok_or_else(|| CallError::Bad(format!("no timeline called {timeline:?}")))?;
             let seg = tl

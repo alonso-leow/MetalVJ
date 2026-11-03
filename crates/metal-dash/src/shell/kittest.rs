@@ -558,6 +558,66 @@ mod tests {
         );
     }
 
+    /// One press on a node focuses it — no region click first, no second
+    /// press. The canvas must claim the first press with nothing hovered yet.
+    #[test]
+    fn a_single_press_on_a_node_selects_it() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        script_one_graph(&recorder);
+        recorder.respond(
+            "GET",
+            "/graph/hit",
+            serde_json::json!({ "hit": "node", "node": "gen-0", "rect": [0.0, 0.0, 160.0, 56.0] }),
+        );
+        let mut harness =
+            harness_with_door(Theme::phosphor(), Box::new(std::rc::Rc::clone(&recorder)));
+        harness.run();
+        let point = harness
+            .state()
+            .nodes_canvas_rect()
+            .expect("the canvas should have painted a rect by now")
+            .center();
+        harness.drag_at(point);
+        harness.run();
+        harness.drop_at(point);
+        harness.run();
+        assert_eq!(
+            *harness.state().selection(),
+            Selection::Node("gen-0".to_string())
+        );
+    }
+
+    /// The reported two-click case: another region holds the focus, the
+    /// operator presses a node once. The press must select it.
+    #[test]
+    fn a_press_on_a_node_from_another_focused_region_selects_it() {
+        let recorder = std::rc::Rc::new(FakeDoor::new());
+        script_one_graph(&recorder);
+        recorder.respond(
+            "GET",
+            "/graph/hit",
+            serde_json::json!({ "hit": "node", "node": "gen-0", "rect": [0.0, 0.0, 160.0, 56.0] }),
+        );
+        let mut harness =
+            harness_with_door(Theme::phosphor(), Box::new(std::rc::Rc::clone(&recorder)));
+        harness.run();
+        harness.get_by_label(Region::Library.title()).click();
+        harness.run();
+        let point = harness
+            .state()
+            .nodes_canvas_rect()
+            .expect("the canvas should have painted a rect by now")
+            .center();
+        harness.drag_at(point);
+        harness.run();
+        harness.drop_at(point);
+        harness.run();
+        assert_eq!(
+            *harness.state().selection(),
+            Selection::Node("gen-0".to_string())
+        );
+    }
+
     /// Dragging a node past the slop posts one `POST /graph/node {op:
     /// "move"}` on release — `plan-sonnet.md` § S.U9's third test. Scripts
     /// `GET /graph/hit` to answer a node hit, since the panel does not know
@@ -4457,9 +4517,11 @@ mod tests {
         press_and_release(&mut harness, gear);
         assert!(harness.state().nodes_venue_scene_on());
 
-        // The bar's `+` is its first slot (`[[415, 136] - [441, 162]]`);
-        // press and release in two frames, like the gear.
-        press_and_release(&mut harness, egui::pos2(428.0, 149.0));
+        // The bar's `+` (labelled "new"); press and release in two frames,
+        // like the gear. Its spot is read off the tree, not a fixed point —
+        // the bar moves whenever the rows above it do.
+        let plus = harness.get_by_label("add to the room").rect().center();
+        press_and_release(&mut harness, plus);
         assert!(harness.state().nodes_gallery_open(), "the `+` opens the gallery");
 
         harness.get_by_label("TV 65\"").scroll_to_me();

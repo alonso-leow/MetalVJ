@@ -674,7 +674,6 @@ pub fn paint(
             }
             ui.vertical(|ui| {
                 let bg = toolbar(ui, theme, door, state, selection, full_rect);
-                master_row(ui, theme, door);
                 // The canvas takes everything the bars above left — with
                 // no floor past the panel's own available height. An
                 // earlier version floored this at `region_min.y`: whenever
@@ -2294,7 +2293,7 @@ fn chip_label(id: &str, node: Option<&str>, ceded_to: Option<&str>) -> String {
 /// the same live-read `canvas_bar`'s own `running` toggle just above it
 /// uses, for the same reason: two operators (or this bar and `lanes.rs`'s
 /// own `outputs` row) can change this between any two frames.
-fn master_row(ui: &mut Ui, theme: &Theme, door: &dyn Call) {
+pub(crate) fn master_row(ui: &mut Ui, theme: &Theme, door: &dyn Call) {
     let outputs: Vec<Value> = door
         .json("GET", "/state", None)
         .ok()
@@ -3714,7 +3713,20 @@ fn handle_pointer(
     selection: &mut Selection,
     theme: &Theme,
 ) {
-    let down_now = response.is_pointer_button_down_on();
+    // The press is read from the input, not from `is_pointer_button_down_on`:
+    // that answer needs the canvas to be hovered on the same frame as the
+    // press, so a first click that arrives without a prior hover was lost and
+    // only the second (hovered) press of a double-click counted.
+    let layer = ui.layer_id();
+    let press_origin = ui.input(|i| i.pointer.press_origin());
+    // The press must land on this canvas's own layer: a bar floating over it
+    // (the gear, the focus bar) is a different layer and keeps the press.
+    // Hovered (or already held) is what makes it the canvas's press: a bar
+    // painted over the canvas is the topmost widget there and is not hovered.
+    let on_canvas = press_origin.is_some_and(|p| rect.contains(p) && ui.ctx().layer_id_at(p) == Some(layer))
+        && (response.hovered() || response.is_pointer_button_down_on());
+    let (pressed_here, held) = ui.input(|i| (i.pointer.primary_pressed() && on_canvas, i.pointer.primary_down()));
+    let down_now = if state.pressing { held } else { pressed_here };
 
     if down_now && !state.pressing {
         state.pressing = true;
@@ -5073,7 +5085,11 @@ mod tests {
                 "masks": [], "node": "otro-pc", "composed_on": null
             }] }),
         );
-        let mut harness = shell_harness(Box::new(std::rc::Rc::clone(&recorder)));
+        // The row lives in Settings › outputs now, so it is painted alone.
+        let door = std::rc::Rc::clone(&recorder);
+        let mut harness = egui_kittest::Harness::new_ui(move |ui| {
+            master_row(ui, &Theme::phosphor(), &door);
+        });
         harness.run();
 
         harness.get_by_label("hand over").click();
@@ -5107,7 +5123,11 @@ mod tests {
                 "masks": [], "node": "otro-pc", "composed_on": null, "ceded_to": "otro programa"
             }] }),
         );
-        let mut harness = shell_harness(Box::new(std::rc::Rc::clone(&recorder)));
+        // Painted alone, as in the hand-over test above.
+        let door = std::rc::Rc::clone(&recorder);
+        let mut harness = egui_kittest::Harness::new_ui(move |ui| {
+            master_row(ui, &Theme::phosphor(), &door);
+        });
         harness.run();
 
         harness.get_by_label("take back").click();

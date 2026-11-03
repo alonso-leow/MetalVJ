@@ -42,7 +42,7 @@ const AGENT_TOOL_PATH: &str = "/agent/tool";
 /// fill. A fourth section means one entry here and one match in `paint`'s
 /// section dispatch, nothing else (a list this short spelled once it is,
 /// not counted twice).
-const SECTIONS: [(&str, Section); 9] = [
+const SECTIONS: [(&str, Section); 10] = [
     (tr_key("ui"), Section::Ui),
     (tr_key("theme"), Section::Theme),
     (tr_key("language"), Section::Language),
@@ -50,6 +50,7 @@ const SECTIONS: [(&str, Section); 9] = [
     (tr_key("fixtures"), Section::Fixtures),
     (tr_key("discover"), Section::Discover),
     (tr_key("P2P"), Section::Devices),
+    (tr_key("outputs"), Section::Outputs),
     (tr_key("export"), Section::Export),
     (tr_key("performance"), Section::Performance),
 ];
@@ -74,6 +75,9 @@ pub enum Section {
     Export,
     /// The global frame-rate cap (`fps_cap`).
     Performance,
+    /// The screens this machine drives (`GET /state` `outputs`): where each
+    /// shows, and hand over / take back. Was a bar on the nodes canvas.
+    Outputs,
 }
 
 /// The provider presets the `IA` section offers, exactly the wire strings
@@ -526,6 +530,10 @@ pub fn paint(
                             Section::Devices => pairing::paint_devices(ui, theme, pairing),
                             Section::Export => section_export(ui, theme, door, state),
                             Section::Performance => section_performance(ui, theme, door, state),
+                            Section::Outputs => {
+                                section_heading(ui, theme, tr("outputs"));
+                                super::nodes::master_row(ui, theme, door);
+                            }
                         }
                     });
                 });
@@ -548,6 +556,7 @@ fn section_icon(section: Section) -> Icon {
         Section::Devices => Icon::Devices,
         Section::Export => Icon::Export,
         Section::Performance => Icon::Gauge,
+        Section::Outputs => Icon::Devices,
     }
 }
 

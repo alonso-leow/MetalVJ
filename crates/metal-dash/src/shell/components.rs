@@ -954,6 +954,14 @@ pub fn payload_cell<R>(ui: &mut Ui, theme: &Theme, width: Option<f32>, add: impl
     cell(ui, theme, width, Theme::payload_shapes, add)
 }
 
+/// The compact subheader under a panel's head (2026-11): a row of the
+/// panel's own controls (a back button and a path, a filter) set in a payload
+/// cell, so the bar reads as the head's child and sits flush with the list
+/// under it. Same cell as the properties grid; `add` lays out the row.
+pub fn subheader<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
+    payload_cell(ui, theme, None, |ui| ui.horizontal(add).inner)
+}
+
 /// A key cell holding one truncated label (weak ink, small face).
 pub fn key_label(ui: &mut Ui, theme: &Theme, width: Option<f32>, label: &str) {
     key_cell(ui, theme, width, |ui| {

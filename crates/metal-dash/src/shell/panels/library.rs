@@ -59,7 +59,7 @@ use crate::call::{Call, Params};
 use crate::shell::classes::Theme;
 use crate::surface::LibraryIntent;
 use crate::shell::components::{
-    icon_toggle, paint_icon_stroked, square_icon_button_inked, panel_frame, header_edit, panel_head, search_field, section_heading,
+    icon_toggle, paint_icon_stroked, square_icon_button_inked, panel_frame, header_edit, panel_head, search_field, section_heading, subheader,
     Icon,
 };
 use crate::shell::i18n::tr;
@@ -412,7 +412,8 @@ pub fn paint(
                     .show(ui, |ui| {
                         // A distinct label, so the folders header stays the one
                         // `library` a test reaches.
-                        panel_head(ui, theme, "library · files", |ui| {
+                        panel_head(ui, theme, "library · files", |_| {});
+                        subheader(ui, theme, |ui| {
                             search_field(
                                 ui,
                                 theme,
@@ -512,7 +513,7 @@ fn preview_overlay(
 
 /// The left column: the file system's folders, one level — `GET /fs` of
 /// `state.cwd`. A search box, the current path as an editable field, an
-/// "indexing…" line while the lazy open's `Job` runs, one [`file_like_row`]
+/// one [`file_like_row`]
 /// per folder (its `…` menu: `import`/`remove`, and on the
 /// folder in use `train curator`), and the curator's status on the
 /// folder in use.
@@ -523,21 +524,7 @@ fn dirs_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     let reel = &state_val["reel"];
     let open_name = reel["library"]["name"].as_str().map(str::to_string);
 
-    path_field(ui, theme, state);
-
-    // The lazy open's job, while it runs — the number is the `Job`'s own
-    // (rule 5), never a local guess.
-    if let Some(job) = reel
-        .get("job")
-        .filter(|j| j["done"].as_bool() != Some(true))
-    {
-        let pct = job["progress"].as_f64().unwrap_or(0.0) * 100.0;
-        ui.label(
-            RichText::new(format!("indexing… {pct:.0}%"))
-                .font(theme.font_small.clone())
-                .color(theme.ink_weak),
-        );
-    }
+    subheader(ui, theme, |ui| path_field(ui, theme, state));
 
     // A dropped clip's proxy being built, beside the indexing line — same
     // coarse phase, a different pipeline. The first running job is the one

@@ -2,7 +2,7 @@
 // r is the distance from the (offset) centre in units of `radius`; `blur`
 // eases the ramp (0 linear, 1 smoothstep) so the transition is softer.
 
-fn paper_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
+fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let q = p - vec2<f32>(f_off_x(), f_off_y());
     let t = clamp(length(q) / max(f_radius(), 0.05), 0.0, 1.0);
     let b = clamp(f_blur(), 0.0, 1.0);

@@ -1,11 +1,11 @@
 //! `gradient`: a radial gradient between the palette colours on the paper
-//! scaffold (`shared/paper.rs`). Own floats: `radius off_x off_y blur`; one
+//! scaffold (`shared/scaffold.rs`). Own floats: `radius off_x off_y blur`; one
 //! colour slot `colores` (4 colours, linear) that the ramp walks through
 //! from centre to edge. `blur` softens the ramp (0 linear, 1 eased).
 //! The WGSL is original (`shaders/gradiente.wgsl`).
 
 use crate::model::{spec, FloatSpec};
-use crate::shared::paper::PaperDef;
+use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
     spec("radius", 0.05, 2.5, 0.8),
@@ -17,9 +17,9 @@ const FLOATS: &[FloatSpec] = &[
 /// Linear values: blue, green, yellow, pink.
 const COLORES: [f32; 12] = [0.04, 0.24, 1.00, 0.00, 0.64, 0.35, 1.00, 0.60, 0.04, 0.85, 0.15, 0.30];
 
-pub static SCHEMA: crate::model::Schema = crate::paper_schema!(FLOATS; "colores" => COLORES);
+pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS; "colores" => COLORES);
 
-pub static DEF: PaperDef = PaperDef::new(
+pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "gradient",
     "Gradient",
     &SCHEMA,
@@ -28,13 +28,13 @@ pub static DEF: PaperDef = PaperDef::new(
     include_str!("../../shaders/gradiente.wgsl"),
 );
 
-crate::paper_model!(Gradiente, DEF);
+crate::scaffold_model!(Gradiente, DEF);
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::Model;
-    use crate::shared::paper::testing;
+    use crate::shared::scaffold::testing;
 
     fn build() -> Box<dyn Model> {
         Box::new(Gradiente::new())

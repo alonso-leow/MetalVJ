@@ -1049,10 +1049,9 @@ fn prompt_box(
 
     Frame::new()
         .fill(theme.inset)
-        .inner_margin(theme.flush_margin_none())
+        .inner_margin(theme.panel_margin())
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.add_space(theme.item_gap.y);
             context_chips(ui, theme, state);
             if focused && !mentions.is_empty() {
                 mention_list(ui, theme, state, &mentions);

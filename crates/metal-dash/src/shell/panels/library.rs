@@ -454,6 +454,7 @@ pub fn paint(
         // A walk made this frame waits for the rows to fade out first.
         if state.cwd != committed_cwd {
             state.pending_cwd = Some(std::mem::replace(&mut state.cwd, committed_cwd));
+            ui.ctx().request_repaint();
         }
         crate::shell::motion::end(ui.ctx(), motion_id);
     }

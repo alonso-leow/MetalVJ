@@ -28,3 +28,4 @@ components.rs:(theme.inset, egui::Stroke::new(theme.hairline, theme.rule))
 components.rs:let ink = if on { Color32::WHITE } else { theme.ink_weak };
 panels/props_colour.rs:ui.spacing_mut().item_spacing.x = 2.0;
 panels/settings.rs:let col = egui::Color32::from_rgb((c[0] * 255.0) as u8, (c[1] * 255.0) as u8, (c[2] * 255.0) as u8);
+panels/viewport.rs:painter.line_segment([p, q], Stroke::new(w, color));

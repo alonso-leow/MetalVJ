@@ -121,7 +121,17 @@ pub fn run_session_turn(
             let tool_call = with_turn_images(&tool_call, &turn.images);
 
             match policy(&call.name) {
-                ToolPolicy::Off => continue,
+                ToolPolicy::Off => {
+                    // The model still gets an answer, and the transcript a row:
+                    // a call with no result is rejected by the provider.
+                    let off = "tool disabled by policy";
+                    sink(Event::ToolError { call_id: call.id.clone(), error: off.into() });
+                    let mut row =
+                        ChatMessage::new("tool", serde_json::json!({ "error": off }).to_string());
+                    row.tool_call_id = Some(call.id.clone());
+                    messages.push(row);
+                    continue;
+                }
                 ToolPolicy::Ask => {
                     sink(Event::AwaitApproval {
                         call_id: call.id.clone(),
@@ -376,6 +386,34 @@ mod tests {
         .unwrap();
         let tool_row = messages.iter().find(|m| m.role == "tool").unwrap();
         assert!(tool_row.content.contains("denied by operator"), "{}", tool_row.content);
+    }
+
+    #[test]
+    fn a_policy_off_call_is_answered_and_logged() {
+        let mut first = assistant("");
+        first.tool_calls.push(call("c1", "delete_node", json!({})));
+        let provider = Script::new(vec![first, assistant("ok")]);
+        let mut messages = vec![ChatMessage::new("user", "delete it")];
+        let mut turn = Turn::new(workdir("off"));
+        let log = std::cell::RefCell::new(Vec::new());
+        let mut sink = |e: Event| log.borrow_mut().push(e);
+        let off = |_n: &str| ToolPolicy::Off;
+        run_session_turn(
+            &provider,
+            &mut messages,
+            &mut Echo,
+            &mut turn,
+            &ToolRegistry::new(),
+            &off,
+            &mut sink,
+            &AtomicBool::new(false),
+            &Noop::allow,
+            5,
+        )
+        .unwrap();
+        let tool_row = messages.iter().find(|m| m.role == "tool").unwrap();
+        assert!(tool_row.content.contains("disabled by policy"));
+        assert!(log.borrow().iter().any(|e| matches!(e, Event::ToolError { .. })));
     }
 
     #[test]

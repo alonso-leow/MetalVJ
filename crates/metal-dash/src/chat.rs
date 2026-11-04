@@ -477,6 +477,28 @@ impl<'a> Store<'a> {
         }
     }
 
+    /// Closes every call of the live row that never reached a result (the turn
+    /// was stopped or failed mid-batch): status `errored`, plus the tool row
+    /// the model's history needs for each.
+    fn close_open_calls(&mut self, why: &str) {
+        let Some(seq) = self.live else { return };
+        let open: Vec<String> = self
+            .row_mut(seq)
+            .and_then(|row| row["tool_calls"].as_array().cloned())
+            .unwrap_or_default()
+            .iter()
+            .filter(|c| !matches!(c["status"].as_str(), Some("done" | "errored")))
+            .filter_map(|c| c["id"].as_str().map(String::from))
+            .collect();
+        for id in open {
+            self.set_call_terminal(&id, "errored", None, Some(why));
+            self.push_row(json!({
+                "role": "tool", "tool_call_id": id,
+                "content": json!({ "error": why }).to_string(),
+            }));
+        }
+    }
+
     fn on_event(&mut self, event: &Event) {
         match event {
             Event::Delta { text } => {
@@ -566,10 +588,12 @@ impl<'a> Store<'a> {
                 // following deltas keep appending to the same bubble.
             }
             Event::Error { message } => {
+                self.close_open_calls(message);
                 self.push_row(json!({ "role": "notice", "kind": "error", "content": message }));
                 self.set_status("error");
             }
             Event::Canceled => {
+                self.close_open_calls("turn stopped by the operator");
                 self.push_row(json!({
                     "role": "notice", "kind": "canceled",
                     "content": "turn stopped by the operator",
@@ -1102,6 +1126,29 @@ mod tests {
         assert_eq!(assistant["tool_calls"][0]["status"], "done");
         assert!(msgs.iter().any(|m| m["role"] == "tool" && m["tool_call_id"] == "c1"));
         assert!(msgs.iter().any(|m| m["kind"] == "retry"));
+    }
+
+    /// A stopped turn closes the calls that never answered, with a tool row
+    /// each, so the transcript and the model's history stay well-formed.
+    #[test]
+    fn a_canceled_turn_closes_its_open_calls() {
+        let root = scratch("cancel-calls");
+        let chat = create_chat_at(&root).expect("create");
+        let id = chat["id"].as_str().unwrap().to_string();
+        {
+            let mut store = Store::open(&root, &id).unwrap();
+            store.on_event(&Event::ToolCallReady {
+                call_id: "c1".into(),
+                name: "sleep".into(),
+                args: json!({}),
+            });
+            store.on_event(&Event::Canceled);
+        }
+        let saved = load_chat_at(&root, &id).unwrap();
+        let msgs = saved["messages"].as_array().unwrap();
+        let call = msgs.iter().find_map(|m| m["tool_calls"].get(0)).unwrap();
+        assert_eq!(call["status"], "errored");
+        assert!(msgs.iter().any(|m| m["role"] == "tool" && m["tool_call_id"] == "c1"));
     }
 
     #[test]

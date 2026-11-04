@@ -360,6 +360,12 @@ pub static AUTHOR_ROUTES: &[Route] = &[
         prefix: false,
         handler: Handler::Json(dataset::status),
     },
+    Route {
+        method: "POST",
+        path: "/dataset/loops/generate",
+        prefix: false,
+        handler: Handler::Free(dataset::generate),
+    },
     // curator.rs
     Route {
         method: "GET",

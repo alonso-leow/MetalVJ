@@ -94,6 +94,7 @@ use crate::models::voronoi::Voronoi;
 use crate::models::warpcut::Warpcut;
 use crate::models::ripples::Ripples;
 use crate::models::water::Water;
+use crate::models::gradiente::Gradiente;
 use crate::models::puzzle::Puzzle;
 use crate::models::relampago::Relampago;
 use crate::models::rings::Rings;
@@ -423,6 +424,8 @@ pub const MODEL_SPECS: &[ModelSpec] = &[
     spec!("orbit-swarm", OrbitSwarm),
     // 2026-10-21. Ported built-in tool "deep-tunnel" (equivalent was not the same).
     spec!("deep-tunnel", DeepTunnel),
+    // 2026-11-03. Simple radial gradient between the palette colours (paper scaffold).
+    spec!("gradient", Gradiente),
 ];
 
 /// Every renderer in the suite, built fresh, in table order.
@@ -443,6 +446,7 @@ pub const MODEL_ID_ALIASES: &[(&str, &str)] = &[
     ("estela", "wake"),
     ("estrobo", "strobe"),
     ("fluido", "fluid"),
+    ("gradiente", "gradient"),
     ("humo", "smoke"),
     ("lazer", "laser"),
     ("mengano", "someone"),

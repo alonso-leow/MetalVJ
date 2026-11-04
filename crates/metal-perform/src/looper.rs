@@ -41,6 +41,7 @@ use std::collections::VecDeque;
 
 use crate::digest::{Frame, RepeatState, FEATURES};
 use crate::live::Input;
+use metal_reel::loopfind::Guess;
 
 /// How many beats of the digest are held for replay. 32 = eight bars.
 pub const RING_BEATS: usize = 32;
@@ -679,5 +680,542 @@ mod tests {
         assert_eq!(l.status().engaged, None);
         assert_eq!(l.status().detector, None);
         assert!(l.ring.is_empty(), "the ring is source-specific history");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The AI's float offsets, looped (loop-aux).
+// ---------------------------------------------------------------------------
+//
+// The rhythm finder ([`metal_reel::loopfind`]) says whether the music is
+// looping and over how many beats. When a generator's colourist is active and
+// the finder is confident, the colourist's per-tick offsets are recorded for one
+// loop period and replayed for every period after it, instead of being
+// recomputed from the live frame. Same beat-phase indexing and the same
+// eviction as the Looper's own ring above; nothing persisted, no serde.
+
+/// The finder's strength below which no loop is assumed and the colourist runs
+/// on the live frame, as it always has. A fixed threshold, not yet measured
+/// (plan rule 11 would want a number from a labelled run before it is trusted).
+pub const LOOP_MIN_STRENGTH: f32 = 0.5;
+
+/// Re-anchor the loop when its length moves by more than this many beats. A
+/// tempo nudge should not discard a recorded period on every tick.
+const LEN_TOLERANCE: f64 = 1e-3;
+
+/// How long the loop must be on, or off, before the [`Supervisor`] settles into
+/// that state and counts it. A fixed guess, not yet measured (plan rule 11).
+pub const SUPERVISE_HOLD_BEATS: f64 = 2.0;
+
+/// What the gen-AI supervisor asks of the colourist on one tick.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SuperMode {
+    /// No loop: the music is changing, the colourist runs on every tick.
+    Authoring,
+    /// A loop is on air. `infer: false` means this tick may skip the colourist
+    /// and replay the recorded offsets; `true` means run it. Beat-phase based,
+    /// so the same beats skip every time.
+    Looping { infer: bool },
+}
+
+/// Supervises the gen AI from the loop clock.
+///
+/// The mode is a pure function of the current tick (loop on or off, and the
+/// beat phase inside a loop run). The *counter* is hysteretic: an entry into
+/// [`SuperMode::Authoring`] is counted only when a loop that had settled
+/// (stayed on for [`SUPERVISE_HOLD_BEATS`]) has been off for that long, so
+/// strength jitter around [`LOOP_MIN_STRENGTH`] never double counts.
+#[derive(Default)]
+pub struct Supervisor {
+    /// Whether a loop was active on the last step.
+    on: bool,
+    /// The beat the current on/off run began.
+    run_start: f64,
+    /// The last settled state: `Some(true)` looping, `Some(false)` authoring,
+    /// `None` never settled yet.
+    settled: Option<bool>,
+    entries: u64,
+    /// The entry count at the last `take_every` that returned true.
+    taken: u64,
+}
+
+impl Supervisor {
+    pub fn new() -> Supervisor {
+        Supervisor::default()
+    }
+
+    /// How many times the supervisor has settled into Authoring after a loop.
+    pub fn entries(&self) -> u64 {
+        self.entries
+    }
+
+    /// True once for every `n`-th entry: the first call after the entry count
+    /// reaches a multiple of `n` returns true, later calls return false until
+    /// the next entry. `n == 0` is always false.
+    pub fn take_every(&mut self, n: u64) -> bool {
+        if n == 0 || self.entries == self.taken || self.entries % n != 0 {
+            return false;
+        }
+        self.taken = self.entries;
+        true
+    }
+
+    /// Advance one tick at absolute `beat` with the finder's `guess`.
+    pub fn step(&mut self, beat: f64, guess: Option<Guess>) -> SuperMode {
+        let on = guess.is_some_and(|g| g.strength >= LOOP_MIN_STRENGTH && g.beats > 0.0);
+        if on != self.on {
+            self.on = on;
+            self.run_start = beat;
+        }
+        let held = beat - self.run_start >= SUPERVISE_HOLD_BEATS;
+        if self.on && held {
+            self.settled = Some(true);
+        }
+        if !self.on && held && self.settled == Some(true) {
+            self.settled = Some(false);
+            self.entries += 1;
+        }
+        if self.on {
+            let k = (beat - self.run_start).floor() as i64;
+            SuperMode::Looping { infer: k.rem_euclid(2) == 0 }
+        } else {
+            SuperMode::Authoring
+        }
+    }
+}
+
+/// How many authoring entries pass between two router switches. Every fourth
+/// time the gen AI is turned back on after a loop, the router picks the next
+/// active model; in between, the chosen model stays. A fixed operator spec.
+pub const SWITCH_EVERY: u64 = 4;
+
+/// A router switch the [`Conductor`] asks for: the entry it fired on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Switch {
+    pub entry: u64,
+}
+
+/// The one clock of the model hierarchy. A single [`Supervisor`] fed by the
+/// seed listener's loop guess counts the authoring entries for the whole
+/// audio source; every [`SWITCH_EVERY`]-th one asks the router for a new
+/// active model. The per-(node, model) supervisors keep gating the colourist.
+pub struct Conductor {
+    sup: Supervisor,
+    every: u64,
+}
+
+impl Default for Conductor {
+    fn default() -> Conductor {
+        Conductor::new(SWITCH_EVERY)
+    }
+}
+
+impl Conductor {
+    /// A conductor that fires every `every` authoring entries (`0` never fires).
+    pub fn new(every: u64) -> Conductor {
+        Conductor { sup: Supervisor::new(), every }
+    }
+
+    /// Authoring entries counted so far.
+    pub fn entries(&self) -> u64 {
+        self.sup.entries()
+    }
+
+    /// The period between switches, in authoring entries.
+    pub fn every(&self) -> u64 {
+        self.every
+    }
+
+    /// Authoring entries left until the next switch fires. `0` when it is
+    /// never going to fire.
+    pub fn until_switch(&self) -> u64 {
+        if self.every == 0 {
+            return 0;
+        }
+        self.every - self.sup.entries() % self.every
+    }
+
+    /// Advance at absolute `beat` with the finder's `guess`. Idempotent within
+    /// a beat: calling it once per colourist node per tick is the same as once.
+    pub fn tick(&mut self, beat: f64, guess: Option<Guess>) -> Option<Switch> {
+        self.sup.step(beat, guess);
+        self.sup
+            .take_every(self.every)
+            .then(|| Switch { entry: self.sup.entries() })
+    }
+}
+
+/// The AI float offsets of one (generator node, model) pair, recorded over the
+/// first period of a loop and replayed by beat phase afterwards.
+#[derive(Default)]
+pub struct OffsetLoop {
+    /// Recorded offsets, oldest first, indexed by absolute beat.
+    ring: VecDeque<(f64, Vec<f32>)>,
+    /// The beat the loop anchored at.
+    since: f64,
+    /// The loop length in beats. `0` = no loop, nothing held.
+    len: f64,
+    /// The gen-AI supervisor for this pair. Survives [`OffsetLoop::clear`].
+    sup: Supervisor,
+}
+
+impl OffsetLoop {
+    pub fn new() -> OffsetLoop {
+        OffsetLoop::default()
+    }
+
+    /// Advance the supervisor one tick; see [`Supervisor::step`].
+    pub fn supervise(&mut self, beat: f64, guess: Option<Guess>) -> SuperMode {
+        self.sup.step(beat, guess)
+    }
+
+    /// The supervisor's entry count into Authoring.
+    pub fn entries(&self) -> u64 {
+        self.sup.entries()
+    }
+
+    /// The recorded offsets at `beat` for a loop of `len` beats, if the first
+    /// period is complete and recorded for that length. `None` means the
+    /// colourist must run this tick.
+    pub fn replayed(&self, beat: f64, len: f64) -> Option<Vec<f32>> {
+        if self.ring.is_empty()
+            || (self.len - len).abs() > LEN_TOLERANCE
+            || !beat.is_finite()
+            || beat - self.since < self.len
+        {
+            return None;
+        }
+        self.at(self.since + (beat - self.since).rem_euclid(self.len))
+    }
+
+    /// The offsets to use at `beat` for a loop of `len` beats, given the
+    /// `live` offsets the colourist just computed.
+    ///
+    /// During the first period the live offsets are recorded and returned
+    /// unchanged. From the second period on, nothing is recorded and the
+    /// offsets come from the recorded period at the same beat phase, so every
+    /// later period is the same row. A `len` of `0` (no loop) clears the
+    /// recording and returns `live` untouched.
+    pub fn step(&mut self, beat: f64, len: f64, live: &[f32]) -> Vec<f32> {
+        if !(len > 0.0) || !beat.is_finite() {
+            self.clear();
+            return live.to_vec();
+        }
+        let width_changed = self.ring.back().is_some_and(|(_, o)| o.len() != live.len());
+        if (self.len - len).abs() > LEN_TOLERANCE || self.ring.is_empty() || width_changed {
+            self.clear();
+            self.since = beat;
+            self.len = len;
+        }
+        // First period still open: record it, play the live row.
+        if beat - self.since < self.len {
+            self.append(beat, live);
+            return live.to_vec();
+        }
+        let phase = self.since + (beat - self.since).rem_euclid(self.len);
+        self.at(phase).unwrap_or_else(|| live.to_vec())
+    }
+
+    /// Forget the recording (the loop ended, or the source changed).
+    pub fn clear(&mut self) {
+        self.ring.clear();
+        self.since = 0.0;
+        self.len = 0.0;
+    }
+
+    /// Append `(beat, offsets)`, evicting by beat span exactly as
+    /// [`Looper::append`] does: a stalled beat is ignored, the newest pair
+    /// within `RING_BEATS` plus its neighbour are kept, and `RING_MAX_ROWS` is
+    /// the backstop.
+    fn append(&mut self, beat: f64, offsets: &[f32]) {
+        if let Some((last, _)) = self.ring.back() {
+            if beat <= *last {
+                return;
+            }
+        }
+        self.ring.push_back((beat, offsets.to_vec()));
+        if let Some((newest, _)) = self.ring.back() {
+            let newest = *newest;
+            while self.ring.len() > 2 {
+                if newest - self.ring[0].0 > RING_BEATS as f64 {
+                    self.ring.pop_front();
+                } else {
+                    break;
+                }
+            }
+        }
+        while self.ring.len() > RING_MAX_ROWS {
+            self.ring.pop_front();
+        }
+    }
+
+    /// The offsets at absolute beat `phase`, linearly interpolated between the
+    /// two bracketing recorded rows (as [`Looper::frame_at`] does for frames).
+    fn at(&self, phase: f64) -> Option<Vec<f32>> {
+        let i = self.ring.iter().position(|(b, _)| *b >= phase)?;
+        if i == 0 {
+            return Some(self.ring[0].1.clone());
+        }
+        let (b1, o1) = &self.ring[i];
+        let (b0, o0) = &self.ring[i - 1];
+        let span = *b1 - *b0;
+        let t = if span > 0.0 { ((phase - *b0) / span).clamp(0.0, 1.0) as f32 } else { 1.0 };
+        Some(o0.iter().zip(o1).map(|(a, b)| a + (b - a) * t).collect())
+    }
+}
+
+#[cfg(test)]
+mod offset_loop_tests {
+    use super::*;
+
+    /// A live row that changes every beat, so a replay that recomputes from the
+    /// live frame cannot pass for a replay of the recording.
+    fn live(beat: f64) -> Vec<f32> {
+        (0..4).map(|k| (beat as f32) * 0.1 + k as f32 * 0.01).collect()
+    }
+
+    #[test]
+    fn a_loop_replays_identical_offsets_across_periods() {
+        let mut o = OffsetLoop::new();
+        let len = 4.0;
+        // Run four periods on whole beats; record the first, replay the rest.
+        let mut outs = Vec::new();
+        for b in 0..16 {
+            outs.push(o.step(b as f64 + 0.5, len, &live(b as f64 + 0.5)));
+        }
+        // Second period onward equals the first period, beat for beat.
+        for b in 0..4 {
+            assert_eq!(outs[b + 4], outs[b], "beat {b} of period 2 must equal period 1");
+            assert_eq!(outs[b + 8], outs[b], "beat {b} of period 3 must equal period 1");
+            assert_eq!(outs[b + 12], outs[b], "beat {b} of period 4 must equal period 1");
+        }
+        // And the first period is the live row, not a replay of nothing.
+        assert_eq!(outs[0], live(0.5));
+    }
+
+    #[test]
+    fn no_loop_is_the_live_row_and_holds_nothing() {
+        let mut o = OffsetLoop::new();
+        for b in 0..12 {
+            let beat = b as f64;
+            let row = o.step(beat, 0.0, &live(beat));
+            assert_eq!(row, live(beat), "with no loop the live offsets pass through");
+        }
+        assert!(o.ring.is_empty(), "nothing is recorded without a loop");
+    }
+
+    #[test]
+    fn a_loop_that_ends_hands_back_the_live_row() {
+        let mut o = OffsetLoop::new();
+        for b in 0..8 {
+            o.step(b as f64 + 0.5, 4.0, &live(b as f64 + 0.5));
+        }
+        let beat = 8.5;
+        assert_eq!(o.step(beat, 0.0, &live(beat)), live(beat));
+        assert!(o.ring.is_empty());
+    }
+
+    #[test]
+    fn a_stalled_beat_does_not_move_the_replay() {
+        let mut o = OffsetLoop::new();
+        for b in 0..8 {
+            o.step(b as f64 + 0.5, 4.0, &live(b as f64 + 0.5));
+        }
+        let a = o.step(9.25, 4.0, &live(9.25));
+        let b = o.step(9.25, 4.0, &live(9.25));
+        assert_eq!(a, b, "the same beat asked twice must give the same offsets");
+    }
+
+    #[test]
+    fn the_phase_is_the_beat_not_the_wall_time() {
+        // Two runs over the same beats, one polled at twice the rate with the
+        // extra polls landing on already-seen beats, replay identically: the
+        // offsets are a function of the beat, never of how often we asked.
+        let mut sparse = OffsetLoop::new();
+        let mut dense = OffsetLoop::new();
+        let len = 2.0;
+        let mut a = Vec::new();
+        let mut c = Vec::new();
+        for b in 0..10 {
+            let beat = b as f64 + 0.25;
+            a.push(sparse.step(beat, len, &live(beat)));
+            c.push(dense.step(beat, len, &live(beat)));
+            c.push(dense.step(beat, len, &live(beat)));
+        }
+        let c: Vec<Vec<f32>> = c.into_iter().step_by(2).collect();
+        assert_eq!(a, c, "repeated calls at one beat must not move the replay");
+    }
+}
+
+#[cfg(test)]
+mod supervisor_tests {
+    use super::*;
+
+    fn on() -> Option<Guess> {
+        Some(Guess { strength: 0.9, beats: 4.0 })
+    }
+
+    /// Drive `sup` over whole beats `from..to`, with `guess` on every tick.
+    fn run(sup: &mut Supervisor, from: u32, to: u32, guess: Option<Guess>) -> Vec<SuperMode> {
+        (from..to).map(|b| sup.step(b as f64 + 0.5, guess)).collect()
+    }
+
+    #[test]
+    fn a_loop_skips_the_colourist_on_half_the_beats_by_phase() {
+        let mut sup = Supervisor::new();
+        // Let it settle first, then look at the pattern.
+        run(&mut sup, 0, 4, on());
+        let modes = run(&mut sup, 4, 12, on());
+        let infers: Vec<bool> = modes
+            .iter()
+            .map(|m| match m {
+                SuperMode::Looping { infer } => *infer,
+                SuperMode::Authoring => panic!("a loop on air must not author"),
+            })
+            .collect();
+        let skipped = infers.iter().filter(|i| !**i).count();
+        assert_eq!(skipped, 4, "half of eight beats skip inference");
+        // Deterministic: the same beat phase gives the same answer.
+        assert_eq!(infers, vec![true, false, true, false, true, false, true, false]);
+        // And the same again on a second look at the same beats.
+        let again = run(&mut sup, 4, 12, on());
+        assert_eq!(modes, again);
+    }
+
+    #[test]
+    fn no_loop_means_authoring_every_tick() {
+        let mut sup = Supervisor::new();
+        for m in run(&mut sup, 0, 10, None) {
+            assert_eq!(m, SuperMode::Authoring);
+        }
+        // beats == 0 is also no loop, whatever the strength.
+        let zero = Some(Guess { strength: 1.0, beats: 0.0 });
+        for m in run(&mut sup, 10, 14, zero) {
+            assert_eq!(m, SuperMode::Authoring);
+        }
+        // Weak strength is no loop either.
+        let weak = Some(Guess { strength: LOOP_MIN_STRENGTH - 0.01, beats: 4.0 });
+        for m in run(&mut sup, 14, 18, weak) {
+            assert_eq!(m, SuperMode::Authoring);
+        }
+    }
+
+    #[test]
+    fn a_loop_going_to_zero_switches_authoring_at_once() {
+        let mut sup = Supervisor::new();
+        run(&mut sup, 0, 8, on());
+        let m = sup.step(8.5, None);
+        assert_eq!(m, SuperMode::Authoring, "music changes: weights on, same tick");
+    }
+
+    #[test]
+    fn entries_count_each_settled_loop_exit_once() {
+        let mut sup = Supervisor::new();
+        assert_eq!(sup.entries(), 0);
+        run(&mut sup, 0, 8, on());
+        assert_eq!(sup.entries(), 0, "a loop going on is not an entry");
+        run(&mut sup, 8, 12, None);
+        assert_eq!(sup.entries(), 1);
+        run(&mut sup, 12, 20, on());
+        run(&mut sup, 20, 24, None);
+        assert_eq!(sup.entries(), 2, "a second loop then authoring is a second entry");
+    }
+
+    #[test]
+    fn strength_jitter_does_not_double_count() {
+        let mut sup = Supervisor::new();
+        run(&mut sup, 0, 8, on());
+        // Strength flickers off for a fraction of a beat, then back on.
+        sup.step(8.0, None);
+        sup.step(8.25, None);
+        sup.step(8.5, on());
+        run(&mut sup, 9, 16, on());
+        assert_eq!(sup.entries(), 0, "a short dip is not an entry");
+        // A real exit is counted once, and a flicker inside it adds nothing.
+        run(&mut sup, 16, 20, None);
+        sup.step(20.0, on());
+        sup.step(20.25, None);
+        run(&mut sup, 21, 25, None);
+        assert_eq!(sup.entries(), 1);
+    }
+
+    #[test]
+    fn take_every_fires_on_every_fourth_entry_once() {
+        let mut sup = Supervisor::new();
+        let mut fired = Vec::new();
+        for i in 1..=8u64 {
+            // One settled loop then one authoring stretch per entry.
+            let base = (i as u32) * 12;
+            run(&mut sup, base, base + 6, on());
+            run(&mut sup, base + 6, base + 10, None);
+            assert_eq!(sup.entries(), i);
+            if sup.take_every(4) {
+                fired.push(i);
+            }
+            assert!(!sup.take_every(4), "a second take for the same entry is false");
+        }
+        assert_eq!(fired, vec![4, 8]);
+        assert!(!sup.take_every(0));
+    }
+}
+
+#[cfg(test)]
+mod conductor_tests {
+    use super::*;
+
+    fn on() -> Option<Guess> {
+        Some(Guess { strength: 0.9, beats: 4.0 })
+    }
+
+    /// One settled loop then one authoring stretch, starting at `base`.
+    fn one_entry(c: &mut Conductor, base: u32) -> Vec<Option<Switch>> {
+        let mut out = Vec::new();
+        for b in base..base + 6 {
+            out.push(c.tick(b as f64 + 0.5, on()));
+        }
+        for b in base + 6..base + 10 {
+            out.push(c.tick(b as f64 + 0.5, None));
+        }
+        out
+    }
+
+    #[test]
+    fn the_conductor_fires_on_every_fourth_authoring_entry_once() {
+        let mut c = Conductor::default();
+        assert_eq!(c.every(), SWITCH_EVERY);
+        let mut fired = Vec::new();
+        for i in 1..=9u64 {
+            let ticks = one_entry(&mut c, (i as u32) * 12);
+            assert_eq!(c.entries(), i);
+            let hits: Vec<Switch> = ticks.into_iter().flatten().collect();
+            assert!(hits.len() <= 1, "more than one switch for entry {i}");
+            fired.extend(hits.into_iter().map(|s| s.entry));
+        }
+        assert_eq!(fired, vec![4, 8]);
+        // Entry 9 is the first of the next block: three more to go.
+        assert_eq!(c.until_switch(), 3);
+    }
+
+    #[test]
+    fn a_conductor_that_never_saw_a_loop_never_fires() {
+        // Untrained finder: the guess is always None, so no entry is counted.
+        let mut c = Conductor::default();
+        let fired: Vec<Switch> = (0..400u32)
+            .filter_map(|b| c.tick(b as f64 + 0.5, None))
+            .collect();
+        assert!(fired.is_empty());
+        assert_eq!(c.entries(), 0);
+        assert_eq!(c.until_switch(), SWITCH_EVERY);
+    }
+
+    #[test]
+    fn a_zero_period_never_fires() {
+        let mut c = Conductor::new(0);
+        for i in 1..=8u32 {
+            let ticks = one_entry(&mut c, i * 12);
+            assert!(ticks.iter().all(|t| t.is_none()));
+        }
+        assert_eq!(c.entries(), 8);
+        assert_eq!(c.until_switch(), 0);
     }
 }

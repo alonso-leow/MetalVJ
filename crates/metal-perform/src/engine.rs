@@ -142,6 +142,14 @@ pub struct State {
     /// would be a mistake, so it is never persisted, like `overlays`/`clocks`.
     /// See [`crate::face::apply`].
     pub faces: HashMap<metal_graph::NodeId, crate::face::Face>,
+    /// loop-aux: the colourist's offsets per (generator node, model), recorded
+    /// over one loop period and replayed while the rhythm finder is confident.
+    /// Performance state: never saved (see [`crate::looper`]).
+    pub loop_offsets: HashMap<(String, String), crate::looper::OffsetLoop>,
+    /// loop-aux: the one clock of the model hierarchy (see
+    /// [`crate::looper::Conductor`]). Ticked only when the loop finder is
+    /// trained, so an untrained checkout never counts an entry.
+    pub conductor: crate::looper::Conductor,
     /// H3: the latest `Mode::Eyes` reading per `sensor.yolo` node, in the air
     /// only. The detector that fills it lives with the capture frame (a
     /// backend, `metal-sense`); the engine only reads it, so a sensor whose
@@ -321,6 +329,8 @@ impl State {
             overlays: overlay::Overlays::default(),
             runs: sequence::Runs::default(),
             faces: HashMap::new(),
+            loop_offsets: HashMap::new(),
+            conductor: crate::looper::Conductor::default(),
             head: HashMap::new(),
             head_detectors: HashMap::new(),
             head_frames: HashMap::new(),
@@ -4062,7 +4072,28 @@ pub fn row_for_node(
             // itself (plan §4): the source's own row is identical, and those
             // embedded effect floats are driven by [`embedded_effects`].
             Modo::Ai | Modo::AiFx | Modo::Inherit => {
-                let row = match ai_offsets(graph, node, state, schema, id, frame, dials.smooth) {
+                let key = (node.unwrap_or("_").to_string(), id.to_string());
+                // The supervisor decides first whether the colourist runs this
+                // tick; a skipped tick replays the recording and never calls it.
+                let offsets = match loop_gate(state, key.clone(), frame, dials.smooth) {
+                    LoopGate::Replay(recorded) => Some(recorded),
+                    LoopGate::Infer(len) => {
+                        ai_offsets(graph, node, state, schema, id, frame, dials.smooth).map(
+                            |live| match len {
+                                Some(len) => {
+                                    let beat = state.music_pos.beats();
+                                    state
+                                        .loop_offsets
+                                        .entry(key)
+                                        .or_default()
+                                        .step(beat, len, &live)
+                                }
+                                None => live,
+                            },
+                        )
+                    }
+                };
+                let row = match offsets {
                     Some(offsets) => drive::row_with(schema, base, frame, &dials, Some(&offsets)),
                     None => drive::row(schema, base, frame, &dials),
                 };
@@ -4092,6 +4123,62 @@ pub fn row_for_node(
         drive::apply_loop(schema, &mut row, l, state.music_pos, &state.loops);
     }
     row
+}
+
+/// loop-aux: what the loop clock says about the colourist on one tick.
+enum LoopGate {
+    /// Skip the colourist: these are the recorded offsets for this beat phase.
+    Replay(Vec<f32>),
+    /// Run the colourist. `Some(len)` when a loop is on air, so its offsets are
+    /// recorded for replay; `None` when there is no loop.
+    Infer(Option<f64>),
+}
+
+/// loop-aux: the supervisor (see [`crate::looper::Supervisor`]) decides per tick
+/// whether the colourist runs. With no trained finder, a strength under
+/// [`crate::looper::LOOP_MIN_STRENGTH`], or `beats == 0`, the answer is always
+/// `Infer(None)` and nothing is held, so that path is identical to before.
+fn loop_gate(
+    state: &mut State,
+    key: (String, String),
+    frame: &digest::Frame,
+    smooth: f32,
+) -> LoopGate {
+    // The finder reads the musical digest only: the first MUSIC columns.
+    let blended = drive::blended(frame, smooth);
+    let mut music = [0.0f32; digest::MUSIC];
+    music.copy_from_slice(&blended[..digest::MUSIC]);
+    let finder = state.reels.loop_finder();
+    let guess = finder.guess(&music);
+    if finder.trained() {
+        // Idempotent within a beat, so once per colourist node is once.
+        let beat = state.music_pos.beats();
+        if state.conductor.tick(beat, guess).is_some() {
+            let time = state.time();
+            state.router.switch_model(time);
+        }
+    }
+    // The finder names the loop in beats (0 = no loop); it is the replay period.
+    let len = guess
+        .filter(|g| g.strength >= crate::looper::LOOP_MIN_STRENGTH && g.beats > 0.0)
+        .map(|g| g.beats as f64);
+    let beat = state.music_pos.beats();
+    let o = state.loop_offsets.entry(key).or_default();
+    let mode = o.supervise(beat, guess);
+    match (len, mode) {
+        // No loop: drop any recording so a later loop starts fresh.
+        (None, _) => {
+            o.clear();
+            LoopGate::Infer(None)
+        }
+        (Some(len), crate::looper::SuperMode::Looping { infer: false }) => {
+            match o.replayed(beat, len) {
+                Some(recorded) => LoopGate::Replay(recorded),
+                None => LoopGate::Infer(Some(len)),
+            }
+        }
+        (Some(len), _) => LoopGate::Infer(Some(len)),
+    }
 }
 
 /// What a generator node's config says about its loop (key `loop`).

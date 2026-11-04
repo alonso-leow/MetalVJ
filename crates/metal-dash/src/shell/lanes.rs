@@ -582,6 +582,9 @@ pub struct Track {
     /// before F6, or a model/video lane).
     pub columns: Vec<String>,
     pub keyframes: BTreeMap<usize, Vec<f32>>,
+    /// A loop example's per-tick labels and whether this clip is one.
+    pub loop_beats: BTreeMap<usize, f32>,
+    pub loops: bool,
     /// Which layer of its page — higher plays over lower.
     pub layer: usize,
     /// Mark-in/mark-out, inclusive; `None` follows the keypoints' extent.
@@ -704,6 +707,8 @@ struct SeqSnapshot {
     device: Option<String>,
     mask: Option<String>,
     keyframes: BTreeMap<usize, Vec<f32>>,
+    loop_beats: BTreeMap<usize, f32>,
+    loops: bool,
     row: Vec<f32>,
     columns: Vec<String>,
     expanded: bool,
@@ -782,6 +787,13 @@ pub struct IngestLane {
     /// The model's authored ticks for this song/device — sparse, `tick ->
     /// floats`, exactly `example::Example.ticks`' own shape.
     pub keyframes: BTreeMap<usize, Vec<f32>>,
+    /// The active track's per-tick loop labels (`Tick.loop_beats`): a tick
+    /// holds its beats until the next labelled tick. `0` is an explicit
+    /// "no loop". Only a loops example carries them ([`Self::loops`]).
+    pub loop_beats: BTreeMap<usize, f32>,
+    /// The active track is a loop example (`loop-<id>`): the properties
+    /// panel offers its `loop_beats` row.
+    pub loops: bool,
     /// The live row the properties panel edits — what the picture shows,
     /// what a keyframe commit files. Its length is the current model's
     /// schema width; a model switch resets it to that model's defaults.
@@ -830,6 +842,8 @@ pub struct IngestLane {
     pub mark: Option<(usize, usize)>,
     /// Copied keyframes, as `(offset from the range start, floats)`.
     pub clip: Vec<(usize, Vec<f32>)>,
+    /// Copied loop labels, `(offset from the range start, beats)`.
+    pub clip_loops: Vec<(usize, f32)>,
     /// The left edge of the view, in ticks (horizontal scroll).
     pub view_from: f32,
     /// The rows' vertical scroll, in points.
@@ -895,6 +909,9 @@ impl Default for IngestLane {
             active: 0,
             mark: None,
             clip: Vec::new(),
+            clip_loops: Vec::new(),
+            loop_beats: BTreeMap::new(),
+            loops: false,
             view_from: 0.0,
             scroll_y: 0.0,
             row_zoom: 1.0,
@@ -1169,6 +1186,8 @@ impl IngestLane {
             device: self.device.clone(),
             mask: self.mask.clone(),
             keyframes: self.keyframes.clone(),
+            loop_beats: self.loop_beats.clone(),
+            loops: self.loops,
             row: self.row.clone(),
             columns: self.columns.clone(),
             expanded: self.expanded,
@@ -1193,6 +1212,8 @@ impl IngestLane {
         self.device = s.device;
         self.mask = s.mask;
         self.keyframes = s.keyframes;
+        self.loop_beats = s.loop_beats;
+        self.loops = s.loops;
         self.row = s.row;
         self.columns = s.columns;
         self.expanded = s.expanded;
@@ -1239,11 +1260,12 @@ impl IngestLane {
         self.mark.unwrap_or((self.playhead, self.playhead))
     }
 
-    /// Copies the keyframes in the range; returns how many.
+    /// Copies the keyframes and loop labels in the range; returns how many.
     pub fn copy_range(&mut self) -> usize {
         let (a, b) = self.range();
         self.clip = self.keyframes.range(a..=b).map(|(t, f)| (t - a, f.clone())).collect();
-        self.clip.len()
+        self.clip_loops = self.loop_beats.range(a..=b).map(|(t, beats)| (t - a, *beats)).collect();
+        self.clip.len() + self.clip_loops.len()
     }
 
     /// Clears the keyframes in the range, one undo step.
@@ -1273,13 +1295,83 @@ impl IngestLane {
     pub fn paste(&mut self) -> usize {
         let at = self.playhead;
         let changes: Vec<_> = self.clip.iter().map(|(o, f)| (at + o, Some(f.clone()))).collect();
-        let n = changes.len();
+        let labels: Vec<_> = self.clip_loops.iter().map(|(o, b)| (at + o, Some(*b))).collect();
+        let n = changes.len() + labels.len();
         if n > 0 {
             self.history_push();
             self.apply(changes);
+            self.apply_loops(labels);
         }
         self.goto(self.playhead);
         n
+    }
+
+    /// Fills every tick of the marked range with the copied tick's floats and
+    /// loop label (whichever the copied tick has), one undo step. Needs a clip
+    /// of exactly one tick at offset 0 — one keypoint, one label, or both on
+    /// the same tick (what `copy_range` yields for a single authored tick);
+    /// anything else is refused with 0 and nothing changes.
+    pub fn fill_range(&mut self) -> usize {
+        let floats = match self.clip.as_slice() {
+            [] => None,
+            [(0, f)] => Some(f.clone()),
+            _ => return 0,
+        };
+        let beats = match self.clip_loops.as_slice() {
+            [] => None,
+            [(0, b)] => Some(*b),
+            _ => return 0,
+        };
+        if floats.is_none() && beats.is_none() {
+            return 0;
+        }
+        let (a, b) = self.range();
+        let changes: Vec<_> = (a..=b).map(|t| (t, floats.clone())).collect();
+        let labels: Vec<_> = (a..=b).map(|t| (t, beats)).collect();
+        let n = b - a + 1;
+        self.history_push();
+        if floats.is_some() {
+            self.apply(changes);
+        }
+        if beats.is_some() {
+            self.apply_loops(labels);
+        }
+        self.goto(self.playhead);
+        n
+    }
+
+    /// Labels the playhead's tick with `beats` (`None` removes the label),
+    /// one undo step. False when nothing changes.
+    pub fn set_loop_beats(&mut self, beats: Option<f32>) -> bool {
+        let at = self.playhead;
+        if self.loop_beats.get(&at).copied() == beats {
+            return false;
+        }
+        self.history_push();
+        self.apply_loops(vec![(at, beats)]);
+        true
+    }
+
+    /// Adopts a loop example's labels for the clip just opened, and whether
+    /// it is one. Called after [`Self::adopt_part`], which made the clip live.
+    pub fn adopt_loop_labels(&mut self, labels: BTreeMap<usize, f32>, loops: bool) {
+        self.loop_beats = labels;
+        self.loops = loops;
+    }
+
+    /// Sets (`Some`) or clears (`None`) loop labels with no history of its own
+    /// — the caller takes the one snapshot the whole batch undoes as.
+    fn apply_loops(&mut self, changes: Vec<(usize, Option<f32>)>) {
+        for (tick, next) in changes {
+            match next {
+                Some(beats) => {
+                    self.loop_beats.insert(tick, beats);
+                }
+                None => {
+                    self.loop_beats.remove(&tick);
+                }
+            }
+        }
     }
 
     /// Moves one keyframe to another tick (a drag of its grip) — replacing
@@ -1322,6 +1414,8 @@ impl IngestLane {
             value: self.value,
             columns: self.columns.clone(),
             keyframes: self.keyframes.clone(),
+            loop_beats: self.loop_beats.clone(),
+            loops: self.loops,
             expanded: self.expanded,
             row: self.row.clone(),
             loaded_song: self.loaded_song.clone(),
@@ -1343,6 +1437,8 @@ impl IngestLane {
         self.value = t.value;
         self.columns = t.columns;
         self.keyframes = t.keyframes;
+        self.loop_beats = t.loop_beats;
+        self.loops = t.loops;
         self.expanded = t.expanded;
         self.row = t.row;
         self.loaded_song = t.loaded_song;
@@ -1936,11 +2032,7 @@ impl IngestLane {
             .iter()
             .filter(|t| !t.model.is_empty() && !t.keyframes.is_empty() && !song.is_empty())
             .map(|t| {
-                let ticks: Vec<serde_json::Value> = t
-                    .keyframes
-                    .iter()
-                    .map(|(k, f)| serde_json::json!({ "tick": k, "floats": f }))
-                    .collect();
+                let ticks = example_ticks(&t.keyframes, &t.loop_beats);
                 let mut body = serde_json::json!({ "model": t.model, "song": song, "rate": rate, "ticks": ticks });
                 if let (Some(d), Some(l)) = (&t.device, layer) {
                     body["device"] = serde_json::json!(d);
@@ -1986,11 +2078,7 @@ impl IngestLane {
         if self.model.is_empty() || self.keyframes.is_empty() || song.is_empty() {
             return None;
         }
-        let ticks: Vec<serde_json::Value> = self
-            .keyframes
-            .iter()
-            .map(|(t, floats)| serde_json::json!({ "tick": t, "floats": floats }))
-            .collect();
+        let ticks = example_ticks(&self.keyframes, &self.loop_beats);
         let mut body = serde_json::json!({
             "model": self.model,
             "song": song,
@@ -2032,6 +2120,53 @@ impl IngestLane {
             body["mask"] = serde_json::json!(mask);
         }
         Some(body)
+    }
+}
+
+/// The ticks of a model example, sorted: every keypoint, and every loop
+/// label's tick too. A labelled tick with no keypoint of its own is written
+/// at the row the keypoints hold there (eased), so the file has a row for
+/// every tick it labels. `loop_beats` rides on its tick when labelled.
+pub fn example_ticks(keyframes: &BTreeMap<usize, Vec<f32>>, loop_beats: &BTreeMap<usize, f32>) -> Vec<serde_json::Value> {
+    let width = keyframes.values().next().map_or(0, Vec::len);
+    let ticks: std::collections::BTreeSet<usize> = keyframes.keys().chain(loop_beats.keys()).copied().collect();
+    ticks
+        .into_iter()
+        .map(|t| {
+            let floats = keyframes
+                .get(&t)
+                .cloned()
+                .or_else(|| interpolate_row(keyframes, t))
+                .unwrap_or_else(|| vec![0.0; width]);
+            let mut tick = serde_json::json!({ "tick": t, "floats": floats });
+            if let Some(beats) = loop_beats.get(&t) {
+                tick["loop_beats"] = serde_json::json!(beats);
+            }
+            tick
+        })
+        .collect()
+}
+
+/// The loop lengths a loop label can take, in beats: `0` (no loop) and the
+/// rhythm finder's seven lengths.
+pub const LOOP_CHOICES: [f32; 8] = [0.0, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
+
+/// A loop label as readable beats text, Spanish via `tr`: `1/8 beat`,
+/// `1 beat`, `4 beats`; `0` is `no loop`.
+pub fn loop_beats_text(beats: f32) -> String {
+    if beats == 0.0 {
+        return crate::shell::i18n::tr("no loop").to_string();
+    }
+    let n = match beats {
+        b if b == 0.125 => "1/8".to_string(),
+        b if b == 0.25 => "1/4".to_string(),
+        b if b == 0.5 => "1/2".to_string(),
+        b => format!("{b}"),
+    };
+    if beats < 1.0 || beats == 1.0 {
+        crate::shell::i18n::trf("{n} beat", &[("n", &n)])
+    } else {
+        crate::shell::i18n::trf("{n} beats", &[("n", &n)])
     }
 }
 
@@ -3118,6 +3253,100 @@ mod tests {
 
     /// Copy the marked range, paste it at the playhead, clear a range, retime
     /// a keypoint — each one undo step.
+    /// Author one tick, copy it, mark a range and fill: every tick in the range
+    /// holds the same floats, the fill is one undo step, and a multi-tick clip
+    /// is refused.
+    #[test]
+    fn fill_range_stamps_the_copied_tick_on_every_tick_in_one_undo() {
+        let mut lane = IngestLane::default();
+        lane.keyframes.insert(2, vec![0.2, 0.9]);
+        lane.mark = Some((2, 2));
+        assert_eq!(lane.copy_range(), 1);
+        lane.mark = Some((5, 8));
+        assert_eq!(lane.fill_range(), 4);
+        for t in 5..=8 {
+            assert_eq!(lane.keyframes.get(&t), Some(&vec![0.2, 0.9]), "tick {t} is filled");
+        }
+        assert!(lane.keyframes.get(&4).is_none() && lane.keyframes.get(&9).is_none());
+        lane.undo();
+        assert_eq!(lane.keyframes.keys().copied().collect::<Vec<_>>(), vec![2], "the fill is one step");
+
+        lane.keyframes.insert(3, vec![0.1]);
+        lane.mark = Some((5, 8));
+        lane.clip = vec![(0, vec![0.1]), (1, vec![0.3])];
+        assert_eq!(lane.fill_range(), 0, "a multi-tick clip is refused");
+        assert_eq!(lane.keyframes.keys().copied().collect::<Vec<_>>(), vec![2, 3]);
+    }
+
+    #[test]
+    fn loop_labels_round_trip_through_copy_paste_and_fill_range() {
+        let mut lane = IngestLane::default();
+        lane.keyframes.insert(2, vec![0.2]);
+        lane.keyframes.insert(4, vec![0.4]);
+        lane.loops = true;
+        lane.loop_beats.insert(2, 0.5);
+        lane.loop_beats.insert(3, 0.0);
+
+        // Copy a range: the label and its offset travel with the keypoints.
+        lane.mark = Some((2, 4));
+        assert_eq!(lane.copy_range(), 4, "two keypoints and two labels");
+        assert_eq!(lane.clip_loops, vec![(0, 0.5), (1, 0.0)]);
+
+        // Paste at the playhead: the labels land at the same offsets.
+        lane.goto(10);
+        assert_eq!(lane.paste(), 4);
+        assert_eq!(lane.loop_beats.get(&10), Some(&0.5));
+        assert_eq!(lane.loop_beats.get(&11), Some(&0.0), "0 is an explicit no-loop");
+        lane.undo();
+        assert!(lane.loop_beats.get(&10).is_none(), "the paste is one step");
+
+        // Copy one labelled tick and fill a range: every tick gets the label.
+        lane.keyframes.clear();
+        lane.loop_beats.clear();
+        lane.keyframes.insert(2, vec![0.2]);
+        lane.loop_beats.insert(2, 1.0);
+        lane.mark = Some((2, 2));
+        assert_eq!(lane.copy_range(), 2);
+        lane.mark = Some((6, 8));
+        assert_eq!(lane.fill_range(), 3);
+        for t in 6..=8 {
+            assert_eq!(lane.loop_beats.get(&t), Some(&1.0), "tick {t} is labelled");
+            assert_eq!(lane.keyframes.get(&t), Some(&vec![0.2]));
+        }
+        lane.undo();
+        assert_eq!(lane.loop_beats.keys().copied().collect::<Vec<_>>(), vec![2], "the fill is one step");
+        assert!(lane.keyframes.get(&6).is_none());
+
+        // A label-only copy fills labels and leaves the keypoints alone.
+        lane.clip = Vec::new();
+        lane.clip_loops = vec![(0, 0.25)];
+        lane.mark = Some((6, 7));
+        assert_eq!(lane.fill_range(), 2);
+        assert_eq!(lane.loop_beats.get(&7), Some(&0.25));
+        assert!(lane.keyframes.get(&6).is_none(), "no floats in the clip, none stamped");
+
+        // A multi-tick label clip is refused like a multi-tick keypoint clip.
+        lane.clip_loops = vec![(0, 0.25), (1, 0.5)];
+        assert_eq!(lane.fill_range(), 0);
+    }
+
+    #[test]
+    fn example_body_writes_loop_labels_and_labelled_ticks_without_a_keypoint() {
+        let mut lane = IngestLane { model: "gradient".into(), song: "magalenha".into(), ..IngestLane::default() };
+        lane.keyframes.insert(0, vec![0.5]);
+        lane.keyframes.insert(8, vec![0.25]);
+        lane.loop_beats.insert(0, 2.0);
+        lane.loop_beats.insert(4, 0.0);
+        let body = lane.example_body(8.0, None).expect("a body");
+        let ticks = body["ticks"].as_array().expect("ticks");
+        assert_eq!(ticks.len(), 3, "the labelled tick 4 is a row too");
+        assert_eq!(ticks[0]["loop_beats"], serde_json::json!(2.0));
+        assert_eq!(ticks[1]["tick"], serde_json::json!(4));
+        assert_eq!(ticks[1]["loop_beats"], serde_json::json!(0.0));
+        assert!(ticks[2].get("loop_beats").is_none(), "an unlabelled tick carries no label");
+        assert_eq!(ticks[2]["floats"], serde_json::json!([0.25]));
+    }
+
     #[test]
     fn range_edits_and_retime_are_one_undo_step_each() {
         let mut lane = IngestLane::default();

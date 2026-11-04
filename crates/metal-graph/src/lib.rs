@@ -1856,6 +1856,11 @@ pub const PALETTE_KIND: &str = "palette";
 /// model's default weights.
 pub const AI_COLOURIST_KIND: &str = "ai.colourist";
 
+/// The rhythm finder (`metal_reel::loopfind`): an `ai.*` trainer whose fit is
+/// read from the approved loop labels, not from a `gen.*` feed. Trained by the
+/// same `ai/train` route as the Colourist, which dispatches on this kind.
+pub const AI_LOOPS_KIND: &str = "ai.loops";
+
 /// P-D: the Art-Net receiver (`metal_perform::artnet::in_row`). Its row is
 /// the latest ArtDmx on one universe, `first..first+count` as floats 0..1.
 pub const ARTNET_IN_KIND: &str = "in.artnet";

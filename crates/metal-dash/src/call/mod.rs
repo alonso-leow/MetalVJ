@@ -272,6 +272,17 @@ fn perf_snapshot(_ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
     Ok(crate::perf::snapshot())
 }
 
+/// loop-aux: the model conductor's state, read by the properties panel.
+fn conductor_snapshot(ctx: &mut Ctx, _params: &Params) -> Result<Value, CallError> {
+    let c = &ctx.state.conductor;
+    Ok(serde_json::json!({
+        "entries": c.entries(),
+        "every": c.every(),
+        "until_switch": c.until_switch(),
+        "held": ctx.state.router.held_model(),
+    }))
+}
+
 /// Without the desktop feature there is no agent harness, so no bearer token
 /// is ever accepted and `POST /agent/tool` is never intercepted (`ai_off.rs`
 /// answers the AI routes with the same refusal).
@@ -860,6 +871,13 @@ pub static ROUTES: &[Route] = &[
         path: "/perf",
         prefix: false,
         handler: Handler::Json(perf_snapshot),
+    },
+    // loop-aux: the model conductor (authoring entries, next switch).
+    Route {
+        method: "GET",
+        path: "/conductor",
+        prefix: false,
+        handler: Handler::Json(conductor_snapshot),
     },
     // P-G: "Export frame" — the preview bar's camera and the
     // `export_frame` tool (rule 6) save the node's frame as a PNG.

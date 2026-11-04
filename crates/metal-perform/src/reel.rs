@@ -55,6 +55,7 @@ use std::sync::{Arc, Mutex};
 
 use metal_reel::curate::{self, Curator, Memory, Recent, FEATURES};
 use metal_reel::grade::Colourist;
+use metal_reel::loopfind::LoopFinder;
 use metal_reel::index::{self, Library, Options, Step};
 use metal_reel::Cue;
 use metal_schema::Schema;
@@ -129,6 +130,9 @@ pub struct Reels {
     pub curator: Curator,
     /// One per model id that is a transmission, loaded on demand.
     colourists: Vec<(String, Colourist)>,
+    /// The rhythm finder (loop-aux), loaded on first use and dropped by
+    /// [`Reels::reload`] like a grade. `None` until read.
+    loop_finder: Option<LoopFinder>,
     /// The indexing run, if one is going. Shared with the thread doing it.
     job: Arc<Mutex<Option<Job>>>,
     /// A library that should become the default the moment the run that
@@ -146,6 +150,7 @@ impl Reels {
             default: None,
             curator: Curator::load(data),
             colourists: Vec::new(),
+            loop_finder: None,
             job: Arc::new(Mutex::new(None)),
             pending_open: None,
         }
@@ -548,6 +553,15 @@ impl Reels {
     /// restart.
     pub fn reload(&mut self, model: &str) {
         self.colourists.retain(|(id, _)| id != model);
+        // The finder is one file for every model, so any reload re-reads it.
+        self.loop_finder = None;
+    }
+
+    /// The rhythm finder under the data root, loaded once and kept. An
+    /// untrained or stale fit is the empty finder, which answers `None`.
+    pub fn loop_finder(&mut self) -> &LoopFinder {
+        let data = &self.data;
+        self.loop_finder.get_or_insert_with(|| LoopFinder::load(data))
     }
 
     /// What the page prints about all of this.

@@ -602,11 +602,11 @@ mod tests {
                 ticks: vec![
                     example::Tick {
                         tick: 4,
-                        floats: lo,
+                        floats: lo, loop_beats: None
                     },
                     example::Tick {
                         tick: 11,
-                        floats: hi,
+                        floats: hi, loop_beats: None
                     },
                 ],
             },

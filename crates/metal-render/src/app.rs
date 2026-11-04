@@ -108,6 +108,7 @@ impl UiState {
             // The advanced effects have no sliders here; they start at their
             // declared defaults, the same a fresh `Post` does.
             advanced: metal_schema::Post::default().advanced,
+            dither: metal_schema::dither_default(),
         }
     }
 
@@ -456,6 +457,7 @@ impl App {
                 leak_color,
                 time,
                 kaleido: ui.kaleido,
+                dither: metal_schema::dither_default(),
                 wake: EstelaParams::default(),
                 grade: GradeUniform::from_advanced(&ui.post().advanced),
                 chain_fx: ChainFx::from_advanced(&ui.post().advanced),

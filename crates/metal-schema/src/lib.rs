@@ -1237,6 +1237,18 @@ pub struct Post {
     /// and the preset both see them as ordinary floats.
     #[serde(default)]
     pub advanced: Vec<f32>,
+    /// Final-stage dither amplitude, 0..1: a triangular ±1 LSB (8-bit sRGB)
+    /// noise added after the whole chain, before the target quantises, so the
+    /// smooth ramps (sky, glow, fades) do not band. 0 is exactly off.
+    /// Appended last and `#[serde(default)]` — rows and presets written before
+    /// it load with the on default.
+    #[serde(default = "dither_default")]
+    pub dither: f32,
+}
+
+/// The default final dither: on, at one LSB (see [`Post::dither`]).
+pub fn dither_default() -> f32 {
+    1.0
 }
 
 /// The declared defaults of every advanced float, in [`ADVANCED_EFFECTS`]
@@ -1272,6 +1284,7 @@ impl Default for Post {
             grain: 0.0,
             chain: Vec::new(),
             advanced: advanced_defaults(),
+            dither: dither_default(),
         }
     }
 }
@@ -2483,6 +2496,7 @@ pub fn read_post(floats: &[f32]) -> Post {
         grain: floats[at + 13],
         advanced: floats[at + CHAIN_FLOATS..at + CHAIN_FLOATS + N_ADVANCED].to_vec(),
         leak_color: floats[at + EFFECTS_FLOATS.len()..at + EFFECTS_WIDTH].to_vec(),
+        dither: dither_default(),
         // A row is fourteen amounts and a colour; it has never carried an
         // order and does not start now. Rows come from models and from the
         // lane, neither of which knows about the graph — the chain is
@@ -3483,6 +3497,7 @@ mod tests {
             grain: 0.05,
             chain: Vec::new(),
             advanced: advanced_defaults(),
+            dither: dither_default(),
         };
         let old_values = (post.shake, post.ghost, post.kaleido);
         post.migrate(0);

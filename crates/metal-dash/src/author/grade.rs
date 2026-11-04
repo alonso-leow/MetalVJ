@@ -329,7 +329,7 @@ mod tests {
 
         let base_tick = |v: f32| Tick {
             tick: 0,
-            floats: vec![v, 0.5].into_iter().chain(std::iter::repeat(1.0).take(12)).collect(),
+            floats: vec![v, 0.5].into_iter().chain(std::iter::repeat(1.0).take(12)).collect(), loop_beats: None
         };
         example::save(
             &examples_root,
@@ -406,7 +406,7 @@ mod tests {
                 rate: 8.0,
                 ticks: vec![Tick {
                     tick: 0,
-                    floats: std::iter::repeat(0.5).take(14).collect(),
+                    floats: std::iter::repeat(0.5).take(14).collect(), loop_beats: None
                 }],
             },
             &schema(),
@@ -493,7 +493,7 @@ mod tests {
                     floats: vec![0.2, 0.99]
                         .into_iter()
                         .chain(std::iter::repeat(1.0).take(12))
-                        .collect(),
+                        .collect(), loop_beats: None
                 }],
             },
             &schema(),

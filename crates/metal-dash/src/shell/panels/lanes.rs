@@ -933,6 +933,25 @@ fn editor_foot_h(ui: &Ui, theme: &Theme, has_note: bool) -> f32 {
     theme.compact_row_height + gap + note
 }
 
+/// A bar button with no fill and no outline: the glyph or label alone. Hover
+/// only shifts its ink, so the bars read as bare controls, not a row of boxes.
+fn flat(text: RichText) -> egui::Button<'static> {
+    egui::Button::new(text).frame(false)
+}
+
+/// A thin linear divider between two groups of bar buttons: a vertical hairline
+/// in a row, a horizontal one in a column.
+fn bar_rule(ui: &mut Ui, theme: &Theme, vertical: bool) {
+    let (w, h) = if vertical { (1.0, ui.spacing().interact_size.y) } else { (ui.available_width(), 1.0) };
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(w, h), Sense::hover());
+    let stroke = theme.rule_stroke();
+    if vertical {
+        ui.painter().line_segment([rect.center_top(), rect.center_bottom()], stroke);
+    } else {
+        ui.painter().line_segment([rect.left_center(), rect.right_center()], stroke);
+    }
+}
+
 /// Shrinks the buttons of the row painted in `ui` to the theme's compact row.
 fn compact_row(ui: &mut Ui, theme: &Theme) {
     let spacing = ui.spacing_mut();
@@ -1473,22 +1492,24 @@ fn top_bar(
         // the timeline never depends on a per-style wrap.
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             // Added right-to-left, so the cluster reads `import ▾ − +`.
+            ui.spacing_mut().item_spacing.x = 0.0;
             if ui
-                .button(RichText::new("+").font(theme.font_small.clone()))
+                .add(flat(RichText::new("+").font(theme.font_small.clone())))
                 .on_hover_text("zoom in (wheel · ctrl + wheel: row height · shift: move · alt: up/down)")
                 .clicked()
             {
                 ingest.span = (ingest.span / 2).max(crate::shell::timeline::SPAN_MIN);
             }
             if ui
-                .button(RichText::new("−").font(theme.font_small.clone()))
+                .add(flat(RichText::new("−").font(theme.font_small.clone())))
                 .on_hover_text("zoom out (wheel · ctrl + wheel: row height · shift: move · alt: up/down)")
                 .clicked()
             {
                 ingest.span = (ingest.span * 2).min(crate::shell::timeline::SPAN_MAX);
             }
+            bar_rule(ui, theme, true);
             if ui
-                .button(RichText::new("import").font(theme.font_small.clone()))
+                .add(flat(RichText::new("import").font(theme.font_small.clone())))
                 .on_hover_text("add a clip with a model, or an fx layer")
                 .clicked()
             {
@@ -1770,19 +1791,26 @@ fn bottom_bar(
     let mut picked_part = None;
     ui.horizontal(|ui| {
         compact_row(ui, theme);
-        // Left: the transport and the tick/seconds readout.
-        if ui.button(lucide(Icon::SkipBack, theme.font_small.size)).on_hover_text("to the start").clicked() {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        // Left: the transport, then the tick/seconds readout.
+        if ui.add(flat(lucide(Icon::SkipBack, theme.font_small.size))).on_hover_text("to the start").clicked() {
             ingest.goto(0);
         }
         let play = if ingest.playing.is_some() { Icon::Pause } else { Icon::Play };
-        if ui.button(lucide(play, theme.font_small.size)).on_hover_text("play the sequence in the preview (space)").clicked() {
+        if ui.add(flat(lucide(play, theme.font_small.size))).on_hover_text("play the sequence in the preview (space)").clicked() {
             ingest.toggle_play(ui.input(|i| i.time));
         }
-        if ui.button(lucide(Icon::StepBack, theme.font_small.size)).on_hover_text("previous keypoint").clicked() {
+        if ui.add(flat(lucide(Icon::StepBack, theme.font_small.size))).on_hover_text("previous keypoint").clicked() {
             if let Some(t) = ingest.neighbour_keyframe(false) {
                 ingest.goto(t);
             }
         }
+        if ui.add(flat(lucide(Icon::StepForward, theme.font_small.size))).on_hover_text("next keypoint").clicked() {
+            if let Some(t) = ingest.neighbour_keyframe(true) {
+                ingest.goto(t);
+            }
+        }
+        bar_rule(ui, theme, true);
         let range = match ingest.mark {
             Some((a, b)) if a != b => format!("{a}–{b}"),
             _ => ingest.playhead.to_string(),
@@ -1792,11 +1820,6 @@ fn bottom_bar(
                 .font(theme.font_small.clone())
                 .color(theme.ink),
         );
-        if ui.button(lucide(Icon::StepForward, theme.font_small.size)).on_hover_text("next keypoint").clicked() {
-            if let Some(t) = ingest.neighbour_keyframe(true) {
-                ingest.goto(t);
-            }
-        }
         // Right: the dataset filter and picker (added right-to-left, so
         // `status` sits left of `dataset`).
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1817,7 +1840,7 @@ fn bottom_bar(
                 let (text, to) = if approved { (format!(" {open} approved"), "pending") } else { (format!("approve {open}"), "approved") };
                 let set = if is_loop(&open) { "loops" } else { "parts" };
                 let hover = if approved { "back to pending" } else { "mark the open part as approved" };
-                if ui.button(RichText::new(text).font(theme.font_small.clone())).on_hover_text(hover).clicked() {
+                if ui.add(flat(RichText::new(text).font(theme.font_small.clone()))).on_hover_text(hover).clicked() {
                     match door.json("POST", "/author/dataset/status", Some(json!({ "part": open, "status": to, "set": set }))) {
                         Ok(_) => ingest.note = Some(format!("part {open}: {}", if to == "approved" { "approved" } else { "pending" })),
                         Err((_, msg)) => ingest.note = Some(format!("status of {open}: {msg}")),
@@ -1842,13 +1865,10 @@ fn icon_column(
     let icon = |i: Icon| lucide(i, theme.font_small.size);
     panel_frame(theme).show(ui, |ui| {
         ui.vertical(|ui| {
-            // Six glyph buttons spread down the full panel height, so the
-            // column uses all the space the timeline isn't: the controls are
-            // as tall a target as the panel allows instead of a short stack
-            // at the top.
-            let n = 6.0_f32;
-            let btn = ui.spacing().interact_size.y;
-            let gap = ((ui.available_height() - n * btn) / (n - 1.0)).max(theme.item_gap.y);
+            // Glyph buttons packed tight at the top, in three groups divided
+            // by linear rules: the keypoint, the clipboard and delete, then
+            // undo and save.
+            ui.spacing_mut().item_spacing.y = 0.0;
             // Keypoint: file or clear the active track's floats at the
             // playhead — one toggle that reads the map it edits.
             let at = ingest.playhead;
@@ -1858,7 +1878,7 @@ fn icon_column(
             } else {
                 "set the properties floats at this tick"
             };
-            if ui.button(icon(Icon::Keypoint)).on_hover_text(kp_hover).clicked() {
+            if ui.add(flat(icon(Icon::Keypoint))).on_hover_text(kp_hover).clicked() {
                 if has {
                     ingest.clear_keyframe();
                 } else if ingest.model.is_empty() {
@@ -1868,18 +1888,16 @@ fn icon_column(
                     ingest.note = None;
                 }
             }
-            ui.add_space(gap);
-            if ui.button(icon(Icon::Copy)).on_hover_text("the marked range on the ruler").clicked() {
+            bar_rule(ui, theme, false);
+            if ui.add(flat(icon(Icon::Copy))).on_hover_text("the marked range on the ruler").clicked() {
                 let n = ingest.copy_range();
                 ingest.note = Some(format!("{n} keypoint(s) copiados"));
             }
-            ui.add_space(gap);
-            if ui.button(icon(Icon::Paste)).on_hover_text("at the playhead").clicked() {
+            if ui.add(flat(icon(Icon::Paste))).on_hover_text("at the playhead").clicked() {
                 let n = ingest.paste();
                 ingest.note = Some(format!("{n} keypoint(s) pegados"));
             }
-            ui.add_space(gap);
-            if ui.button(icon(Icon::Ruler)).on_hover_text(tr("fill the marked range with the copied tick")).clicked() {
+            if ui.add(flat(icon(Icon::Ruler))).on_hover_text(tr("fill the marked range with the copied tick")).clicked() {
                 let n = ingest.fill_range();
                 ingest.note = Some(if n > 0 {
                     trf("{n} keypoint(s) rellenados", &[("n", &n)])
@@ -1887,20 +1905,19 @@ fn icon_column(
                     tr("copy one keypoint first").to_string()
                 });
             }
-            ui.add_space(gap);
-            if ui.button(icon(Icon::Trash)).on_hover_text("delete the marked range and remove the active clip").clicked() {
+            if ui.add(flat(icon(Icon::Trash))).on_hover_text("delete the marked range and remove the active clip").clicked() {
                 // One undo step: the clear and the track removal are one
                 // gesture to the operator (`delete_range_and_track`).
                 let n = ingest.delete_range_and_track();
                 ingest.note = Some(format!("{n} keypoint(s) deleted · active clip removed"));
             }
-            ui.add_space(gap);
-            if ui.button(icon(Icon::Undo)).on_hover_text("undo").clicked() {
+            bar_rule(ui, theme, false);
+            if ui.add(flat(icon(Icon::Undo))).on_hover_text("undo").clicked() {
                 ingest.undo();
             }
-            ui.add_space(gap);
-            let save = ui.menu_button(icon(Icon::Save), |ui| save_menu(ui, theme, door, ingest, layer));
-            save.response.on_hover_text("save: sequence, dataset, hits");
+            let (save, _) = egui::containers::menu::MenuButton::from_button(flat(icon(Icon::Save)))
+                .ui(ui, |ui| save_menu(ui, theme, door, ingest, layer));
+            save.on_hover_text("save: sequence, dataset, hits");
         });
     });
 }

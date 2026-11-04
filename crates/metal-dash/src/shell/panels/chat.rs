@@ -161,6 +161,8 @@ pub fn paint(
         // The composer sits on the panel's bottom edge: no gray strip below it.
         let mut frame = panel_frame(theme);
         frame.inner_margin.bottom = 0;
+        frame.inner_margin.left = 0;
+        frame.inner_margin.right = 0;
         let inner = frame.show(ui, |ui| {
             // Every label here wraps to the panel's width. egui's default in a
             // horizontal row is no-wrap, so a long tool summary or bullet would
@@ -203,12 +205,18 @@ pub fn paint(
                         let empty = chat
                             .as_ref()
                             .map_or(true, |c| c["messages"].as_array().map_or(true, |m| m.is_empty()));
-                        header(ui, theme, door, state, &title, empty);
+                        egui::Frame::new().inner_margin(theme.side_margin()).show(ui, |ui| {
+                            header(ui, theme, door, state, &title, empty);
+                        });
                         match state.view {
                             View::Conversation => {
                                 conversation_view(ui, theme, door, state, chat.as_ref(), selection)
                             }
-                            View::History => history_view(ui, theme, door, state),
+                            View::History => {
+                                egui::Frame::new().inner_margin(theme.side_margin()).show(ui, |ui| {
+                                    history_view(ui, theme, door, state)
+                                });
+                            }
                         }
                         bg
                     })
@@ -248,8 +256,9 @@ fn header(
                     [w, ui.spacing().interact_size.y],
                     Label::new(
                         RichText::new(if empty { "" } else { title })
-                            .font(theme.font_small.clone())
-                            .color(theme.ink_weak),
+                            .font(theme.font_body.clone())
+                            .color(theme.ink)
+                            .strong(),
                     )
                     .truncate(),
                 );
@@ -306,7 +315,12 @@ fn conversation_view(
         .max(ui.spacing().interact_size.y)
         .min(area.height());
     let split = area.max.y - reserve;
-    let content = egui::Rect::from_min_max(area.min, egui::pos2(area.max.x, split));
+    let side = theme.pad as f32;
+    let content = egui::Rect::from_min_max(
+        egui::pos2(area.min.x + side, area.min.y),
+        egui::pos2(area.max.x - side, split),
+    );
+    // The footer runs edge to edge.
     let footer = egui::Rect::from_min_max(egui::pos2(area.min.x, split), area.max);
 
     ui.scope_builder(egui::UiBuilder::new().max_rect(content), |ui| match chat {
@@ -371,62 +385,72 @@ fn history_row(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     }
 
     ui.push_id(Id::new(("shell/panel/chat/history", id.as_str())), |ui| {
-        Frame::new()
-            .fill(theme.inset)
-            .stroke(theme.rule_stroke())
-            .corner_radius(theme.corner_radius())
-            .inner_margin(theme.panel_margin())
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    let text = ui
-                        .vertical(|ui| {
-                            ui.add(
-                                Label::new(
-                                    RichText::new(&title)
-                                        .font(theme.font_body.clone())
-                                        .color(theme.ink),
-                                )
-                                .truncate(),
-                            );
-                            if !preview.is_empty() {
-                                ui.add(
-                                    Label::new(
-                                        RichText::new(&preview)
-                                            .font(theme.font_small.clone())
-                                            .color(theme.ink_weak),
-                                    )
-                                    .truncate(),
-                                );
-                            }
-                            if !meta.is_empty() {
-                                ui.label(
-                                    RichText::new(meta.join(" · "))
-                                        .font(theme.font_small.clone())
-                                        .color(theme.ink_faint),
-                                );
-                            }
-                        })
-                        .response;
-                    if ui
-                        .interact(text.rect, ui.id().with("open"), Sense::click())
-                        .clicked()
-                    {
-                        state.chat = Some(id.clone());
-                        state.view = View::Conversation;
-                    }
-                    if ui
-                        .button(lucide(Icon::Trash, theme.font_small.size))
-                        .on_hover_text(tr("delete chat"))
-                        .clicked()
-                    {
-                        let _ = door.json("POST", "/ai/chat/delete", Some(json!({ "id": id })));
-                        if state.chat.as_deref() == Some(id.as_str()) {
-                            state.chat = None;
-                        }
-                    }
-                });
-            });
+        let width = ui.available_width();
+        let (rect, _) = ui.allocate_exact_size(
+            egui::vec2(width, theme.library_card_h),
+            Sense::hover(),
+        );
+        let open = ui.interact(rect, ui.id().with("open"), Sense::click());
+        let fill = if open.hovered() {
+            theme.library_card_hover
+        } else {
+            theme.inset
+        };
+        ui.painter().rect_filled(rect, theme.sharp_corner(), fill);
+        let trash = egui::Rect::from_min_size(
+            egui::pos2(rect.right() - theme.row_menu_width, rect.top()),
+            egui::vec2(theme.row_menu_width, rect.height()),
+        );
+        let text = egui::Rect::from_min_max(
+            egui::pos2(rect.left() + theme.library_card_pad.x, rect.top()),
+            egui::pos2(trash.left(), rect.bottom()),
+        );
+        let sub = if preview.is_empty() {
+            meta.join(" · ")
+        } else {
+            format!("{} · {}", meta.join(" · "), preview)
+        };
+        let mut child = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(text)
+                .layout(egui::Layout::top_down(egui::Align::LEFT)),
+        );
+        child.spacing_mut().item_spacing.y = theme.library_detail_gap;
+        let block = ui.ctx().fonts_mut(|f| {
+            f.row_height(&theme.font_body) + theme.library_detail_gap + f.row_height(&theme.font_small)
+        });
+        child.add_space(((rect.height() - block) / 2.0).max(0.0));
+        child.add(
+            Label::new(RichText::new(&title).font(theme.font_body.clone()).color(theme.ink))
+                .truncate()
+                .selectable(false),
+        );
+        child.add(
+            Label::new(RichText::new(sub).font(theme.font_small.clone()).color(theme.ink_weak))
+                .truncate()
+                .selectable(false),
+        );
+        if open.clicked() {
+            state.chat = Some(id.clone());
+            state.view = View::Conversation;
+        }
+        let mut cell = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(trash)
+                .layout(egui::Layout::centered_and_justified(egui::Direction::LeftToRight)),
+        );
+        if cell
+            .button(lucide(Icon::Trash, theme.font_small.size))
+            .on_hover_text(tr("delete chat"))
+            .clicked()
+        {
+            let _ = door.json("POST", "/ai/chat/delete", Some(json!({ "id": id })));
+            if state.chat.as_deref() == Some(id.as_str()) {
+                state.chat = None;
+            }
+        }
     });
+    ui.add_space(theme.item_gap.y);
 }
 
 /// Opens a fresh conversation (`POST /ai/chats`) and shows it.
@@ -977,7 +1001,7 @@ fn prompt_box(
     door: &dyn Call,
     state: &mut PanelState,
     chat: Option<&Value>,
-    selection: Option<&Value>,
+    _selection: Option<&Value>,
 ) {
     let prompt_id = Id::new(PROMPT_ID);
     let focused = ui.memory(|m| m.has_focus(prompt_id));
@@ -1025,11 +1049,10 @@ fn prompt_box(
 
     Frame::new()
         .fill(theme.inset)
-        .stroke(theme.rule_stroke())
-        .corner_radius(theme.corner_radius())
-        .inner_margin(theme.panel_margin())
+        .inner_margin(theme.flush_margin_none())
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
+            ui.add_space(theme.item_gap.y);
             context_chips(ui, theme, state);
             if focused && !mentions.is_empty() {
                 mention_list(ui, theme, state, &mentions);
@@ -1045,14 +1068,13 @@ fn prompt_box(
             // the row's centre line.
             let btn_w = ui.spacing().interact_size.x;
             let btn_size = egui::vec2(btn_w, row_h);
-            let field_w = (ui.available_width() - 2.0 * btn_w - 2.0 * spacing).max(0.0);
+            let field_w = (ui.available_width() - btn_w - spacing).max(0.0);
             let (row, _) = ui.allocate_exact_size(
                 egui::vec2(ui.available_width(), row_h),
                 Sense::hover(),
             );
-            let attach_rect = egui::Rect::from_min_size(row.min, btn_size);
             let field_rect = egui::Rect::from_min_size(
-                egui::pos2(row.min.x + btn_w + spacing, row.min.y),
+                row.min,
                 egui::vec2(field_w, row_h),
             );
             let send_rect = egui::Rect::from_min_size(
@@ -1060,23 +1082,6 @@ fn prompt_box(
                 btn_size,
             );
 
-            // `@` attaches the shell's selection, at the left edge.
-            let attach = ui
-                .add_enabled_ui(selection.is_some(), |ui| {
-                    ui.put(
-                        attach_rect,
-                        egui::Button::new(RichText::new("@").font(theme.font_body.clone())),
-                    )
-                })
-                .inner
-                .on_hover_text(tr("attach the selection"));
-            if attach.clicked() {
-                if let Some(sel) = selection {
-                    if !state.context.contains(sel) {
-                        state.context.push(sel.clone());
-                    }
-                }
-            }
             // The field gets an exact rect, so it can never squeeze the
             // send/stop control past the panel's right edge.
             ui.scope_builder(egui::UiBuilder::new().max_rect(field_rect), |ui| {

@@ -1824,6 +1824,56 @@ impl Theme {
     /// Inner margin of the header bar: [`Self::header_pad`] horizontally,
     /// [`Self::header_pad_y`] vertically, so the row has symmetric breathing
     /// room above and below its content.
+    /// A bottom-row panel's margin: nothing above the header, a sliver at the
+    /// sides, the usual pad below.
+    pub fn flush_margin(&self) -> Margin {
+        Margin { left: self.pad / 4, right: self.pad / 4, top: 0, bottom: self.pad }
+    }
+
+    /// The pad at the sides only.
+    pub fn side_margin(&self) -> Margin {
+        Margin { left: self.pad, right: self.pad, top: 0, bottom: 0 }
+    }
+
+    /// No margin at all.
+    pub fn flush_margin_none(&self) -> Margin {
+        Margin::ZERO
+    }
+
+    /// The same for the library's columns.
+    pub fn library_flush_margin(&self) -> Margin {
+        Margin {
+            left: self.library_pad / 2,
+            right: self.library_pad / 2,
+            top: 0,
+            bottom: self.library_pad,
+        }
+    }
+
+    /// The wordmark's face: the heading face, larger.
+    pub fn logo_font(&self) -> egui::FontId {
+        let mut font = self.font_heading.clone();
+        font.size *= 1.5;
+        font
+    }
+
+    /// The old-shell menu bar look: flat items, square, no outline, a hover
+    /// wash and nothing else. The header sets it on its own ui only.
+    pub fn flat_bar_style(&self, style: &mut egui::Style) {
+        let w = &mut style.visuals.widgets;
+        for v in [&mut w.inactive, &mut w.hovered, &mut w.active, &mut w.open] {
+            v.corner_radius = CornerRadius::ZERO;
+            v.bg_stroke = Stroke::NONE;
+            v.expansion = 0.0;
+            v.weak_bg_fill = Color32::TRANSPARENT;
+            v.bg_fill = Color32::TRANSPARENT;
+        }
+        for v in [&mut w.hovered, &mut w.active, &mut w.open] {
+            v.weak_bg_fill = self.library_card_hover;
+            v.bg_fill = self.library_card_hover;
+        }
+    }
+
     pub fn header_margin(&self) -> Margin {
         Margin {
             left: self.header_pad,

@@ -89,7 +89,7 @@ pub(super) fn paint(
         );
         debug_assert!(
             Region::ALL.iter().all(|r| rects.contains_key(r)),
-            "every region of Region::ALL should have painted a rect this frame"
+            "every region of Region::ALL should have painted a rect this frame:"
         );
     } else {
         paint_delegated(
@@ -422,31 +422,40 @@ fn paint_top_row(
     // doc comment on the one-frame lag this implies for a graph switch.
     let graph_id = nodes_state.selected_graph().map(str::to_string);
 
-    let left_panel = Panel::left(Id::new(format!("{}-col", left.id())))
-        .resizable(true)
-        .default_size(left_width)
-        .min_size(theme.region_min.x)
-        .max_size(row_width - theme.region_min.x)
-        .frame(Frame::NONE)
-        .show(ui, |ui| {
-            let response = properties::paint(
-                ui,
-                theme,
-                door,
-                properties_state,
-                ingest_state,
-                &*selection,
-                &nodes_state.picked_nodes(&selection),
-                graph_id.as_deref(),
-                overlay_focus,
-                lanes_focused,
-                focus == Some(left),
-            );
-            if response.clicked() {
-                *clicked = Some(left);
-            }
-        });
-    rects.insert(left, left_panel.response.rect);
+    // Nothing focused, nothing to show: the canvas takes the whole row.
+    let anything = !matches!(*selection, Selection::None)
+        || overlay_focus.is_some()
+        || lanes_focused
+        || !nodes_state.picked_nodes(&*selection).is_empty();
+    if anything {
+        let left_panel = Panel::left(Id::new(format!("{}-col", left.id())))
+            .resizable(true)
+            .default_size(left_width)
+            .min_size(theme.region_min.x)
+            .max_size(row_width - theme.region_min.x)
+            .frame(Frame::NONE)
+            .show(ui, |ui| {
+                let response = properties::paint(
+                    ui,
+                    theme,
+                    door,
+                    properties_state,
+                    ingest_state,
+                    &*selection,
+                    &nodes_state.picked_nodes(&selection),
+                    graph_id.as_deref(),
+                    overlay_focus,
+                    lanes_focused,
+                    focus == Some(left),
+                );
+                if response.clicked() {
+                    *clicked = Some(left);
+                }
+            });
+        rects.insert(left, left_panel.response.rect);
+    } else {
+        rects.insert(left, Rect::from_min_size(ui.min_rect().min, egui::Vec2::ZERO));
+    }
 
     let right_panel = CentralPanel::default_margins()
         .frame(Frame::NONE)

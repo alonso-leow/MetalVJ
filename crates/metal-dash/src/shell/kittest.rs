@@ -108,7 +108,8 @@ mod tests {
 
         harness.get_by_label("Metal");
         harness.get_by_label("VJ");
-        for region in Region::ALL {
+        // Properties paints only with something focused.
+        for region in Region::ALL.into_iter().filter(|r| *r != Region::Properties) {
             harness.get_by_label(region.title());
         }
     }
@@ -325,7 +326,7 @@ mod tests {
             ),
         );
 
-        for region in Region::ALL {
+        for region in Region::ALL.into_iter().filter(|r| *r != Region::Properties) {
             let mut harness = harness(theme.clone());
             harness.run();
             let baseline = harness.state().region_rects().clone();
@@ -334,7 +335,7 @@ mod tests {
             harness.run();
             let after = harness.state().region_rects().clone();
 
-            for r in Region::ALL {
+            for r in Region::ALL.into_iter().filter(|r| *r != Region::Properties) {
                 assert!(
                     after[&r].intersects(baseline[&r]),
                     "{r:?}'s rect moved or disappeared when {region:?} was focused: {:?} -> {:?}",
@@ -343,7 +344,7 @@ mod tests {
                 );
             }
 
-            for (r, rect) in &after {
+            for (r, rect) in after.iter().filter(|(r, _)| **r != Region::Properties) {
                 assert!(
                     viewport.contains_rect(*rect),
                     "{r:?}'s rect {rect:?} is clipped outside the viewport {viewport:?}"
@@ -634,6 +635,9 @@ mod tests {
         );
         let mut harness =
             harness_with_door(Theme::phosphor(), Box::new(std::rc::Rc::clone(&recorder)));
+        harness.run();
+        // The properties panel shows with a selection: settle the layout first.
+        harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
 
         let rect = harness
@@ -2790,7 +2794,7 @@ mod tests {
             .set_selection_for_test(Selection::Node("gen-0".to_string()));
         run_real(&mut harness);
 
-        harness.get_by_label("gen.entrance");
+        harness.get_by_label("gen-0");
     }
 
     // -- the mouse wheel over properties floats (S.AO) ----------------------
@@ -2958,7 +2962,7 @@ mod tests {
 
                 let a = classes::arrangement(&theme, size);
                 if a.is_full_grid() {
-                    for region in Region::ALL {
+                    for region in Region::ALL.into_iter().filter(|r| *r != Region::Properties) {
                         harness.get_by_label(region.title());
                     }
                     continue;
@@ -3300,13 +3304,7 @@ mod tests {
         let mut harness = harness_with_door(Theme::phosphor(), Box::new(FakeDoor::new()));
         harness.run();
 
-        let at = harness.get_by_label("@").rect();
         let send = harness.get_by_label("send").rect();
-        assert!(
-            (at.center().y - send.center().y).abs() < 1.0,
-            "@ at {at:?} and send at {send:?} should share a row"
-        );
-        assert!(send.min.x > at.max.x, "send at {send:?} should sit right of @ at {at:?}");
         let (w, _) = crate::shell::DESKTOP_VIEWPORT;
         assert!(send.max.x <= w as f32, "send at {send:?} runs past the {w}px viewport");
     }

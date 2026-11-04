@@ -15,7 +15,7 @@ use crate::call::Call;
 
 use super::classes::{Arrangement, Placement, Theme};
 use super::classes::glyph_font;
-use super::components::{glyph, wordmark, Icon};
+use super::components::{divider, glyph, wordmark, Icon};
 use super::i18n::{tr, trf};
 use super::panels::Region;
 use super::ShellView;
@@ -64,6 +64,8 @@ pub(super) struct HeaderEvents {
     /// `Shell::ui` opens the settings overlay, exactly like every other
     /// toggle this struct reports rather than acts on.
     pub settings_toggled: bool,
+    /// The `About` button was clicked: `Shell::ui` toggles the README overlay.
+    pub about_toggled: bool,
     /// The sync indicator was clicked this frame (`panels::pairing`):
     /// `Shell::ui` opens or closes the pairing overlay.
     pub pairing_toggled: bool,
@@ -96,24 +98,34 @@ pub(super) fn paint(
     let _span = crate::perf::Span::new("header");
     let mut events = HeaderEvents::default();
     ui.horizontal_centered(|ui| {
+        theme.flat_bar_style(ui.style_mut());
         if arrangement.is_full_grid() {
             wordmark(ui, theme);
+            divider(ui, theme);
             collections_menu(ui, theme, door, state);
-            loop_readout(ui, theme, door);
-            listen_dots(ui, theme, door, &mut events);
-            pairing_chip(ui, theme, pairing, &mut events);
+            divider(ui, theme);
+            settings_button(ui, theme, &mut events);
+            divider(ui, theme);
+            about_button(ui, theme, &mut events);
+            divider(ui, theme);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                // Right-to-left: the toggle is added after `IA`, so it sits
-                // just left of it (and in Show, where `IA` is gone, at the
-                // edge).
+                // Right-to-left: the first item added is the rightmost.
                 if view == ShellView::Edit {
                     ia_button(ui, theme, harness_open, &mut events);
+                    divider(ui, theme);
                 }
                 view_toggle(ui, theme, view, &mut events);
-                settings_button(ui, theme, &mut events);
+                divider(ui, theme);
                 // The frame-rate readout lives here, left of the panel toggles,
                 // so it is on screen without covering the AI chat sidebar.
                 super::perf_hud::badge(ui, theme);
+                divider(ui, theme);
+                pairing_chip(ui, theme, pairing, &mut events);
+                divider(ui, theme);
+                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    loop_readout(ui, theme, door);
+                    listen_dots(ui, theme, door, &mut events);
+                });
             });
         } else {
             // Delegated (`S.U13b`, phone/phone-small): the whole row becomes
@@ -136,6 +148,7 @@ pub(super) fn paint(
                             tab_selector(ui, theme, active_tab, &mut events);
                         }
                         collections_menu(ui, theme, door, state);
+                        about_button(ui, theme, &mut events);
                         loop_readout(ui, theme, door);
                         listen_dots(ui, theme, door, &mut events);
                         // Right after the readouts, where the full grid puts it, so
@@ -471,6 +484,18 @@ fn settings_button(ui: &mut Ui, theme: &Theme, events: &mut HeaderEvents) {
     });
 }
 
+/// `About`: opens the README overlay.
+fn about_button(ui: &mut Ui, theme: &Theme, events: &mut HeaderEvents) {
+    ui.push_id(Id::new("shell/header/about"), |ui| {
+        if ui
+            .button(RichText::new(tr("About")).font(theme.font_body.clone()))
+            .clicked()
+        {
+            events.about_toggled = true;
+        }
+    });
+}
+
 /// A header button's label: a Lucide icon, then `text`. The icon is set in
 /// the Proportional family, where the Lucide fallback is installed; the body
 /// face (`font_body`) is Monospace in some themes, which has no Lucide
@@ -494,7 +519,7 @@ fn icon_label_after(text: &str, icon: Icon, theme: &Theme) -> egui::text::Layout
 /// find the button by it.
 #[cfg(test)]
 pub(crate) fn ia_label() -> String {
-    format!("{} IA", glyph(Icon::Spark))
+    tr("AI Assistant").to_string()
 }
 
 /// The delegated tab picker's accessible label for the active `title`: the
@@ -521,7 +546,10 @@ pub(crate) fn library_label(open: bool) -> String {
 /// names for the same reason.
 fn ia_button(ui: &mut Ui, theme: &Theme, _harness_open: bool, events: &mut HeaderEvents) {
     ui.push_id(Id::new("shell/header/ia"), |ui| {
-        if ui.button(icon_label(Icon::Spark, "IA", theme)).clicked() {
+        if ui
+            .button(RichText::new(tr("AI Assistant")).font(theme.font_body.clone()))
+            .clicked()
+        {
             events.harness_toggled = true;
         }
     });
@@ -715,7 +743,7 @@ mod tests {
     /// same button the painter drew.
     #[test]
     fn header_button_labels_lead_with_their_icon() {
-        assert_eq!(ia_label(), format!("{} IA", glyph(Icon::Spark)));
+        assert_eq!(ia_label(), tr("AI Assistant").to_string());
         assert_eq!(library_label(true), format!("{} library", glyph(Icon::ChevronLeft)));
         assert_eq!(library_label(false), format!("{} library", glyph(Icon::ChevronRight)));
         assert_eq!(view_label("nodes"), format!("view: nodes {}", glyph(Icon::ChevronDown)));

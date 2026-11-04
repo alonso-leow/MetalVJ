@@ -283,6 +283,8 @@ pub struct Shell {
     /// first frame) says otherwise.
     settings: settings::PanelState,
     settings_open: bool,
+    /// The `About` overlay (the README) is open.
+    about_open: bool,
     /// The "new" gallery overlay (`shell::gallery`): opened by the nodes
     /// canvas's `new` button and the sequence's `import`.
     gallery: gallery::State,
@@ -361,6 +363,7 @@ impl Shell {
             harness_open: true,
             settings: settings::PanelState::default(),
             settings_open: false,
+            about_open: false,
             gallery: gallery::State::default(),
             favorites: favorites::Store::load(&favorites::path()),
             pairing: panels::pairing::PanelState::default(),
@@ -1129,6 +1132,9 @@ impl Shell {
         if events.settings_toggled {
             self.settings_open = !self.settings_open;
         }
+        if events.about_toggled {
+            self.about_open = !self.about_open;
+        }
         // The Edit|Show toggle. Entering Show is the transition that asks for
         // the monitors (`enter_show`); the choice is persisted so the next
         // run opens the same way.
@@ -1496,6 +1502,25 @@ impl Shell {
             }
         }
 
+        if self.about_open {
+            let width = theme.region_min.x.max(viewport.x * theme.properties_share);
+            let mut open = true;
+            gallery::overlay_window("shell/about-overlay", i18n::tr("About").to_string())
+                .default_width(width)
+                .order(egui::Order::Foreground)
+                .open(&mut open)
+                .show(ui.ctx(), |ui| {
+                    ui.set_width(width);
+                    egui::ScrollArea::vertical()
+                        .id_salt("shell/about/scroll")
+                        .max_height(viewport.y * theme.properties_share)
+                        .show(ui, |ui| readme(ui, &theme));
+                });
+            if !open || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                self.about_open = false;
+            }
+        }
+
         // The "new" gallery (`shell::gallery`): the nodes canvas's `new` and the
         // sequence's `import` ask for it; a pick is routed back to whoever
         // asked. A card dragged out closes it and lands on the canvas.
@@ -1691,6 +1716,30 @@ impl Shell {
 /// A `GET` with a query string, for the wiring's two movement lookups — the
 /// door's `json` helper only builds a JSON body, and these two routes read
 /// their argument off the query (`params.param("name")`).
+/// The README, as the About overlay shows it: headings in the heading face,
+/// everything else as wrapped body text.
+fn readme(ui: &mut Ui, theme: &Theme) {
+    for line in include_str!("../../../../README.md").lines() {
+        let text = line.trim_end();
+        if text.is_empty() {
+            ui.add_space(theme.item_gap.y);
+        } else if let Some(h) = text.trim_start_matches('#').strip_prefix(' ').filter(|_| text.starts_with('#')) {
+            ui.label(
+                egui::RichText::new(h)
+                    .font(theme.font_heading.clone())
+                    .color(theme.ink)
+                    .strong(),
+            );
+        } else {
+            ui.label(
+                egui::RichText::new(text)
+                    .font(theme.font_small.clone())
+                    .color(theme.ink_weak),
+            );
+        }
+    }
+}
+
 fn get_json(door: &dyn Call, path: &str, query: &[(&str, String)]) -> Option<serde_json::Value> {
     let mut q = HashMap::new();
     for (k, v) in query {

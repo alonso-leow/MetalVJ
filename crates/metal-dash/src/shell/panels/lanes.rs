@@ -709,7 +709,7 @@ pub fn paint(
 ) -> Response {
     let _span = crate::perf::Span::new("lanes");
     ui.push_id(Id::new(super::Region::Lanes.id()), |ui| {
-        let mut frame = panel_frame(theme);
+        let mut frame = crate::shell::components::flush_panel_frame(theme);
         if focused {
             frame = frame.stroke(theme.accent());
         }

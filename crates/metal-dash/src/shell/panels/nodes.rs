@@ -5816,6 +5816,11 @@ mod tests {
         );
         let mut harness = shell_harness(Box::new(std::rc::Rc::clone(&recorder)));
         harness.run();
+        // The properties panel shows with a selection: settle the layout first.
+        harness
+            .state_mut()
+            .set_selection_for_test(crate::shell::panels::Selection::Node("fx-0".to_string()));
+        harness.run();
 
         let rect = harness
             .state()

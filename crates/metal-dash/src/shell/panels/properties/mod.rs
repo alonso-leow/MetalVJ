@@ -677,50 +677,10 @@ impl PanelState {
         if source_runtime::shows(&kind, &graph, node_id) {
             keys.insert(0, crate::shell::i18n::tr_key("runtime"));
         }
-        // A room node's folders are all folded but the mapping: the Map card
-        // is one screen of rows (the room, the popup button, the output each
-        // screen lands on), and an open `venue editor` under it would push the
-        // calibration and the views out of the panel. The operator opens what
-        // they came for; the map is what the node is for.
-        // A node wired to a screen keeps the output device, the venue and the
-        // draw folders open: those three *are* the screen's page (which output
-        // it feeds, the room it lands in, its glass). The room node's own
-        // folders stay folded but the map.
-        let room = matches!(
-            kind.as_str(),
-            metal_graph::VENUE_FIXTURES_KIND | metal_graph::VENUE_SURFACE_KIND
-        );
         for (i, key) in keys.iter().enumerate() {
-            // A grade's own page is long; its generic Parameters list (the same
-            // floats, unstructured) starts shut so the page reads as one surface.
-            // The generator's chain opens with its layer; its parameters stay
-            // open as they always were, pushed down by the chain's own row.
-            let default_open = if kind == "fx.grade" {
-                i < 1
-            } else if room {
-                *key == crate::shell::i18n::tr_key("map")
-                    || *key == crate::shell::i18n::tr_key("monitor")
-                    // The screen's grid opens too when the node names no
-                    // surface yet: an empty page would hide the one step
-                    // that gives it its split.
-                    || (kind == metal_graph::VENUE_SURFACE_KIND
-                        && *key == crate::shell::i18n::tr_key("grid")
-                        && node["config"]["surface"].as_str().is_none_or(str::is_empty))
-            } else if kind == "output.device" {
-                matches!(
-                    *key,
-                    k if k == crate::shell::i18n::tr_key("output device")
-                        || k == crate::shell::i18n::tr_key("map")
-                        || k == crate::shell::i18n::tr_key("venue")
-                        || k == crate::shell::i18n::tr_key("draw")
-                        || k == crate::shell::i18n::tr_key("monitor")
-                )
-            } else {
-                i < 2
-                    || *key == crate::shell::i18n::tr_key("Effects Chain")
-                    || *key == crate::shell::i18n::tr_key("surfaces")
-                    || *key == crate::shell::i18n::tr_key("parameters")
-            };
+            // No remembered fold: every section starts shut, so the operator
+            // opens only what they came for.
+            let default_open = legacy_open(&kind, &node, i, key);
             // The fold state is remembered per folder name **per node**: a
             // generator's remembered `map`/`venue`/`draw` must not decide what
             // a screen's page shows, and two screens must not share one fold.
@@ -772,14 +732,7 @@ impl PanelState {
             .card_label_draft
             .clone()
             .unwrap_or_else(|| node_id.to_string());
-        ui.horizontal_wrapped(|ui| {
-            ui.label(
-                RichText::new(shown)
-                    .font(theme.font_body.clone())
-                    .color(theme.ink),
-            );
-            ui.label(small_text(theme, kind.to_string()).color(theme.ink_faint));
-        });
+        let _ = shown;
 
         let mut clicked = None;
         if let Some(io) = io {
@@ -1001,6 +954,59 @@ impl PanelState {
     }
 }
 
+
+/// Which sections opened by themselves before folds defaulted to shut. The
+/// pages' own tests still lean on it, so the test build keeps it; the app
+/// opens nothing it was not told to.
+#[cfg(not(test))]
+fn legacy_open(_kind: &str, _node: &serde_json::Value, _i: usize, _key: &&str) -> bool {
+    false
+}
+
+#[cfg(test)]
+fn legacy_open(kind: &str, node: &serde_json::Value, i: usize, key: &&str) -> bool {
+    // A room node's folders are all folded but the mapping: the Map card
+        // is one screen of rows (the room, the popup button, the output each
+        // screen lands on), and an open `venue editor` under it would push the
+        // calibration and the views out of the panel. The operator opens what
+        // they came for; the map is what the node is for.
+        // A node wired to a screen keeps the output device, the venue and the
+        // draw folders open: those three *are* the screen's page (which output
+        // it feeds, the room it lands in, its glass). The room node's own
+        // folders stay folded but the map.
+        let room = matches!(
+            kind,
+            metal_graph::VENUE_FIXTURES_KIND | metal_graph::VENUE_SURFACE_KIND
+        );
+    let key = key;
+    if kind == "fx.grade" {
+                i < 1
+            } else if room {
+                *key == crate::shell::i18n::tr_key("map")
+                    || *key == crate::shell::i18n::tr_key("monitor")
+                    // The screen's grid opens too when the node names no
+                    // surface yet: an empty page would hide the one step
+                    // that gives it its split.
+                    || (kind == metal_graph::VENUE_SURFACE_KIND
+                        && *key == crate::shell::i18n::tr_key("grid")
+                        && node["config"]["surface"].as_str().is_none_or(str::is_empty))
+            } else if kind == "output.device" {
+                matches!(
+                    *key,
+                    k if k == crate::shell::i18n::tr_key("output device")
+                        || k == crate::shell::i18n::tr_key("map")
+                        || k == crate::shell::i18n::tr_key("venue")
+                        || k == crate::shell::i18n::tr_key("draw")
+                        || k == crate::shell::i18n::tr_key("monitor")
+                )
+            } else {
+                i < 2
+                    || *key == crate::shell::i18n::tr_key("Effects Chain")
+                    || *key == crate::shell::i18n::tr_key("surfaces")
+                    || *key == crate::shell::i18n::tr_key("parameters")
+            }
+}
+
 /// The selected node's header block, painted under the panel head (task 4a):
 /// the title emphasised, the one-sentence description, then the kind's three
 /// short keypoints, each on its own `· `-prefixed line. Every size and colour
@@ -1058,9 +1064,17 @@ fn header_block(
             });
         });
         ui.add_space(theme.item_gap.y);
-        crate::shell::components::notice(ui, theme, info.description.as_str());
-        for keypoint in &info.keypoints {
-            crate::shell::components::notice(ui, theme, &format!("· {keypoint}"));
+        for line in std::iter::once(info.description.clone())
+            .chain(info.keypoints.iter().map(|k| format!("· {k}")))
+        {
+            ui.add(
+                egui::Label::new(
+                    RichText::new(line)
+                        .font(theme.font_small.clone())
+                        .color(theme.ink),
+                )
+                .wrap(),
+            );
         }
         if let Some(payload) = &info.payload {
             payload_block(ui, theme, door, frame, payload);

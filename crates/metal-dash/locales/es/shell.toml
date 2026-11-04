@@ -20,6 +20,8 @@
 # The header Edit/Show mode toggle (one button, label = the other mode).
 "Edit" = "Editar"
 "Show" = "Mostrar"
+"About" = "Acerca de"
+"AI Assistant" = "Asistente IA"
 
 # The gallery sections for the global favourites and recent picks (shell/favorites.rs).
 "favorites" = "favoritos"
@@ -48,6 +50,5 @@
 "{n} days ago" = "hace {n} días"
 "{n} weeks ago" = "hace {n} semanas"
 "{n} messages" = "{n} mensajes"
-"attach the selection" = "adjuntar la selección"
 "ask about the graph…" = "pregunta sobre el grafo…"
 "remove" = "quitar"

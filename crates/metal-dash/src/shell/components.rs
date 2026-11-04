@@ -27,6 +27,11 @@ pub fn panel_frame(theme: &Theme) -> Frame {
         .corner_radius(theme.corner_radius())
 }
 
+/// [`panel_frame`] with the bottom-row margin ([`Theme::flush_margin`]).
+pub fn flush_panel_frame(theme: &Theme) -> Frame {
+    panel_frame(theme).inner_margin(theme.flush_margin())
+}
+
 /// The frame of the ground the regions sit on: the tube, no rule, no
 /// radius, the theme's padding.
 pub fn ground_frame(theme: &Theme) -> Frame {
@@ -39,7 +44,6 @@ pub fn ground_frame(theme: &Theme) -> Frame {
 pub fn header_frame(theme: &Theme) -> Frame {
     Frame::new()
         .fill(theme.tube_raised)
-        .stroke(theme.border_stroke(Surface::Header))
         .inner_margin(theme.header_margin())
 }
 
@@ -80,17 +84,26 @@ pub fn wordmark(ui: &mut Ui, theme: &Theme) {
             ui.spacing_mut().item_spacing = theme.wordmark_gap;
             ui.label(
                 RichText::new("Metal")
-                    .font(theme.font_heading.clone())
+                    .font(theme.logo_font())
                     .color(theme.logo_metal),
             );
             ui.label(
                 RichText::new("VJ")
-                    .font(theme.font_heading.clone())
+                    .font(theme.logo_font())
                     .color(theme.logo_vj)
                     .strong(),
             );
         });
     });
+}
+
+/// A vertical rule between two groups of the header, its full height.
+pub fn divider(ui: &mut Ui, theme: &Theme) {
+    let (rect, _) = ui.allocate_exact_size(
+        Vec2::new(theme.hairline, ui.available_height()),
+        egui::Sense::hover(),
+    );
+    ui.painter().rect_filled(rect, 0, theme.rule);
 }
 
 /// A section kicker: the small heading at the top of a panel, in the

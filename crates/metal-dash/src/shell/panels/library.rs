@@ -358,7 +358,7 @@ pub fn paint(
         // stroke in; selecting the stroke here in one pass keeps the focused
         // panel to the same single-outline shape a form field has, rather than
         // a rule with a second stroke laid over the same border.
-        let frame = panel_frame(theme).stroke(if focused {
+        let frame = crate::shell::components::flush_panel_frame(theme).stroke(if focused {
             theme.accent()
         } else {
             theme.rule_stroke()
@@ -391,7 +391,7 @@ pub fn paint(
                     .default_size(left_width)
                     .min_size(theme.region_min.x)
                     .max_size(row_width - theme.region_min.x)
-                    .frame(Frame::new().inner_margin(theme.library_pad))
+                    .frame(Frame::new().inner_margin(theme.library_flush_margin()))
                     .show(ui, |ui| {
                         // The folders column names the region itself, so
                         // `get_by_label("biblioteca")` meets one widget.
@@ -408,7 +408,7 @@ pub fn paint(
                             .show(ui, |ui| dirs_column(ui, theme, door, state));
                     });
                 CentralPanel::default_margins()
-                    .frame(Frame::new().inner_margin(theme.library_pad))
+                    .frame(Frame::new().inner_margin(theme.library_flush_margin()))
                     .show(ui, |ui| {
                         // A distinct label, so the folders header stays the one
                         // `library` a test reaches.

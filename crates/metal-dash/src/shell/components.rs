@@ -1039,6 +1039,7 @@ pub fn card<R>(
     title: Option<&str>,
     add: impl FnOnce(&mut Ui) -> R,
 ) -> R {
+    crate::shell::motion::scoped(ui, |ui| {
     let out = egui::Frame::new()
         .stroke(theme.border_stroke(Surface::Card))
         .corner_radius(theme.corner_radius())
@@ -1058,6 +1059,7 @@ pub fn card<R>(
         .inner;
     ui.add_space(theme.card_gap);
     out
+    })
 }
 
 /// A small grid of rows under weak-ink column headers: the shape a mapping
@@ -1105,6 +1107,7 @@ pub fn card_section<R>(
     open: &mut bool,
     add: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
+    crate::shell::motion::scoped(ui, |ui| {
     let slot = ui.painter().add(egui::Shape::Noop);
     let framed = egui::Frame::new()
         .inner_margin(theme.card_pad)
@@ -1133,6 +1136,7 @@ pub fn card_section<R>(
     ui.painter().set(slot, egui::Shape::Vec(theme.group_shapes(framed.response.rect)));
     ui.add_space(theme.card_gap);
     framed.inner
+    })
 }
 
 /// A key/value row in a card: [`label_row`] by another name, so a new page

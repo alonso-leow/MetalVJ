@@ -427,30 +427,52 @@ fn paint_top_row(
         || overlay_focus.is_some()
         || lanes_focused
         || !nodes_state.picked_nodes(&*selection).is_empty();
-    if anything {
+    let slide_id = Id::new(format!("{}-slide", left.id()));
+    let t = crate::shell::motion::slide(ui.ctx(), slide_id, anything);
+    let mut paint_props = |ui: &mut Ui, clicked: &mut Option<Region>, properties_state: &mut properties::PanelState, selection: &mut Selection| {
+        let response = properties::paint(
+            ui,
+            theme,
+            door,
+            properties_state,
+            ingest_state,
+            &*selection,
+            &nodes_state.picked_nodes(&*selection),
+            graph_id.as_deref(),
+            overlay_focus,
+            lanes_focused,
+            focus == Some(left),
+        );
+        if response.clicked() {
+            *clicked = Some(left);
+        }
+    };
+    if t >= 0.999 {
         let left_panel = Panel::left(Id::new(format!("{}-col", left.id())))
             .resizable(true)
             .default_size(left_width)
             .min_size(theme.region_min.x)
             .max_size(row_width - theme.region_min.x)
             .frame(Frame::NONE)
+            .show(ui, |ui| paint_props(ui, clicked, properties_state, selection));
+        rects.insert(left, left_panel.response.rect);
+    } else if t > 0.001 {
+        // Sliding: the panel's width follows the ease while its content,
+        // laid out at the full width, travels in from the left edge.
+        let left_panel = Panel::left(slide_id)
+            .resizable(false)
+            .exact_size(left_width * t)
+            .frame(Frame::NONE)
             .show(ui, |ui| {
-                let response = properties::paint(
-                    ui,
-                    theme,
-                    door,
-                    properties_state,
-                    ingest_state,
-                    &*selection,
-                    &nodes_state.picked_nodes(&selection),
-                    graph_id.as_deref(),
-                    overlay_focus,
-                    lanes_focused,
-                    focus == Some(left),
+                let rect = ui.max_rect();
+                ui.set_clip_rect(rect);
+                let full = egui::Rect::from_min_size(
+                    egui::pos2(rect.min.x - left_width * (1.0 - t), rect.min.y),
+                    egui::vec2(left_width, rect.height()),
                 );
-                if response.clicked() {
-                    *clicked = Some(left);
-                }
+                ui.scope_builder(egui::UiBuilder::new().max_rect(full), |ui| {
+                    paint_props(ui, clicked, properties_state, selection)
+                });
             });
         rects.insert(left, left_panel.response.rect);
     } else {

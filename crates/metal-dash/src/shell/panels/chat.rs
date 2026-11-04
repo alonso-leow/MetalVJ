@@ -354,14 +354,17 @@ fn history_view(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
         }
         return;
     }
+    let motion_id = Id::new("shell/motion/chat-history");
+    crate::shell::motion::begin(ui.ctx(), motion_id, crate::shell::motion::key_of(chats.len()), false);
     ScrollArea::vertical()
         .auto_shrink([false, false])
         .id_salt("shell/panel/chat/history")
         .show(ui, |ui| {
             for chat in &chats {
-                history_row(ui, theme, door, state, chat);
+                crate::shell::motion::scoped(ui, |ui| history_row(ui, theme, door, state, chat));
             }
         });
+    crate::shell::motion::end(ui.ctx(), motion_id);
 }
 
 /// One history card: the title, the preview (one line, weak), a meta line with

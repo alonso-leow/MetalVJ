@@ -91,6 +91,8 @@ pub struct PanelState {
     /// `cwd` changes (never per frame, the same rule the old metraje column
     /// kept).
     cwd: PathBuf,
+    /// A folder walked to while the rows on view are still fading out.
+    pending_cwd: Option<PathBuf>,
     fs: Option<Value>,
     files_note: Option<String>,
     /// The path field's text while it is being typed into; `None` shows
@@ -173,6 +175,7 @@ impl Default for PanelState {
             folder_query: String::new(),
             file_query: String::new(),
             cwd: metal_config::home_dir(),
+            pending_cwd: None,
             fs: None,
             files_note: None,
             cwd_edit: None,
@@ -352,7 +355,19 @@ pub fn paint(
             LibraryIntent::Load => state.dial_load = true,
         }
     }
-    ui.push_id(Id::new(super::Region::Library.id()), |ui| {
+    let motion_id = Id::new("shell/motion/library");
+    if crate::shell::motion::deferring() {
+        let key = crate::shell::motion::key_of(state.pending_cwd.as_ref().unwrap_or(&state.cwd));
+        let shown = crate::shell::motion::begin(ui.ctx(), motion_id, key, true);
+        if let Some(p) = state.pending_cwd.clone() {
+            if crate::shell::motion::key_of(&p) == shown {
+                state.cwd = p;
+                state.pending_cwd = None;
+            }
+        }
+    }
+    let committed_cwd = state.cwd.clone();
+    let response = ui.push_id(Id::new(super::Region::Library.id()), |ui| {
         // One outline, chosen once: the panel's own hairline rule at rest, the
         // accent when this region has the focus. `panel_frame` bakes its rule
         // stroke in; selecting the stroke here in one pass keeps the focused
@@ -434,7 +449,15 @@ pub fn paint(
         });
         inner.inner
     })
-    .inner
+    .inner;
+    if crate::shell::motion::deferring() {
+        // A walk made this frame waits for the rows to fade out first.
+        if state.cwd != committed_cwd {
+            state.pending_cwd = Some(std::mem::replace(&mut state.cwd, committed_cwd));
+        }
+        crate::shell::motion::end(ui.ctx(), motion_id);
+    }
+    response
 }
 
 /// Draws the media board's current pick over the whole browser (2026-10-15):
@@ -626,11 +649,11 @@ fn dirs_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     if !in_use.is_empty() {
         section_heading(ui, theme, "in use");
         for name in &in_use {
-            dir_row(ui, theme, door, state, name, true, trained.as_deref());
+            crate::shell::motion::scoped(ui, |ui| dir_row(ui, theme, door, state, name, true, trained.as_deref()));
         }
     }
     for name in &others {
-        dir_row(ui, theme, door, state, name, false, trained.as_deref());
+        crate::shell::motion::scoped(ui, |ui| dir_row(ui, theme, door, state, name, false, trained.as_deref()));
     }
     if let Some(note) = state.curator_note.clone() {
         ui.label(
@@ -1296,7 +1319,7 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
         ui.spacing_mut().item_spacing.y = theme.library_gap;
         for f in &shown {
             let song = song_for(f["file"].as_str().unwrap_or_default());
-            file_card(ui, theme, f, song.as_ref(), any_open, door, state);
+            crate::shell::motion::scoped(ui, |ui| file_card(ui, theme, f, song.as_ref(), any_open, door, state));
         }
     });
 

@@ -1668,7 +1668,10 @@ pub fn paint(
     focused: bool,
 ) -> Response {
     let _span = crate::perf::Span::new("properties");
-    ui.push_id(Id::new(super::Region::Properties.id()), |ui| {
+    let motion_id = Id::new("shell/motion/properties");
+    let motion_key = crate::shell::motion::key_of(format!("{selection:?}|{picked:?}|{overlay_focus:?}|{lanes_focused}"));
+    crate::shell::motion::begin(ui.ctx(), motion_id, motion_key, false);
+    let response = ui.push_id(Id::new(super::Region::Properties.id()), |ui| {
         let mut frame = panel_frame(theme);
         if focused {
             frame = frame.stroke(theme.accent());
@@ -1694,7 +1697,9 @@ pub fn paint(
         });
         inner.inner
     })
-    .inner
+    .inner;
+    crate::shell::motion::end(ui.ctx(), motion_id);
+    response
 }
 
 #[cfg(test)]

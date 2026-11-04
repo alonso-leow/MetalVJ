@@ -53,6 +53,7 @@ pub mod insets;
 mod keybinds;
 pub mod lanes;
 pub mod media;
+pub mod motion;
 pub mod naming;
 pub mod panels;
 pub mod present;

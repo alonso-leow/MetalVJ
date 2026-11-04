@@ -294,7 +294,7 @@ fn gate_1_dependencies_point_one_way() {
                 || target == "metal_agent";
             let bad = match rel.as_str() {
                 CLASSES_FILE => true, // reaches nothing in shell
-                COMPONENTS_FILE => target != "classes",
+                COMPONENTS_FILE => target != "classes" && target != "motion",
                 _ => is_banned_door_reach,
             };
             if bad {
@@ -302,7 +302,7 @@ fn gate_1_dependencies_point_one_way() {
                     "{rel}:{lineno}: reaches `{target}` — {}",
                     match rel.as_str() {
                         CLASSES_FILE => "classes.rs may import nothing from shell/",
-                        COMPONENTS_FILE => "components.rs may import only classes",
+                        COMPONENTS_FILE => "components.rs may import only classes and motion",
                         _ if target == "crate::serve" =>
                             "shell/ does not import crate::serve — that is the socket-facing wrapper, not the door",
                         _ if target == "metal_web" =>

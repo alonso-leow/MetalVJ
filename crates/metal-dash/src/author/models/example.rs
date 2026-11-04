@@ -17,6 +17,12 @@ use crate::author::models::schema::ModelSchema;
 pub struct Tick {
     pub tick: usize,
     pub floats: Vec<f32>,
+    /// A loop example's rhythm label from this tick on, in beats: `0` is no
+    /// loop, otherwise one of the rhythm finder's lengths (see
+    /// `author::dataset::loop_labels`). Absent on every other tick. It is not a
+    /// model float, so [`Example::validate`] does not look at it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loop_beats: Option<f32>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -255,9 +261,9 @@ mod tests {
             song: "click-100".into(),
             rate: 8.0,
             ticks: vec![
-                Tick { tick: 0, floats: vec![1.0; 13] },
-                Tick { tick: 40, floats: vec![2.0; 13] },
-                Tick { tick: 125, floats: vec![3.0; 13] },
+                Tick { tick: 0, floats: vec![1.0; 13], loop_beats: None },
+                Tick { tick: 40, floats: vec![2.0; 13], loop_beats: None },
+                Tick { tick: 125, floats: vec![3.0; 13], loop_beats: None },
             ],
         };
         assert!(ex.upgrade_to_canonical(), "a legacy file upgrades");
@@ -283,11 +289,11 @@ mod tests {
             ticks: vec![
                 Tick {
                     tick: 40,
-                    floats: vec![2.0; 13],
+                    floats: vec![2.0; 13], loop_beats: None
                 },
                 Tick {
                     tick: 0,
-                    floats: vec![1.0; 13],
+                    floats: vec![1.0; 13], loop_beats: None
                 },
             ],
         };
@@ -307,7 +313,7 @@ mod tests {
             rate: 8.0,
             ticks: vec![Tick {
                 tick: 0,
-                floats: vec![1.0, 2.0],
+                floats: vec![1.0, 2.0], loop_beats: None
             }], // schema wants 13
         };
         assert!(save(&root, ex, &schema(), None).is_err());
@@ -326,7 +332,7 @@ mod tests {
             model: "geoterrain".into(),
             song: "s".into(),
             rate: 8.0,
-            ticks: vec![Tick { tick: 0, floats }],
+            ticks: vec![Tick { tick: 0, floats, loop_beats: None }],
         };
         assert!(save(&root, ex, &schema(), None).is_err());
     }
@@ -341,11 +347,11 @@ mod tests {
             ticks: vec![
                 Tick {
                     tick: 5,
-                    floats: vec![0.0; 13],
+                    floats: vec![0.0; 13], loop_beats: None
                 },
                 Tick {
                     tick: 5,
-                    floats: vec![1.0; 13],
+                    floats: vec![1.0; 13], loop_beats: None
                 },
             ],
         };
@@ -370,7 +376,7 @@ mod tests {
             rate: 8.0,
             ticks: vec![Tick {
                 tick: 0,
-                floats: vec![9.0; 13],
+                floats: vec![9.0; 13], loop_beats: None
             }],
         };
         save(&root, shared, &schema(), None).expect("save shared");
@@ -381,7 +387,7 @@ mod tests {
             rate: 8.0,
             ticks: vec![Tick {
                 tick: 0,
-                floats: vec![1.0; 13],
+                floats: vec![1.0; 13], loop_beats: None
             }],
         };
         save(&root, lane_a, &schema(), Some(("dev1", "l1-1"))).expect("save lane a override");
@@ -392,7 +398,7 @@ mod tests {
             rate: 8.0,
             ticks: vec![Tick {
                 tick: 0,
-                floats: vec![2.0; 13],
+                floats: vec![2.0; 13], loop_beats: None
             }],
         };
         save(&root, lane_b, &schema(), Some(("dev1", "l1-2"))).expect("save lane b override");
@@ -423,7 +429,7 @@ mod tests {
             rate: 8.0,
             ticks: vec![Tick {
                 tick: 0,
-                floats: vec![5.0; 13],
+                floats: vec![5.0; 13], loop_beats: None
             }],
         };
         save(&root, shared, &schema(), None).expect("save shared");
@@ -440,7 +446,7 @@ mod tests {
             rate: 8.0,
             ticks: vec![Tick {
                 tick: 0,
-                floats: vec![3.0; 13],
+                floats: vec![3.0; 13], loop_beats: None
             }],
         };
         save(&root, ex, &schema(), None).expect("save");

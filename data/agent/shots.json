@@ -8546,6 +8546,56 @@
           "tool_calls": []
         }
       ]
+    },
+    {
+      "id": "graph-remember-fixture",
+      "tags": [
+        "update_graph"
+      ],
+      "user": "Las dos barras LED del lado izquierdo del escenario apuntan a la escalera con tilt entre 20 y 35.",
+      "steps": [
+        {
+          "assistant": "Lo guardo en la memoria de fixtures y puntos de interés.",
+          "tool_calls": [
+            {
+              "name": "update_graph",
+              "arguments": {
+                "section": "M2",
+                "text": "Barras LED izquierda: escalera = tilt 20-35"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Anotado en M2.",
+          "tool_calls": []
+        }
+      ]
+    },
+    {
+      "id": "graph-remember-venue",
+      "tags": [
+        "update_graph"
+      ],
+      "user": "Mañana tocamos en el club Norte, tiene un proyector y pantalla 16:9.",
+      "steps": [
+        {
+          "assistant": "Guardo el venue en la memoria de venues y dispositivos.",
+          "tool_calls": [
+            {
+              "name": "update_graph",
+              "arguments": {
+                "section": "M1",
+                "text": "Club Norte: 1 proyector, pantalla 16:9"
+              }
+            }
+          ]
+        },
+        {
+          "assistant": "Anotado en M1.",
+          "tool_calls": []
+        }
+      ]
     }
   ]
 }

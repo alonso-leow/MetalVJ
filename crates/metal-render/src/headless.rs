@@ -496,6 +496,7 @@ impl Renderer {
                 leak_color: ColorSlotGpu::from_floats(&leak),
                 time,
                 kaleido: post.kaleido,
+                dither: post.dither,
                 wake: *wake,
                 grade: GradeUniform::from_advanced(&post.advanced),
                 chain_fx: ChainFx::from_advanced(&post.advanced),

@@ -325,6 +325,10 @@ pub struct Router {
     pub chosen: usize,
     /// The operator's ticks, for `Mode::Picked`. Indices into the built models.
     pub picked: Vec<usize>,
+    /// The model the loop conductor chose at its last switch
+    /// ([`Router::switch_model`]). Held until the next switch, in every mode
+    /// but `Single`. `None` until a switch has happened.
+    held: Option<usize>,
     /// The four on rotation now, in the order they will play.
     group: Vec<usize>,
     /// When the current group was formed, in the app's own seconds.
@@ -366,6 +370,7 @@ impl Router {
             mode: Mode::Automix,
             chosen: 0,
             picked: Vec::new(),
+            held: None,
             group: Vec::new(),
             group_started: 0.0,
             group_beat: None,
@@ -377,6 +382,33 @@ impl Router {
             guessing_tempo: false,
             content: Content::new(&data.join(metal_router::DIR)),
         }
+    }
+
+    /// The conductor's switch: asks the trained brain what suits the passage
+    /// now (out of [`Router::curated`]) and holds the answer until the next
+    /// switch. Returns the index chosen, or `None` and changes nothing when the
+    /// brain is untrained, there is not yet a full window, or it names an
+    /// animation this build does not have. Rule 3: the output never picks; it
+    /// only reads what this returns.
+    pub fn switch_model(&mut self, time: f32) -> Option<usize> {
+        if self.models == 0 || !self.content.brain.trained() {
+            return None;
+        }
+        let now = self.content.passage()?;
+        let allowed = self.curated();
+        let decision = self.content.brain.decide(&now, &allowed)?;
+        let index = self.ids.iter().position(|c| *c == decision.model)?;
+        let index = index.min(self.models - 1);
+        self.held = Some(index);
+        self.content.decision = Some(decision);
+        self.content.decided_at = time;
+        self.content.anchor = Some(now);
+        Some(index)
+    }
+
+    /// The model the conductor is holding, by id, for the properties panel.
+    pub fn held_model(&self) -> Option<&str> {
+        self.held.and_then(|i| self.ids.get(i)).map(String::as_str)
     }
 
     /// Which animations the trained model may name: the operator's ticks, or
@@ -513,6 +545,15 @@ impl Router {
             self.guessing_tempo = false;
             self.content.falling_back = false;
             return self.chosen.min(self.models - 1);
+        }
+
+        // The conductor's hold comes before everything but Single: a switch it
+        // made stays on air until its next switch.
+        if let Some(index) = self.held {
+            self.group.clear();
+            self.guessing_tempo = false;
+            self.content.falling_back = false;
+            return index.min(self.models - 1);
         }
 
         // The trained model gets first refusal. One animation, held — no group
@@ -891,6 +932,44 @@ mod tests {
             t += 1.0 / features::RATE;
         }
         t
+    }
+
+    /// The conductor's switch with nothing trained changes nothing: the same
+    /// on-air sequence as a router that was never asked.
+    #[test]
+    fn an_untrained_switch_changes_nothing() {
+        let mut asked = router(8);
+        let mut never = router(8);
+        let t = feed(&mut asked, 0.0, 20.0, loud);
+        feed(&mut never, 0.0, 20.0, loud);
+        assert_eq!(asked.switch_model(t), None);
+        assert_eq!(asked.held_model(), None);
+        for k in 0..40 {
+            let time = t + k as f32 * 3.0;
+            let beats = beats_at(time, 120.0);
+            assert_eq!(asked.on_air(time, beats), never.on_air(time, beats));
+        }
+    }
+
+    /// A trained switch names one animation, and it stays on air until the
+    /// next switch, whatever the clock and the group would otherwise do.
+    #[test]
+    fn a_trained_switch_is_held_until_the_next_one() {
+        let list = ids(8);
+        let mut r = Router::new(list.clone(), std::path::Path::new("/nonexistent-on-purpose"));
+        r.content.brain = taught(&list);
+        let t = feed(&mut r, 0.0, 20.0, loud);
+        assert_eq!(r.switch_model(t), Some(2));
+        assert_eq!(r.held_model(), Some("m2"));
+        // Long past a sixteen-beat switch and a regroup: still m2.
+        for k in 1..=10 {
+            let time = t + k as f32 * 60.0;
+            assert_eq!(r.on_air(time, beats_at(time, 120.0)), 2);
+        }
+        // Single still wins over the hold: the operator's choice is absolute.
+        r.mode = Mode::Single;
+        r.chosen = 5;
+        assert_eq!(r.on_air(t + 1.0, None), 5);
     }
 
     #[test]

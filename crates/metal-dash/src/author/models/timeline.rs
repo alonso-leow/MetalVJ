@@ -2405,7 +2405,7 @@ mod tests {
             rate: DEFAULT_RATE,
             ticks: vec![super::super::example::Tick {
                 tick: 0,
-                floats: vec![value],
+                floats: vec![value], loop_beats: None
             }],
         };
         super::super::example::save(root, ex, schema, target).expect("save fixture example");
@@ -2508,11 +2508,11 @@ mod tests {
             ticks: vec![
                 super::super::example::Tick {
                     tick: 0,
-                    floats: vec![0.2],
+                    floats: vec![0.2], loop_beats: None
                 },
                 super::super::example::Tick {
                     tick: 15,
-                    floats: vec![0.6],
+                    floats: vec![0.6], loop_beats: None
                 },
             ],
         };
@@ -2561,7 +2561,7 @@ mod tests {
             .expect("just saved the first tick");
         shared.ticks.push(super::super::example::Tick {
             tick: 15,
-            floats: vec![0.6],
+            floats: vec![0.6], loop_beats: None
         });
         super::super::example::save(&root, shared, schema, None).expect("extend shared corpus");
 

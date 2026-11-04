@@ -284,6 +284,17 @@ fn train_at(
         .node(node)
         .ok_or_else(|| CallError::Bad(format!("no node {node:?} in that graph")))?;
     let kind = source.kind.clone();
+    if kind == metal_graph::AI_LOOPS_KIND {
+        // The rhythm finder reads the approved loop labels, not a gen.* feed,
+        // so it has no model to walk: one fit, one file.
+        let reply = train_loops_at(
+            root,
+            node,
+            std::path::Path::new(crate::author::dataset::LOOPS_DIR),
+            std::path::Path::new(crate::author::SONGS),
+        )?;
+        return Ok((reply, Vec::new()));
+    }
     let Some(model) = kind.strip_prefix("gen.") else {
         return Err(CallError::Bad(format!("{kind} is not a gen.* source; only a source owns a fit")));
     };
@@ -344,6 +355,37 @@ fn train_at(
         "error": error.map(|(ours, base)| serde_json::json!({ "ours": ours, "base": base })),
     });
     Ok((reply, vec![model]))
+}
+
+/// Fits the rhythm finder from the approved loop labels under `examples` and
+/// writes it to `<root>/<index::DIR>/loopfind.json`. No labelled ticks is an
+/// error, not an empty fit: an empty run must not replace a real one.
+#[cfg(feature = "gpu")]
+fn train_loops_at(
+    root: &std::path::Path,
+    node: &str,
+    examples: &std::path::Path,
+    songs: &std::path::Path,
+) -> Result<Value, CallError> {
+    let takes = crate::author::dataset::loop_takes_for(examples, songs);
+    if takes.is_empty() {
+        return Err(CallError::Bad(format!(
+            "no approved loop labels with a digest under {}. Nothing was overwritten.",
+            examples.display()
+        )));
+    }
+    let fitted = metal_reel::loopfind::LoopFinder::train(&takes);
+    fitted.save(root).map_err(CallError::Bad)?;
+    Ok(serde_json::json!({
+        "node": node,
+        "kind": metal_graph::AI_LOOPS_KIND,
+        "trained": {
+            "songs": fitted.songs,
+            "takes": fitted.takes,
+            "positives": fitted.positives,
+            "negatives": fitted.negatives,
+        },
+    }))
 }
 
 #[cfg(not(feature = "gpu"))]
@@ -591,6 +633,34 @@ mod tests {
         let from_studio = metal_vfs::read(&path).expect("the studio wrote a grade");
 
         assert_eq!(from_node, from_studio, "one gesture, one file — byte for byte");
+        let _ = metal_vfs::remove_dir_all(&tmp);
+    }
+
+    /// The rhythm finder's route refuses an empty run, and writes nothing: no
+    /// labelled ticks must never replace a fit a previous run produced.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn the_loops_trainer_refuses_an_empty_run_and_writes_nothing() {
+        let tmp = std::env::temp_dir().join(format!("fw-ai-loops-{}", std::process::id()));
+        let _ = metal_vfs::remove_dir_all(&tmp);
+        let examples = tmp.join("dataset").join("loops").join("examples");
+        metal_vfs::create_dir_all(&examples).unwrap();
+        let v = serde_json::json!({
+            "model": "gradient", "song": "no-digest", "rate": 32.0, "ticks": [],
+            "part": "loop-1", "span": [0, 9], "kind": "loop", "loop_beats": 2.0,
+        });
+        metal_vfs::write(examples.join("loop-1.json"), v.to_string()).unwrap();
+        metal_vfs::write(
+            tmp.join("dataset").join("loops").join("status.json"),
+            r#"{"loop-1": "approved"}"#,
+        )
+        .unwrap();
+        let songs = tmp.join("songs");
+        metal_vfs::create_dir_all(&songs).unwrap();
+
+        let err = train_loops_at(&tmp, "ai-loops-0", &examples, &songs).unwrap_err();
+        assert!(matches!(err, CallError::Bad(ref m) if m.contains("Nothing was overwritten")));
+        assert!(!metal_reel::loopfind::model_path(&tmp).exists());
         let _ = metal_vfs::remove_dir_all(&tmp);
     }
 }

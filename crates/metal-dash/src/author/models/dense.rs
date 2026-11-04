@@ -74,7 +74,7 @@ mod tests {
                 .into_iter()
                 .map(|(tick, v)| Tick {
                     tick,
-                    floats: vec![v],
+                    floats: vec![v], loop_beats: None
                 })
                 .collect(),
         }

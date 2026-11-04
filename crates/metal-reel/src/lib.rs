@@ -97,6 +97,7 @@ pub mod curate;
 pub mod grade;
 pub mod hap;
 pub mod index;
+pub mod loopfind;
 pub mod clip;
 pub mod read;
 pub mod scenes;

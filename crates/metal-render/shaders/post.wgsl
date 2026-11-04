@@ -90,7 +90,8 @@ struct PostUniform {
     params: vec4<f32>,
     // xy: final_size / offscreen_size (the crop factor toward the centre)
     crop: vec4<f32>,
-    // x: kaleidoscope mirrors, below 2 is off. yzw spare.
+    // x: kaleidoscope mirrors, below 2 is off. y: final dither amount, 0..1
+    // (0 is off). zw spare.
     extra: vec4<f32>,
     // x: how many of `chain`'s 16 slots are populated, 0..=16. yzw spare —
     // a `vec4<u32>` rather than a bare `u32` so this sits at the same
@@ -1412,6 +1413,38 @@ fn effect_estela(uv: vec2<f32>, aspect: f32, time: f32, p: EstelaParams) -> vec3
     return clamp(c, vec3<f32>(0.0), vec3<f32>(1.0));
 }
 
+// Final-stage dither. The target quantises to 8 bits (sRGB in the headless
+// path), so a smooth ramp steps in visible bands. The noise goes in the
+// *encoded* sRGB domain, where one LSB is 1/255 — the step the 8-bit target
+// actually takes — and the result is decoded back to linear because the
+// hardware re-encodes on write. A triangular PDF (sum of two uniforms, per
+// channel) keeps the mean error at zero. The seed moves at 24 Hz so a still
+// does not freeze into a fixed screen-door pattern. `amt` is 0..1 of one LSB;
+// 0 returns `c` untouched.
+fn post_srgb_encode(c: vec3<f32>) -> vec3<f32> {
+    let x = max(c, vec3<f32>(0.0));
+    let hi = 1.055 * pow(x, vec3<f32>(1.0 / 2.4)) - 0.055;
+    return select(hi, x * 12.92, x <= vec3<f32>(0.0031308));
+}
+
+fn post_srgb_decode(s: vec3<f32>) -> vec3<f32> {
+    let x = max(s, vec3<f32>(0.0));
+    let hi = pow((x + 0.055) / 1.055, vec3<f32>(2.4));
+    return select(hi, x / 12.92, x <= vec3<f32>(0.04045));
+}
+
+fn post_dither(c: vec3<f32>, px: vec2<f32>, t: f32, amt: f32) -> vec3<f32> {
+    if (amt <= 0.0) {
+        return c;
+    }
+    let seed = px + vec2<f32>(floor(t * 24.0) * 17.0, floor(t * 24.0) * 5.0);
+    let h1 = vec3<f32>(hash21(seed), hash21(seed + vec2<f32>(37.3, 91.7)), hash21(seed + vec2<f32>(11.1, 53.9)));
+    let h2 = vec3<f32>(hash21(seed + vec2<f32>(71.3, 7.1)), hash21(seed + vec2<f32>(19.9, 23.3)), hash21(seed + vec2<f32>(5.5, 43.7)));
+    let tri = h1 + h2 - vec3<f32>(1.0);
+    let s = clamp(post_srgb_encode(clamp(c, vec3<f32>(0.0), vec3<f32>(1.0))) + tri * amt / 255.0, vec3<f32>(0.0), vec3<f32>(1.0));
+    return post_srgb_decode(s);
+}
+
 @fragment
 fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     let shake = u.params.x;
@@ -1593,5 +1626,8 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
         chain_color = effect_grade(chain_color, u.grade);
     }
 
+    // The last step: nothing after this quantises, so the dither lands on
+    // exactly the values the 8-bit target will round.
+    chain_color = post_dither(chain_color, in.pos.xy, time, u.extra.y);
     return vec4<f32>(chain_color, 1.0);
 }

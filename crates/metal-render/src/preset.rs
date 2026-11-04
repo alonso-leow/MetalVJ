@@ -109,6 +109,7 @@ mod tests {
                 metal_schema::EffectStep { effect: 0, amount: 0.42, slot: 0 },
             ],
             advanced: metal_schema::Post::default().advanced,
+            dither: metal_schema::dither_default(),
         };
         save(model, "example", &floats, &post).expect("save");
         let loaded = load(model, "example").expect("load");

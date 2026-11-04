@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{colour_button, float_row, kv_row, kv_wrap, note, num_value, Float};
+use crate::shell::components::{colour_button, dropdown, float_row, kv_row, kv_wrap, note, num_value, Float};
 use crate::shell::i18n::{tr, tr_dyn, trf};
 
 
@@ -54,6 +54,20 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, ingest: &mut 
             ingest.clear_keyframe();
         }
     });
+    if ingest.loops {
+        kv_row(ui, theme, tr("loop"), |ui| {
+            let mut current = ingest.loop_beats.get(&at).copied();
+            let labels: Vec<(Option<f32>, String)> = std::iter::once((None, tr("unmarked").to_string()))
+                .chain(crate::shell::lanes::LOOP_CHOICES.iter().map(|&b| (Some(b), crate::shell::lanes::loop_beats_text(b))))
+                .collect();
+            let options: Vec<(Option<f32>, &str)> = labels.iter().map(|(v, s)| (*v, s.as_str())).collect();
+            let response = dropdown(ui, theme, "loop_beats", &mut current, &options);
+            if response.changed() {
+                ingest.set_loop_beats(current);
+            }
+            response
+        });
+    }
     let entry = crate::shell::reads::get_shared(door, "/author/models/state", &[]).and_then(|v| {
         v["models"]
             .as_array()?

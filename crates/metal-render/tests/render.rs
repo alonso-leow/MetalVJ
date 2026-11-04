@@ -314,6 +314,7 @@ fn the_post_chain_compiles_and_runs() {
             leak_color: ColorSlotGpu::from_floats(&[1.0, 0.6, 0.2, 1.0, 0.9, 0.5, 0.8, 0.3, 0.9, 0.6, 0.2, 1.0]),
             time: 2.3,
             kaleido: 0.0,
+            dither: 1.0,
             wake: EstelaParams::default(),
             grade: GradeUniform::default(),
             chain_fx: ChainFx::default(),
@@ -373,6 +374,7 @@ fn an_active_colour_grade_moves_the_frame_on_the_gpu() {
                 leak_color: ColorSlotGpu::solid(0.0, 0.0, 0.0),
                 time: 2.3,
                 kaleido: 0.0,
+                dither: 1.0,
                 wake: EstelaParams::default(),
                 grade,
                 chain_fx: ChainFx::default(),
@@ -472,6 +474,7 @@ fn two_effects_enabled_together_chain_instead_of_crossfading() {
                 ]),
                 time: 2.3,
                 kaleido: 0.0,
+                dither: 1.0,
                 wake: EstelaParams::default(),
                 grade: GradeUniform::default(),
             chain_fx: ChainFx::default(),
@@ -555,6 +558,7 @@ fn every_effect_on_at_once_still_renders_a_finite_frame() {
             ]),
             time: 5.5,
             kaleido: 6.0,
+            dither: 1.0,
             wake: EstelaParams::default(),
             grade: GradeUniform::default(),
             // fm at its most extreme: every float at its declared maximum.
@@ -734,6 +738,7 @@ fn reordering_two_interacting_effects_changes_the_rendered_picture() {
                 ]),
                 time: 1.1,
                 kaleido: 0.0,
+                dither: 1.0,
                 wake: EstelaParams::default(),
                 grade: GradeUniform::default(),
             chain_fx: ChainFx::default(),
@@ -1204,6 +1209,7 @@ fn an_estela_chain_step_at_zero_renders_identical_to_no_chain_at_all() {
                 ]),
                 time: 9.2,
                 kaleido: 0.0,
+                dither: 1.0,
                 wake: EstelaParams::default(),
                 grade: GradeUniform::default(),
             chain_fx: ChainFx::default(),
@@ -1376,6 +1382,7 @@ fn run_fm(gpu: &Gpu, post: &PostChain, src_view: &wgpu::TextureView, adv: &[f32]
             leak_color: ColorSlotGpu::solid(0.0, 0.0, 0.0),
             time: 2.3,
             kaleido: 0.0,
+            dither: 1.0,
             wake: EstelaParams::default(),
             grade: GradeUniform::default(),
             chain_fx: ChainFx::from_advanced(adv),
@@ -1491,6 +1498,7 @@ fn run_wavewarp(gpu: &Gpu, post: &PostChain, src_view: &wgpu::TextureView, adv: 
             leak_color: ColorSlotGpu::solid(0.0, 0.0, 0.0),
             time: 2.3,
             kaleido: 0.0,
+            dither: 1.0,
             wake: EstelaParams::default(),
             grade: GradeUniform::default(),
             chain_fx: ChainFx::from_advanced(adv),
@@ -1633,6 +1641,7 @@ fn run_ascii(gpu: &Gpu, post: &PostChain, src_view: &wgpu::TextureView, adv: &[f
             leak_color: ColorSlotGpu::solid(0.0, 0.0, 0.0),
             time: 2.3,
             kaleido: 0.0,
+            dither: 1.0,
             wake: EstelaParams::default(),
             grade: GradeUniform::default(),
             chain_fx: ChainFx::from_advanced(adv),
@@ -1709,7 +1718,13 @@ fn ascii_at_full_amount_draws_only_ink_and_ground() {
     let mut levels: Vec<u32> = out.chunks(4).map(|px| (px[0] * 255.0).round() as u32).collect();
     levels.sort_unstable();
     levels.dedup();
-    assert!(levels.len() <= 3, "mono ink on black should be one or two levels, got {levels:?}");
+    // The final dither (on by default) adds up to one LSB either way, so each
+    // level must sit within two LSB of the ground or the ink, nothing between.
+    let (lo, hi) = (*levels.first().unwrap(), *levels.last().unwrap());
+    assert!(
+        levels.iter().all(|&l| l.abs_diff(lo) <= 2 || l.abs_diff(hi) <= 2),
+        "mono ink on black should be two levels plus dither, got {levels:?}"
+    );
 }
 
 #[test]

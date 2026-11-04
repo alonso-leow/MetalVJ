@@ -199116,6 +199116,1844 @@
       "label": "Deep Tunnel",
       "surfaces": [],
       "technique": ""
+    },
+    {
+      "backdrop": false,
+      "blocks": [
+        {
+          "fields": [
+            {
+              "default": 0.800000011920929,
+              "drive": 1.0,
+              "max": 2.5,
+              "min": 0.05000000074505806,
+              "name": "radius"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "off_x"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "off_y"
+            },
+            {
+              "default": 0.30000001192092896,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "blur"
+            }
+          ],
+          "type": "floats"
+        },
+        {
+          "default": [
+            0.03999999910593033,
+            0.23999999463558197,
+            1.0,
+            0.0,
+            0.6399999856948853,
+            0.3499999940395355,
+            1.0,
+            0.6000000238418579,
+            0.03999999910593033,
+            0.8500000238418579,
+            0.15000000596046448,
+            0.30000001192092896
+          ],
+          "name": "colores",
+          "type": "color_slot"
+        },
+        {
+          "default": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "name": "background",
+          "type": "color_slot"
+        },
+        {
+          "fields": [
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 8.0,
+              "min": 0.10000000149011612,
+              "name": "zoom"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": -2.0,
+              "name": "pan_x"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": -2.0,
+              "name": "pan_y"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "turn"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "drift"
+            }
+          ],
+          "type": "floats"
+        },
+        {
+          "fields": [
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "warp_amount"
+            },
+            {
+              "default": 3.0,
+              "drive": 0.20000000298023224,
+              "max": 12.0,
+              "min": 0.5,
+              "name": "warp_freq"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 12.0,
+              "min": 0.0,
+              "name": "mirror"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "pulse"
+            }
+          ],
+          "type": "floats"
+        },
+        {
+          "fields": [
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.0,
+              "name": "shine"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.20000000298023224,
+              "name": "contrast"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "opacity"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "background_level"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "tone"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": 0.0,
+              "name": "saturation"
+            }
+          ],
+          "type": "floats"
+        },
+        {
+          "fields": [
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_level"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_hue"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 24.0,
+              "min": 0.0,
+              "name": "sig_strobe"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "sig_pan"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "sig_tilt"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_a"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_b"
+            },
+            {
+              "default": 5600.0,
+              "drive": 1.0,
+              "max": 10000.0,
+              "min": 1800.0,
+              "name": "sig_cct"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_zoom"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_focus"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_iris"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sig_frost"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 0.25,
+              "min": -0.25,
+              "name": "col_hue"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": 0.0,
+              "name": "col_sat"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": 0.0,
+              "name": "col_bri"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "col_contrast"
+            }
+          ],
+          "type": "floats"
+        },
+        {
+          "fields": [
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "shake"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "light_leak"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "ghost"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 16.0,
+              "min": 0.0,
+              "name": "kaleido"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "crt"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "glitch"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "posterize"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "zoom"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fire"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "lorenz"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "vignette"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "blur"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "sharpen"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "grain"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_temperature"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_tint"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_exposure"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_contrast"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_highlights"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_shadows"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_whites"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_blacks"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_vibrance"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_saturation"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_curve_highlights"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_curve_lights"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_curve_darks"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_curve_shadows"
+            },
+            {
+              "default": 25.0,
+              "drive": 1.0,
+              "max": 70.0,
+              "min": 10.0,
+              "name": "grade_split_shadows"
+            },
+            {
+              "default": 50.0,
+              "drive": 1.0,
+              "max": 80.0,
+              "min": 20.0,
+              "name": "grade_split_mid"
+            },
+            {
+              "default": 75.0,
+              "drive": 1.0,
+              "max": 90.0,
+              "min": 30.0,
+              "name": "grade_split_highlights"
+            },
+            {
+              "default": 100.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "grade_refine_saturation"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_red_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_red_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_red_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_orange_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_orange_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_orange_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_yellow_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_yellow_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_yellow_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_green_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_green_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_green_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_aqua_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_aqua_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_aqua_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_blue_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_blue_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_blue_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_purple_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_purple_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_purple_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_magenta_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_magenta_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_mixer_magenta_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 360.0,
+              "min": 0.0,
+              "name": "grade_grading_shadows_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "grade_grading_shadows_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_grading_shadows_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 360.0,
+              "min": 0.0,
+              "name": "grade_grading_midtones_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "grade_grading_midtones_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_grading_midtones_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 360.0,
+              "min": 0.0,
+              "name": "grade_grading_highlights_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "grade_grading_highlights_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_grading_highlights_lum"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 360.0,
+              "min": 0.0,
+              "name": "grade_grading_global_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "grade_grading_global_sat"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_grading_global_lum"
+            },
+            {
+              "default": 50.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "grade_blending"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "grade_balance"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_texture"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_clarity"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_dehaze"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "fx_denoise_luminance"
+            },
+            {
+              "default": 50.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "fx_denoise_detail"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "fx_denoise_contrast"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "fx_denoise_color"
+            },
+            {
+              "default": 50.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "fx_denoise_color_detail"
+            },
+            {
+              "default": 50.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "fx_denoise_color_smoothness"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_optics_distortion"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_optics_vignetting"
+            },
+            {
+              "default": 50.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": 0.0,
+              "name": "fx_optics_vignetting_midpoint"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 20.0,
+              "min": 0.0,
+              "name": "fx_optics_defringe_purple"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 20.0,
+              "min": 0.0,
+              "name": "fx_optics_defringe_green"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_optics_ca_red"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_optics_ca_blue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_geometry_vertical"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_geometry_horizontal"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 10.0,
+              "min": -10.0,
+              "name": "fx_geometry_rotate"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_geometry_aspect"
+            },
+            {
+              "default": 100.0,
+              "drive": 1.0,
+              "max": 150.0,
+              "min": 50.0,
+              "name": "fx_geometry_scale"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_geometry_offset_x"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 100.0,
+              "min": -100.0,
+              "name": "fx_geometry_offset_y"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_fm_cant"
+            },
+            {
+              "default": 6.0,
+              "drive": 1.0,
+              "max": 40.0,
+              "min": 0.5,
+              "name": "fx_fm_portadora_freq"
+            },
+            {
+              "default": 2.0,
+              "drive": 1.0,
+              "max": 40.0,
+              "min": 0.10000000149011612,
+              "name": "fx_fm_moduladora_freq"
+            },
+            {
+              "default": 2.0,
+              "drive": 1.0,
+              "max": 10.0,
+              "min": 0.0,
+              "name": "fx_fm_indice"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_fm_fase"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 360.0,
+              "min": 0.0,
+              "name": "fx_fm_angulo"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 3.0,
+              "min": 0.0,
+              "name": "fx_fm_forma_onda"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "fx_fm_x_cant"
+            },
+            {
+              "default": 0.5,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "fx_fm_y_cant"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_fm_color_cant"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_fm_realim"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_wavewarp_cant"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 7.0,
+              "min": 0.0,
+              "name": "fx_wavewarp_tipo"
+            },
+            {
+              "default": 0.25,
+              "drive": 1.0,
+              "max": 1.5,
+              "min": 0.019999999552965164,
+              "name": "fx_wavewarp_largo"
+            },
+            {
+              "default": 0.05999999865889549,
+              "drive": 1.0,
+              "max": 0.4000000059604645,
+              "min": 0.0,
+              "name": "fx_wavewarp_alto"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 360.0,
+              "min": 0.0,
+              "name": "fx_wavewarp_angulo"
+            },
+            {
+              "default": 0.25,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": -2.0,
+              "name": "fx_wavewarp_vel"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 360.0,
+              "min": 0.0,
+              "name": "fx_wavewarp_fase"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 6.0,
+              "min": 0.0,
+              "name": "fx_wavewarp_pin"
+            },
+            {
+              "default": 0.5,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.05000000074505806,
+              "name": "fx_wavewarp_pin_x"
+            },
+            {
+              "default": 0.5,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.05000000074505806,
+              "name": "fx_wavewarp_pin_y"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "fx_wavewarp_asimetria"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_wavewarp_capa2"
+            },
+            {
+              "default": 0.6000000238418579,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.25,
+              "name": "fx_wavewarp_capa2_largo"
+            },
+            {
+              "default": 90.0,
+              "drive": 1.0,
+              "max": 180.0,
+              "min": 0.0,
+              "name": "fx_wavewarp_capa2_angulo"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "fx_wavewarp_cruce"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 2.0,
+              "min": 0.0,
+              "name": "fx_wavewarp_borde"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_cant"
+            },
+            {
+              "default": 8.0,
+              "drive": 0.0,
+              "max": 32.0,
+              "min": 4.0,
+              "name": "fx_ascii_celda"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 4.0,
+              "min": 0.0,
+              "name": "fx_ascii_rampa"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.20000000298023224,
+              "name": "fx_ascii_contraste"
+            },
+            {
+              "default": 1.0,
+              "drive": 0.0,
+              "max": 2.0,
+              "min": 0.0,
+              "name": "fx_ascii_color_modo"
+            },
+            {
+              "default": 0.30000001192092896,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_color_mezcla"
+            },
+            {
+              "default": 0.11999999731779099,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_fondo"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_invierte"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_ruido"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.30000001192092896,
+              "name": "fx_ascii_gamma"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_parpadeo"
+            },
+            {
+              "default": 1.0,
+              "drive": 0.0,
+              "max": 2.0,
+              "min": 0.5,
+              "name": "fx_ascii_proporcion"
+            },
+            {
+              "default": 0.33000001311302185,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_tinte"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_bordes"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": -4.0,
+              "name": "fx_ascii_deriva"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_ascii_grosor"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_cant"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 4.0,
+              "min": 0.0,
+              "name": "fx_brush_forma"
+            },
+            {
+              "default": 1200.0,
+              "drive": 0.0,
+              "max": 4096.0,
+              "min": 64.0,
+              "name": "fx_brush_n_trazos"
+            },
+            {
+              "default": 3.0,
+              "drive": 1.0,
+              "max": 8.0,
+              "min": 0.5,
+              "name": "fx_brush_tam_ini"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 8.0,
+              "min": 0.25,
+              "name": "fx_brush_tam_fin"
+            },
+            {
+              "default": 0.75,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.05000000074505806,
+              "name": "fx_brush_alfa"
+            },
+            {
+              "default": 0.4000000059604645,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_aleatoriedad"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_modo"
+            },
+            {
+              "default": 8.0,
+              "drive": 0.0,
+              "max": 32.0,
+              "min": 2.0,
+              "name": "fx_brush_candidatos"
+            },
+            {
+              "default": 0.30000001192092896,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.019999999552965164,
+              "name": "fx_brush_cobertura"
+            },
+            {
+              "default": 0.20000000298023224,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_renueva"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_contorno"
+            },
+            {
+              "default": 0.30000001192092896,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_papel"
+            },
+            {
+              "default": 0.8999999761581421,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_papel_tono"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 180.0,
+              "min": -180.0,
+              "name": "fx_brush_angulo"
+            },
+            {
+              "default": 0.6000000238418579,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_sigue"
+            },
+            {
+              "default": 2.0,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.5,
+              "name": "fx_brush_alargado"
+            },
+            {
+              "default": 0.15000000596046448,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_color_jitter"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": 0.0,
+              "name": "fx_brush_saturacion"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_brush_decae"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_cant"
+            },
+            {
+              "default": 3.0,
+              "drive": 0.0,
+              "max": 5.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_ritmo"
+            },
+            {
+              "default": 0.5,
+              "drive": 1.0,
+              "max": 0.949999988079071,
+              "min": 0.05000000074505806,
+              "name": "fx_hardstutter_duty"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_congela"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 8.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_repite_n"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_retardo"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_jitter"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 4.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_patron"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_invierte_ritmo"
+            },
+            {
+              "default": 128.0,
+              "drive": 0.0,
+              "max": 200.0,
+              "min": 60.0,
+              "name": "fx_hardstutter_tempo"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_desvanece"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_tinte"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_hardstutter_tinte_tono"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_mosaic_amount"
+            },
+            {
+              "default": 32.0,
+              "drive": 0.10000000149011612,
+              "max": 128.0,
+              "min": 4.0,
+              "name": "fx_mosaic_cell"
+            },
+            {
+              "default": 0.05000000074505806,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_mosaic_gap"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 3.0,
+              "min": 0.0,
+              "name": "fx_mosaic_shape"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_faceted_amount"
+            },
+            {
+              "default": 12.0,
+              "drive": 0.10000000149011612,
+              "max": 40.0,
+              "min": 3.0,
+              "name": "fx_faceted_count"
+            },
+            {
+              "default": 0.20000000298023224,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_faceted_edge"
+            },
+            {
+              "default": 0.5,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_faceted_jitter"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_thermograph_amount"
+            },
+            {
+              "default": 6.0,
+              "drive": 0.10000000149011612,
+              "max": 16.0,
+              "min": 2.0,
+              "name": "fx_thermograph_levels"
+            },
+            {
+              "default": 0.5,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_thermograph_contrast"
+            },
+            {
+              "default": 0.5,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_thermograph_tint"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_depthfield_amount"
+            },
+            {
+              "default": 0.4000000059604645,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_depthfield_range"
+            },
+            {
+              "default": 0.30000001192092896,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_depthfield_parallax"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_depthfield_invert"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_refract_amount"
+            },
+            {
+              "default": 0.30000001192092896,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_refract_strength"
+            },
+            {
+              "default": 0.30000001192092896,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_refract_dispersion"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 360.0,
+              "min": 0.0,
+              "name": "fx_refract_angle"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_relamp_amount"
+            },
+            {
+              "default": 0.3499999940395355,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_relamp_light_x"
+            },
+            {
+              "default": 0.3499999940395355,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_relamp_light_y"
+            },
+            {
+              "default": 0.6000000238418579,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_relamp_intensity"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_letterform_amount"
+            },
+            {
+              "default": 16.0,
+              "drive": 0.10000000149011612,
+              "max": 64.0,
+              "min": 4.0,
+              "name": "fx_letterform_cell"
+            },
+            {
+              "default": 0.5,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_letterform_threshold"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_letterform_invert"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_datafield_amount"
+            },
+            {
+              "default": 24.0,
+              "drive": 0.10000000149011612,
+              "max": 64.0,
+              "min": 4.0,
+              "name": "fx_datafield_cell"
+            },
+            {
+              "default": 0.6000000238418579,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fx_datafield_gain"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 2.0,
+              "min": 0.0,
+              "name": "fx_datafield_mode"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 6.0,
+              "min": 0.0,
+              "name": "mat_kind"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_mix"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 8.0,
+              "min": 0.0,
+              "name": "mat_scale"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_rough"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_metal"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_bump"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_env"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_tint"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_tint_hue"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_glitch"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 24.0,
+              "min": 0.0,
+              "name": "mat_glitch_rate"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "mat_glitch_seed"
+            }
+          ],
+          "type": "floats"
+        },
+        {
+          "default": [
+            1.0,
+            0.8999999761581421,
+            0.6000000238418579,
+            1.0,
+            0.30000001192092896,
+            0.8999999761581421,
+            0.8999999761581421,
+            0.20000000298023224,
+            0.6000000238418579,
+            0.6000000238418579,
+            0.800000011920929,
+            1.0
+          ],
+          "name": "leak_color",
+          "type": "color_slot"
+        }
+      ],
+      "camera_track": false,
+      "footage": false,
+      "id": "gradient",
+      "label": "Gradient",
+      "surfaces": [],
+      "technique": ""
     }
   ],
   "rate": 8.0

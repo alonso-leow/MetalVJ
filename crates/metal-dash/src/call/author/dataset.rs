@@ -13,7 +13,24 @@ use crate::call::{CallError, Params};
 use super::Ctx;
 
 pub fn list(_params: &Params) -> Result<serde_json::Value, CallError> {
-    Ok(json!({ "parts": dataset::list(Path::new(dataset::DIR)) }))
+    Ok(json!({
+        "parts": dataset::list(Path::new(dataset::DIR)),
+        "loops": dataset::list_in(Path::new(dataset::LOOPS_DIR), 0),
+    }))
+}
+
+/// `POST /author/dataset/loops/generate`: picks one song per genre and writes
+/// the empty loop examples (`author::dataset::generate_loops`).
+pub fn generate(_params: &Params) -> Result<serde_json::Value, CallError> {
+    let songs = Path::new(dataset::AUDIO);
+    let report = dataset::generate_loops(
+        Path::new(dataset::LOOPS_DIR),
+        Path::new(dataset::GATE),
+        Path::new(dataset::CATALOGUE),
+        |stem| metal_router::npy::ticks_at(songs, stem, metal_schema::TickRate::CANONICAL),
+    )
+    .map_err(CallError::Bad)?;
+    Ok(json!(report))
 }
 
 pub fn example(params: &Params) -> Result<serde_json::Value, CallError> {
@@ -21,7 +38,8 @@ pub fn example(params: &Params) -> Result<serde_json::Value, CallError> {
     if part.is_empty() {
         return Err(CallError::Bad("which part".into()));
     }
-    dataset::load(Path::new(dataset::DIR), &part).map_err(CallError::Bad)
+    let dir = dataset::dir_for(params.param("set"));
+    dataset::load(Path::new(dir), &part).map_err(CallError::Bad)
 }
 
 pub fn status(_ctx: &mut Ctx, params: &Params) -> Result<serde_json::Value, CallError> {
@@ -29,6 +47,7 @@ pub fn status(_ctx: &mut Ctx, params: &Params) -> Result<serde_json::Value, Call
     let (Some(part), Some(status)) = (body["part"].as_str(), body["status"].as_str()) else {
         return Err(CallError::Bad("body: {part, status}".into()));
     };
-    dataset::set_status(Path::new(dataset::DIR), part, status).map_err(CallError::Bad)?;
+    let dir = dataset::dir_for(body["set"].as_str());
+    dataset::set_status(Path::new(dir), part, status).map_err(CallError::Bad)?;
     Ok(json!({ "part": part, "status": status }))
 }

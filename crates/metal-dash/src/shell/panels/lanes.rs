@@ -1210,8 +1210,14 @@ fn sequence_editor(
 /// Opens a Colourist dataset part (`GET /author/dataset/example`) as a clip
 /// of its song, marks on its span. The song's saved project is not loaded
 /// over it: the part is what was asked to be seen.
+/// A loop example's id (`loop-<id>`), as opposed to a colourist part.
+fn is_loop(part: &str) -> bool {
+    part.starts_with(crate::author::dataset::LOOP_PREFIX)
+}
+
 fn open_part(door: &dyn Call, state: &mut PanelState, ingest: &mut crate::shell::lanes::IngestLane, part: &str) {
-    let Some(ex) = get(door, "GET", "/author/dataset/example", &[("part", part.to_string())]) else {
+    let set = if is_loop(part) { "loops" } else { "parts" };
+    let Some(ex) = get(door, "GET", "/author/dataset/example", &[("part", part.to_string()), ("set", set.to_string())]) else {
         ingest.note = Some(format!("part {part}: could not open"));
         return;
     };
@@ -1234,8 +1240,15 @@ fn open_part(door: &dyn Call, state: &mut PanelState, ingest: &mut crate::shell:
         .as_array()
         .and_then(|s| Some((s.first()?.as_u64()? as usize, s.get(1)?.as_u64()? as usize)))
         .unwrap_or((first, last));
+    let labels: std::collections::BTreeMap<usize, f32> = ex["ticks"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|t| Some((t["tick"].as_u64()? as usize, t["loop_beats"].as_f64()? as f32)))
+        .collect();
     let n = keys.len();
     ingest.adopt_part(song, model, keys, span);
+    ingest.adopt_loop_labels(labels, is_loop(part));
     state.project_loaded_for = Some(song.to_string());
     ingest.note = Some(format!(
         "part {part} · {model} · {} — {n} keypoint(s), ticks {}–{}",
@@ -1720,7 +1733,12 @@ fn bottom_bar(
     // song on its own span (`GET /author/dataset`). A status filter, so with
     // thousands of parts the ones left to review are one pick away;
     // `approve` files the open part (`POST /author/dataset/status`).
-    let listed = get(door, "GET", "/author/dataset", &[]).and_then(|v| v["parts"].as_array().cloned()).unwrap_or_default();
+    // The loops (whole songs, `gradient`) are listed after the parts.
+    let listed_all = get(door, "GET", "/author/dataset", &[]).unwrap_or_default();
+    let listed: Vec<Value> = ["parts", "loops"]
+        .iter()
+        .flat_map(|k| listed_all[*k].as_array().cloned().unwrap_or_default())
+        .collect();
     let filter_id = ui.id().with("dataset-filter");
     let open_id = ui.id().with("dataset-open");
     let filter: String = ui.data(|d| d.get_temp(filter_id)).unwrap_or_else(|| "all".to_string());
@@ -1731,7 +1749,11 @@ fn bottom_bar(
             let id = p["part"].as_str()?.to_string();
             let title = p["title"].as_str().or(p["song"].as_str()).unwrap_or_default();
             let mark = if p["status"].as_str() == Some("approved") { "" } else { "" };
-            let label = format!("{mark} {id} · {} · {} · {title}", p["model"].as_str().unwrap_or("?"), p["kind"].as_str().unwrap_or("?"));
+            let label = if is_loop(&id) {
+                format!("{mark} {} {id} · {} · {title}", tr("loop example"), p["genre"].as_str().unwrap_or("?"))
+            } else {
+                format!("{mark} {id} · {} · {} · {title}", p["model"].as_str().unwrap_or("?"), p["kind"].as_str().unwrap_or("?"))
+            };
             Some((id, label))
         })
         .collect();
@@ -1793,9 +1815,10 @@ fn bottom_bar(
             if let Some(open) = open {
                 let approved = listed.iter().any(|p| p["part"].as_str() == Some(open.as_str()) && p["status"].as_str() == Some("approved"));
                 let (text, to) = if approved { (format!(" {open} approved"), "pending") } else { (format!("approve {open}"), "approved") };
+                let set = if is_loop(&open) { "loops" } else { "parts" };
                 let hover = if approved { "back to pending" } else { "mark the open part as approved" };
                 if ui.button(RichText::new(text).font(theme.font_small.clone())).on_hover_text(hover).clicked() {
-                    match door.json("POST", "/author/dataset/status", Some(json!({ "part": open, "status": to }))) {
+                    match door.json("POST", "/author/dataset/status", Some(json!({ "part": open, "status": to, "set": set }))) {
                         Ok(_) => ingest.note = Some(format!("part {open}: {}", if to == "approved" { "approved" } else { "pending" })),
                         Err((_, msg)) => ingest.note = Some(format!("status of {open}: {msg}")),
                     }
@@ -1854,6 +1877,15 @@ fn icon_column(
             if ui.button(icon(Icon::Paste)).on_hover_text("at the playhead").clicked() {
                 let n = ingest.paste();
                 ingest.note = Some(format!("{n} keypoint(s) pegados"));
+            }
+            ui.add_space(gap);
+            if ui.button(icon(Icon::Ruler)).on_hover_text(tr("fill the marked range with the copied tick")).clicked() {
+                let n = ingest.fill_range();
+                ingest.note = Some(if n > 0 {
+                    trf("{n} keypoint(s) rellenados", &[("n", &n)])
+                } else {
+                    tr("copy one keypoint first").to_string()
+                });
             }
             ui.add_space(gap);
             if ui.button(icon(Icon::Trash)).on_hover_text("delete the marked range and remove the active clip").clicked() {

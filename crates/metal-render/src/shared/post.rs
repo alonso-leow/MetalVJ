@@ -347,6 +347,9 @@ pub struct PostParams {
     /// never gets to place it relative to them. See the block comment above
     /// `effect_crt` in `shaders/post.wgsl`.
     pub kaleido: f32,
+    /// Final dither amplitude, 0..1 (see `Post::dither`): a triangular ±1 LSB
+    /// of 8-bit sRGB noise after the chain, 0 exactly off. Rides in `extra.y`.
+    pub dither: f32,
     /// The one params block a `fx.estela` chain step (`metal_schema::
     /// CHAIN_KIND_ESTELA`) reads — see [`EstelaParams`]'s own doc comment
     /// for why there is exactly one. Unread, and harmless, when `chain`
@@ -563,7 +566,7 @@ impl PostChain {
         let uniform = Uniform {
             params: [params.shake, params.light_leak, params.time, aspect],
             crop: [crop, crop, 0.0, 0.0],
-            extra: [params.kaleido, 0.0, 0.0, 0.0],
+            extra: [params.kaleido, params.dither, 0.0, 0.0],
             chain_len: [chain_len, 0, 0, 0],
             chain: chain_gpu,
             leak_color: params.leak_color,
@@ -818,5 +821,120 @@ mod grade_uniform_tests {
         assert_eq!(short.curve_a[2], 25.0, "split_shadows default from a short slice");
         assert_eq!(short.fx[0], 0.0, "texture missing reads neutral");
         assert!(GRADE_FLOATS_LEN >= 56, "the grade group is at least the 56 documented floats");
+    }
+}
+
+/// Pure-Rust mirror of the final dither in `shaders/post.wgsl`
+/// (`post_dither`, `post_srgb_encode`/`decode`, `hash21`): the GPU-free check
+/// that the 8-bit output of a smooth ramp has the statistics the dither is
+/// there for. A headless GPU render is not available to `cargo test`.
+#[cfg(test)]
+mod dither_tests {
+    use std::collections::HashSet;
+
+    fn encode(c: f32) -> f32 {
+        let x = c.max(0.0);
+        if x <= 0.0031308 { x * 12.92 } else { 1.055 * x.powf(1.0 / 2.4) - 0.055 }
+    }
+
+    fn decode(s: f32) -> f32 {
+        let x = s.max(0.0);
+        if x <= 0.04045 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) }
+    }
+
+    fn hash21(x: f32, y: f32) -> f32 {
+        let v = (x * 127.1 + y * 311.7).sin() * 43758.5453;
+        v - v.floor()
+    }
+
+    /// One channel of `post_dither`: the triangular offset in LSB, then the
+    /// round trip the shader does before the 8-bit target rounds.
+    fn dither_channel(enc: f32, px: f32, py: f32, t: f32, amt: f32, ch: usize) -> u8 {
+        if amt <= 0.0 {
+            return (enc * 255.0).round() as u8;
+        }
+        let k = (t * 24.0).floor();
+        let (sx, sy) = (px + k * 17.0, py + k * 5.0);
+        let (oa, ob) = [(0.0, 0.0), (37.3, 91.7), (11.1, 53.9)][ch];
+        let (oc, od) = [(71.3, 7.1), (19.9, 23.3), (5.5, 43.7)][ch];
+        let tri = hash21(sx + oa, sy + ob) + hash21(sx + oc, sy + od) - 1.0;
+        let s = (encode(decode(enc)) + tri * amt / 255.0).clamp(0.0, 1.0);
+        (encode(decode(s)) * 255.0).round().clamp(0.0, 255.0) as u8
+    }
+
+    /// A horizontal ramp in the encoded domain, `w` px wide, `h` rows tall,
+    /// returned as 8-bit values per pixel (row-major) and the true encoded value.
+    fn ramp(w: usize, h: usize, amt: f32) -> (Vec<u8>, Vec<f32>) {
+        let mut out = Vec::with_capacity(w * h);
+        let mut truth = Vec::with_capacity(w * h);
+        for y in 0..h {
+            for x in 0..w {
+                let enc = 0.10 + 0.80 * (x as f32 + 0.5) / w as f32;
+                truth.push(enc);
+                out.push(dither_channel(enc, x as f32, y as f32, 0.0, amt, 0));
+            }
+        }
+        (out, truth)
+    }
+
+    /// Distinct 2x2 neighbourhoods of the 8-bit image.
+    fn distinct_patterns(img: &[u8], w: usize, h: usize) -> usize {
+        let mut set = HashSet::new();
+        for y in 0..h - 1 {
+            for x in 0..w - 1 {
+                set.insert((
+                    img[y * w + x],
+                    img[y * w + x + 1],
+                    img[(y + 1) * w + x],
+                    img[(y + 1) * w + x + 1],
+                ));
+            }
+        }
+        set.len()
+    }
+
+    #[test]
+    fn dither_breaks_ramp_bands_and_keeps_zero_mean_error() {
+        let (w, h) = (256usize, 32usize);
+        let (plain, truth) = ramp(w, h, 0.0);
+        let (dith, _) = ramp(w, h, 1.0);
+
+        // Undithered, every row is identical: the 2x2 patterns are a handful.
+        // Dithered, neighbours disagree in both axes and the patterns multiply.
+        let p_plain = distinct_patterns(&plain, w, h);
+        let p_dith = distinct_patterns(&dith, w, h);
+        assert!(p_dith > 4 * p_plain, "dither should multiply patterns: {p_plain} -> {p_dith}");
+
+        // The dithered error is at most one LSB from the true encoded value and
+        // its mean over a band of pixels is zero (triangular PDF).
+        let mut max_dev = 0.0f32;
+        let (mut mean_plain, mut mean_dith) = (0.0f64, 0.0f64);
+        let band = 0..w / 4; // one quarter of the ramp, all rows
+        let mut n = 0usize;
+        for y in 0..h {
+            for x in band.clone() {
+                let i = y * w + x;
+                let e_plain = plain[i] as f32 - truth[i] * 255.0;
+                let e_dith = dith[i] as f32 - truth[i] * 255.0;
+                max_dev = max_dev.max((e_dith - e_plain).abs());
+                mean_plain += e_plain as f64;
+                mean_dith += e_dith as f64;
+                n += 1;
+            }
+        }
+        let (mean_plain, mean_dith) = (mean_plain / n as f64, mean_dith / n as f64);
+        assert!(mean_dith.abs() < 0.05, "dithered error must be zero-mean, got {mean_dith:.4} LSB");
+        // Plain rounding of a linear ramp is a sawtooth: its mean is also near
+        // zero, but it is a deterministic staircase, which is the band.
+        assert!(mean_plain.abs() < 0.05, "plain ramp mean {mean_plain:.4} LSB");
+        assert!(max_dev <= 1.5, "triangular dither is at most one LSB, got {max_dev:.3}");
+    }
+
+    #[test]
+    fn zero_amount_is_exactly_the_undithered_quantise() {
+        for x in 0..64 {
+            let enc = 0.1 + 0.8 * x as f32 / 64.0;
+            assert_eq!(dither_channel(enc, x as f32, 3.0, 1.0, 0.0, 0), (enc * 255.0).round() as u8);
+        }
     }
 }

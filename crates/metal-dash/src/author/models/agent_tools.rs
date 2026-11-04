@@ -251,7 +251,7 @@ impl AgentHarness {
                 }
             });
         ex.ticks.retain(|t| t.tick != tick);
-        ex.ticks.push(example::Tick { tick, floats });
+        ex.ticks.push(example::Tick { tick, floats, loop_beats: None });
 
         let n = example::save(Path::new(EXAMPLES_DIR), ex, schema, None)?;
         // Speak the active level back: the caller's tick and the level it is
@@ -4653,20 +4653,20 @@ mod tests {
         };
         ex.ticks.push(example::Tick {
             tick: 20,
-            floats: vec![1.0],
+            floats: vec![1.0], loop_beats: None
         });
         example::save(Path::new(EXAMPLES_DIR), ex.clone(), &schema, None).unwrap();
         let mut ex = example::load(Path::new(EXAMPLES_DIR), model, song, None).unwrap();
         ex.ticks.retain(|t| t.tick != 20);
         ex.ticks.push(example::Tick {
             tick: 20,
-            floats: vec![2.0],
+            floats: vec![2.0], loop_beats: None
         });
         example::save(Path::new(EXAMPLES_DIR), ex.clone(), &schema, None).unwrap();
         let mut ex = example::load(Path::new(EXAMPLES_DIR), model, song, None).unwrap();
         ex.ticks.push(example::Tick {
             tick: 4,
-            floats: vec![0.5],
+            floats: vec![0.5], loop_beats: None
         });
         example::save(Path::new(EXAMPLES_DIR), ex, &schema, None).unwrap();
         let via_route = fs::read_to_string(example_path(model, song)).unwrap();

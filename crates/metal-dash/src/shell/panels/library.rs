@@ -363,6 +363,9 @@ pub fn paint(
             if crate::shell::motion::key_of(&p) == shown {
                 state.cwd = p;
                 state.pending_cwd = None;
+                state.fs = None;
+                state.files_note = None;
+                state.cwd_edit = None;
             }
         }
     }

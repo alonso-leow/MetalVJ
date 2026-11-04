@@ -4074,28 +4074,28 @@ pub fn row_for_node(
             Modo::Ai | Modo::AiFx | Modo::Inherit => {
                 let key = (node.unwrap_or("_").to_string(), id.to_string());
                 // The supervisor decides first whether the colourist runs this
-                // tick; a skipped tick replays the recording and never calls it.
-                let offsets = match loop_gate(state, key.clone(), frame, dials.smooth) {
-                    LoopGate::Replay(recorded) => Some(recorded),
-                    LoopGate::Infer(len) => {
-                        ai_offsets(graph, node, state, schema, id, frame, dials.smooth).map(
-                            |live| match len {
-                                Some(len) => {
-                                    let beat = state.music_pos.beats();
-                                    state
-                                        .loop_offsets
-                                        .entry(key)
-                                        .or_default()
-                                        .step(beat, len, &live)
-                                }
-                                None => live,
-                            },
-                        )
+                // tick; an idle tick replays the last rows recorded over the
+                // loop's beats (the final floats, not only the offsets) and
+                // never calls the colourist.
+                let row = match loop_gate(state, key.clone(), frame, dials.smooth) {
+                    LoopGate::Replay(recorded) if recorded.len() == schema.width() => recorded,
+                    gate => {
+                        let offsets =
+                            ai_offsets(graph, node, state, schema, id, frame, dials.smooth);
+                        let live = match offsets {
+                            Some(offsets) => {
+                                drive::row_with(schema, base, frame, &dials, Some(&offsets))
+                            }
+                            None => drive::row(schema, base, frame, &dials),
+                        };
+                        match gate {
+                            LoopGate::Infer(Some(len)) => {
+                                let beat = state.music_pos.beats();
+                                state.loop_offsets.entry(key).or_default().step(beat, len, &live)
+                            }
+                            _ => live,
+                        }
                     }
-                };
-                let row = match offsets {
-                    Some(offsets) => drive::row_with(schema, base, frame, &dials, Some(&offsets)),
-                    None => drive::row(schema, base, frame, &dials),
                 };
                 (row, Some(frame))
             }
@@ -4127,9 +4127,9 @@ pub fn row_for_node(
 
 /// loop-aux: what the loop clock says about the colourist on one tick.
 enum LoopGate {
-    /// Skip the colourist: these are the recorded offsets for this beat phase.
+    /// Skip the colourist: this is the recorded final row for this beat phase.
     Replay(Vec<f32>),
-    /// Run the colourist. `Some(len)` when a loop is on air, so its offsets are
+    /// Run the colourist. `Some(len)` when a loop is on air, so its final row is
     /// recorded for replay; `None` when there is no loop.
     Infer(Option<f64>),
 }

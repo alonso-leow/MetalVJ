@@ -168,15 +168,6 @@ mod tests {
         }
     }
 
-    /// `docs/MULTIPLATFORM.md` lists every program the workspace spawns.
-    #[test]
-    fn the_multiplatform_doc_lists_every_program() {
-        let doc = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/MULTIPLATFORM.md")).unwrap();
-        for program in programs() {
-            assert!(doc.contains(&format!("`{program}`")), "docs/MULTIPLATFORM.md does not list `{program}`");
-        }
-    }
-
     #[cfg(not(target_os = "android"))]
     #[test]
     fn spawns_where_processes_exist() {

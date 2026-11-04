@@ -108,6 +108,7 @@ fn tool_schema(name: &str) -> Option<&'static [&'static str]> {
         "read_shader" => Some(&[]), // id|name, checked specially
         "raster" => Some(&[]),      // shader|shader_id, checked specially
         "sleep" => Some(&["ms"]),
+        "update_graph" => Some(&["section", "text"]),
         // H.4's table, for the five not implemented by `Harness` yet:
         "capture_camera_frame" => Some(&[]),
         // H.5c: `step` discriminates grid/crop/resolve/verify; each step's

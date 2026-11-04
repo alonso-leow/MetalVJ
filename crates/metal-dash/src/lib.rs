@@ -1011,6 +1011,7 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         // through the chat's executor (`crate::chat::agent_tool_at`), policy
         // applied. metal-mcp wraps the arguments as `{name, args, allow_ask}`.
         "sleep"
+        | "update_graph"
         | "locate"
         | "capture_camera_frame"
         | "bake_clip"

@@ -725,14 +725,19 @@ would cut that cost ~3x.
 
 ## Loops
 
-Loop length is in beats, `{1/8 … 8}`; `0` means the music changes. `LoopFinder`
-(`ai.loops`, `metal-reel/src/loopfind.rs`) is trained from the approved loops
-dataset, one song per genre, with a per-tick `loop_beats`. `Supervisor` idles
-50% of the time while looping and authors when the length is `0`; `Conductor`
-has the router switch every 4th authoring entry. Open: `ai.loops` is not in the
-node catalog and nothing in the UI creates it; threshold and hold values are
-unmeasured; replay is per (node, model); dither is unverified on GPU; rules 9
-and 12 for the `fill_range` button.
+Two kinds, never mixed. **Manual loops** are authored by the human, triggered by
+the grid and attached to the gen node's own information (the loop library and
+`/loops/choose`); they are set beforehand. **The loop AI** is implicit
+inference, not a node: it is required for every inference when a node's mode is
+`ai` or `ai_fx`, and re-uses the gen AI's float offsets so the animation is
+stronger and less stochastic. Loop length is in beats, `{1/8 … 8}`; `0` means
+the music changes. `LoopFinder` (`metal-reel/src/loopfind.rs`, trained as
+`ai.loops` from the approved loops dataset, one song per genre, per-tick
+`loop_beats`) finds it. `Supervisor` idles the gen AI 50% of the time while
+looping and authors when the length is `0`; `Conductor` has the router switch
+every 4th authoring entry. Open: threshold and hold values are unmeasured;
+replay is per (node, model); dither is unverified on GPU; rules 9 and 12 for the
+`fill_range` button.
 
 ## Value sources
 

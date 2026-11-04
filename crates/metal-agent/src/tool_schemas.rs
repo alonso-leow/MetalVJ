@@ -244,6 +244,7 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         }
         "list_dataset" => vec!["part"],
         "focus" => vec!["items"],
+        "update_graph" => vec!["replace"],
         "edit_scene" => vec!["op", "id", "clip", "start", "end", "on", "group", "to"],
         "set_head_tracking" => vec!["on", "strength"],
         "attach_source" => vec!["graph", "node", "port", "kind", "from", "config"],

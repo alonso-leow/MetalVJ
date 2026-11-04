@@ -699,6 +699,15 @@ fn run_turn_at(root: &std::path::Path, chat_id: &str) -> Result<(), String> {
             wire = level.wire(),
             hz = level.hz(),
         );
+        let prompt = match std::fs::read_to_string(root.join("agent").join("graph.md")) {
+            Ok(graph) => format!(
+                "{prompt}\n\n## Context and procedures graph\n\nCite node ids. Keep \
+                 the M sections current with `update_graph` whenever the user \
+                 gives or you learn a durable entity (fixture, venue, point of \
+                 interest, look, song, script, person, safety rule).\n\n{graph}\n"
+            ),
+            Err(_) => prompt,
+        };
         let instructions = saved["instructions"].as_str().unwrap_or("");
         let prompt = metal_agent::harness::with_operator_instructions(&prompt, instructions);
         history.insert(0, ChatMessage::new("system", prompt));

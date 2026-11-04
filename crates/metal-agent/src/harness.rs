@@ -107,6 +107,7 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     ("save_script", "Validates and saves the code of a `script.*` node by posting it to /script, which re-runs it.", true),
     ("capture_output", "Captures the current output of a TOP node.", true),
     ("sleep", "Espera.", true),
+    ("update_graph", "Adds or replaces one line of long-term memory in a section M1..M5 of the context graph (data/agent/graph.md): {section, text, replace?}.", true),
     ("bake_clip", "Bakes a motion graphics clip into footage.", true),
     // Plan §9.1 E1: the offline video export — the same `POST /export/video`
     // the export control posts (rule 6). Renders the device graph's generator
@@ -395,7 +396,7 @@ pub fn capability_of(name: &str) -> Option<Capability> {
         | "fire_trigger"
         | "overlay_control" => Some(Capability::Devices),
         "save_shader" | "bake_clip" | "attach_digest" | "export_frame" | "export_video"
-        | "import_gdtf" => Some(Capability::Files),
+        | "import_gdtf" | "update_graph" => Some(Capability::Files),
         _ => None,
     }
 }
@@ -1287,6 +1288,51 @@ impl Harness {
         Err("expected `id` or `name`".to_string())
     }
 
+    /// `update_graph({section, text, replace?})`: one line of long-term memory
+    /// under `### M1..M5` of `agent/graph.md`. With `replace` (a substring of
+    /// an existing line of that section) the line is rewritten in place.
+    fn update_graph(&self, args: &Value) -> Result<Value, String> {
+        let section = args
+            .get("section")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| matches!(*s, "M1" | "M2" | "M3" | "M4" | "M5"))
+            .ok_or("update_graph: `section` must be M1, M2, M3, M4 or M5")?;
+        let text = args
+            .get("text")
+            .and_then(Value::as_str)
+            .map(|t| t.replace('\n', " "))
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty())
+            .ok_or("update_graph: `text` is required")?;
+        let replace = args.get("replace").and_then(Value::as_str).filter(|r| !r.is_empty());
+        let path = self.root.join("agent").join("graph.md");
+        let body = std::fs::read_to_string(&path).map_err(|e| format!("cannot read graph.md: {e}"))?;
+        let mut lines: Vec<String> = body.lines().map(String::from).collect();
+        let head = lines
+            .iter()
+            .position(|l| l.starts_with(&format!("### {section} ")))
+            .ok_or("update_graph: section heading missing in graph.md")?;
+        let end = lines[head + 1..]
+            .iter()
+            .position(|l| l.starts_with("#"))
+            .map_or(lines.len(), |i| head + 1 + i);
+        let entry = format!("- {text}");
+        let hit = replace.and_then(|r| (head + 1..end).find(|&i| lines[i].contains(r)));
+        match hit {
+            Some(i) => lines[i] = entry,
+            None => {
+                let mut at = end;
+                while at > head + 1 && lines[at - 1].trim().is_empty() {
+                    at -= 1;
+                }
+                lines.insert(at, entry);
+            }
+        }
+        std::fs::write(&path, lines.join("\n") + "\n").map_err(|e| format!("cannot write graph.md: {e}"))?;
+        Ok(json!({ "section": section, "replaced": hit.is_some() }))
+    }
+
     fn sleep(&self, args: &Value) -> Result<Value, String> {
         let ms = args
             .get("ms")
@@ -1744,6 +1790,7 @@ impl ToolExecutor for Harness {
             "release_graph" => self.graph_owner_tool("release", args),
             "graph_owner" => self.graph_owner_tool("owner", args),
             "sleep" => self.sleep(args),
+            "update_graph" => self.update_graph(args),
             "capture_camera_frame" => self.capture_camera_frame(args),
             "locate" => self.locate(args),
             "bake_clip" => self.bake_clip(args),
@@ -2895,6 +2942,26 @@ mod tests {
         let mut h = fixture("read-shader-missing-arg");
         let err = h.execute(&call("read_shader", json!({}))).unwrap_err();
         assert!(err.contains("expected"), "{err}");
+    }
+
+    #[test]
+    fn update_graph_appends_and_replaces_under_its_section() {
+        let mut h = fixture("update-graph");
+        let dir = h.root.join("agent");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("graph.md"), "### M1 Venues\n### M2 Fixtures\n").unwrap();
+        h.execute(&call("update_graph", json!({ "section": "M1", "text": "Club A, 2 projectors" })))
+            .unwrap();
+        let v = h
+            .execute(&call(
+                "update_graph",
+                json!({ "section": "M1", "text": "Club A, 3 projectors", "replace": "Club A" }),
+            ))
+            .unwrap();
+        assert_eq!(v["replaced"], true);
+        let body = std::fs::read_to_string(dir.join("graph.md")).unwrap();
+        assert_eq!(body, "### M1 Venues\n- Club A, 3 projectors\n### M2 Fixtures\n");
+        assert!(h.execute(&call("update_graph", json!({ "section": "M9", "text": "x" }))).is_err());
     }
 
     #[test]

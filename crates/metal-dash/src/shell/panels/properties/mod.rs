@@ -651,12 +651,23 @@ impl PanelState {
         let params = io.as_ref().map(io::counts).unwrap_or((0, 0, 0, 0)).3;
 
         let _ = narrow;
-        let mut clicked = theme
-            .card_frame()
-            .show(ui, |ui| {
-                self.node_card(ui, theme, door, gid, node_id, &node, &kind, io.as_ref())
-            })
-            .inner;
+        // The card holds the mode picker and the wiring summary: with neither,
+        // there is nothing to frame.
+        let wired = io.as_ref().is_some_and(|io| {
+            ["inputs", "outputs"]
+                .iter()
+                .any(|k| io[*k].as_array().is_some_and(|a| !a.is_empty()))
+        });
+        let mut clicked = if wired || kind.starts_with("gen.") {
+            theme
+                .card_frame()
+                .show(ui, |ui| {
+                    self.node_card(ui, theme, door, gid, node_id, &node, &kind, io.as_ref())
+                })
+                .inner
+        } else {
+            None
+        };
 
         // What the AI proposes for this node, ahead of its folders.
         crate::shell::panels::proposals::review_bar(ui, theme, door, node_id, &node);

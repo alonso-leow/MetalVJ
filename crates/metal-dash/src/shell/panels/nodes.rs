@@ -3973,12 +3973,17 @@ fn press_hit_test(
         // empty-space pan-drag — the "drag to pan" gesture
         // (`PanDrag`): the view transform follows the pointer while it is
         // down, releases commit nothing.
+        // Something focused: the press only unfocuses, so the view never pans
+        // while the properties panel is sliding out.
         _ => {
+            let was_focused = !matches!(*selection, Selection::None);
             *selection = Selection::None;
-            state.pan_drag = Some(PanDrag {
-                start_screen: press_pos,
-                start_pan: state.pan,
-            });
+            if !was_focused {
+                state.pan_drag = Some(PanDrag {
+                    start_screen: press_pos,
+                    start_pan: state.pan,
+                });
+            }
         }
     }
 }

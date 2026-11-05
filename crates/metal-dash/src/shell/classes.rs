@@ -491,6 +491,9 @@ pub struct Theme {
     /// Size of a glyph button ([`components::icon_button`]): the canvas bars'
     /// controls.
     pub icon_button_size: Vec2,
+    /// Width, in points, of a focus bar that is not tied to a node's width:
+    /// the bar over a collapsed point, and every bar drawn while zoomed out.
+    pub focus_bar_width: f32,
     /// Height of a compact control row (the sequence editor's transport bar
     /// under the ticks): the buttons shrink to this so the timeline above
     /// keeps the panel.
@@ -565,6 +568,9 @@ pub struct Theme {
     pub node_point_radius: f32,
     /// The canvas zoom a hovered point's payload is drawn at, so it reads at any zoom.
     pub node_point_hover_zoom: f32,
+    /// How long, in seconds, a hovered point's card stays open after the pointer
+    /// leaves both the point and the card (the gap between them).
+    pub hover_card_hold: f64,
     /// The largest port dot, in points, once zoomed in (dots shrink past it).
     pub node_port_radius_max: f32,
     /// The most a node's text scales up with zoom, as a multiple of its size.
@@ -856,6 +862,7 @@ impl Theme {
             panel_head_height: 26.0,
             compact_row_height: 22.0,
             icon_button_size: Vec2::new(26.0, 26.0),
+            focus_bar_width: 240.0,
             nav_row_height: 32.0,
             nav_icon_side: 18.0,
             nav_row_gap: 0.0,
@@ -896,6 +903,7 @@ impl Theme {
             node_point_zoom: 0.32,
             node_point_radius: 4.0,
             node_point_hover_zoom: 1.0,
+            hover_card_hold: 0.3,
             node_port_radius_max: 3.5,
             node_text_zoom_max: 1.6,
             grid_fade_floor: 0.12,
@@ -1089,6 +1097,7 @@ impl Theme {
             panel_head_height: 26.0,
             compact_row_height: 22.0,
             icon_button_size: Vec2::new(26.0, 26.0),
+            focus_bar_width: 240.0,
             nav_row_height: 32.0,
             nav_icon_side: 18.0,
             nav_row_gap: 0.0,
@@ -1129,6 +1138,7 @@ impl Theme {
             node_point_zoom: 0.32,
             node_point_radius: 4.0,
             node_point_hover_zoom: 1.0,
+            hover_card_hold: 0.3,
             node_port_radius_max: 3.5,
             node_text_zoom_max: 1.6,
             grid_fade_floor: 0.12,
@@ -1398,6 +1408,7 @@ impl Theme {
             panel_head_height: 26.0,
             compact_row_height: 22.0,
             icon_button_size: Vec2::new(34.0, 34.0),
+            focus_bar_width: 240.0,
             nav_row_height: 40.0,
             nav_icon_side: 22.0,
             nav_row_gap: 0.0,
@@ -1438,6 +1449,7 @@ impl Theme {
             node_point_zoom: 0.35,
             node_point_radius: 4.0,
             node_point_hover_zoom: 1.0,
+            hover_card_hold: 0.3,
             node_port_radius_max: 3.5,
             node_text_zoom_max: 1.6,
             grid_fade_floor: 0.12,

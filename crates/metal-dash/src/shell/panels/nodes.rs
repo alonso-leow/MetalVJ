@@ -343,6 +343,9 @@ pub struct PanelState {
     /// Point view: the hovered node's enlarged card this frame, as its
     /// graph position, zoom and pan, so the focus bar can ride it.
     hover_card: Option<([f32; 2], f32, Vec2)>,
+    /// When the hovered point's card started to hold open after the pointer
+    /// left it (seconds, `ui.input` time); `None` while the pointer is on one.
+    hover_hold: Option<f64>,
     /// Fit-into-view bookkeeping: last frame's canvas rect, and the
     /// (node, rect) a fit already ran for.
     fit_prev_rect: Option<EguiRect>,
@@ -442,6 +445,7 @@ impl Default for PanelState {
             last_canvas_rect: None,
             hover_edge: None,
             hover_card: None,
+            hover_hold: None,
             fit_prev_rect: None,
             fit_done: None,
             picked: Vec::new(),
@@ -1980,7 +1984,7 @@ fn float_bars(
                 let (z0, pan0) = (state.zoom, state.pan);
                 state.zoom = z;
                 state.pan = pan;
-                focus_bar(ui, theme, door, state, selection, canvas, &id);
+                focus_bar(ui, theme, door, state, selection, canvas, &id, true);
                 state.zoom = z0;
                 state.pan = pan0;
             }
@@ -1988,7 +1992,7 @@ fn float_bars(
         return;
     }
     if let Selection::Node(id) = selection.clone() {
-        focus_bar(ui, theme, door, state, selection, canvas, &id);
+        focus_bar(ui, theme, door, state, selection, canvas, &id, false);
     }
     let focused = match &*selection {
         Selection::Node(id) => Some(id.clone()),
@@ -2101,6 +2105,7 @@ fn focus_bar(
     selection: &mut Selection,
     canvas: EguiRect,
     id: &str,
+    own_width: bool,
 ) {
     let Some(gid) = state.selected_graph.clone() else {
         return;
@@ -2134,18 +2139,20 @@ fn focus_bar(
         }
     };
     // The bar's width follows the node's: each button takes its share of the
-    // node width, clamped between a readable minimum and the theme size.
+    // node width, clamped between a readable minimum and the theme size. A
+    // collapsed point's card and every bar drawn while zoomed out keep their
+    // own `focus_bar_width` instead, so the buttons stay readable there.
     let kind0 = node_record(state, id).and_then(|n| n["kind"].as_str().map(str::to_string)).unwrap_or_default();
     let units = 6.0
         + if kind0.starts_with("gen.") { 3.0 } else { 0.0 }
         + if kind0 == metal_graph::VENUE_SURFACE_KIND { 1.0 } else { 0.0 };
     let frame_pad = if inside { 0.0 } else { theme.bar_margin().sum().x as f32 };
-    let room = (node.width() - frame_pad - theme.item_gap.x * (units + 1.0)).max(0.0);
+    let bar_w = if own_width { theme.focus_bar_width } else { node.width() };
+    let room = (bar_w - frame_pad - theme.item_gap.x * (units + 1.0)).max(0.0);
     let side = (room / units).clamp(2.0, theme.icon_button_size.x);
     let mut theme = theme.clone();
     theme.icon_button_size = Vec2::splat(side);
     let theme = &theme;
-    let bar_w = node.width();
     let frame = if inside { egui::Frame::NONE } else { theme.card_frame().inner_margin(theme.bar_margin()) };
     let kind = node_record(state, id)
         .and_then(|n| n["kind"].as_str().map(str::to_string))
@@ -2606,19 +2613,57 @@ fn canvas(
                 let far = state.zoom < theme.node_point_zoom;
                 let open = if far {
                     let hover = response.hover_pos().map(|p| to_graph(rect.min, state.pan, state.zoom, p));
+                    // The box of the node at `pos`, read off the door's own node primitive.
+                    let box_at = |pos: [f32; 2]| {
+                        prims
+                            .iter()
+                            .filter(|p| p["tag"] == "node")
+                            .find(|p| [num(p, "x"), num(p, "y")] == pos)
+                            .map(|p| [num(p, "x"), num(p, "y"), num(p, "w"), num(p, "h")])
+                    };
                     // The enlarged card keeps itself open while the pointer is
                     // on it, so it does not collapse back under the pointer.
                     let kept = state.hover_card.and_then(|(pos, z, pan)| {
                         let at = response.hover_pos()?;
-                        let bx = prims
-                            .iter()
-                            .filter(|p| p["tag"] == "node")
-                            .find(|p| [num(p, "x"), num(p, "y")] == pos)
-                            .map(|p| [num(p, "x"), num(p, "y"), num(p, "w"), num(p, "h")])?;
+                        let bx = box_at(pos)?;
                         let min = rect.min + pan + Vec2::new(bx[0], bx[1]) * z;
                         EguiRect::from_min_size(min, Vec2::new(bx[2], bx[3]) * z).contains(at).then_some(bx)
                     });
-                    kept.or(hover.and_then(|at| node_under(prims, at)))
+                    let pointed = hover.and_then(|at| node_under(prims, at));
+                    // A focused node's card stays open with no hold; any other
+                    // card holds for `hover_card_hold` seconds after the pointer
+                    // leaves point and card, which bridges the gap between them.
+                    let card_id = state.hover_card.and_then(|(pos, _, _)| {
+                        prims
+                            .iter()
+                            .find(|p| p["tag"] == "node" && [num(p, "x"), num(p, "y")] == pos)
+                            .and_then(|p| p["node"].as_str().map(str::to_string))
+                    });
+                    let focused = card_id.is_some_and(|c| matches!(&*selection, Selection::Node(id) if *id == c));
+                    let now = ui.input(|i| i.time);
+                    let live = kept.or(pointed);
+                    match (live, state.hover_card, focused) {
+                        (Some(bx), _, _) => {
+                            state.hover_hold = None;
+                            Some(bx)
+                        }
+                        (None, Some((pos, _, _)), _) if focused => box_at(pos),
+                        (None, Some((pos, _, _)), _) => {
+                            let until = *state.hover_hold.get_or_insert(now + theme.hover_card_hold);
+                            if now < until {
+                                // Repaint while the hold runs, so it can expire.
+                                ui.ctx().request_repaint();
+                                box_at(pos)
+                            } else {
+                                state.hover_hold = None;
+                                None
+                            }
+                        }
+                        _ => {
+                            state.hover_hold = None;
+                            None
+                        }
+                    }
                 } else {
                     None
                 };

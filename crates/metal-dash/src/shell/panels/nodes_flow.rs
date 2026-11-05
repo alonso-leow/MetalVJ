@@ -261,18 +261,19 @@ pub fn paint_point_pulse(ctx: &egui::Context, painter: &Painter, theme: &Theme, 
     painter.circle_filled(centre, r, blue);
 }
 
-/// A live node's parameter point gets a pulsing cyan ring, the highlight that
-/// marks a generator whose values are driven by the AI. Called after the dot.
-pub fn paint_param_glow(ctx: &egui::Context, painter: &Painter, theme: &Theme, centre: Pos2, node: &str, radius: f32) {
-    let Some(f) = read(ctx) else { return };
+/// A live node's parameter point is replaced by an animated one: the dot itself
+/// breathes between the flow's blue and purple, with a soft halo. Returns
+/// whether it painted, so the caller skips the plain dot.
+pub fn paint_param_live(ctx: &egui::Context, painter: &Painter, theme: &Theme, centre: Pos2, node: &str, radius: f32) -> bool {
+    let Some(f) = read(ctx) else { return false };
     if !f.live.contains(node) {
-        return;
+        return false;
     }
     let b = beat(f.now);
-    let cyan = theme.flow_colours()[1];
-    painter.circle_stroke(
-        centre,
-        radius * (1.6 + 0.6 * b),
-        Stroke::new(theme.hairline, cyan.gamma_multiply(0.4 + 0.5 * b)),
-    );
+    let [c0, c1] = [theme.flow_colours()[0], theme.flow_colours()[1]];
+    let mix = |a: u8, z: u8| (a as f32 + (z as f32 - a as f32) * b) as u8;
+    let col = egui::Color32::from_rgb(mix(c0.r(), c1.r()), mix(c0.g(), c1.g()), mix(c0.b(), c1.b()));
+    painter.circle_filled(centre, radius * (1.5 + 0.5 * b), col.gamma_multiply(0.18 + 0.2 * b));
+    painter.circle_filled(centre, radius, col);
+    true
 }

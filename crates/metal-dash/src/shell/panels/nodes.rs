@@ -344,6 +344,9 @@ pub struct PanelState {
     /// Point view: the hovered node's enlarged card this frame, as its
     /// graph position, zoom and pan, so the focus bar can ride it.
     hover_card: Option<([f32; 2], f32, Vec2)>,
+    /// The real (zoom, pan) while a hover card borrows the view, so drags map
+    /// the pointer through the view it moves in.
+    real_view: Option<(f32, Vec2)>,
     /// When the hovered point's card started to hold open after the pointer
     /// left it (seconds, `ui.input` time); `None` while the pointer is on one.
     hover_hold: Option<f64>,
@@ -446,6 +449,7 @@ impl Default for PanelState {
             last_canvas_rect: None,
             hover_edge: None,
             hover_card: None,
+            real_view: None,
             hover_hold: None,
             fit_prev_rect: None,
             fit_done: None,
@@ -1983,11 +1987,13 @@ fn float_bars(
         if let (Selection::Node(id), Some((pos, z, pan))) = (selection.clone(), state.hover_card) {
             if find_node_pos(state, &id) == Some(pos) {
                 let (z0, pan0) = (state.zoom, state.pan);
+                state.real_view = Some((z0, pan0));
                 state.zoom = z;
                 state.pan = pan;
                 focus_bar(ui, theme, door, state, selection, canvas, &id, true);
                 state.zoom = z0;
                 state.pan = pan0;
+                state.real_view = None;
             }
         }
         return;
@@ -2085,7 +2091,7 @@ fn drag_screen_offset(state: &PanelState, id: &str) -> Vec2 {
             Vec2::new(
                 d.cur_pointer[0] - d.start_pointer[0],
                 d.cur_pointer[1] - d.start_pointer[1],
-            ) * state.zoom
+            ) * state.real_view.map_or(state.zoom, |v| v.0)
         }
         _ => Vec2::ZERO,
     }
@@ -2152,15 +2158,18 @@ fn focus_bar(
         + if kind0.starts_with("gen.") { 3.0 } else { 0.0 }
         + if kind0 == metal_graph::VENUE_SURFACE_KIND { 1.0 } else { 0.0 };
     let frame_pad = if inside { 0.0 } else { theme.bar_margin().sum().x as f32 };
-    let bar_w = if own_width { theme.focus_bar_width } else { shown.width() };
-    // Zoomed out, the bar keeps the full icon size at its own width; zoomed in
-    // it follows the node: buttons shrink to fit a narrow node and the gaps
-    // spread to fill a wide one.
+    // Two disjoint sizings. Floating (zoomed out, or the hover card): the bar
+    // and its icons keep their own full size whatever the zoom. Inside the
+    // node (top zoom step): the bar is slave to the node's width, icons
+    // growing with the zoom past the step and the gaps filling the rest.
+    let own_width = own_width || !inside;
+    let bar_w = if own_width { theme.focus_bar_width } else { node.width() };
+    let grow = if inside { (state.zoom / theme.node_text_zoom_max).max(1.0) } else { 1.0 };
     let room = (bar_w - frame_pad - theme.item_gap.x * (units + 1.0)).max(0.0);
     let side = if own_width {
         theme.icon_button_size.x
     } else {
-        (room / units).clamp(2.0, theme.icon_button_size.x)
+        (room / units).clamp(2.0, theme.icon_button_size.x * grow)
     };
     let gap_x = if own_width {
         theme.item_gap.x
@@ -2267,7 +2276,8 @@ fn focus_bar(
     let bar = area.response;
     if bar.drag_started() {
         if let Some(p) = ui.input(|i| i.pointer.interact_pos()) {
-            let gp = to_graph(canvas.min, state.pan, state.zoom, p);
+            let (rz, rp) = state.real_view.map_or((state.zoom, state.pan), |v| v);
+            let gp = to_graph(canvas.min, rp, rz, p);
             let start_node_pos = find_node_pos(state, id).unwrap_or(gp);
             *selection = Selection::Node(id.to_string());
             state.drag = Some(Drag {
@@ -2279,8 +2289,9 @@ fn focus_bar(
         }
     }
     if bar.dragged() {
+        let (rz, rp) = state.real_view.map_or((state.zoom, state.pan), |v| v);
         if let (Some(drag), Some(p)) = (state.drag.as_mut(), ui.input(|i| i.pointer.interact_pos())) {
-            drag.cur_pointer = to_graph(canvas.min, state.pan, state.zoom, p);
+            drag.cur_pointer = to_graph(canvas.min, rp, rz, p);
         }
     }
     if bar.drag_stopped() {
@@ -2477,6 +2488,16 @@ fn canvas(
             ui.allocate_exact_size(desired, Sense::click_and_drag())
         })
         .inner;
+    // The pan is relative to the canvas's top-left: when a panel opening
+    // beside it moves that corner, counter-shift so the graph stays under the
+    // pointer instead of sliding with the panel (`fit_focused` still pans a
+    // node the panel would cover back into view).
+    if let Some(prev) = state.last_canvas_rect {
+        let d = rect.min - prev.min;
+        if d.abs().max_elem() < 600.0 {
+            state.pan -= d;
+        }
+    }
     state.last_canvas_rect = Some(rect);
     // The venue scene: the same canvas, the same rect, the whole room instead
     // of the graph. It paints its own background, bar and gallery, and only
@@ -2729,8 +2750,9 @@ fn canvas(
                     state.pan = pan0 + centre * (z0 - zt);
                     state.zoom = zt;
                     ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
+                    let card_drag = scaled_drag(drag_offset, z0 / zt);
                     for p in prims.iter().filter(|p| p["type"] != "path" && !node_body_numeric(p) && primitive_in_box(p, bx)) {
-                        paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
+                        paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), card_drag, selected_node, lit_edges, live_of(state));
                     }
                     state.zoom = z0;
                     state.pan = pan0;
@@ -2753,8 +2775,12 @@ fn canvas(
                     state.hover_card = Some(([bx[0], bx[1]], z, pan));
                     state.pan = pan;
                     state.zoom = z;
+                    // The drag delta is in graph units of the real view; the
+                    // card is drawn at a bigger zoom, so rescale it to keep
+                    // the node under the pointer.
+                    let card_drag = scaled_drag(drag_offset, z0 / z);
                     for p in prims.iter().filter(|p| p["type"] != "path" && !node_body_numeric(p) && primitive_in_box(p, bx)) {
-                        paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
+                        paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), card_drag, selected_node, lit_edges, live_of(state));
                     }
                     state.zoom = z0;
                     state.pan = pan0;
@@ -3320,8 +3346,10 @@ fn paint_param_dot(
     // accent, so a driven row reads at a glance (N's "play this row" hint).
     let lit = live.param(node, name).is_some();
     let fill = if wired || lit { theme.node_dot_on } else { theme.node_dot_off };
-    painter.circle_filled(r.center(), dot_radius(state, theme) * 0.5, fill);
-    nodes_flow::paint_param_glow(painter.ctx(), painter, theme, r.center(), node, dot_radius(state, theme) * 0.5);
+    let radius = dot_radius(state, theme) * 0.5;
+    if !nodes_flow::paint_param_live(painter.ctx(), painter, theme, r.center(), node, radius) {
+        painter.circle_filled(r.center(), radius, fill);
+    }
 }
 
 /// A parameter's value field: the recessed readout on the row's right. While a
@@ -4752,6 +4780,12 @@ fn in_dragged_node(point: [f32; 2], node_pos: [f32; 2], node_h: f32) -> bool {
 /// The live drag preview's input: the dragged node's `pos` before the drag,
 /// the pointer delta so far, and the node box's laid-out height.
 type DragOffset = ([f32; 2], [f32; 2], f32);
+
+/// A drag offset with its pointer delta scaled by `k`, for a card drawn at a
+/// different zoom than the view the pointer moves in.
+fn scaled_drag(d: Option<DragOffset>, k: f32) -> Option<DragOffset> {
+    d.map(|(start, delta, h)| (start, [delta[0] * k, delta[1] * k], h))
+}
 
 /// The laid-out height of the node box whose top-left is `pos` — read off
 /// the door's own `node` primitive, `NODE_H` if none matches.

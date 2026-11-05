@@ -48,6 +48,7 @@ use crate::shell::naming;
 use metal_notation::color::Hsb;
 use crate::shell::i18n::{tr, tr_dyn, tr_key, trf};
 use crate::shell::panels::viewport;
+use crate::shell::panels::nodes_flow;
 use crate::shell::panels::Selection;
 
 /// How far, in graph units, the pointer has to move between press and
@@ -2602,6 +2603,7 @@ fn canvas(
     // Cables first, then the node cards on top of them — Wire draws the wires
     // under the boxes so a cable disappears behind a node instead of over it.
     // Two passes over the same tagged list, so nothing is derived twice.
+    nodes_flow::observe(ui.ctx(), theme, state.graph.as_ref(), state.live.as_ref());
     match state.graph.clone() {
         Some(graph_val) => {
             if let Some(prims) = graph_val["primitives"].as_array() {
@@ -3136,6 +3138,7 @@ fn paint_node_point(
 ) {
     let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
     painter.circle_filled(r.center(), theme.node_point_radius, theme.node_dot_off);
+    nodes_flow::paint_point_pulse(painter.ctx(), painter, theme, r.center(), p);
 }
 
 /// A screen rect for a tagged rect primitive, its top-left shifted by the
@@ -3254,6 +3257,7 @@ fn paint_param_dot(
     let lit = live.param(node, name).is_some();
     let fill = if wired || lit { theme.node_dot_on } else { theme.node_dot_off };
     painter.circle_filled(r.center(), dot_radius(state, theme) * 0.5, fill);
+    nodes_flow::paint_param_glow(painter.ctx(), painter, theme, r.center(), node, dot_radius(state, theme) * 0.5);
 }
 
 /// A parameter's value field: the recessed readout on the row's right. While a
@@ -3466,7 +3470,7 @@ fn paint_cable(
     // selection draws in the accent. A param edge draws dashed too.
     let touches_selection = cable_lit(p, selected, lit_edges);
     let kind = p["kind"].as_str().unwrap_or("image");
-    let stroke = theme.node_cable_stroke(touches_selection);
+    let stroke = nodes_flow::cable_stroke(painter.ctx(), theme, p, touches_selection);
     if kind == "image" {
         let shape = CubicBezierShape::from_points_stroke(
             screen,
@@ -3502,6 +3506,7 @@ fn paint_cable(
             drawn += seg;
         }
     }
+    nodes_flow::paint_cable_flow(painter.ctx(), painter, theme, screen, p);
 }
 
 /// A text primitive, by its tag (`primitive_json`): a `title` centred in the

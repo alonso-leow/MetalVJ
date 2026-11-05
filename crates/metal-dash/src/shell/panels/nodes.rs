@@ -2639,7 +2639,7 @@ fn canvas(
                             .find(|p| p["tag"] == "node" && [num(p, "x"), num(p, "y")] == pos)
                             .and_then(|p| p["node"].as_str().map(str::to_string))
                     });
-                    let focused = card_id.is_some_and(|c| matches!(&*selection, Selection::Node(id) if *id == c));
+                    let focused = card_id.as_deref().is_some() && card_id.as_deref() == selected_node;
                     let now = ui.input(|i| i.time);
                     let live = kept.or(pointed);
                     match (live, state.hover_card, focused) {

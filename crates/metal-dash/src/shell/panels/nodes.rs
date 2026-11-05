@@ -1916,6 +1916,10 @@ fn float_bars(
     canvas: EguiRect,
 ) {
     tool_bar(ui, theme, door, state, selection, canvas);
+    // Far out the nodes are points: their own bars hide, the canvas bar stays.
+    if state.zoom < theme.node_point_zoom {
+        return;
+    }
     if let Selection::Node(id) = selection.clone() {
         focus_bar(ui, theme, door, state, selection, canvas, &id);
     }
@@ -2047,12 +2051,22 @@ fn focus_bar(
     if !canvas.intersects(node) && !dragging {
         return;
     }
-    // The bar lives inside the node: in the band the layout keeps under the
-    // title (`SUBHEADER_H`), left-aligned with the node's inset. It is only
-    // drawn at a zoom where that band is big enough to hold its glyphs.
-    let band_top = node.top() + metal_graph::layout::HEADER_H * state.zoom;
-    let anchor = Pos2::new(node.left() + theme.item_gap.x, band_top);
-    let pivot = Align2::LEFT_TOP;
+    // Only at the top zoom step does the bar sit inside the node, in the band
+    // under the title with a margin below the header; otherwise it floats
+    // above (or, near the canvas top, below) the node.
+    let inside = state.zoom >= theme.node_text_zoom_max;
+    let (anchor, pivot) = if inside {
+        let band_top = node.top() + metal_graph::layout::HEADER_H * state.zoom + theme.item_gap.y * 2.0;
+        (Pos2::new(node.left() + theme.item_gap.x, band_top), Align2::LEFT_TOP)
+    } else {
+        let bar_h = theme.icon_button_size.y + theme.bar_margin().sum().y as f32 + theme.item_gap.y;
+        if node.top() - canvas.top() > bar_h {
+            (Pos2::new(node.center().x, node.top() - theme.item_gap.y), Align2::CENTER_BOTTOM)
+        } else {
+            (Pos2::new(node.center().x, node.bottom() + theme.item_gap.y), Align2::CENTER_TOP)
+        }
+    };
+    let frame = if inside { egui::Frame::NONE } else { theme.card_frame().inner_margin(theme.bar_margin()) };
     let kind = node_record(state, id)
         .and_then(|n| n["kind"].as_str().map(str::to_string))
         .unwrap_or_default();
@@ -2068,7 +2082,7 @@ fn focus_bar(
         // `toolbar` documents).
         .sense(Sense::click_and_drag())
         .show(ui.ctx(), |ui| {
-            ui.scope(|ui| {
+            frame.show(ui, |ui| {
                 ui.spacing_mut().item_spacing = theme.item_gap;
                 ui.horizontal(|ui| {
                     // A `gen.*` model node's own `mode`: the three-way choice
@@ -2654,8 +2668,8 @@ fn canvas(
     }
     // The floating bars come last, over the nodes — but not over the big
     // preview, which they have nothing to do with while it is up.
-    // Far out the bars are hidden with the payload they belong to.
-    if !(picture_shown && state.preview.big()) && state.zoom >= theme.node_point_zoom {
+    // Far out only the node bars hide (`float_bars`); the canvas bar stays.
+    if !(picture_shown && state.preview.big()) {
         float_bars(ui, theme, door, state, selection, rect);
     }
 }
@@ -2905,7 +2919,14 @@ fn paint_primitive(
         Some("node") => paint_node_box(painter, theme, origin, state, p, tiles, drag, selected),
         Some("header") => {
             let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
-            painter.rect_filled(r, theme.corner_radius(), theme.node_header);
+            // Inside the frame: inset by the widest outline so it stays on
+            // top, and the cell's shadow is clipped to the node's width.
+            let edge = theme.node_select_stroke().width;
+            let inner = r.shrink(edge);
+            let mut clip = inner;
+            clip.max.y += theme.key_shadow_offset().y;
+            let cell = EguiRect::from_min_max(inner.min, inner.max - theme.key_shadow_offset());
+            painter.with_clip_rect(clip).extend(theme.key_shapes(cell));
         }
         Some("port") => paint_port(painter, theme, origin, state, p, drag),
         Some("param_dot") => paint_param_dot(painter, theme, origin, state, p, drag, live),
@@ -2916,7 +2937,7 @@ fn paint_primitive(
         Some("tile") => paint_tile(painter, theme, origin, state, p, tiles, drag),
         Some("more") => {
             let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
-            painter.rect_filled(r, theme.corner_radius(), theme.node_body);
+            painter.rect_filled(r, theme.corner_radius(), theme.node_content);
         }
         _ => match p["type"].as_str() {
             Some("path") => paint_cable(painter, theme, origin, state, p, drag, selected, lit_edges),
@@ -2999,7 +3020,7 @@ fn paint_node_box(
     } else {
         theme.node_box_stroke()
     };
-    painter.rect(r, theme.corner_radius(), theme.node_body, stroke, egui::StrokeKind::Middle);
+    painter.rect(r, theme.corner_radius(), theme.node_content, stroke, egui::StrokeKind::Middle);
     // Where the AI is working: a blue edge beside the operator's own.
     if state.ai_node.as_deref().is_some_and(at_box) {
         painter.rect_stroke(r.expand(theme.hairline * 2.0), theme.corner_radius(), theme.ai_stroke(), egui::StrokeKind::Outside);
@@ -3067,7 +3088,7 @@ fn paint_param_dot(
     // accent, so a driven row reads at a glance (N's "play this row" hint).
     let lit = live.param(node, name).is_some();
     let fill = if wired || lit { theme.node_dot_on } else { theme.node_dot_off };
-    painter.circle_filled(r.center(), r.width() / 2.0, fill);
+    painter.circle_filled(r.center(), dot_radius(state, theme), fill);
 }
 
 /// A parameter's value field: the recessed readout on the row's right. While a

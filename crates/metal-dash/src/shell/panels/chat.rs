@@ -1124,9 +1124,12 @@ fn prompt_box(
         }
         let btn_w = ui.spacing().interact_size.x;
         let bar_h = ui.spacing().interact_size.y;
+        // The row follows the panel's width; the field takes what the button column leaves.
+        let row_w = ui.available_width();
+        let field_w = (row_w - btn_w - spacing).max(0.0);
+        let text_w = (field_w - theme.composer_pad().x * 2.0).max(0.0);
         ui.horizontal(|ui| {
-            let field_w = ui.available_width() - btn_w - spacing;
-            ui.vertical(|ui| {
+            ui.allocate_ui(egui::vec2(field_w, 0.0), |ui| {
                 ScrollArea::vertical()
                     .max_height(max_h)
                     .auto_shrink([false, true])
@@ -1136,8 +1139,8 @@ fn prompt_box(
                         let out = TextEdit::multiline(&mut state.prompt)
                             .id(prompt_id)
                             .frame(Frame::NONE)
-                            .desired_width(field_w)
-                            .margin(theme.field_pad * 2.0)
+                            .desired_width(text_w)
+                            .margin(theme.composer_pad())
                             .desired_rows(rows)
                             .hint_text(tr("ask about the graph…"))
                             .show(ui);

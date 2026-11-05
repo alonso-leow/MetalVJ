@@ -527,6 +527,8 @@ pub struct Theme {
     pub node_canvas: Color32,
     /// A node box's fill — the raised dark-grey card.
     pub node_body: Color32,
+    /// The node's content ground, a step darker than `node_body`.
+    pub node_content: Color32,
     /// The header band's fill, a step lighter than the body.
     pub node_header: Color32,
     /// The title ink: the accent, as Wire titles every node.
@@ -874,6 +876,7 @@ impl Theme {
             graph_undo_depth: 32,
             node_canvas: Color32::from_rgb(0x05, 0x05, 0x08),
             node_body: Color32::from_rgb(0x1b, 0x1b, 0x20),
+            node_content: Color32::from_rgb(0x12, 0x12, 0x16),
             node_header: Color32::from_rgb(0x2a, 0x2a, 0x31),
             node_title_ink: Color32::from_rgb(0xff, 0x2e, 0x2e),
             node_row_ink: Color32::from_rgb(0xc8, 0xc8, 0xcc),
@@ -1105,6 +1108,7 @@ impl Theme {
             graph_undo_depth: 32,
             node_canvas: Color32::from_rgb(0xf3, 0xec, 0xe8),
             node_body: Color32::from_rgb(0xff, 0xfb, 0xfa),
+            node_content: Color32::from_rgb(0xf3, 0xec, 0xe9),
             node_header: Color32::from_rgb(0xec, 0xe0, 0xdb),
             node_title_ink: Color32::from_rgb(0xff, 0x2e, 0x2e),
             node_row_ink: Color32::from_rgb(0x4a, 0x40, 0x44),
@@ -1412,6 +1416,7 @@ impl Theme {
             graph_undo_depth: 16,
             node_canvas: Color32::from_rgb(0xe4, 0xe4, 0xdc),
             node_body: Color32::from_rgb(0xf0, 0xf0, 0xea),
+            node_content: Color32::from_rgb(0xe2, 0xe2, 0xdb),
             node_header: Color32::from_rgb(0xda, 0xda, 0xd0),
             node_title_ink: Color32::from_rgb(0x1f, 0x5f, 0xd6),
             node_row_ink: Color32::from_rgb(0x30, 0x30, 0x34),
@@ -1658,6 +1663,10 @@ impl Theme {
 
     /// Padding of the square chips in a narrow label column (a layer's eye, S
     /// and blend): a fraction of a field's, so the glyph fills the square.
+    /// Inner padding of the AI composer's text area, on all four sides.
+    pub fn composer_pad(&self) -> Vec2 {
+        self.field_pad * 2.5
+    }
     pub fn chip_padding(&self) -> Vec2 {
         self.field_pad * 0.25
     }

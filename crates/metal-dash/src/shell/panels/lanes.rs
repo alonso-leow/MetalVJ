@@ -942,7 +942,7 @@ fn flat(text: RichText) -> egui::Button<'static> {
 /// A thin linear divider between two groups of bar buttons: a vertical hairline
 /// in a row, a horizontal one in a column.
 fn bar_rule(ui: &mut Ui, theme: &Theme, vertical: bool) {
-    let (w, h) = if vertical { (1.0, ui.spacing().interact_size.y) } else { (ui.available_width(), 1.0) };
+    let (w, h) = if vertical { (1.0, ui.spacing().interact_size.y) } else { (ui.min_rect().width().max(ui.spacing().interact_size.x), 1.0) };
     let (rect, _) = ui.allocate_exact_size(Vec2::new(w, h), Sense::hover());
     let stroke = theme.rule_stroke();
     if vertical {

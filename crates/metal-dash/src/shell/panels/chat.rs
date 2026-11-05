@@ -249,6 +249,22 @@ pub fn paint(
 /// A header icon button in the grid cells' style: a square, unrounded frame
 /// on the inset fill with the rule outline, and the glyph at 1.4 times the
 /// small size so it reads as a target rather than a dot.
+/// A frameless composer icon button (`+`, gear): the glyph alone, no outline.
+fn composer_icon_button(theme: &Theme, icon: Icon) -> egui::Button<'static> {
+    egui::Button::new(lucide(icon, theme.font_small.size * 1.4)).frame(false)
+}
+
+/// Paints the send arrow (a shaft with a head) inside `rect`.
+fn paint_send_arrow(painter: &egui::Painter, rect: egui::Rect, stroke: Stroke) {
+    let c = rect.center();
+    let half = rect.height() * 0.3;
+    let top = c.y - half;
+    let bottom = c.y + half;
+    painter.line_segment([egui::pos2(c.x, top), egui::pos2(c.x, bottom)], stroke);
+    painter.line_segment([egui::pos2(c.x - half, c.y), egui::pos2(c.x, top)], stroke);
+    painter.line_segment([egui::pos2(c.x + half, c.y), egui::pos2(c.x, top)], stroke);
+}
+
 fn header_icon_button(theme: &Theme, icon: Icon) -> egui::Button<'static> {
     egui::Button::new(lucide(icon, theme.font_small.size * 1.4))
         .fill(theme.inset)
@@ -1019,7 +1035,10 @@ pub fn parse_inline(s: &str) -> Vec<Inline> {
 const PROMPT_ID: &str = "shell/panel/chat/prompt";
 
 /// The most rows the composer grows to before it scrolls.
-const COMPOSER_MAX_ROWS: usize = 6;
+const COMPOSER_MAX_ROWS: usize = 12;
+
+/// The fewest rows the composer shows: twice the old single line.
+const COMPOSER_MIN_ROWS: usize = 2;
 
 /// The composer: one framed box docked under the transcript. Above the text
 /// area, the context and attachment chips. The text area fills the box's width
@@ -1080,7 +1099,7 @@ fn prompt_box(
 
     let busy = chat.is_some_and(|c| matches!(c["status"].as_str(), Some("busy" | "awaiting")));
     let chat_id = chat.and_then(|c| c["id"].as_str()).map(str::to_string);
-    let rows = state.prompt.split('\n').count().clamp(1, COMPOSER_MAX_ROWS);
+    let rows = state.prompt.split('\n').count().clamp(COMPOSER_MIN_ROWS, COMPOSER_MAX_ROWS);
     let max_h = ui.text_style_height(&egui::TextStyle::Body) * COMPOSER_MAX_ROWS as f32
         + theme.field_pad.y * 2.0;
 
@@ -1097,75 +1116,76 @@ fn prompt_box(
             mention_list(ui, theme, state, &mentions);
         }
         let spacing = ui.spacing().item_spacing.x;
-        // The bar's buttons are one interact row tall and `btn_w` wide, each at
-        // an absolute spot in the bar's rect.
-        let btn_w = ui.spacing().interact_size.x;
-        let bar_h = ui.spacing().interact_size.y;
 
         // The text area: full width, no frame or fill of its own, so the box is
         // the one surface and the text is its content.
         if let Some(at) = state.pending_caret.take() {
             place_caret(ui.ctx(), prompt_id, &state.prompt[..at]);
         }
-        let field_w = ui.available_width();
-        ScrollArea::vertical()
-            .max_height(max_h)
-            .auto_shrink([false, true])
-            .id_salt("shell/panel/chat/composer")
-            .show(ui, |ui| {
-                sharp_widgets(ui, theme);
-                let out = TextEdit::multiline(&mut state.prompt)
-                    .id(prompt_id)
-                    .frame(Frame::NONE)
-                    .desired_width(field_w)
-                    .margin(theme.field_pad * 2.0)
-                    .desired_rows(rows)
-                    .hint_text(tr("ask about the graph…"))
-                    .show(ui);
-                // The caret, as a byte index, for the next frame's `@`.
-                if let Some(range) = out.cursor_range {
-                    let chars = range.primary.index.0;
-                    state.caret = state
-                        .prompt
-                        .char_indices()
-                        .nth(chars)
-                        .map_or(state.prompt.len(), |(b, _)| b);
+        let btn_w = ui.spacing().interact_size.x;
+        let bar_h = ui.spacing().interact_size.y;
+        ui.horizontal(|ui| {
+            let field_w = ui.available_width() - btn_w - spacing;
+            ui.vertical(|ui| {
+                ScrollArea::vertical()
+                    .max_height(max_h)
+                    .auto_shrink([false, true])
+                    .id_salt("shell/panel/chat/composer")
+                    .show(ui, |ui| {
+                        sharp_widgets(ui, theme);
+                        let out = TextEdit::multiline(&mut state.prompt)
+                            .id(prompt_id)
+                            .frame(Frame::NONE)
+                            .desired_width(field_w)
+                            .margin(theme.field_pad * 2.0)
+                            .desired_rows(rows)
+                            .hint_text(tr("ask about the graph…"))
+                            .show(ui);
+                        // The caret, as a byte index, for the next frame's `@`.
+                        if let Some(range) = out.cursor_range {
+                            let chars = range.primary.index.0;
+                            state.caret = state
+                                .prompt
+                                .char_indices()
+                                .nth(chars)
+                                .map_or(state.prompt.len(), |(b, _)| b);
+                        }
+                    });
+            });
+            // The right column: `+` over the gear, frameless.
+            ui.vertical(|ui| {
+                let plus_label = tr("attach files");
+                let plus = ui
+                    .add_sized([btn_w, bar_h], composer_icon_button(theme, Icon::Plus))
+                    .on_hover_text(plus_label);
+                plus.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, plus_label)
+                });
+                if plus.clicked() {
+                    // The real file picker lives with the caller, which must read and clear this.
+                    state.attach_requested = true;
+                }
+
+                let gear_label = tr("AI settings");
+                let gear = ui
+                    .add_sized([btn_w, bar_h], composer_icon_button(theme, Icon::Settings))
+                    .on_hover_text(gear_label);
+                gear.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, gear_label)
+                });
+                if gear.clicked() {
+                    // The settings overlay lives with the caller, which must read and clear this.
+                    state.open_ai_settings = true;
                 }
             });
+        });
 
-        // The bottom bar, inside the same box: `+` and the gear on the left, the
-        // send/stop control on the right.
+        // The bottom bar, inside the same box: the send/stop control at the right edge.
         let (bar, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), bar_h), Sense::hover());
-        let slot = |i: usize| {
-            egui::Rect::from_min_size(
-                egui::pos2(bar.min.x + i as f32 * (btn_w + spacing), bar.min.y),
-                egui::vec2(btn_w, bar_h),
-            )
-        };
         let send_rect = egui::Rect::from_min_size(
             egui::pos2(bar.max.x - btn_w, bar.min.y),
             egui::vec2(btn_w, bar_h),
         );
-
-        let plus_label = tr("attach files");
-        let plus = ui
-            .put(slot(0), header_icon_button(theme, Icon::Plus))
-            .on_hover_text(plus_label);
-        plus.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, plus_label));
-        if plus.clicked() {
-            // The real file picker lives with the caller, which must read and clear this.
-            state.attach_requested = true;
-        }
-
-        let gear_label = tr("AI settings");
-        let gear = ui
-            .put(slot(1), header_icon_button(theme, Icon::Settings))
-            .on_hover_text(gear_label);
-        gear.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, gear_label));
-        if gear.clicked() {
-            // The settings overlay lives with the caller, which must read and clear this.
-            state.open_ai_settings = true;
-        }
 
         // The send/stop control sits at the right edge of the bar.
         if busy {
@@ -1185,27 +1205,25 @@ fn prompt_box(
                 }
             }
         } else {
-            // A white CTA with a dark glyph and a heavy blue outline; it turns
-            // blue with a white glyph on hover.
+            // A white CTA with a dark arrow and no outline; it turns blue with a
+            // white arrow on hover.
             let hot = ui.rect_contains_pointer(send_rect);
-            let cta_stroke = Stroke::new(theme.accent_stroke * 2.0, theme.ai);
+            let ink = if hot { Color32::WHITE } else { theme.hard_ink() };
             let send = ui
                 .scope(|ui| {
                     sharp_widgets(ui, theme);
                     let w = &mut ui.visuals_mut().widgets.hovered;
                     w.weak_bg_fill = theme.ai;
                     w.bg_fill = theme.ai;
-                    w.bg_stroke = theme.ai_stroke();
-                    ui.put(
+                    w.bg_stroke = Stroke::NONE;
+                    let resp = ui.put(
                         send_rect,
-                        egui::Button::new(
-                            RichText::new("↑")
-                                .font(theme.font_body.clone())
-                                .color(if hot { Color32::WHITE } else { theme.hard_ink() }),
-                        )
-                        .fill(if hot { theme.ai } else { Color32::WHITE })
-                        .stroke(if hot { theme.ai_stroke() } else { cta_stroke }),
-                    )
+                        egui::Button::new("")
+                            .fill(if hot { theme.ai } else { Color32::WHITE })
+                            .stroke(Stroke::NONE),
+                    );
+                    paint_send_arrow(ui.painter(), resp.rect, theme.send_glyph_stroke(ink));
+                    resp
                 })
                 .inner
                 .on_hover_text(tr("send"));
@@ -1393,12 +1411,17 @@ fn send_prompt(door: &dyn Call, state: &mut PanelState) -> bool {
     if !prompt_is_sendable(&state.prompt) {
         return false;
     }
+    let mut prompt = state.prompt.clone();
+    for path in state.attachments.drain(..) {
+        prompt.push_str("\nAdjunto: ");
+        prompt.push_str(&path);
+    }
     let _ = door.json(
         "POST",
         "/ai/ask",
         Some(json!({
             "chat": state.chat.clone(),
-            "prompt": state.prompt.clone(),
+            "prompt": prompt,
             "context": state.context.clone(),
         })),
     );

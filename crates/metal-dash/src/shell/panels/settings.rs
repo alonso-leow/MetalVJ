@@ -264,6 +264,11 @@ impl PanelState {
         self.shell_mode
     }
 
+    /// Shows the `IA` section (the composer's gear asks for it).
+    pub(crate) fn open_ai_section(&mut self) {
+        self.section = Section::Ai;
+    }
+
     /// The view the cache holds — `Edit` until the door has answered.
     pub(crate) fn shell_view(&self) -> crate::shell::ShellView {
         self.shell_view

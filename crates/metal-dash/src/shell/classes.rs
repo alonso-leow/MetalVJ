@@ -125,6 +125,9 @@ impl Borders {
 /// icons read too faint at one hairline, so they draw at this multiple.
 pub const ICON_STROKE_SCALE: f32 = 1.4;
 
+/// Extra weight of the composer's send arrow, over an icon's line weight.
+pub const SEND_GLYPH_SCALE: f32 = 2.0;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
     /// A name for reports and the restyle gate's failure messages.
@@ -1508,6 +1511,11 @@ impl Theme {
     /// hairline width, so the glyphs read as quiet marks beside the title.
     pub fn icon_stroke(&self) -> Stroke {
         Stroke::new(self.hairline, self.ink_weak)
+    }
+
+    /// The stroke of the composer's send arrow: heavier than an icon's.
+    pub fn send_glyph_stroke(&self, ink: Color32) -> Stroke {
+        Stroke::new(self.hairline * ICON_STROKE_SCALE * SEND_GLYPH_SCALE, ink)
     }
 
     /// The brighter rule, for a focused or hovered edge.

@@ -1182,6 +1182,11 @@ impl Shell {
                 self.chat.sources = self.mention_candidates();
                 chat::paint(ui, &theme, self.door.as_ref(), &mut self.chat, chat_selection.as_ref());
             });
+            // The composer's gear: open the settings overlay on its `IA` section.
+            if std::mem::take(&mut self.chat.open_ai_settings) {
+                self.settings.open_ai_section();
+                self.settings_open = true;
+            }
             // A ref chip clicked in the sidebar: select it on the canvas.
             if let Some(r) = self.chat.pending_focus.take() {
                 self.chat_focus(&r);

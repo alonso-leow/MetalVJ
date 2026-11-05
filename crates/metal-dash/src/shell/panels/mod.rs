@@ -15,6 +15,7 @@ pub mod dials;
 pub mod lanes;
 pub mod library;
 pub mod nodes;
+pub mod nodes_flow;
 pub mod pads;
 pub mod pairing;
 pub mod properties;

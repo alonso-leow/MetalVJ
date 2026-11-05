@@ -2274,6 +2274,42 @@ impl Theme {
         w.open.weak_bg_fill = self.phosphor_deep;
         w.open.bg_stroke = self.rule_bright_stroke();
     }
+
+    // --- flow states on the node canvas (`panels/nodes_flow.rs`) ----------
+
+    /// The flow's three colours: blue, cyan and violet, the bands cycle them.
+    pub fn flow_colours(&self) -> [Color32; 3] {
+        [
+            Color32::from_rgb(0x28, 0x59, 0xff),
+            Color32::from_rgb(0x53, 0xdf, 0xff),
+            Color32::from_rgb(0x8b, 0x5c, 0xff),
+        ]
+    }
+
+    /// Seconds the bands take to cross a cable, and the aura's: the prototype's
+    /// 3.4 s band and 4.2 s aura, slower than the eye tracks.
+    pub fn flow_band_secs(&self) -> f32 {
+        3.4
+    }
+
+    pub fn flow_aura_secs(&self) -> f32 {
+        4.2
+    }
+
+    /// Bands along one cable.
+    pub fn flow_bands(&self) -> f32 {
+        3.0
+    }
+
+    /// Seconds a changed node's cables keep flowing after the change.
+    pub fn flow_window_secs(&self) -> f64 {
+        1.5
+    }
+
+    /// Alpha factor of a bypassed node's input cable: dim, not gone.
+    pub fn flow_dim(&self) -> f32 {
+        0.35
+    }
 }
 
 /// The stable slot [`Theme::apply`] stashes the active theme under, and

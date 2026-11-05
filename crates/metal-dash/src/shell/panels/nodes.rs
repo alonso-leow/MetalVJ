@@ -33,7 +33,7 @@
 use std::collections::HashMap;
 
 use egui::epaint::CubicBezierShape;
-use egui::{Align2, Id, Pos2, Rect as EguiRect, Response, RichText, Sense, Shape, Ui, Vec2};
+use egui::{Align2, Color32, Id, Pos2, Rect as EguiRect, Response, RichText, Sense, Shape, Ui, Vec2};
 use serde_json::{json, Value};
 
 use crate::call::{Call, Params};
@@ -2047,12 +2047,12 @@ fn focus_bar(
     if !canvas.intersects(node) && !dragging {
         return;
     }
-    let bar_h = theme.icon_button_size.y + theme.bar_margin().sum().y as f32 + theme.item_gap.y;
-    let (anchor, pivot) = if node.top() - canvas.top() > bar_h {
-        (Pos2::new(node.center().x, node.top() - theme.item_gap.y), Align2::CENTER_BOTTOM)
-    } else {
-        (Pos2::new(node.center().x, node.bottom() + theme.item_gap.y), Align2::CENTER_TOP)
-    };
+    // The bar lives inside the node: in the band the layout keeps under the
+    // title (`SUBHEADER_H`), left-aligned with the node's inset. It is only
+    // drawn at a zoom where that band is big enough to hold its glyphs.
+    let band_top = node.top() + metal_graph::layout::HEADER_H * state.zoom;
+    let anchor = Pos2::new(node.left() + theme.item_gap.x, band_top);
+    let pivot = Align2::LEFT_TOP;
     let kind = node_record(state, id)
         .and_then(|n| n["kind"].as_str().map(str::to_string))
         .unwrap_or_default();
@@ -2062,14 +2062,13 @@ fn focus_bar(
         .order(egui::Order::Foreground)
         .pivot(pivot)
         .fixed_pos(anchor)
-        .constrain_to(canvas)
         // The strip is a drag handle for the node: its own response senses a
         // drag (the buttons inside are added after, so a click on one still
         // resolves to that button — the same "most recently added wins" rule
         // `toolbar` documents).
         .sense(Sense::click_and_drag())
         .show(ui.ctx(), |ui| {
-            theme.card_frame().inner_margin(theme.bar_margin()).show(ui, |ui| {
+            ui.scope(|ui| {
                 ui.spacing_mut().item_spacing = theme.item_gap;
                 ui.horizontal(|ui| {
                     // A `gen.*` model node's own `mode`: the three-way choice
@@ -2507,8 +2506,23 @@ fn canvas(
                 for p in prims.iter().filter(|p| p["type"] == "path") {
                     paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
                 }
+                // Far out, a node is a point and its payload waits for the
+                // pointer: only the hovered node keeps its full primitives.
+                let far = state.zoom < theme.node_point_zoom;
+                let open = if far {
+                    let hover = response.hover_pos().map(|p| to_graph(rect.min, state.pan, state.zoom, p));
+                    hover.and_then(|at| node_under(prims, at))
+                } else {
+                    None
+                };
                 for p in prims.iter().filter(|p| p["type"] != "path" && !node_body_numeric(p)) {
-                    paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
+                    if !far {
+                        paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
+                    } else if p["tag"] == "node" && !open.is_some_and(|bx| num(p, "x") == bx[0] && num(p, "y") == bx[1]) {
+                        paint_node_point(&painter, theme, rect, state, p, drag_offset);
+                    } else if open.is_some_and(|bx| primitive_in_box(p, bx)) {
+                        paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
+                    }
                 }
             }
         }
@@ -2640,7 +2654,8 @@ fn canvas(
     }
     // The floating bars come last, over the nodes — but not over the big
     // preview, which they have nothing to do with while it is up.
-    if !(picture_shown && state.preview.big()) {
+    // Far out the bars are hidden with the payload they belong to.
+    if !(picture_shown && state.preview.big()) && state.zoom >= theme.node_point_zoom {
         float_bars(ui, theme, door, state, selection, rect);
     }
 }
@@ -2793,13 +2808,24 @@ fn has_generator(state: &PanelState) -> bool {
 /// already inverts for hit-testing; the lines' own ink is a theme stroke,
 /// never a literal (gate 2).
 fn paint_grid(painter: &egui::Painter, theme: &Theme, rect: EguiRect, state: &PanelState) {
-    // A grid finer than the panel's own padding is sub-pixel noise: paint
-    // nothing rather than thousands of hairlines the antialiaser blurs
-    // into mush.
-    if theme.graph_grid * state.zoom < f32::from(theme.pad) {
+    // The grid cycles instead of vanishing: while the view is zoomed out, its
+    // step doubles until the lines are a readable spacing again. The state
+    // it has just reset from is faint (`grid_fade_floor`) and the lines fade
+    // up to full ink over the next octave, so nothing pops.
+    let pad = f32::from(theme.pad).max(1.0);
+    if state.zoom <= 0.0 {
         return;
     }
-    let step = theme.graph_grid;
+    let mut step = theme.graph_grid;
+    let mut screen_step = step * state.zoom;
+    while screen_step < pad && step < 1.0e6 {
+        step *= 2.0;
+        screen_step *= 2.0;
+    }
+    let t = ((screen_step - pad) / pad).clamp(0.0, 1.0);
+    let alpha = theme.grid_fade_floor + (1.0 - theme.grid_fade_floor) * t;
+    let base = theme.rule_stroke();
+    let stroke = egui::Stroke::new(base.width, base.color.gamma_multiply(alpha));
     let [min_x, min_y] = to_graph(rect.min, state.pan, state.zoom, rect.min);
     let [max_x, max_y] = to_graph(rect.min, state.pan, state.zoom, rect.max);
     let first_x = (min_x / step).floor() * step;
@@ -2809,7 +2835,7 @@ fn paint_grid(painter: &egui::Painter, theme: &Theme, rect: EguiRect, state: &Pa
         let px = to_screen(rect.min, state.pan, state.zoom, [kx, min_x]).x;
         painter.line_segment(
             [Pos2::new(px, rect.min.y), Pos2::new(px, rect.max.y)],
-            theme.rule_stroke(),
+            stroke,
         );
         kx += step;
     }
@@ -2818,7 +2844,7 @@ fn paint_grid(painter: &egui::Painter, theme: &Theme, rect: EguiRect, state: &Pa
         let py = to_screen(rect.min, state.pan, state.zoom, [min_x, ky]).y;
         painter.line_segment(
             [Pos2::new(rect.min.x, py), Pos2::new(rect.max.x, py)],
-            theme.rule_stroke(),
+            stroke,
         );
         ky += step;
     }
@@ -2900,6 +2926,34 @@ fn paint_primitive(
     }
 }
 
+/// The `[x, y, w, h]` box of the node under graph point `at`, if any.
+fn node_under(prims: &[Value], at: [f32; 2]) -> Option<[f32; 4]> {
+    prims.iter().filter(|p| p["tag"] == "node").find_map(|p| {
+        let (x, y, w, h) = (num(p, "x"), num(p, "y"), num(p, "w"), num(p, "h"));
+        (at[0] >= x && at[0] <= x + w && at[1] >= y && at[1] <= y + h).then_some([x, y, w, h])
+    })
+}
+
+/// Whether a primitive's anchor sits in (or on the port margin of) a node box.
+fn primitive_in_box(p: &Value, bx: [f32; 4]) -> bool {
+    let margin = metal_graph::layout::PORT_R * 2.0;
+    let (x, y) = (num(p, "x"), num(p, "y"));
+    x >= bx[0] - margin && x <= bx[0] + bx[2] + margin && y >= bx[1] - margin && y <= bx[1] + bx[3] + margin
+}
+
+/// A node drawn as a point, at its box's centre, for the far view.
+fn paint_node_point(
+    painter: &egui::Painter,
+    theme: &Theme,
+    origin: EguiRect,
+    state: &PanelState,
+    p: &Value,
+    drag: Option<DragOffset>,
+) {
+    let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
+    painter.circle_filled(r.center(), theme.node_point_radius, theme.node_dot_off);
+}
+
 /// A screen rect for a tagged rect primitive, its top-left shifted by the
 /// drag when it belongs to the dragged node.
 fn shifted_rect(
@@ -2965,6 +3019,13 @@ fn paint_node_box(
     }
 }
 
+/// A port dot's screen radius: the layout's `PORT_R` scaled with the view,
+/// capped at `node_port_radius_max` so the dots stop growing once zoomed in
+/// and the output labels beside them keep their room.
+fn dot_radius(state: &PanelState, theme: &Theme) -> f32 {
+    (metal_graph::layout::PORT_R * state.zoom).min(theme.node_port_radius_max)
+}
+
 /// A port dot: the accent when the port is wired or is an output offering a
 /// cable, grey when nothing touches it (Wire's on/off dot). Outputs get a
 /// small ring so a generation's render reads as "live" (N's activity hint).
@@ -2980,13 +3041,10 @@ fn paint_port(
     let out = p["out"].as_bool().unwrap_or(false);
     let wired = port_is_wired(state, p);
     let fill = if wired || out { theme.node_dot_on } else { theme.node_dot_off };
-    painter.circle_filled(r.center(), r.width() / 2.0, fill);
+    let radius = dot_radius(state, theme);
+    painter.circle_filled(r.center(), radius, fill);
     if out {
-        painter.circle_stroke(
-            r.center(),
-            r.width() / 2.0 + theme.hairline,
-            theme.node_port_ring_stroke(),
-        );
+        painter.circle_stroke(r.center(), radius + theme.hairline, theme.node_port_ring_stroke());
     }
 }
 
@@ -3247,21 +3305,50 @@ fn paint_text(
     let raw = [num(p, "x"), num(p, "y")];
     let shifted = drag_shift(raw, raw, drag);
     let pos = to_screen(origin.min, state.pan, state.zoom, shifted);
-    let content = p["content"].as_str().unwrap_or_default();
-    let (align, font, ink) = match p["tag"].as_str() {
-        Some("title") => (Align2::CENTER_CENTER, theme.font_small.clone(), theme.node_title_ink),
-        Some("row") => (Align2::LEFT_CENTER, theme.font_small.clone(), theme.node_row_ink),
-        Some("value") => (Align2::LEFT_CENTER, theme.font_small.clone(), theme.node_field_ink),
-        Some("more") => (Align2::LEFT_CENTER, theme.font_small.clone(), theme.node_more_ink),
-        _ => (Align2::LEFT_TOP, theme.font_small.clone(), theme.ink),
+    let (align, ink) = match p["tag"].as_str() {
+        Some("title") => (Align2::CENTER_CENTER, theme.node_title_ink),
+        Some("row") => (Align2::LEFT_CENTER, theme.node_row_ink),
+        // An output's name ends just short of its port dot.
+        Some("row_end") => {
+            let r = dot_radius(state, theme);
+            let end = pos - Vec2::new(r + theme.item_gap.x, 0.0);
+            return paint_node_text(painter, theme, state, end, Align2::RIGHT_CENTER, p, theme.node_row_ink);
+        }
+        Some("value") => (Align2::LEFT_CENTER, theme.node_field_ink),
+        Some("more") => (Align2::LEFT_CENTER, theme.node_more_ink),
+        _ => (Align2::LEFT_TOP, theme.ink),
     };
     // A node's title label is painted at the header's centre; a row label at
     // its row's left inset. Both anchors came from the layout.
-    let display = if p["tag"].as_str() == Some("row") || p["tag"].as_str() == Some("title") {
+    paint_node_text(painter, theme, state, pos, align, p, ink);
+}
+
+/// Paints a node's text at `pos`. Above 1x the text grows with the view, up to
+/// `node_text_zoom_max`, and shrinks again if it would still run past the
+/// node's own width, so a zoomed-in label never overflows its card.
+fn paint_node_text(
+    painter: &egui::Painter,
+    theme: &Theme,
+    state: &PanelState,
+    pos: Pos2,
+    align: Align2,
+    p: &Value,
+    ink: Color32,
+) {
+    let content = p["content"].as_str().unwrap_or_default();
+    let display = if matches!(p["tag"].as_str(), Some("row") | Some("row_end") | Some("title")) {
         tr_dyn(content)
     } else {
         content.to_string()
     };
+    let mut font = theme.font_small.clone();
+    let base = font.size;
+    font.size = base * state.zoom.clamp(1.0, theme.node_text_zoom_max);
+    let avail = (metal_graph::layout::NODE_W * state.zoom - 2.0 * theme.node_label_inset).max(1.0);
+    let width = painter.layout_no_wrap(display.clone(), font.clone(), ink).size().x;
+    if width > avail {
+        font.size *= avail / width;
+    }
     painter.text(pos, align, display, font, ink);
 }
 

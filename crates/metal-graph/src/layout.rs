@@ -42,6 +42,10 @@ pub const NODE_W: f32 = 176.0;
 pub const NODE_H: f32 = 56.0;
 /// The header band's own height.
 pub const HEADER_H: f32 = 26.0;
+/// The band under the header that holds the focused node's bar (the strip of
+/// verbs, shown below the title). Every node reserves it, so the rows below
+/// never move when a node takes focus.
+pub const SUBHEADER_H: f32 = 24.0;
 /// Height of one body row.
 pub const ROW_H: f32 = 20.0;
 /// Radius of a port or param dot.
@@ -158,6 +162,9 @@ pub struct Text {
 pub enum TextTag {
     Title,
     Row,
+    /// A row label on the right edge (an output port's name): anchored at its
+    /// end, so it stops short of the port dot.
+    RowEnd,
     Value,
     More,
     Plain,
@@ -359,7 +366,7 @@ impl Row {
 /// The height a node's box needs for `rows` body rows (a header plus the
 /// rows), never less than a single header.
 fn box_height(rows: usize) -> f32 {
-    HEADER_H + ROW_H * rows.max(1) as f32
+    HEADER_H + SUBHEADER_H + ROW_H * rows.max(1) as f32
 }
 
 /// The index of the one input that sits on the header's left edge: the first
@@ -583,7 +590,7 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param]) -> (NodeGeom, 
 
     let mut swatch_at = 0usize;
     for (row_i, row) in rows.iter().enumerate() {
-        let row_y = y + HEADER_H + ROW_H * row_i as f32;
+        let row_y = y + HEADER_H + SUBHEADER_H + ROW_H * row_i as f32;
         let cy = row_y + ROW_H / 2.0;
         match row {
             Row::Port { name, out } => {
@@ -677,16 +684,18 @@ impl Layout {
                 // A body-row port carries its own name; the header's dots do
                 // not (the title is the node).
                 if !geom.header_ports.contains(&(port.clone(), *out_dir)) {
-                    let label_x = if *out_dir {
-                        geom.rect.x + NODE_W - PORT_R - 6.0
+                    // An output's label hugs the port from the left and ends
+                    // there (`RowEnd`), so it never runs under the dot.
+                    let (label_x, tag) = if *out_dir {
+                        (geom.rect.x + NODE_W - PORT_R - 6.0, TextTag::RowEnd)
                     } else {
-                        geom.rect.x + PORT_R + 6.0
+                        (geom.rect.x + PORT_R + 6.0, TextTag::Row)
                     };
                     out.push(Primitive::Text(Text {
                         x: label_x,
                         y: p.y,
                         content: port.clone(),
-                        tag: TextTag::Row,
+                        tag,
                     }));
                 }
             }
@@ -1109,9 +1118,9 @@ mod tests {
         let geom = layout.nodes.get(&fx).unwrap();
         let (_, pg) = geom.params.first().unwrap();
         assert_eq!(pg.dot.x, rect.x, "a param dot sits on the box's left edge");
-        assert!(pg.dot.y >= rect.y + HEADER_H, "the row is below the header");
+        assert!(pg.dot.y >= rect.y + HEADER_H + SUBHEADER_H, "the row is below the header");
         assert_eq!(
-            (pg.dot.y - (rect.y + HEADER_H)) % ROW_H,
+            (pg.dot.y - (rect.y + HEADER_H + SUBHEADER_H)) % ROW_H,
             ROW_H / 2.0,
             "a row's centre is a half-row into its band"
         );
@@ -1127,7 +1136,7 @@ mod tests {
         let gen_rect = layout.node_rect(&gen).unwrap();
         let row = layout.port_point(&gen, "row").expect("the generator's row output is laid out");
         assert_eq!(row.x, gen_rect.x + gen_rect.w, "an extra output sits on the right edge");
-        assert!(row.y >= gen_rect.y + HEADER_H, "it is a body row, not the header");
+        assert!(row.y >= gen_rect.y + HEADER_H + SUBHEADER_H, "it is a body row, not the header");
     }
 
     /// A generator's long row folds behind a `▸ n more` row, and the persisted

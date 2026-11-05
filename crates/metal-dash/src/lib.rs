@@ -1322,6 +1322,7 @@ fn primitive_json(p: &metal_graph::layout::Primitive) -> Value {
             "tag": match t.tag {
                 TextTag::Title => "title",
                 TextTag::Row => "row",
+                TextTag::RowEnd => "row_end",
                 TextTag::Value => "value",
                 TextTag::More => "more",
                 TextTag::Plain => "plain",

@@ -557,6 +557,16 @@ pub struct Theme {
     pub node_cable_width: f32,
     /// How far inside a row's dot the row's label starts, in points.
     pub node_label_inset: f32,
+    /// Below this canvas zoom a node paints as a point; its payload shows on hover.
+    pub node_point_zoom: f32,
+    /// Radius of a far-zoomed node's point, in points.
+    pub node_point_radius: f32,
+    /// The largest port dot, in points, once zoomed in (dots shrink past it).
+    pub node_port_radius_max: f32,
+    /// The most a node's text scales up with zoom, as a multiple of its size.
+    pub node_text_zoom_max: f32,
+    /// The faintest the grid gets as it cycles to a coarser state (0..1 alpha).
+    pub grid_fade_floor: f32,
     // --- the HSB picker (`K`) ---------------------------------------------
     /// The S×B square a `components::hsb_picker` paints, in points — the two
     /// axes the operator drags inside.
@@ -878,6 +888,11 @@ impl Theme {
             node_cable_dash: 6.0,
             node_cable_width: 1.5,
             node_label_inset: 14.0,
+            node_point_zoom: 0.5,
+            node_point_radius: 3.0,
+            node_port_radius_max: 3.5,
+            node_text_zoom_max: 1.6,
+            grid_fade_floor: 0.12,
             picker_square: Vec2::new(140.0, 120.0),
             picker_hue: Vec2::new(16.0, 120.0),
             picker_gap: 8.0,
@@ -1104,6 +1119,11 @@ impl Theme {
             node_cable_dash: 6.0,
             node_cable_width: 1.5,
             node_label_inset: 14.0,
+            node_point_zoom: 0.5,
+            node_point_radius: 3.0,
+            node_port_radius_max: 3.5,
+            node_text_zoom_max: 1.6,
+            grid_fade_floor: 0.12,
             picker_square: Vec2::new(140.0, 120.0),
             picker_hue: Vec2::new(16.0, 120.0),
             picker_gap: 8.0,
@@ -1406,6 +1426,11 @@ impl Theme {
             node_cable_dash: 9.0,
             node_cable_width: 2.0,
             node_label_inset: 16.0,
+            node_point_zoom: 0.5,
+            node_point_radius: 3.0,
+            node_port_radius_max: 3.5,
+            node_text_zoom_max: 1.6,
+            grid_fade_floor: 0.12,
             picker_square: Vec2::new(200.0, 160.0),
             picker_hue: Vec2::new(24.0, 160.0),
             picker_gap: 14.0,

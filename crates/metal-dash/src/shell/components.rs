@@ -1273,11 +1273,15 @@ impl Combo<'_> {
             // A dropdown rests on a plain opaque fill, not the glass wash
             // its payload cell gives other controls: the grid must not
             // read through a button that opens a menu.
+            // Square too, closed and open: the field and its option list.
             let fill = theme.panel;
-            let widgets = &mut ui.visuals_mut().widgets;
+            let visuals = ui.visuals_mut();
+            visuals.menu_corner_radius = theme.sharp_corner();
+            let widgets = &mut visuals.widgets;
             for w in [&mut widgets.inactive, &mut widgets.hovered, &mut widgets.active, &mut widgets.open] {
                 w.weak_bg_fill = fill;
                 w.bg_fill = fill;
+                w.corner_radius = theme.sharp_corner();
             }
             let mut combo = egui::ComboBox::from_id_salt(id)
                 .selected_text(RichText::new(text).font(theme.font_small.clone()));

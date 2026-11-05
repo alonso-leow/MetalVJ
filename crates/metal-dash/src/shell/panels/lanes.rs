@@ -84,8 +84,8 @@ use crate::call::{Call, Params};
 
 use crate::shell::classes::Theme;
 use crate::shell::components::{
-    dropdown, label_row, lucide, num_track, panel_frame, panel_head, section_heading, slider_row,
-    toggle_row, Icon,
+    dropdown, label_row, lucide, num_track, panel_frame, panel_head, payload_cell, section_heading,
+    slider_row, toggle_row, Icon,
 };
 use crate::shell::i18n::{tr, tr_dyn, tr_key, trf};
 use crate::shell::panels::builtins;
@@ -2933,7 +2933,7 @@ fn overlays_grid(
             if let Some(slot) = state.face_learn.and_then(|i| state.layout.slots.get(i)) {
                 let [x, y, w, h] = slot.rect.map(|v| v as usize);
                 let r = unit_rect(origin, cell, gap, x, y, w, h);
-                ui.painter().rect_stroke(r, theme.corner_radius(), theme.card_picked_stroke(), egui::StrokeKind::Outside);
+                ui.painter().rect_stroke(r, theme.sharp_corner(), theme.card_picked_stroke(), egui::StrokeKind::Outside);
             }
             for logo in device.controls.iter().filter(|c| c.part == metal_midi::devices::Part::Logo) {
                 let [x, y, w, h] = logo.rect.map(|v| v as usize);
@@ -3683,7 +3683,7 @@ fn paint_empty_slot(
         SlotKind::Pad | SlotKind::Button => {
             let response = paint_phantom_cell(ui, theme, door, state, index, rect, open_graph, None);
             if down {
-                ui.painter().rect_filled(rect, theme.corner_radius(), theme.phosphor);
+                ui.painter().rect_filled(rect, theme.sharp_corner(), theme.phosphor);
             }
             response
         }
@@ -4420,6 +4420,8 @@ fn paint_phantom_cell(
         Sense::click(),
     );
     if let Some(place) = add_at {
+        // The menu's frame takes its corner from the ui's style: square.
+        ui.visuals_mut().menu_corner_radius = theme.sharp_corner();
         response.context_menu(|ui| add_menu(ui, theme, door, state, open_graph, Some(place)));
     }
     // An empty cell is a glass payload cell: the same class the properties
@@ -4654,14 +4656,14 @@ fn paint_cell(
         ui.put(lock, egui::Label::new(lucide(Icon::Lock, theme.font_small.size).color(theme.phosphor)));
     }
     if state.grid_selected.as_deref() == Some(cell.key.as_str()) && state.grid_edit {
-        ui.painter().rect_stroke(rect, theme.corner_radius(), theme.card_picked_stroke(), egui::StrokeKind::Inside);
+        ui.painter().rect_stroke(rect, theme.sharp_corner(), theme.card_picked_stroke(), egui::StrokeKind::Inside);
     }
     if let Some(frac) = cell.progress {
         let bar = egui::Rect::from_min_size(
             egui::pos2(response.rect.left(), response.rect.bottom() - theme.hairline),
             egui::vec2(response.rect.width() * frac, theme.hairline),
         );
-        ui.painter().rect_filled(bar, theme.corner_radius(), theme.phosphor);
+        ui.painter().rect_filled(bar, theme.sharp_corner(), theme.phosphor);
     }
     // Edit mode: a click on a box's control opens what it can hold; any
     // other click (or right click) selects; nothing fires.
@@ -4733,6 +4735,7 @@ fn paint_cell(
         CellKind::Add => {
             // The ways to fill the grid, in one menu anchored to this cell.
             let frame = Frame::popup(ui.style())
+                .corner_radius(theme.sharp_corner())
                 .stroke((theme.hairline, theme.phosphor_dim))
                 .inner_margin(theme.pad as f32);
             Popup::from_toggle_button_response(&response)
@@ -6037,6 +6040,25 @@ fn create_controller_button(
     key
 }
 
+/// One `+` menu entry as a payload cell of the menu's common width, so the
+/// entries read as a grid of equal cells rather than a list of buttons.
+fn add_cell(ui: &mut Ui, theme: &Theme, label: RichText) -> Response {
+    payload_cell(ui, theme, Some(theme.control_width), |ui| {
+        ui.add(egui::Button::new(label.font(theme.font_small.clone())).frame(true).min_size(egui::vec2(theme.control_width, 0.0)))
+    })
+}
+
+/// A submenu entry of the `+` menu, set in the same cell as [`add_cell`].
+fn add_cell_menu<R>(ui: &mut Ui, theme: &Theme, label: RichText, content: impl FnOnce(&mut Ui) -> R) -> (Response, Option<R>) {
+    let mut out = None;
+    let response = payload_cell(ui, theme, Some(theme.control_width), |ui| {
+        let (response, inner) = plain_menu(ui, theme, label, content);
+        out = inner;
+        response
+    });
+    (response, out)
+}
+
 fn add_menu(
     ui: &mut Ui,
     theme: &Theme,
@@ -6054,76 +6076,85 @@ fn add_menu(
     style.visuals.widgets.hovered.weak_bg_fill = theme.phosphor_deep;
     style.visuals.widgets.hovered.bg_stroke = theme.rule_bright_stroke();
     style.visuals.widgets.hovered.expansion = 0.0;
-    ui.set_style(style);
-
-    if plain_item(ui, theme, RichText::new(tr("create sequence"))).clicked() {
-        state.mode_override = Some(crate::shell::lanes::Mode::Lanes);
-        state.mv = crate::shell::lanes::MovementLane::default();
-        state.mv.note = Some("new sequence".into());
-        state.new_track = true;
-        ui.close();
+    // Square, like the rest of the cells: the entries and the menu's frame.
+    style.visuals.menu_corner_radius = theme.sharp_corner();
+    for w in [&mut style.visuals.widgets.inactive, &mut style.visuals.widgets.hovered, &mut style.visuals.widgets.active, &mut style.visuals.widgets.open] {
+        w.corner_radius = theme.sharp_corner();
     }
-    // `controller button` — opens the one editor, the same window the scene
-    // cell's `⚙` and right-click reach, prefilled with the graph's controller.
-    match open_graph {
-        Some(gid) => {
-            if plain_item(ui, theme, RichText::new(tr("nodes control"))).clicked() {
-                let key = create_controller_button(door, state, gid, place);
+    ui.set_style(style);
+    // The entries flow in cells of one common width, two to a row.
+    ui.set_max_width(2.0 * theme.control_width + theme.item_gap.x);
+    ui.horizontal_wrapped(|ui| {
+
+        if add_cell(ui, theme, RichText::new(tr("create sequence"))).clicked() {
+            state.mode_override = Some(crate::shell::lanes::Mode::Lanes);
+            state.mv = crate::shell::lanes::MovementLane::default();
+            state.mv.note = Some("new sequence".into());
+            state.new_track = true;
+            ui.close();
+        }
+        // `controller button` — opens the one editor, the same window the scene
+        // cell's `⚙` and right-click reach, prefilled with the graph's controller.
+        match open_graph {
+            Some(gid) => {
+                if add_cell(ui, theme, RichText::new(tr("nodes control"))).clicked() {
+                    let key = create_controller_button(door, state, gid, place);
+                    state.editing_controller = Some(key);
+                    state.controller_edit_pos = Some(ui.cursor().min);
+                    ui.close();
+                }
+            }
+            None => {
+                let _ = add_cell(ui, theme, RichText::new(tr("nodes control")));
+                ui.label(
+                    RichText::new(tr("— open a graph to control its nodes —"))
+                        .font(theme.font_small.clone())
+                        .color(theme.ink_weak),
+                );
+            }
+        }
+        // `scene` — the same editor, but a new entry flagged `scene`: it lists the
+        // open graph's top parents only and captures their floats as they pick.
+        if let Some(gid) = open_graph {
+            if add_cell(ui, theme, RichText::new(tr("scene"))).clicked() {
+                let key = new_scene_key(state, gid);
+                state.controllers.insert(
+                    key.clone(),
+                    json!({ "graph": gid, "name": "", "mode": "switch", "targets": [], "scene": true }),
+                );
+                pin_new_cell(state, &format!("ctrl:{key}"));
+                save_controllers(door, state);
+                if let Some(place) = place {
+                    place_added_cell(door, state, &format!("ctrl:{key}"), place);
+                }
                 state.editing_controller = Some(key);
                 state.controller_edit_pos = Some(ui.cursor().min);
                 ui.close();
             }
         }
-        None => {
-            let _ = plain_item(ui, theme, RichText::new(tr("nodes control")));
-            ui.label(
-                RichText::new(tr("— open a graph to control its nodes —"))
-                    .font(theme.font_small.clone())
-                    .color(theme.ink_weak),
-            );
-        }
-    }
-    // `scene` — the same editor, but a new entry flagged `scene`: it lists the
-    // open graph's top parents only and captures their floats as they pick.
-    if let Some(gid) = open_graph {
-        if plain_item(ui, theme, RichText::new(tr("scene"))).clicked() {
-            let key = new_scene_key(state, gid);
-            state.controllers.insert(
-                key.clone(),
-                json!({ "graph": gid, "name": "", "mode": "switch", "targets": [], "scene": true }),
-            );
-            pin_new_cell(state, &format!("ctrl:{key}"));
-            save_controllers(door, state);
-            if let Some(place) = place {
-                place_added_cell(door, state, &format!("ctrl:{key}"), place);
+        // `add loop` — the loop lengths; each opens an empty sequence view limited
+        // to that many ticks, with no ingestion (`IngestLane::start_loop`).
+        let _ = add_cell_menu(ui, theme, RichText::new(tr("add loop")), |ui| {
+            for ticks in crate::shell::lanes::IngestLane::LOOP_TICKS {
+                let label = trf("{n} ticks", &[("n", &ticks)]);
+                if ui.selectable_label(false, RichText::new(label).font(theme.font_small.clone())).clicked() {
+                    state.mode_override = Some(crate::shell::lanes::Mode::Lanes);
+                    state.new_loop = Some(ticks);
+                            ui.close();
+                }
             }
-            state.editing_controller = Some(key);
-            state.controller_edit_pos = Some(ui.cursor().min);
-            ui.close();
-        }
-    }
-    // `add loop` — the loop lengths; each opens an empty sequence view limited
-    // to that many ticks, with no ingestion (`IngestLane::start_loop`).
-    let _ = plain_menu(ui, theme, RichText::new(tr("add loop")), |ui| {
-        for ticks in crate::shell::lanes::IngestLane::LOOP_TICKS {
-            let label = trf("{n} ticks", &[("n", &ticks)]);
-            if ui.selectable_label(false, RichText::new(label).font(theme.font_small.clone())).clicked() {
-                state.mode_override = Some(crate::shell::lanes::Mode::Lanes);
-                state.new_loop = Some(ticks);
-                        ui.close();
+        });
+        // `controls` — the hardware's own buttons as grid cells: the piano, rec
+        // and drop rec, the dials, fn, and the library's search/load/folders.
+        let _ = add_cell_menu(ui, theme, RichText::new(tr("general controls")), |ui| {
+            for role in crate::surface::Role::catalogue() {
+                let label = tr_dyn(&role.label());
+                if ui.selectable_label(false, RichText::new(label).font(theme.font_small.clone())).clicked() {
+                    add_role(door, state, role);
+                    ui.close();
+                }
             }
-        }
-    });
-    // `controls` — the hardware's own buttons as grid cells: the piano, rec
-    // and drop rec, the dials, fn, and the library's search/load/folders.
-    let _ = plain_menu(ui, theme, RichText::new(tr("general controls")), |ui| {
-        for role in crate::surface::Role::catalogue() {
-            let label = tr_dyn(&role.label());
-            if ui.selectable_label(false, RichText::new(label).font(theme.font_small.clone())).clicked() {
-                add_role(door, state, role);
-                ui.close();
-            }
-        }
+        });
     });
 }
 

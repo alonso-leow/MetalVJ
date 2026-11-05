@@ -392,11 +392,11 @@ pub fn paint_preview(painter: &egui::Painter, theme: &Theme, rect: Rect, item: &
         return;
     }
     let painter = painter.with_clip_rect(rect);
-    painter.rect(rect, theme.corner_radius(), theme.node_canvas, theme.rule_stroke(), egui::StrokeKind::Inside);
+    painter.rect(rect, theme.sharp_corner(), theme.node_canvas, theme.rule_stroke(), egui::StrokeKind::Inside);
     let body = rect.shrink2(Vec2::new(rect.width() * 0.16, rect.height() * 0.12));
-    painter.rect(body, theme.corner_radius(), theme.node_body, theme.node_box_stroke(), egui::StrokeKind::Middle);
+    painter.rect(body, theme.sharp_corner(), theme.node_body, theme.node_box_stroke(), egui::StrokeKind::Middle);
     let head = Rect::from_min_size(body.min, Vec2::new(body.width(), body.height() * 0.26));
-    painter.rect_filled(head, theme.corner_radius(), theme.node_header);
+    painter.rect_filled(head, theme.sharp_corner(), theme.node_header);
     painter.text(
         head.left_center() + Vec2::new(theme.node_label_inset, 0.0),
         Align2::LEFT_CENTER,

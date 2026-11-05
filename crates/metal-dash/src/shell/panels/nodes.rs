@@ -3316,23 +3316,21 @@ fn dist_to_segment(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
     (x * x + y * y).sqrt()
 }
 
-/// The screen-space centre of the collapsed point `paint_node_point` paints for
-/// the node whose box holds `at` (a cable end, port margin included), with the
-/// same drag shift it gets; `None` when `at` is on no node.
+/// The screen-space centre of the collapsed point `paint_node_point` paints
+/// for node `id`, with the same drag shift; `None` when it has no box.
 fn collapsed_point_centre(
     state: &PanelState,
     origin: EguiRect,
-    at: [f32; 2],
+    id: &str,
     drag: Option<DragOffset>,
 ) -> Option<Pos2> {
-    let pad = metal_graph::layout::PORT_R;
+    let pos = find_node_pos(state, id)?;
     let prims = state.graph.as_ref()?["primitives"].as_array()?;
-    prims.iter().filter(|p| p["tag"] == "node").find_map(|p| {
-        let (x, y, w, h) = (num(p, "x"), num(p, "y"), num(p, "w"), num(p, "h"));
-        let inside = at[0] >= x - pad && at[0] <= x + w + pad && at[1] >= y - pad && at[1] <= y + h + pad;
-        // Screen space, from the very rect `paint_node_point` centres on.
-        inside.then(|| shifted_rect(origin, state, p, [x, y], drag).center())
-    })
+    prims
+        .iter()
+        .filter(|p| p["tag"] == "node")
+        .find(|p| num(p, "x") == pos[0] && num(p, "y") == pos[1])
+        .map(|p| shifted_rect(origin, state, p, [pos[0], pos[1]], drag).center())
 }
 
 /// A cable: a smooth bezier, solid for an image cable and dashed for a
@@ -3363,17 +3361,15 @@ fn paint_cable(
             gp[2] = add(raw[2], delta);
         }
     }
-    // Far out a node is painted as its point (`paint_node_point`), so a cable
-    // end that lands on a node must meet that point's centre, not the full
-    // card's port. Each end moves by the same delta, its handle with it.
+    // Far out nodes are painted as points: the wire is a fresh bezier between
+    // the two points' centres, handles a fixed screen distance sideways.
     let mut screen = gp.map(|xy| to_screen(origin.min, state.pan, state.zoom, xy));
     if state.zoom < theme.node_point_zoom {
-        for (end, handle) in [(0, 1), (3, 2)] {
-            if let Some(c) = collapsed_point_centre(state, origin, raw[end], drag) {
-                let delta = c - screen[end];
-                screen[end] = c;
-                screen[handle] += delta;
-            }
+        let from = p["from"]["node"].as_str().and_then(|id| collapsed_point_centre(state, origin, id, drag));
+        let to = p["to"]["node"].as_str().and_then(|id| collapsed_point_centre(state, origin, id, drag));
+        if let (Some(a), Some(b)) = (from, to) {
+            const HANDLE_PX: f32 = 40.0;
+            screen = [a, a + Vec2::new(HANDLE_PX, 0.0), b - Vec2::new(HANDLE_PX, 0.0), b];
         }
     }
     // The endpoints name their nodes; a cable whose from or to node is the

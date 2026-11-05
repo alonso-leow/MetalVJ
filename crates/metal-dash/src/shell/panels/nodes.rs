@@ -2124,19 +2124,23 @@ fn focus_bar(
     if !canvas.intersects(node) && !dragging {
         return;
     }
+    // The part of the node on the canvas: the bar is centred on it and takes
+    // its width, so a node zoomed past the edge never drags the bar over the
+    // neighbouring panels.
+    let shown = node.intersect(canvas);
     // Only at the top zoom step does the bar sit inside the node, in the band
     // under the title with a margin below the header; otherwise it floats
     // above (or, near the canvas top, below) the node.
     let inside = state.zoom >= theme.node_text_zoom_max;
     let (anchor, pivot) = if inside {
         let band_top = node.top() + metal_graph::layout::HEADER_H * state.zoom + theme.item_gap.y * 2.0;
-        (Pos2::new(node.left() + theme.item_gap.x, band_top), Align2::LEFT_TOP)
+        (Pos2::new(node.left().max(canvas.left()) + theme.item_gap.x, band_top), Align2::LEFT_TOP)
     } else {
         let bar_h = theme.icon_button_size.y + theme.bar_margin().sum().y as f32 + theme.item_gap.y;
         if node.top() - canvas.top() > bar_h {
-            (Pos2::new(node.center().x, node.top() - theme.item_gap.y), Align2::CENTER_BOTTOM)
+            (Pos2::new(shown.center().x, node.top() - theme.item_gap.y), Align2::CENTER_BOTTOM)
         } else {
-            (Pos2::new(node.center().x, node.bottom() + theme.item_gap.y), Align2::CENTER_TOP)
+            (Pos2::new(shown.center().x, node.bottom() + theme.item_gap.y), Align2::CENTER_TOP)
         }
     };
     // The bar's width follows the node's: each button takes its share of the
@@ -2148,11 +2152,24 @@ fn focus_bar(
         + if kind0.starts_with("gen.") { 3.0 } else { 0.0 }
         + if kind0 == metal_graph::VENUE_SURFACE_KIND { 1.0 } else { 0.0 };
     let frame_pad = if inside { 0.0 } else { theme.bar_margin().sum().x as f32 };
-    let bar_w = if own_width { theme.focus_bar_width } else { node.width() };
+    let bar_w = if own_width { theme.focus_bar_width } else { shown.width() };
+    // Zoomed out, the bar keeps the full icon size at its own width; zoomed in
+    // it follows the node: buttons shrink to fit a narrow node and the gaps
+    // spread to fill a wide one.
     let room = (bar_w - frame_pad - theme.item_gap.x * (units + 1.0)).max(0.0);
-    let side = (room / units).clamp(2.0, theme.icon_button_size.x);
+    let side = if own_width {
+        theme.icon_button_size.x
+    } else {
+        (room / units).clamp(2.0, theme.icon_button_size.x)
+    };
+    let gap_x = if own_width {
+        theme.item_gap.x
+    } else {
+        ((bar_w - frame_pad - side * units) / (units + 1.0)).max(theme.item_gap.x)
+    };
     let mut theme = theme.clone();
     theme.icon_button_size = Vec2::splat(side);
+    theme.item_gap.x = gap_x;
     let theme = &theme;
     let frame = if inside { egui::Frame::NONE } else { theme.card_frame().inner_margin(theme.bar_margin()) };
     let kind = node_record(state, id)
@@ -2172,7 +2189,12 @@ fn focus_bar(
         .show(ui.ctx(), |ui| {
             frame.show(ui, |ui| {
                 ui.spacing_mut().item_spacing = theme.item_gap;
-                ui.set_max_width(bar_w);
+                if own_width {
+                    ui.set_max_width(bar_w.max(side * units + gap_x * (units + 1.0)));
+                } else {
+                    ui.set_max_width(bar_w);
+                    ui.set_min_width(bar_w - frame_pad);
+                }
                 ui.horizontal(|ui| {
                     // A `gen.*` model node's own `mode`: the three-way choice
                     // the properties page also paints, on the canvas where the
@@ -3215,14 +3237,22 @@ fn paint_node_box(
     };
     // A Ctrl+click multi-selection outlines every picked node, not just the primary.
     let is_selected = selected.is_some_and(at_box) || state.picked.iter().any(|id| at_box(id));
-    let stroke = if is_selected {
+    // A live AI / AI FX node is outlined by the flow, in place of the red
+    // selection outline and key shadow.
+    let live = p["node"].as_str().is_some_and(|id| nodes_flow::is_live(painter.ctx(), id));
+    let stroke = if is_selected && !live {
         theme.node_select_stroke()
     } else {
         theme.node_box_stroke()
     };
     // The red key shadow sits behind the whole node, not just its header.
-    painter.rect_filled(r.translate(theme.key_shadow_offset()), theme.corner_radius(), theme.key_shadow());
+    if !live {
+        painter.rect_filled(r.translate(theme.key_shadow_offset()), theme.corner_radius(), theme.key_shadow());
+    }
     painter.rect(r, theme.corner_radius(), theme.node_content, stroke, egui::StrokeKind::Middle);
+    if let Some(id) = p["node"].as_str().filter(|_| live) {
+        nodes_flow::paint_node_outline(painter.ctx(), painter, theme, r, id);
+    }
     // Where the AI is working: a blue edge beside the operator's own.
     if state.ai_node.as_deref().is_some_and(at_box) {
         painter.rect_stroke(r.expand(theme.hairline * 2.0), theme.corner_radius(), theme.ai_stroke(), egui::StrokeKind::Outside);

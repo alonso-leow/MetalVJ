@@ -188,6 +188,45 @@ fn band_pass(
     }
 }
 
+/// Whether `id` is a live node (an AI or AI FX generator that is not bypassed).
+pub fn is_live(ctx: &egui::Context, id: &str) -> bool {
+    read(ctx).is_some_and(|f| f.live.contains(id))
+}
+
+/// A live node's outline: the moving gradient bands run round the box instead
+/// of the static selection outline, with a faint aura beneath. Drawn over the
+/// box's fill, in the same place the plain outline would sit.
+pub fn paint_node_outline(ctx: &egui::Context, painter: &Painter, theme: &Theme, r: egui::Rect, id: &str) {
+    let Some(f) = read(ctx) else { return };
+    if !f.live.contains(id) {
+        return;
+    }
+    let step = 4.0;
+    let mut pts: Vec<Pos2> = Vec::new();
+    let edges = [
+        (r.left_top(), r.right_top()),
+        (r.right_top(), r.right_bottom()),
+        (r.right_bottom(), r.left_bottom()),
+        (r.left_bottom(), r.left_top()),
+    ];
+    for (a, b) in edges {
+        let n = (((b - a).length() / step).ceil() as usize).max(1);
+        for i in 0..n {
+            pts.push(a + (b - a) * (i as f32 / n as f32));
+        }
+    }
+    pts.push(r.left_top());
+    let t = f.now as f32;
+    let colours = theme.flow_colours();
+    let width = theme.node_cable_width;
+    let bands = theme.flow_bands() * 2.0;
+    let aura_phase = (t / theme.flow_aura_secs()).fract();
+    let band_phase = (t / theme.flow_band_secs()).fract();
+    band_pass(painter, &pts, aura_phase, bands, &colours, width * 4.0, 0.22);
+    band_pass(painter, &pts, band_phase, bands, &colours, width * 2.0, 0.9);
+    band_pass(painter, &pts, band_phase, bands, &[Color32::WHITE], width * 0.6, 0.55);
+}
+
 /// The points of a cubic bezier, `SEGMENTS + 1` of them, in screen space.
 fn sample(c: [Pos2; 4]) -> Vec<Pos2> {
     (0..=SEGMENTS)

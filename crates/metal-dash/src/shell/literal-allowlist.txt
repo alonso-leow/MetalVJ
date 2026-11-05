@@ -39,3 +39,4 @@ panels/nodes_flow.rs:Stroke::new(base.width, base.color.gamma_multiply(theme.flo
 panels/nodes_flow.rs:band_pass(painter, &pts, band_phase, bands, &[Color32::WHITE], width * 0.6, 0.55 * strength);
 panels/nodes_flow.rs:painter.line_segment([w[0], w[1]], Stroke::new(width, colour.gamma_multiply(lit)));
 panels/nodes_flow.rs:Stroke::new(theme.hairline, cyan.gamma_multiply(0.4 + 0.5 * b)),
+panels/nodes_flow.rs:band_pass(painter, &pts, band_phase, bands, &[Color32::WHITE], width * 0.6, 0.55);

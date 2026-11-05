@@ -496,6 +496,9 @@ pub fn paint(
     ui.push_id(Id::new(ID), |ui| {
         panel_frame(theme)
             .show(ui, |ui| {
+                // Every control in the panel is a payload control: sharp
+                // corners, black outline, glass wash (the properties' cells).
+                theme.payload_style(ui.visuals_mut());
                 // The heading is the overlay window's title bar (`mod.rs`).
                 // The frame takes the window's full width, so the painted
                 // panel matches the title bar instead of shrinking to content.

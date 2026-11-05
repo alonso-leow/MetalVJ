@@ -343,6 +343,10 @@ pub struct PanelState {
     /// Point view: the hovered node's enlarged card this frame, as its
     /// graph position, zoom and pan, so the focus bar can ride it.
     hover_card: Option<([f32; 2], f32, Vec2)>,
+    /// Fit-into-view bookkeeping: last frame's canvas rect, and the
+    /// (node, rect) a fit already ran for.
+    fit_prev_rect: Option<EguiRect>,
+    fit_done: Option<(String, [i32; 4])>,
     /// The Ctrl+click multi-selection: the node ids picked so far, in pick
     /// order. Only meaningful with two or more ids and the node selection
     /// on the last one (the primary) — see [`PanelState::picked_nodes`].
@@ -438,6 +442,8 @@ impl Default for PanelState {
             last_canvas_rect: None,
             hover_edge: None,
             hover_card: None,
+            fit_prev_rect: None,
+            fit_done: None,
             picked: Vec::new(),
             new_requested: false,
             insert_request: None,
@@ -1917,6 +1923,44 @@ pub(crate) fn import_source(
 ///
 /// They are `Area`s over the canvas, never laid out in it, so the canvas
 /// keeps the whole panel.
+/// Once the canvas rect has stopped changing (the properties panel finished
+/// sliding), pan so the focused node lies inside it. Runs once per
+/// (node, rect) pair; zoom is kept.
+fn fit_focused(state: &mut PanelState, selection: &Selection, canvas: EguiRect) {
+    let prev = state.fit_prev_rect.replace(canvas);
+    let Selection::Node(id) = selection else {
+        state.fit_done = None;
+        return;
+    };
+    let stable = prev.is_some_and(|p| (p.min - canvas.min).abs().max_elem() < 0.5 && (p.max - canvas.max).abs().max_elem() < 0.5);
+    let key = (id.clone(), [canvas.min.x as i32, canvas.min.y as i32, canvas.max.x as i32, canvas.max.y as i32]);
+    if !stable || state.fit_done.as_ref() == Some(&key) {
+        return;
+    }
+    state.fit_done = Some(key);
+    let Some(node) = node_screen_rect(state, canvas, id) else {
+        return;
+    };
+    let m = 16.0;
+    let view = canvas.shrink(m);
+    let mut d = Vec2::ZERO;
+    if node.width() > view.width() {
+        d.x = view.center().x - node.center().x;
+    } else if node.left() < view.left() {
+        d.x = view.left() - node.left();
+    } else if node.right() > view.right() {
+        d.x = view.right() - node.right();
+    }
+    if node.height() > view.height() {
+        d.y = view.center().y - node.center().y;
+    } else if node.top() < view.top() {
+        d.y = view.top() - node.top();
+    } else if node.bottom() > view.bottom() {
+        d.y = view.bottom() - node.bottom();
+    }
+    state.pan += d;
+}
+
 fn float_bars(
     ui: &mut Ui,
     theme: &Theme,
@@ -1926,6 +1970,7 @@ fn float_bars(
     canvas: EguiRect,
 ) {
     tool_bar(ui, theme, door, state, selection, canvas);
+    fit_focused(state, selection, canvas);
     // Far out the nodes are points: their own bars hide, the canvas bar stays.
     if state.zoom < theme.node_point_zoom {
         // The hovered point's enlarged card carries its bar when it is the
@@ -2096,11 +2141,11 @@ fn focus_bar(
         + if kind0 == metal_graph::VENUE_SURFACE_KIND { 1.0 } else { 0.0 };
     let frame_pad = if inside { 0.0 } else { theme.bar_margin().sum().x as f32 };
     let room = (node.width() - frame_pad - theme.item_gap.x * (units + 1.0)).max(0.0);
-    let side = (room / units).clamp(BAR_BUTTON_MIN.min(theme.icon_button_size.x), theme.icon_button_size.x);
+    let side = (room / units).clamp(2.0, theme.icon_button_size.x);
     let mut theme = theme.clone();
     theme.icon_button_size = Vec2::splat(side);
     let theme = &theme;
-    let bar_w = node.width().max(BAR_BUTTON_MIN * units);
+    let bar_w = node.width();
     let frame = if inside { egui::Frame::NONE } else { theme.card_frame().inner_margin(theme.bar_margin()) };
     let kind = node_record(state, id)
         .and_then(|n| n["kind"].as_str().map(str::to_string))

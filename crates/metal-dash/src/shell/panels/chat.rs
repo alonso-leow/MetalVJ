@@ -1130,12 +1130,12 @@ fn prompt_box(
         let margin = theme.composer_margin();
         let text_w = (field_w - (margin.left + margin.right) as f32).max(0.0);
         ui.horizontal(|ui| {
+            // Capture the row origin before any child advances the cursor, so
+            // both columns are placed from the same left edge.
+            let origin = ui.cursor().min;
             // Each column gets its own disjoint rect, so the field never
             // covers the `+`/gear column and their clicks always land.
-            let field_rect = egui::Rect::from_min_size(
-                ui.cursor().min,
-                egui::vec2(field_w, max_h),
-            );
+            let field_rect = egui::Rect::from_min_size(origin, egui::vec2(field_w, max_h));
             ui.scope_builder(egui::UiBuilder::new().max_rect(field_rect), |ui| {
                 ScrollArea::vertical()
                     .max_height(max_h)
@@ -1164,7 +1164,7 @@ fn prompt_box(
             });
             // The right column: `+` over the gear, frameless.
             let col_rect = egui::Rect::from_min_size(
-                egui::pos2(ui.cursor().min.x + field_w + spacing, ui.cursor().min.y),
+                egui::pos2(origin.x + field_w + spacing, origin.y),
                 egui::vec2(btn_w, bar_h * 2.0),
             );
             ui.scope_builder(egui::UiBuilder::new().max_rect(col_rect), |ui| {

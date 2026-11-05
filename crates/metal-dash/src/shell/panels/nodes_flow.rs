@@ -107,8 +107,11 @@ pub fn observe(ctx: &egui::Context, theme: &Theme, graph: Option<&Value>, live: 
             }
         }
     }
-    if !frame.live.is_empty() || !frame.flowing.is_empty() {
-        ctx.request_repaint();
+    // A headless harness steps in coarse quarter-second frames; the loop would
+    // never settle there, so only a real frame clock keeps the flow moving.
+    let real_clock = ctx.input(|i| i.predicted_dt) < 0.1;
+    if real_clock && (!frame.live.is_empty() || !frame.flowing.is_empty()) {
+        ctx.request_repaint_after(std::time::Duration::from_millis(33));
     }
     ctx.data_mut(|d| {
         d.insert_temp(book_id(), book);

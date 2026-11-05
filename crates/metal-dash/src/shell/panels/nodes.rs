@@ -2475,7 +2475,7 @@ fn canvas(
         reveal_node(door, state, rect, &node);
     }
     if state.pulsing().is_some() {
-        ui.ctx().request_repaint();
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
     }
     wheel_zoom(ui, theme, state, rect, &response);
     // The cable under the pointer, while nothing is being dragged — it lights
@@ -2654,7 +2654,7 @@ fn canvas(
                             let until = *state.hover_hold.get_or_insert(now + theme.hover_card_hold);
                             if now < until {
                                 // Repaint while the hold runs, so it can expire.
-                                ui.ctx().request_repaint();
+                                ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
                                 box_at(pos)
                             } else {
                                 state.hover_hold = None;
@@ -2669,15 +2669,49 @@ fn canvas(
                 } else {
                     None
                 };
+                // Collapse: the card that just closed shrinks back to its
+                // point on an ease instead of vanishing. The last open box and
+                // its zoom are remembered in egui memory; `v` runs 1 → 0.
+                let collapse_id = egui::Id::new("mvj-card-collapse");
+                let mut closing: Option<([f32; 4], f32, f32)> = None;
+                if let Some(bx) = open {
+                    let z = state.hover_card.map(|(_, z, _)| z).unwrap_or(state.zoom);
+                    ui.ctx().data_mut(|d| d.insert_temp(collapse_id, (bx, z)));
+                    ui.ctx().animate_value_with_time(collapse_id.with("v"), 1.0, 0.0);
+                } else if let Some((bx, z)) = ui.ctx().data(|d| d.get_temp::<([f32; 4], f32)>(collapse_id)) {
+                    let v = ui.ctx().animate_value_with_time(collapse_id.with("v"), 0.0, theme.collapse_secs);
+                    if v > 0.01 && far {
+                        let eased = v * v * (3.0 - 2.0 * v);
+                        closing = Some((bx, z, eased));
+                    } else {
+                        ui.ctx().data_mut(|d| d.remove::<([f32; 4], f32)>(collapse_id));
+                    }
+                }
                 if open.is_none() {
                     state.hover_card = None;
                 }
                 for p in prims.iter().filter(|p| p["type"] != "path" && !node_body_numeric(p)) {
                     if !far {
                         paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
-                    } else if p["tag"] == "node" && !open.is_some_and(|bx| num(p, "x") == bx[0] && num(p, "y") == bx[1]) {
+                    } else if p["tag"] == "node"
+                        && !open.is_some_and(|bx| num(p, "x") == bx[0] && num(p, "y") == bx[1])
+                        && !closing.is_some_and(|(bx, ..)| num(p, "x") == bx[0] && num(p, "y") == bx[1])
+                    {
                         paint_node_point(&painter, theme, rect, state, p, drag_offset);
                     }
+                }
+                if let Some((bx, z, e)) = closing {
+                    let (z0, pan0) = (state.zoom, state.pan);
+                    let zt = z0 + (z - z0) * e;
+                    let centre = Vec2::new(bx[0] + bx[2] / 2.0, bx[1] + bx[3] / 2.0);
+                    state.pan = pan0 + centre * (z0 - zt);
+                    state.zoom = zt;
+                    ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
+                    for p in prims.iter().filter(|p| p["type"] != "path" && !node_body_numeric(p) && primitive_in_box(p, bx)) {
+                        paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
+                    }
+                    state.zoom = z0;
+                    state.pan = pan0;
                 }
                 // The hovered point opens as its full card, drawn at a readable
                 // zoom anchored on the node's own top-left so it stays put.

@@ -566,6 +566,8 @@ pub struct Theme {
     pub node_point_zoom: f32,
     /// Radius of a far-zoomed node's point, in points. Fixed on screen: it never scales with zoom.
     pub node_point_radius: f32,
+    /// Seconds a hovered card takes to ease back down to its point.
+    pub collapse_secs: f32,
     /// The canvas zoom a hovered point's payload is drawn at, so it reads at any zoom.
     pub node_point_hover_zoom: f32,
     /// How long, in seconds, a hovered point's card stays open after the pointer
@@ -902,6 +904,7 @@ impl Theme {
             node_label_inset: 14.0,
             node_point_zoom: 0.32,
             node_point_radius: 4.0,
+            collapse_secs: 0.18,
             node_point_hover_zoom: 1.0,
             hover_card_hold: 0.3,
             node_port_radius_max: 3.5,
@@ -1137,6 +1140,7 @@ impl Theme {
             node_label_inset: 14.0,
             node_point_zoom: 0.32,
             node_point_radius: 4.0,
+            collapse_secs: 0.18,
             node_point_hover_zoom: 1.0,
             hover_card_hold: 0.3,
             node_port_radius_max: 3.5,
@@ -1448,6 +1452,7 @@ impl Theme {
             node_label_inset: 16.0,
             node_point_zoom: 0.35,
             node_point_radius: 4.0,
+            collapse_secs: 0.18,
             node_point_hover_zoom: 1.0,
             hover_card_hold: 0.3,
             node_port_radius_max: 3.5,

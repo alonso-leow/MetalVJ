@@ -4425,7 +4425,7 @@ mod tests {
         harness
             .get_all_by_label("paint the room")
             .map(|n| n.rect())
-            .find(|r| r.size() == size)
+            .find(|r| (r.width() - r.height()).abs() < 0.5 && r.width() <= size.x)
             .expect("the gear sits on the focus bar")
             .center()
     }

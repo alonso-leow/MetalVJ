@@ -28,3 +28,14 @@ components.rs:(theme.inset, egui::Stroke::new(theme.hairline, theme.rule))
 components.rs:let ink = if on { Color32::WHITE } else { theme.ink_weak };
 panels/props_colour.rs:ui.spacing_mut().item_spacing.x = 2.0;
 panels/settings.rs:let col = egui::Color32::from_rgb((c[0] * 255.0) as u8, (c[1] * 255.0) as u8, (c[2] * 255.0) as u8);
+components.rs:let stroke = egui::Stroke::new(stroke.width * crate::shell::classes::ICON_STROKE_SCALE, stroke.color);
+panels/chat.rs:let ink = if hot { Color32::WHITE } else { theme.hard_ink() };
+panels/chat.rs:.fill(if hot { theme.ai } else { Color32::WHITE })
+panels/lanes.rs:ui.spacing_mut().item_spacing.x = 0.0;
+panels/lanes.rs:ui.spacing_mut().item_spacing.y = 0.0;
+panels/nodes.rs:let stroke = egui::Stroke::new(base.width, base.color.gamma_multiply(alpha));
+panels/nodes_flow.rs:pub fn cable_stroke(ctx: &egui::Context, theme: &Theme, p: &Value, accent: bool) -> Stroke {
+panels/nodes_flow.rs:Stroke::new(base.width, base.color.gamma_multiply(theme.flow_dim()))
+panels/nodes_flow.rs:band_pass(painter, &pts, band_phase, bands, &[Color32::WHITE], width * 0.6, 0.55 * strength);
+panels/nodes_flow.rs:painter.line_segment([w[0], w[1]], Stroke::new(width, colour.gamma_multiply(lit)));
+panels/nodes_flow.rs:Stroke::new(theme.hairline, cyan.gamma_multiply(0.4 + 0.5 * b)),

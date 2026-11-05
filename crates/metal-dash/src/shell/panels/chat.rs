@@ -1129,14 +1129,17 @@ fn prompt_box(
         let field_w = (row_w - btn_w - spacing).max(0.0);
         let margin = theme.composer_margin();
         let text_w = (field_w - (margin.left + margin.right) as f32).max(0.0);
-        ui.horizontal(|ui| {
-            // Capture the row origin before any child advances the cursor, so
-            // both columns are placed from the same left edge.
-            let origin = ui.cursor().min;
+        // The row is one allocation of the panel's width; both columns are
+        // children placed inside it, so neither can widen the box.
+        let (row, _) = ui.allocate_exact_size(egui::vec2(row_w, max_h), Sense::hover());
+        {
+            let origin = row.min;
             // Each column gets its own disjoint rect, so the field never
             // covers the `+`/gear column and their clicks always land.
             let field_rect = egui::Rect::from_min_size(origin, egui::vec2(field_w, max_h));
-            ui.scope_builder(egui::UiBuilder::new().max_rect(field_rect), |ui| {
+            let mut field_ui = ui.new_child(egui::UiBuilder::new().max_rect(field_rect));
+            {
+                let ui = &mut field_ui;
                 ScrollArea::vertical()
                     .max_height(max_h)
                     .auto_shrink([false, true])
@@ -1161,13 +1164,15 @@ fn prompt_box(
                                 .map_or(state.prompt.len(), |(b, _)| b);
                         }
                     });
-            });
+            }
             // The right column: `+` over the gear, frameless.
             let col_rect = egui::Rect::from_min_size(
                 egui::pos2(origin.x + field_w + spacing, origin.y),
                 egui::vec2(btn_w, bar_h * 2.0),
             );
-            ui.scope_builder(egui::UiBuilder::new().max_rect(col_rect), |ui| {
+            let mut col_ui = ui.new_child(egui::UiBuilder::new().max_rect(col_rect));
+            {
+                let ui = &mut col_ui;
                 let plus_label = tr("attach files");
                 let plus = ui
                     .add_sized([btn_w, bar_h], composer_icon_button(theme, Icon::Plus))
@@ -1191,11 +1196,11 @@ fn prompt_box(
                     // The settings overlay lives with the caller, which must read and clear this.
                     state.open_ai_settings = true;
                 }
-            });
-        });
+            }
+        }
 
         // The bottom bar, inside the same box: the send/stop control at the right edge.
-        let (bar, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), bar_h), Sense::hover());
+        let (bar, _) = ui.allocate_exact_size(egui::vec2(row_w, bar_h), Sense::hover());
         let send_rect = egui::Rect::from_min_size(
             egui::pos2(bar.max.x - btn_w, bar.min.y),
             egui::vec2(btn_w, bar_h),

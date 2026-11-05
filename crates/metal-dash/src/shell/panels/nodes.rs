@@ -3088,7 +3088,7 @@ fn paint_param_dot(
     // accent, so a driven row reads at a glance (N's "play this row" hint).
     let lit = live.param(node, name).is_some();
     let fill = if wired || lit { theme.node_dot_on } else { theme.node_dot_off };
-    painter.circle_filled(r.center(), dot_radius(state, theme), fill);
+    painter.circle_filled(r.center(), dot_radius(state, theme) * 0.5, fill);
 }
 
 /// A parameter's value field: the recessed readout on the row's right. While a

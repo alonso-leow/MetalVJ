@@ -3020,6 +3020,8 @@ fn paint_node_box(
     } else {
         theme.node_box_stroke()
     };
+    // The red key shadow sits behind the whole node, not just its header.
+    painter.rect_filled(r.translate(theme.key_shadow_offset()), theme.corner_radius(), theme.key_shadow());
     painter.rect(r, theme.corner_radius(), theme.node_content, stroke, egui::StrokeKind::Middle);
     // Where the AI is working: a blue edge beside the operator's own.
     if state.ai_node.as_deref().is_some_and(at_box) {

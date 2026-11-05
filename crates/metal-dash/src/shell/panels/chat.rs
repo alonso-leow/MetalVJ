@@ -22,8 +22,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use egui::text::LayoutJob;
 use egui::{
-    Align, Color32, Frame, Id, Label, Layout, Response, RichText, ScrollArea, Sense, TextEdit,
-    TextFormat, Ui,
+    Align, Color32, Frame, Id, Label, Layout, Response, RichText, ScrollArea, Sense, Stroke,
+    StrokeKind, TextEdit, TextFormat, Ui,
 };
 use serde_json::{Value, json};
 
@@ -88,6 +88,15 @@ pub struct PanelState {
     ai_target_at: f64,
     /// `ai_target` moved to a new node since the shell last looked.
     pub(crate) ai_target_moved: bool,
+    /// Files dropped from the library onto the composer, as library paths. Shown
+    /// as chips above the text area; not yet sent with the prompt.
+    pub attachments: Vec<String>,
+    /// Set when the composer's `+` is clicked. The caller (which owns the file
+    /// picker) must open it and clear this flag.
+    pub attach_requested: bool,
+    /// Set when the composer's gear is clicked. The caller (which owns the
+    /// settings overlay) must open the AI settings section and clear this flag.
+    pub open_ai_settings: bool,
 }
 
 /// How long the AI's mark stays on a node once its tool call is done, seconds.
@@ -127,6 +136,9 @@ impl Default for PanelState {
             ai_target: None,
             ai_target_at: 0.0,
             ai_target_moved: false,
+            attachments: Vec::new(),
+            attach_requested: false,
+            open_ai_settings: false,
         }
     }
 }
@@ -234,6 +246,25 @@ pub fn paint(
     .inner
 }
 
+/// A header icon button in the grid cells' style: a square, unrounded frame
+/// on the inset fill with the rule outline, and the glyph at 1.4 times the
+/// small size so it reads as a target rather than a dot.
+fn header_icon_button(theme: &Theme, icon: Icon) -> egui::Button<'static> {
+    egui::Button::new(lucide(icon, theme.font_small.size * 1.4))
+        .fill(theme.inset)
+        .stroke(theme.rule_stroke())
+        .corner_radius(theme.sharp_corner())
+}
+
+/// Makes every widget drawn in `ui` square-cornered, the composer's field and
+/// send button included, so the prompt area matches the grid cells.
+fn sharp_widgets(ui: &mut Ui, theme: &Theme) {
+    let w = &mut ui.visuals_mut().widgets;
+    for v in [&mut w.noninteractive, &mut w.inactive, &mut w.hovered, &mut w.active, &mut w.open] {
+        v.corner_radius = theme.sharp_corner();
+    }
+}
+
 /// The slim header row. In the conversation view: the open chat's title
 /// (truncated, weak ink) and the `new chat` and `history` icon buttons. In the
 /// history view: a back arrow and the view's name.
@@ -264,14 +295,14 @@ fn header(
                 );
                 if !empty
                     && ui
-                        .button(lucide(Icon::New, theme.font_small.size))
+                        .add(header_icon_button(theme, Icon::New))
                         .on_hover_text(tr("new chat"))
                         .clicked()
                 {
                     new_chat(door, state);
                 }
                 if ui
-                    .button(lucide(Icon::History, theme.font_small.size))
+                    .add(header_icon_button(theme, Icon::History))
                     .on_hover_text(tr("history"))
                     .clicked()
                 {
@@ -990,10 +1021,13 @@ const PROMPT_ID: &str = "shell/panel/chat/prompt";
 /// The most rows the composer grows to before it scrolls.
 const COMPOSER_MAX_ROWS: usize = 6;
 
-/// The composer: a rounded, framed box docked under the transcript. Above the
-/// text field, the context chips; beside it, `@` (attach the shell's current
-/// selection) and the send button, which turns into `stop` while the chat is
-/// busy or awaiting. The field grows with its lines (1 to [`COMPOSER_MAX_ROWS`])
+/// The composer: one framed box docked under the transcript. Above the text
+/// area, the context and attachment chips. The text area fills the box's width
+/// with no frame of its own; below it, a bottom bar in the same box holds `+`
+/// (attach files, sets `attach_requested`), the gear (AI settings, sets
+/// `open_ai_settings`) and the send button, which turns into `stop` while the
+/// chat is busy or awaiting. A library file dragged onto the box is added to
+/// `attachments`. The field grows with its lines (1 to [`COMPOSER_MAX_ROWS`])
 /// and scrolls past that. Enter sends (the same path as the button,
 /// [`send_prompt`]); Shift+Enter falls through to the editor as a newline. The
 /// Enter key is consumed *before* the editor is added, so the newline it would
@@ -1050,123 +1084,186 @@ fn prompt_box(
     let max_h = ui.text_style_height(&egui::TextStyle::Body) * COMPOSER_MAX_ROWS as f32
         + theme.field_pad.y * 2.0;
 
-    Frame::new()
+    let stroke_frame = Frame::new()
         .fill(theme.inset)
-        .inner_margin(theme.panel_margin())
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            context_chips(ui, theme, state);
-            if focused && !mentions.is_empty() {
-                mention_list(ui, theme, state, &mentions);
-            }
-            let row_h = (ui.text_style_height(&egui::TextStyle::Body) * rows as f32
-                + theme.field_pad.y * 2.0)
-                .min(max_h)
-                .max(ui.spacing().interact_size.y);
-            let spacing = ui.spacing().item_spacing.x;
-            // Both buttons are exactly one field row tall and `btn_w` wide. The
-            // row is a fixed rect and each child is placed at an absolute spot
-            // in it, so the field's own height can never shift the buttons off
-            // the row's centre line.
-            let btn_w = ui.spacing().interact_size.x;
-            let btn_size = egui::vec2(btn_w, row_h);
-            let field_w = (ui.available_width() - btn_w - spacing).max(0.0);
-            let (row, _) = ui.allocate_exact_size(
-                egui::vec2(ui.available_width(), row_h),
-                Sense::hover(),
-            );
-            let field_rect = egui::Rect::from_min_size(
-                row.min,
-                egui::vec2(field_w, row_h),
-            );
-            let send_rect = egui::Rect::from_min_size(
-                egui::pos2(row.max.x - btn_w, row.min.y),
-                btn_size,
-            );
+        .stroke(theme.rule_stroke())
+        .corner_radius(theme.sharp_corner())
+        .inner_margin(theme.panel_margin());
+    let boxed = stroke_frame.show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        context_chips(ui, theme, state);
+        attachment_chips(ui, theme, state);
+        if focused && !mentions.is_empty() {
+            mention_list(ui, theme, state, &mentions);
+        }
+        let spacing = ui.spacing().item_spacing.x;
+        // The bar's buttons are one interact row tall and `btn_w` wide, each at
+        // an absolute spot in the bar's rect.
+        let btn_w = ui.spacing().interact_size.x;
+        let bar_h = ui.spacing().interact_size.y;
 
-            // The field gets an exact rect, so it can never squeeze the
-            // send/stop control past the panel's right edge.
-            ui.scope_builder(egui::UiBuilder::new().max_rect(field_rect), |ui| {
-                if let Some(at) = state.pending_caret.take() {
-                    place_caret(ui.ctx(), prompt_id, &state.prompt[..at]);
+        // The text area: full width, no frame or fill of its own, so the box is
+        // the one surface and the text is its content.
+        if let Some(at) = state.pending_caret.take() {
+            place_caret(ui.ctx(), prompt_id, &state.prompt[..at]);
+        }
+        let field_w = ui.available_width();
+        ScrollArea::vertical()
+            .max_height(max_h)
+            .auto_shrink([false, true])
+            .id_salt("shell/panel/chat/composer")
+            .show(ui, |ui| {
+                sharp_widgets(ui, theme);
+                let out = TextEdit::multiline(&mut state.prompt)
+                    .id(prompt_id)
+                    .frame(Frame::NONE)
+                    .desired_width(field_w)
+                    .margin(theme.field_pad * 2.0)
+                    .desired_rows(rows)
+                    .hint_text(tr("ask about the graph…"))
+                    .show(ui);
+                // The caret, as a byte index, for the next frame's `@`.
+                if let Some(range) = out.cursor_range {
+                    let chars = range.primary.index.0;
+                    state.caret = state
+                        .prompt
+                        .char_indices()
+                        .nth(chars)
+                        .map_or(state.prompt.len(), |(b, _)| b);
                 }
-                ScrollArea::vertical()
-                    .max_height(max_h)
-                    .auto_shrink([false, true])
-                    .id_salt("shell/panel/chat/composer")
-                    .show(ui, |ui| {
-                        let out = TextEdit::multiline(&mut state.prompt)
-                            .id(prompt_id)
-                            .desired_width(field_w)
-                            .margin(theme.field_pad)
-                            .desired_rows(rows)
-                            .hint_text(tr("ask about the graph…"))
-                            .show(ui);
-                        // The caret, as a byte index, for the next frame's `@`.
-                        if let Some(range) = out.cursor_range {
-                            let chars = range.primary.index.0;
-                            state.caret = state
-                                .prompt
-                                .char_indices()
-                                .nth(chars)
-                                .map_or(state.prompt.len(), |(b, _)| b);
-                        }
-                    });
             });
-            // The send/stop control sits at the right edge, after the field.
-            if busy {
-                let stop = ui
-                    .put(
-                        send_rect,
-                        egui::Button::new(
-                            RichText::new("■")
-                                .font(theme.font_body.clone())
-                                .color(theme.warn),
-                        ),
-                    )
-                    .on_hover_text(tr("stop"));
-                if stop.clicked() {
-                    if let Some(id) = chat_id.as_deref() {
-                        cancel_turn(door, id);
-                    }
+
+        // The bottom bar, inside the same box: `+` and the gear on the left, the
+        // send/stop control on the right.
+        let (bar, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), bar_h), Sense::hover());
+        let slot = |i: usize| {
+            egui::Rect::from_min_size(
+                egui::pos2(bar.min.x + i as f32 * (btn_w + spacing), bar.min.y),
+                egui::vec2(btn_w, bar_h),
+            )
+        };
+        let send_rect = egui::Rect::from_min_size(
+            egui::pos2(bar.max.x - btn_w, bar.min.y),
+            egui::vec2(btn_w, bar_h),
+        );
+
+        let plus_label = tr("attach files");
+        let plus = ui
+            .put(slot(0), header_icon_button(theme, Icon::Plus))
+            .on_hover_text(plus_label);
+        plus.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, plus_label));
+        if plus.clicked() {
+            // The real file picker lives with the caller, which must read and clear this.
+            state.attach_requested = true;
+        }
+
+        let gear_label = tr("AI settings");
+        let gear = ui
+            .put(slot(1), header_icon_button(theme, Icon::Settings))
+            .on_hover_text(gear_label);
+        gear.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, gear_label));
+        if gear.clicked() {
+            // The settings overlay lives with the caller, which must read and clear this.
+            state.open_ai_settings = true;
+        }
+
+        // The send/stop control sits at the right edge of the bar.
+        if busy {
+            let stop = ui
+                .put(
+                    send_rect,
+                    egui::Button::new(
+                        RichText::new("■")
+                            .font(theme.font_body.clone())
+                            .color(theme.warn),
+                    ),
+                )
+                .on_hover_text(tr("stop"));
+            if stop.clicked() {
+                if let Some(id) = chat_id.as_deref() {
+                    cancel_turn(door, id);
                 }
-            } else {
-                let send = ui
-                    .put(
+            }
+        } else {
+            // A white CTA with a dark glyph and a heavy blue outline; it turns
+            // blue with a white glyph on hover.
+            let hot = ui.rect_contains_pointer(send_rect);
+            let cta_stroke = Stroke::new(theme.accent_stroke * 2.0, theme.ai);
+            let send = ui
+                .scope(|ui| {
+                    sharp_widgets(ui, theme);
+                    let w = &mut ui.visuals_mut().widgets.hovered;
+                    w.weak_bg_fill = theme.ai;
+                    w.bg_fill = theme.ai;
+                    w.bg_stroke = theme.ai_stroke();
+                    ui.put(
                         send_rect,
                         egui::Button::new(
                             RichText::new("↑")
                                 .font(theme.font_body.clone())
-                                .color(theme.ai),
+                                .color(if hot { Color32::WHITE } else { theme.hard_ink() }),
                         )
-                        .stroke(theme.ai_stroke()),
+                        .fill(if hot { theme.ai } else { Color32::WHITE })
+                        .stroke(if hot { theme.ai_stroke() } else { cta_stroke }),
                     )
-                    .on_hover_text(tr("send"));
-                // The glyph is the paint; `send` is the button's accessible
-                // name, so the harness (and a screen reader) finds it.
-                send.widget_info(|| {
-                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tr("send"))
-                });
-                if send.clicked() {
-                    send_prompt(door, state);
-                }
+                })
+                .inner
+                .on_hover_text(tr("send"));
+            // The glyph is the paint; `send` is the button's accessible
+            // name, so the harness (and a screen reader) finds it.
+            send.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tr("send"))
+            });
+            if send.clicked() {
+                send_prompt(door, state);
             }
-        });
+        }
+    });
+
+    // Library drags: the box lights its outline while a library file hovers it,
+    // and a release adds the file to the attachments. The drop catcher is
+    // registered after the box's content, so it sits on top for hover only.
+    let rect = boxed.response.rect;
+    let drop = ui.interact(rect, Id::new(PROMPT_ID).with("composer-drop"), Sense::hover());
+    if drop.dnd_hover_payload::<crate::shell::panels::FileDrag>().is_some() {
+        ui.painter()
+            .rect_stroke(rect, theme.sharp_corner(), theme.ai_stroke(), StrokeKind::Inside);
+    }
+    if let Some(file) = crate::shell::panels::release_typed::<crate::shell::panels::FileDrag>(&drop) {
+        accept_library_drop(state, &file.path);
+    }
 }
 
-/// The context chips above the field: one framed chip per ref, labelled, with
-/// an ✕ that drops it. Empty when nothing is attached.
-fn context_chips(ui: &mut Ui, theme: &Theme, state: &mut PanelState) {
-    if state.context.is_empty() {
+/// Takes a file dropped from the library onto the composer. A path already
+/// attached is not added twice.
+fn accept_library_drop(state: &mut PanelState, path: &str) {
+    if !path.is_empty() && !state.attachments.iter().any(|p| p == path) {
+        state.attachments.push(path.to_string());
+    }
+}
+
+/// The attachment chips above the field: one chip per dropped file, labelled
+/// with its file name, with an ✕ that drops it. Empty when none is attached.
+fn attachment_chips(ui: &mut Ui, theme: &Theme, state: &mut PanelState) {
+    if state.attachments.is_empty() {
         return;
     }
+    let labels: Vec<String> = state
+        .attachments
+        .iter()
+        .map(|p| p.rsplit(['/', '\\']).next().unwrap_or(p).to_string())
+        .collect();
+    if let Some(i) = chip_row(ui, theme, &labels) {
+        state.attachments.remove(i);
+    }
+}
+
+/// A wrapped row of framed chips, one per label, each with an ✕. Returns the
+/// index whose ✕ was clicked this frame, if any.
+fn chip_row(ui: &mut Ui, theme: &Theme, labels: &[String]) -> Option<usize> {
     let mut remove = None;
     ui.horizontal_wrapped(|ui| {
-        for (i, chip) in state.context.iter().enumerate() {
-            let label = chip["label"]
-                .as_str()
-                .or_else(|| chip["id"].as_str())
-                .unwrap_or("?");
+        for (i, label) in labels.iter().enumerate() {
             Frame::new()
                 .fill(theme.tube_raised)
                 .stroke(theme.rule_stroke())
@@ -1175,7 +1272,7 @@ fn context_chips(ui: &mut Ui, theme: &Theme, state: &mut PanelState) {
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label(
-                            RichText::new(label)
+                            RichText::new(label.as_str())
                                 .font(theme.font_small.clone())
                                 .color(theme.ink),
                         );
@@ -1190,7 +1287,27 @@ fn context_chips(ui: &mut Ui, theme: &Theme, state: &mut PanelState) {
                 });
         }
     });
-    if let Some(i) = remove {
+    remove
+}
+
+/// The context chips above the field: one framed chip per ref, labelled, with
+/// an ✕ that drops it. Empty when nothing is attached.
+fn context_chips(ui: &mut Ui, theme: &Theme, state: &mut PanelState) {
+    if state.context.is_empty() {
+        return;
+    }
+    let labels: Vec<String> = state
+        .context
+        .iter()
+        .map(|chip| {
+            chip["label"]
+                .as_str()
+                .or_else(|| chip["id"].as_str())
+                .unwrap_or("?")
+                .to_string()
+        })
+        .collect();
+    if let Some(i) = chip_row(ui, theme, &labels) {
         state.context.remove(i);
     }
 }

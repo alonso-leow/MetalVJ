@@ -3079,6 +3079,9 @@ pub fn square_icon_button_inked(
 /// fifth-inset square, so it reads at the badge size the rows use.
 pub fn paint_icon_stroked(painter: &egui::Painter, rect: Rect, icon: Icon, _theme: &Theme, stroke: egui::Stroke) {
     let r = rect.shrink2(rect.size() * 0.2);
+    // Icon line weight: every icon's stroke is this much heavier than its
+    // hairline (`crate::shell::classes::ICON_STROKE_SCALE`).
+    let stroke = egui::Stroke::new(stroke.width * crate::shell::classes::ICON_STROKE_SCALE, stroke.color);
     if icon == Icon::Bypass {
         // A power symbol drawn as vectors: the Lucide circle-slash read as a
         // blank square at this size, and a vector needs no font.

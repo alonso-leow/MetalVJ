@@ -1078,6 +1078,9 @@ fn sequence_editor(
     // The left icon column reclaims the panel: the playhead/range verbs are
     // glyph buttons stacked narrow, the timeline and its rows take the rest.
     ui.horizontal(|ui| {
+        // The panel's own margin on the left, so the icon column does not sit
+        // on the window's edge.
+        ui.add_space(theme.pad as f32);
         icon_column(ui, theme, door, ingest, layer.as_deref());
         ui.vertical(|ui| {
             // Bar 1 — the page strip on the left and the edit controls
@@ -2102,19 +2105,27 @@ fn pages_row(ui: &mut Ui, theme: &Theme, door: &dyn Call, ingest: &mut crate::sh
 /// the current page's own lit state (the theme's selection wash) with an
 /// accent rule painted under it. Every colour is a `Theme` token (gate 2).
 fn page_tab(ui: &mut Ui, theme: &Theme, text: &str, active: bool) -> Response {
-    let response = ui.selectable_label(
-        active,
-        RichText::new(text)
-            .font(theme.font_small.clone())
-            .color(if active { theme.ink } else { theme.ink_weak }),
+    // The overlay grid's cell look: a square box on the inset fill with the
+    // rule outline, the current page on the phosphor wash. Same primitives as
+    // `square_icon_button`, so the pages and the cells read as one family.
+    let galley = ui.painter().layout_no_wrap(
+        text.to_string(),
+        theme.font_small.clone(),
+        if active { theme.ink } else { theme.ink_weak },
     );
-    if active {
-        let rect = response.rect;
-        ui.painter().line_segment(
-            [Pos2::new(rect.left(), rect.bottom()), Pos2::new(rect.right(), rect.bottom())],
-            theme.accent(),
-        );
-    }
+    let pad = ui.spacing().button_padding;
+    let size = egui::vec2(galley.size().x + pad.x * 2.0, ui.spacing().interact_size.y);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let fill = if active {
+        theme.phosphor_deep
+    } else if response.hovered() {
+        theme.library_card_hover
+    } else {
+        theme.inset
+    };
+    ui.painter().rect_filled(rect, theme.sharp_corner(), fill);
+    ui.painter().rect_stroke(rect, theme.sharp_corner(), theme.rule_stroke(), egui::StrokeKind::Inside);
+    ui.painter().galley(rect.center() - galley.size() / 2.0, galley, theme.ink);
     response
 }
 

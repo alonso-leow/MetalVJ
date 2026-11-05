@@ -121,6 +121,10 @@ impl Borders {
 /// inks, the accent, rules; then strokes, radii, spacing, fonts. Anything a
 /// component needs to paint that is not here is a bug in this file, not a
 /// reason to write a literal in the component.
+/// The line-weight scale of every painted icon's stroke, over the hairline:
+/// icons read too faint at one hairline, so they draw at this multiple.
+pub const ICON_STROKE_SCALE: f32 = 1.4;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
     /// A name for reports and the restyle gate's failure messages.

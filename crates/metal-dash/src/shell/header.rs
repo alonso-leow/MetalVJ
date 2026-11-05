@@ -100,7 +100,11 @@ pub(super) fn paint(
     ui.horizontal_centered(|ui| {
         theme.flat_bar_style(ui.style_mut());
         if arrangement.is_full_grid() {
+            // Logo margin: `header_pad * 2` on both sides of the wordmark.
+            let logo_margin = f32::from(theme.header_pad) * 2.0;
+            ui.add_space(logo_margin);
             wordmark(ui, theme);
+            ui.add_space(logo_margin);
             divider(ui, theme);
             collections_menu(ui, theme, door, state);
             divider(ui, theme);
@@ -141,7 +145,11 @@ pub(super) fn paint(
                 .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
                 .show(ui, |ui| {
                     ui.horizontal_centered(|ui| {
+                        // Logo margin: `header_pad * 2` on both sides of the wordmark.
+                        let logo_margin = f32::from(theme.header_pad) * 2.0;
+                        ui.add_space(logo_margin);
                         wordmark(ui, theme);
+                        ui.add_space(logo_margin);
                         // The tab picker sits first, next to the wordmark, so
                         // it is on screen without scrolling the strip.
                         if arrangement.tabs == Placement::Delegated {

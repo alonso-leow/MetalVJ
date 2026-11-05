@@ -1127,9 +1127,16 @@ fn prompt_box(
         // The row follows the panel's width; the field takes what the button column leaves.
         let row_w = ui.available_width();
         let field_w = (row_w - btn_w - spacing).max(0.0);
-        let text_w = (field_w - theme.composer_pad().x * 2.0).max(0.0);
+        let margin = theme.composer_margin();
+        let text_w = (field_w - (margin.left + margin.right) as f32).max(0.0);
         ui.horizontal(|ui| {
-            ui.allocate_ui(egui::vec2(field_w, 0.0), |ui| {
+            // Each column gets its own disjoint rect, so the field never
+            // covers the `+`/gear column and their clicks always land.
+            let field_rect = egui::Rect::from_min_size(
+                ui.cursor().min,
+                egui::vec2(field_w, max_h),
+            );
+            ui.scope_builder(egui::UiBuilder::new().max_rect(field_rect), |ui| {
                 ScrollArea::vertical()
                     .max_height(max_h)
                     .auto_shrink([false, true])
@@ -1140,7 +1147,7 @@ fn prompt_box(
                             .id(prompt_id)
                             .frame(Frame::NONE)
                             .desired_width(text_w)
-                            .margin(theme.composer_pad())
+                            .margin(margin)
                             .desired_rows(rows)
                             .hint_text(tr("ask about the graph…"))
                             .show(ui);
@@ -1156,7 +1163,11 @@ fn prompt_box(
                     });
             });
             // The right column: `+` over the gear, frameless.
-            ui.vertical(|ui| {
+            let col_rect = egui::Rect::from_min_size(
+                egui::pos2(ui.cursor().min.x + field_w + spacing, ui.cursor().min.y),
+                egui::vec2(btn_w, bar_h * 2.0),
+            );
+            ui.scope_builder(egui::UiBuilder::new().max_rect(col_rect), |ui| {
                 let plus_label = tr("attach files");
                 let plus = ui
                     .add_sized([btn_w, bar_h], composer_icon_button(theme, Icon::Plus))

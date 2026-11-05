@@ -561,8 +561,10 @@ pub struct Theme {
     pub node_label_inset: f32,
     /// Below this canvas zoom a node paints as a point; its payload shows on hover.
     pub node_point_zoom: f32,
-    /// Radius of a far-zoomed node's point, in points.
+    /// Radius of a far-zoomed node's point, in points. Fixed on screen: it never scales with zoom.
     pub node_point_radius: f32,
+    /// The canvas zoom a hovered point's payload is drawn at, so it reads at any zoom.
+    pub node_point_hover_zoom: f32,
     /// The largest port dot, in points, once zoomed in (dots shrink past it).
     pub node_port_radius_max: f32,
     /// The most a node's text scales up with zoom, as a multiple of its size.
@@ -891,8 +893,9 @@ impl Theme {
             node_cable_dash: 6.0,
             node_cable_width: 1.5,
             node_label_inset: 14.0,
-            node_point_zoom: 0.5,
-            node_point_radius: 3.0,
+            node_point_zoom: 0.32,
+            node_point_radius: 4.0,
+            node_point_hover_zoom: 1.0,
             node_port_radius_max: 3.5,
             node_text_zoom_max: 1.6,
             grid_fade_floor: 0.12,
@@ -1123,8 +1126,9 @@ impl Theme {
             node_cable_dash: 6.0,
             node_cable_width: 1.5,
             node_label_inset: 14.0,
-            node_point_zoom: 0.5,
-            node_point_radius: 3.0,
+            node_point_zoom: 0.32,
+            node_point_radius: 4.0,
+            node_point_hover_zoom: 1.0,
             node_port_radius_max: 3.5,
             node_text_zoom_max: 1.6,
             grid_fade_floor: 0.12,
@@ -1431,8 +1435,9 @@ impl Theme {
             node_cable_dash: 9.0,
             node_cable_width: 2.0,
             node_label_inset: 16.0,
-            node_point_zoom: 0.5,
-            node_point_radius: 3.0,
+            node_point_zoom: 0.35,
+            node_point_radius: 4.0,
+            node_point_hover_zoom: 1.0,
             node_port_radius_max: 3.5,
             node_text_zoom_max: 1.6,
             grid_fade_floor: 0.12,
@@ -1663,9 +1668,17 @@ impl Theme {
 
     /// Padding of the square chips in a narrow label column (a layer's eye, S
     /// and blend): a fraction of a field's, so the glyph fills the square.
-    /// Inner padding of the AI composer's text area, on all four sides.
-    pub fn composer_pad(&self) -> Vec2 {
-        self.field_pad * 2.5
+    /// Inner margin of the AI composer's text area, per side: the top is
+    /// tighter than the sides, and the left is wider than the right so the
+    /// text clears the box's left rule.
+    pub fn composer_margin(&self) -> Margin {
+        let p = self.field_pad * 2.5;
+        Margin {
+            left: (p.x * 1.2).round() as i8,
+            right: p.x.round() as i8,
+            top: (p.y * 0.4).round() as i8,
+            bottom: p.y.round() as i8,
+        }
     }
     pub fn chip_padding(&self) -> Vec2 {
         self.field_pad * 0.25

@@ -58,6 +58,12 @@ use crate::shell::panels::Selection;
 /// into a `POST /graph/node` write.
 const DRAG_SLOP: f32 = 3.0;
 
+/// Point view: the hovered node's card fills this fraction of the canvas height.
+const HOVER_CARD_FRACTION: f32 = 0.45;
+
+/// The smallest side a focus-bar button shrinks to.
+const BAR_BUTTON_MIN: f32 = 20.0;
+
 /// How often the canvas re-reads `GET /graph/live` while it is on screen. The
 /// route is answered from the engine's last frame (`call::graph::graph_live`),
 /// so this is a poll of a cache, not a render request; 4–5 Hz (N's brief) is
@@ -334,6 +340,9 @@ pub struct PanelState {
     /// The cable under the pointer this frame — lit like a selected one, so
     /// the operator sees which cable a click would pick before clicking.
     hover_edge: Option<String>,
+    /// Point view: the hovered node's enlarged card this frame, as its
+    /// graph position, zoom and pan, so the focus bar can ride it.
+    hover_card: Option<([f32; 2], f32, Vec2)>,
     /// The Ctrl+click multi-selection: the node ids picked so far, in pick
     /// order. Only meaningful with two or more ids and the node selection
     /// on the last one (the primary) — see [`PanelState::picked_nodes`].
@@ -428,6 +437,7 @@ impl Default for PanelState {
             kind_params: HashMap::new(),
             last_canvas_rect: None,
             hover_edge: None,
+            hover_card: None,
             picked: Vec::new(),
             new_requested: false,
             insert_request: None,
@@ -1918,6 +1928,18 @@ fn float_bars(
     tool_bar(ui, theme, door, state, selection, canvas);
     // Far out the nodes are points: their own bars hide, the canvas bar stays.
     if state.zoom < theme.node_point_zoom {
+        // The hovered point's enlarged card carries its bar when it is the
+        // selection: borrow the card's view for the bar.
+        if let (Selection::Node(id), Some((pos, z, pan))) = (selection.clone(), state.hover_card) {
+            if find_node_pos(state, &id) == Some(pos) {
+                let (z0, pan0) = (state.zoom, state.pan);
+                state.zoom = z;
+                state.pan = pan;
+                focus_bar(ui, theme, door, state, selection, canvas, &id);
+                state.zoom = z0;
+                state.pan = pan0;
+            }
+        }
         return;
     }
     if let Selection::Node(id) = selection.clone() {
@@ -2066,6 +2088,19 @@ fn focus_bar(
             (Pos2::new(node.center().x, node.bottom() + theme.item_gap.y), Align2::CENTER_TOP)
         }
     };
+    // The bar's width follows the node's: each button takes its share of the
+    // node width, clamped between a readable minimum and the theme size.
+    let kind0 = node_record(state, id).and_then(|n| n["kind"].as_str().map(str::to_string)).unwrap_or_default();
+    let units = 6.0
+        + if kind0.starts_with("gen.") { 3.0 } else { 0.0 }
+        + if kind0 == metal_graph::VENUE_SURFACE_KIND { 1.0 } else { 0.0 };
+    let frame_pad = if inside { 0.0 } else { theme.bar_margin().sum().x as f32 };
+    let room = (node.width() - frame_pad - theme.item_gap.x * (units + 1.0)).max(0.0);
+    let side = (room / units).clamp(BAR_BUTTON_MIN.min(theme.icon_button_size.x), theme.icon_button_size.x);
+    let mut theme = theme.clone();
+    theme.icon_button_size = Vec2::splat(side);
+    let theme = &theme;
+    let bar_w = node.width().max(BAR_BUTTON_MIN * units);
     let frame = if inside { egui::Frame::NONE } else { theme.card_frame().inner_margin(theme.bar_margin()) };
     let kind = node_record(state, id)
         .and_then(|n| n["kind"].as_str().map(str::to_string))
@@ -2084,6 +2119,7 @@ fn focus_bar(
         .show(ui.ctx(), |ui| {
             frame.show(ui, |ui| {
                 ui.spacing_mut().item_spacing = theme.item_gap;
+                ui.set_max_width(bar_w);
                 ui.horizontal(|ui| {
                     // A `gen.*` model node's own `mode`: the three-way choice
                     // the properties page also paints, on the canvas where the
@@ -2525,18 +2561,55 @@ fn canvas(
                 let far = state.zoom < theme.node_point_zoom;
                 let open = if far {
                     let hover = response.hover_pos().map(|p| to_graph(rect.min, state.pan, state.zoom, p));
-                    hover.and_then(|at| node_under(prims, at))
+                    // The enlarged card keeps itself open while the pointer is
+                    // on it, so it does not collapse back under the pointer.
+                    let kept = state.hover_card.and_then(|(pos, z, pan)| {
+                        let at = response.hover_pos()?;
+                        let bx = prims
+                            .iter()
+                            .filter(|p| p["tag"] == "node")
+                            .find(|p| [num(p, "x"), num(p, "y")] == pos)
+                            .map(|p| [num(p, "x"), num(p, "y"), num(p, "w"), num(p, "h")])?;
+                        let min = rect.min + pan + Vec2::new(bx[0], bx[1]) * z;
+                        EguiRect::from_min_size(min, Vec2::new(bx[2], bx[3]) * z).contains(at).then_some(bx)
+                    });
+                    kept.or(hover.and_then(|at| node_under(prims, at)))
                 } else {
                     None
                 };
+                if open.is_none() {
+                    state.hover_card = None;
+                }
                 for p in prims.iter().filter(|p| p["type"] != "path" && !node_body_numeric(p)) {
                     if !far {
                         paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
                     } else if p["tag"] == "node" && !open.is_some_and(|bx| num(p, "x") == bx[0] && num(p, "y") == bx[1]) {
                         paint_node_point(&painter, theme, rect, state, p, drag_offset);
-                    } else if open.is_some_and(|bx| primitive_in_box(p, bx)) {
+                    }
+                }
+                // The hovered point opens as its full card, drawn at a readable
+                // zoom anchored on the node's own top-left so it stays put.
+                if let Some(bx) = open {
+                    let (z0, pan0) = (state.zoom, state.pan);
+                    // A comfortable fraction of the canvas height, centred on
+                    // the point and kept inside the canvas.
+                    let bh = bx[3].max(1.0);
+                    let z = (rect.height() * HOVER_CARD_FRACTION / bh).max(theme.node_point_hover_zoom);
+                    let centre = Vec2::new(bx[0] + bx[2] / 2.0, bx[1] + bx[3] / 2.0);
+                    let mut pan = pan0 + centre * (z0 - z);
+                    let size = Vec2::new(bx[2], bx[3]) * z;
+                    let min = rect.min + pan + Vec2::new(bx[0], bx[1]) * z;
+                    let dx = (rect.left() - min.x).max(0.0) - (min.x + size.x - rect.right()).max(0.0);
+                    let dy = (rect.top() - min.y).max(0.0) - (min.y + size.y - rect.bottom()).max(0.0);
+                    pan += Vec2::new(dx, dy);
+                    state.hover_card = Some(([bx[0], bx[1]], z, pan));
+                    state.pan = pan;
+                    state.zoom = z;
+                    for p in prims.iter().filter(|p| p["type"] != "path" && !node_body_numeric(p) && primitive_in_box(p, bx)) {
                         paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
                     }
+                    state.zoom = z0;
+                    state.pan = pan0;
                 }
             }
         }
@@ -3243,6 +3316,25 @@ fn dist_to_segment(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
     (x * x + y * y).sqrt()
 }
 
+/// The screen-space centre of the collapsed point `paint_node_point` paints for
+/// the node whose box holds `at` (a cable end, port margin included), with the
+/// same drag shift it gets; `None` when `at` is on no node.
+fn collapsed_point_centre(
+    state: &PanelState,
+    origin: EguiRect,
+    at: [f32; 2],
+    drag: Option<DragOffset>,
+) -> Option<Pos2> {
+    let pad = metal_graph::layout::PORT_R;
+    let prims = state.graph.as_ref()?["primitives"].as_array()?;
+    prims.iter().filter(|p| p["tag"] == "node").find_map(|p| {
+        let (x, y, w, h) = (num(p, "x"), num(p, "y"), num(p, "w"), num(p, "h"));
+        let inside = at[0] >= x - pad && at[0] <= x + w + pad && at[1] >= y - pad && at[1] <= y + h + pad;
+        // Screen space, from the very rect `paint_node_point` centres on.
+        inside.then(|| shifted_rect(origin, state, p, [x, y], drag).center())
+    })
+}
+
 /// A cable: a smooth bezier, solid for an image cable and dashed for a
 /// control or param cable (N), in the accent when either end touches the
 /// selected node and grey otherwise (`nodes-reference.png`).
@@ -3271,7 +3363,19 @@ fn paint_cable(
             gp[2] = add(raw[2], delta);
         }
     }
-    let screen = gp.map(|xy| to_screen(origin.min, state.pan, state.zoom, xy));
+    // Far out a node is painted as its point (`paint_node_point`), so a cable
+    // end that lands on a node must meet that point's centre, not the full
+    // card's port. Each end moves by the same delta, its handle with it.
+    let mut screen = gp.map(|xy| to_screen(origin.min, state.pan, state.zoom, xy));
+    if state.zoom < theme.node_point_zoom {
+        for (end, handle) in [(0, 1), (3, 2)] {
+            if let Some(c) = collapsed_point_centre(state, origin, raw[end], drag) {
+                let delta = c - screen[end];
+                screen[end] = c;
+                screen[handle] += delta;
+            }
+        }
+    }
     // The endpoints name their nodes; a cable whose from or to node is the
     // selection draws in the accent. A param edge draws dashed too.
     let touches_selection = cable_lit(p, selected, lit_edges);

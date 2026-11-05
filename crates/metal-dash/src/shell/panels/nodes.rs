@@ -3367,21 +3367,24 @@ fn paint_tile(
     drag: Option<DragOffset>,
 ) {
     let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
-    painter.rect_filled(r, theme.corner_radius(), theme.node_field);
     // The node's own picture, drawn from its row, once it has landed.
     let own = node_id_at(state, [num(p, "x"), num(p, "y")])
         .and_then(|id| state.node_tiles.get(&id))
         .and_then(|f| f.current_picture());
     if let Some((tex, _)) = own {
+        painter.rect_filled(r, theme.corner_radius(), theme.node_field);
         painter.image(tex, r, EguiRect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), theme.image_tint);
     } else if let Some((tex, _)) = tiles {
         // The tile's uv is found from the node's own position, the same join
         // `node_tile_at` makes for the old painter: the rect's `x`/`y` are
         // the node's `pos`.
         if let Some(uv) = node_tile_at(state, [num(p, "x"), num(p, "y")]) {
+            painter.rect_filled(r, theme.corner_radius(), theme.node_field);
             painter.image(*tex, r, uv, theme.image_tint);
         }
     }
+    // With no picture yet the tile stays unpainted, so the node's own card
+    // shows through instead of a black box.
 }
 
 /// Whether a cable primitive touches the selected node at either end — the

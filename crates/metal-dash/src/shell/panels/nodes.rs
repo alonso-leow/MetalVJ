@@ -2926,7 +2926,7 @@ fn paint_primitive(
             let mut clip = inner;
             clip.max.y += theme.key_shadow_offset().y;
             let cell = EguiRect::from_min_max(inner.min, inner.max - theme.key_shadow_offset());
-            painter.with_clip_rect(clip).extend(theme.key_shapes(cell));
+            painter.with_clip_rect(clip).extend(theme.group_shapes(cell));
         }
         Some("port") => paint_port(painter, theme, origin, state, p, drag),
         Some("param_dot") => paint_param_dot(painter, theme, origin, state, p, drag, live),

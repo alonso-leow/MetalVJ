@@ -114,12 +114,14 @@ pub enum ShellView {
     #[default]
     Edit,
     Show,
+    /// The sequence (lanes) component over the whole area.
+    Timeline,
 }
 
 impl ShellView {
     /// The wire strings `call::settings` accepts, in toggle order — one
     /// vocabulary spelled once here, checked against the route by a test.
-    pub const CODES: [&'static str; 2] = ["edit", "show"];
+    pub const CODES: [&'static str; 3] = ["edit", "show", "timeline"];
 
     pub fn code(self) -> &'static str {
         Self::CODES[self as usize]
@@ -129,6 +131,7 @@ impl ShellView {
         match s {
             "edit" => Some(ShellView::Edit),
             "show" => Some(ShellView::Show),
+            "timeline" => Some(ShellView::Timeline),
             _ => None,
         }
     }
@@ -1033,9 +1036,16 @@ impl Shell {
         // first frame that paints — never before (`enter_show`).
         if !self.view_synced {
             self.view_synced = true;
-            if self.settings.shell_view() == ShellView::Show {
-                self.view = ShellView::Show;
-                self.enter_show();
+            match self.settings.shell_view() {
+                ShellView::Show => {
+                    self.view = ShellView::Show;
+                    self.enter_show();
+                }
+                ShellView::Timeline => {
+                    self.view = ShellView::Timeline;
+                    self.lanes.force_mode(lanes::Mode::Lanes);
+                }
+                ShellView::Edit => {}
             }
         }
         if let Some(error) = self.graph_writes.as_ref().and_then(|w| w.take_errors().pop()) {
@@ -1146,9 +1156,13 @@ impl Shell {
                 if view == ShellView::Show {
                     self.enter_show();
                 }
+                if view == ShellView::Timeline {
+                    self.lanes.force_mode(lanes::Mode::Lanes);
+                }
             }
         }
-        let show = self.view == ShellView::Show;
+        let timeline = self.view == ShellView::Timeline;
+        let show = self.view != ShellView::Edit;
         if events.pairing_toggled {
             self.pairing_open = !self.pairing_open;
         }
@@ -1321,7 +1335,25 @@ impl Shell {
                 _ => {}
             }
         }
-        if show {
+        if timeline {
+            // `Timeline`: the sequence editor alone, over the whole area.
+            self.rects.clear();
+            let open_graph = self.nodes.selected_graph().map(str::to_string);
+            CentralPanel::default_margins()
+                .frame(ground_frame(&theme))
+                .show(ui, |ui| {
+                    lanes_panel::paint(
+                        ui,
+                        &theme,
+                        door,
+                        &mut self.lanes,
+                        &mut self.ingest,
+                        &self.selection,
+                        open_graph.as_deref(),
+                        true,
+                    );
+                });
+        } else if show {
             // `Show`: the overlays grid alone, over the whole central area.
             // Regions, sidebars and the properties overlay are not painted, so
             // no region has a rect this frame (`region_rects` reads these).

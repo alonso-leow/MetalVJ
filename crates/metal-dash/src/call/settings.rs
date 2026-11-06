@@ -93,7 +93,7 @@ pub const TONE_SAMPLE_RANGE: std::ops::RangeInclusive<f64> = 1.0..=60.0;
 /// The two views the header toggles between (`Edit` builds, `Show` plays):
 /// spelled here so the route validates on every build, the same trade
 /// [`LANGUAGES`] makes. A test ties it to `shell::ShellView`.
-pub const SHELL_VIEWS: [&str; 2] = ["edit", "show"];
+pub const SHELL_VIEWS: [&str; 3] = ["edit", "show", "timeline"];
 
 /// The UI languages the shell can paint in (`shell::i18n::Lang`'s codes),
 /// spelled here so the route validates on every build, window or no window.

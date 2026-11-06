@@ -13,6 +13,8 @@
 
 # The floating preview's bar (parity lote P-G).
 "export frame" = "Exportar cuadro"
+"hide preview" = "Ocultar vista previa"
+"show preview" = "Mostrar vista previa"
 "· {w}×{h} · {fps} fps" = "· {w}×{h} · {fps} fps"
 "saved {path}" = "guardado en {path}"
 "export failed: {err}" = "no se pudo exportar: {err}"
@@ -20,6 +22,7 @@
 # The header Edit/Show mode toggle (one button, label = the other mode).
 "Edit" = "Editar"
 "Show" = "Mostrar"
+"Timeline" = "Cronología"
 "About" = "Acerca de"
 "AI Assistant" = "Asistente IA"
 

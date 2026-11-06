@@ -1083,6 +1083,9 @@ fn sequence_editor(
         ui.add_space(theme.pad as f32);
         icon_column(ui, theme, door, ingest, layer.as_deref());
         ui.vertical(|ui| {
+            // The column never runs past the panel: its right-hand controls
+            // (zoom, the dataset pickers) stay inside the frame.
+            ui.set_max_width((ui.available_width() - theme.pad as f32).max(0.0));
             // Bar 1 — the page strip on the left and the edit controls
             // (`import ▾` and the zoom) flush right. Only two bars sit over
             // the timeline; everything that can share an edge shares one, so
@@ -1496,6 +1499,7 @@ fn top_bar(
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             // Added right-to-left, so the cluster reads `import ▾ − +`.
             ui.spacing_mut().item_spacing.x = 0.0;
+            ui.add_space(theme.pad as f32);
             if ui
                 .add(flat(RichText::new("+").font(theme.font_small.clone())))
                 .on_hover_text("zoom in (wheel · ctrl + wheel: row height · shift: move · alt: up/down)")

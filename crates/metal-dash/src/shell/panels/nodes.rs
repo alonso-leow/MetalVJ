@@ -353,6 +353,8 @@ pub struct PanelState {
     /// Fit-into-view bookkeeping: last frame's canvas rect, and the
     /// (node, rect) a fit already ran for.
     fit_prev_rect: Option<EguiRect>,
+    /// The pan still to travel for the eased fit to the focused node.
+    fit_left: Vec2,
     fit_done: Option<(String, [i32; 4])>,
     /// The Ctrl+click multi-selection: the node ids picked so far, in pick
     /// order. Only meaningful with two or more ids and the node selection
@@ -452,6 +454,7 @@ impl Default for PanelState {
             real_view: None,
             hover_hold: None,
             fit_prev_rect: None,
+            fit_left: Vec2::ZERO,
             fit_done: None,
             picked: Vec::new(),
             new_requested: false,
@@ -1935,7 +1938,18 @@ pub(crate) fn import_source(
 /// Once the canvas rect has stopped changing (the properties panel finished
 /// sliding), pan so the focused node lies inside it. Runs once per
 /// (node, rect) pair; zoom is kept.
-fn fit_focused(state: &mut PanelState, selection: &Selection, canvas: EguiRect) {
+fn fit_focused(ui: &Ui, state: &mut PanelState, selection: &Selection, canvas: EguiRect) {
+    // Ease out the pan owed from an earlier fit, a share per frame.
+    if state.fit_left.length() > 0.2 && !cfg!(test) {
+        let dt = ui.input(|i| i.stable_dt).min(0.05);
+        let step = state.fit_left * (1.0 - (-dt * 7.0).exp());
+        state.pan += step;
+        state.fit_left -= step;
+        ui.ctx().request_repaint();
+    } else if state.fit_left != Vec2::ZERO {
+        state.pan += state.fit_left;
+        state.fit_left = Vec2::ZERO;
+    }
     let prev = state.fit_prev_rect.replace(canvas);
     let Selection::Node(id) = selection else {
         state.fit_done = None;
@@ -1967,7 +1981,11 @@ fn fit_focused(state: &mut PanelState, selection: &Selection, canvas: EguiRect) 
     } else if node.bottom() > view.bottom() {
         d.y = view.bottom() - node.bottom();
     }
-    state.pan += d;
+    state.fit_left += d;
+    if cfg!(test) {
+        state.pan += state.fit_left;
+        state.fit_left = Vec2::ZERO;
+    }
 }
 
 fn float_bars(
@@ -1979,7 +1997,7 @@ fn float_bars(
     canvas: EguiRect,
 ) {
     tool_bar(ui, theme, door, state, selection, canvas);
-    fit_focused(state, selection, canvas);
+    fit_focused(ui, state, selection, canvas);
     // Far out the nodes are points: their own bars hide, the canvas bar stays.
     if state.zoom < theme.node_point_zoom {
         // The hovered point's enlarged card carries its bar when it is the
@@ -2112,7 +2130,7 @@ fn focus_bar(
     selection: &mut Selection,
     canvas: EguiRect,
     id: &str,
-    own_width: bool,
+    _own_width: bool,
 ) {
     let Some(gid) = state.selected_graph.clone() else {
         return;
@@ -2134,53 +2152,26 @@ fn focus_bar(
     // its width, so a node zoomed past the edge never drags the bar over the
     // neighbouring panels.
     let shown = node.intersect(canvas);
-    // Only at the top zoom step does the bar sit inside the node, in the band
-    // under the title with a margin below the header; otherwise it floats
-    // above (or, near the canvas top, below) the node.
-    let inside = state.zoom >= theme.node_text_zoom_max;
-    let (anchor, pivot) = if inside {
-        let band_top = node.top() + metal_graph::layout::HEADER_H * state.zoom + theme.item_gap.y * 2.0;
-        (Pos2::new(node.left().max(canvas.left()) + theme.item_gap.x, band_top), Align2::LEFT_TOP)
+    // The bar floats above the node (below it near the canvas top) at its own
+    // full size whatever the zoom; the zoom itself stops at the text step.
+    let bar_h = theme.icon_button_size.y + theme.bar_margin().sum().y as f32 + theme.item_gap.y;
+    let (anchor, pivot) = if node.top() - canvas.top() > bar_h {
+        (Pos2::new(shown.center().x, node.top() - theme.item_gap.y), Align2::CENTER_BOTTOM)
     } else {
-        let bar_h = theme.icon_button_size.y + theme.bar_margin().sum().y as f32 + theme.item_gap.y;
-        if node.top() - canvas.top() > bar_h {
-            (Pos2::new(shown.center().x, node.top() - theme.item_gap.y), Align2::CENTER_BOTTOM)
-        } else {
-            (Pos2::new(shown.center().x, node.bottom() + theme.item_gap.y), Align2::CENTER_TOP)
-        }
+        (Pos2::new(shown.center().x, node.bottom() + theme.item_gap.y), Align2::CENTER_TOP)
     };
-    // The bar's width follows the node's: each button takes its share of the
-    // node width, clamped between a readable minimum and the theme size. A
-    // collapsed point's card and every bar drawn while zoomed out keep their
-    // own `focus_bar_width` instead, so the buttons stay readable there.
     let kind0 = node_record(state, id).and_then(|n| n["kind"].as_str().map(str::to_string)).unwrap_or_default();
     let units = 6.0
         + if kind0.starts_with("gen.") { 3.0 } else { 0.0 }
         + if kind0 == metal_graph::VENUE_SURFACE_KIND { 1.0 } else { 0.0 };
-    let frame_pad = if inside { 0.0 } else { theme.bar_margin().sum().x as f32 };
-    // Two disjoint sizings. Floating (zoomed out, or the hover card): the bar
-    // and its icons keep their own full size whatever the zoom. Inside the
-    // node (top zoom step): the bar is slave to the node's width, icons
-    // growing with the zoom past the step and the gaps filling the rest.
-    let own_width = own_width || !inside;
-    let bar_w = if own_width { theme.focus_bar_width } else { (node.width() - theme.item_gap.x * 2.0).max(0.0) };
-    let grow = if inside { (state.zoom / theme.node_text_zoom_max).max(1.0) } else { 1.0 };
-    let room = (bar_w - frame_pad - theme.item_gap.x * (units + 1.0)).max(0.0);
-    let side = if own_width {
-        theme.icon_button_size.x
-    } else {
-        (room / units).clamp(2.0, theme.icon_button_size.x * grow)
-    };
-    let gap_x = if own_width {
-        theme.item_gap.x
-    } else {
-        ((bar_w - frame_pad - side * units) / (units + 1.0)).max(theme.item_gap.x)
-    };
+    let bar_w = theme.focus_bar_width;
+    let side = theme.icon_button_size.x;
+    let gap_x = theme.item_gap.x;
     let mut theme = theme.clone();
     theme.icon_button_size = Vec2::splat(side);
     theme.item_gap.x = gap_x;
     let theme = &theme;
-    let frame = if inside { egui::Frame::NONE } else { theme.card_frame().inner_margin(theme.bar_margin()) };
+    let frame = theme.card_frame().inner_margin(theme.bar_margin());
     let kind = node_record(state, id)
         .and_then(|n| n["kind"].as_str().map(str::to_string))
         .unwrap_or_default();
@@ -2198,12 +2189,7 @@ fn focus_bar(
         .show(ui.ctx(), |ui| {
             frame.show(ui, |ui| {
                 ui.spacing_mut().item_spacing = theme.item_gap;
-                if own_width {
-                    ui.set_max_width(bar_w.max(side * units + gap_x * (units + 1.0)));
-                } else {
-                    ui.set_max_width(bar_w);
-                    ui.set_min_width(bar_w - frame_pad);
-                }
+                ui.set_max_width(bar_w.max(side * units + gap_x * (units + 1.0)));
                 ui.horizontal(|ui| {
                     // A `gen.*` model node's own `mode`: the three-way choice
                     // the properties page also paints, on the canvas where the
@@ -2235,13 +2221,6 @@ fn focus_bar(
                     // where the picked kind goes, so a card lands wired into
                     // the chain rather than floating free (`insert_request`,
                     // `add_from_gallery`).
-                    if !own_width {
-                        // Slave to the node: the glyphs sit flush against the
-                        // right edge whatever the zoom, so no gap opens there.
-                        let n = units - if kind.starts_with("gen.") { 3.0 } else { 0.0 };
-                        let used = n * side + (n - 1.0) * gap_x;
-                        ui.add_space((ui.available_width() - used - gap_x).max(0.0));
-                    }
                     if icon_button(ui, theme, Icon::InsertBefore, false, tr("add node before")).clicked() {
                         state.insert_request = Some(InsertRequest { node: id.to_string(), after: false });
                         state.new_requested = true;
@@ -2771,7 +2750,12 @@ fn canvas(
                     // A comfortable fraction of the canvas height, centred on
                     // the point and kept inside the canvas.
                     let bh = bx[3].max(1.0);
-                    let z = (rect.height() * HOVER_CARD_FRACTION / bh).max(theme.node_point_hover_zoom);
+                    // Fitted on both axes and capped at the top zoom, so a short, wide
+                    // node (two rows) is not blown up by its height alone.
+                    let z = (rect.height() * HOVER_CARD_FRACTION / bh)
+                        .min(rect.width() * HOVER_CARD_FRACTION / bx[2].max(1.0))
+                        .min(theme.graph_zoom_max)
+                        .max(theme.node_point_hover_zoom);
                     let centre = Vec2::new(bx[0] + bx[2] / 2.0, bx[1] + bx[3] / 2.0);
                     let mut pan = pan0 + centre * (z0 - z);
                     let size = Vec2::new(bx[2], bx[3]) * z;

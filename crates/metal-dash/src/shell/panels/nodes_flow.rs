@@ -191,11 +191,12 @@ fn band_pass(
         let colour = pick(cell).lerp_to_gamma(pick(cell + 1), (inside / BAND_DUTY).min(1.0));
         let dir = (pts[(i + 1).min(n - 1)] - pts[i.saturating_sub(1)]).normalized();
         let nor = egui::vec2(-dir.y, dir.x) * width * 0.5;
+        let clear = colour.gamma_multiply(0.0);
         // Centre solid, both rims clear: a soft feathered stroke.
         let base = mesh.vertices.len() as u32;
-        mesh.vertices.push(at(Color32::TRANSPARENT, pts[i] - nor));
+        mesh.vertices.push(at(clear, pts[i] - nor));
         mesh.vertices.push(at(colour.gamma_multiply(lit), pts[i]));
-        mesh.vertices.push(at(Color32::TRANSPARENT, pts[i] + nor));
+        mesh.vertices.push(at(clear, pts[i] + nor));
         if i > 0 {
             let p = base - 3;
             for k in 0..2 {
@@ -289,8 +290,7 @@ pub fn paint_param_live(ctx: &egui::Context, painter: &Painter, theme: &Theme, c
     }
     let b = beat(f.now);
     let [c0, c1] = [theme.flow_colours()[0], theme.flow_colours()[1]];
-    let mix = |a: u8, z: u8| (a as f32 + (z as f32 - a as f32) * b) as u8;
-    let col = egui::Color32::from_rgb(mix(c0.r(), c1.r()), mix(c0.g(), c1.g()), mix(c0.b(), c1.b()));
+    let col = c0.lerp_to_gamma(c1, b);
     // A drop-shadow glow: rings widening and fading out, then the dot.
     for k in (1..=6).rev() {
         let f = k as f32 / 6.0;

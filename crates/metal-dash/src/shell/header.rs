@@ -582,12 +582,18 @@ fn sidebar_toggle(ui: &mut Ui, theme: &Theme, sidebar_open: bool, events: &mut H
 /// showing).
 fn view_toggle(ui: &mut Ui, theme: &Theme, view: ShellView, events: &mut HeaderEvents) {
     ui.push_id(Id::new("shell/header/view"), |ui| {
-        let (target, label) = match view {
-            ShellView::Edit => (ShellView::Show, tr("Show")),
-            ShellView::Show => (ShellView::Edit, tr("Edit")),
-        };
-        if ui.button(RichText::new(label).font(theme.font_body.clone())).clicked() {
-            events.view_selected = Some(target);
+        // Right-to-left: the first added is the rightmost.
+        for (target, label) in [
+            (ShellView::Timeline, tr("Timeline")),
+            (ShellView::Show, tr("Show")),
+            (ShellView::Edit, tr("Edit")),
+        ] {
+            if target == view {
+                continue;
+            }
+            if ui.button(RichText::new(label).font(theme.font_body.clone())).clicked() {
+                events.view_selected = Some(target);
+            }
         }
     });
 }

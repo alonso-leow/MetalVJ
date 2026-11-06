@@ -14,7 +14,7 @@
 use egui::{Context, Id, Ui};
 
 /// Seconds a panel takes to slide in or out.
-const SLIDE_SECS: f32 = 0.22;
+const SLIDE_SECS: f32 = 0.27;
 /// Seconds one row takes to fade, and the longest the whole stagger may last.
 const FADE_SECS: f32 = 0.14;
 const SPAN_SECS: f32 = 0.22;

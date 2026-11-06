@@ -52,6 +52,10 @@ pub struct FloatingPreview {
     /// The last picture painted for the current key: kept on screen while a
     /// frame is Pending or a fetch fails.
     held: Option<(egui::TextureId, [usize; 2])>,
+    /// Turned off to a corner button, and how far the picture is drawn
+    /// (0 gone … 1 full) while it eases in or out.
+    minimized: bool,
+    scale: f32,
 }
 
 /// What a floating preview shows, for its bar: a label (name · kind), the
@@ -87,6 +91,8 @@ impl Default for FloatingPreview {
             fps_mark: None,
             toast: None,
             held: None,
+            minimized: false,
+            scale: 1.0,
         }
     }
 }
@@ -108,6 +114,7 @@ impl Clone for FloatingPreview {
     fn clone(&self) -> Self {
         FloatingPreview {
             big: self.big,
+            minimized: self.minimized,
             ..Default::default()
         }
     }
@@ -277,10 +284,45 @@ impl FloatingPreview {
         };
         let pad = f32::from(theme.pad);
         let right = host_rect.max.x - pad;
+        self.scale = if cfg!(test) {
+            if self.minimized { 0.0 } else { 1.0 }
+        } else {
+            ui.ctx().animate_bool_with_time_and_easing(
+                Id::new("shell/preview/minimize"),
+                !self.minimized,
+                0.25,
+                egui::emath::easing::cubic_in_out,
+            )
+        };
+        if self.scale <= 0.0 {
+            // Off: no picture is pumped, only the fixed corner button stays.
+            self.rect = None;
+            self.bar = None;
+            let side = theme.icon_button_size.x;
+            let at = EguiRect::from_min_size(Pos2::new(right - side, host_rect.min.y + pad), egui::vec2(side, side));
+            let tip = crate::shell::i18n::tr("show preview");
+            if ui.put(at, egui::Button::new(lucide(Icon::Eye, theme.font_small.size))).on_hover_text(tip).clicked() {
+                self.minimized = false;
+            }
+            return;
+        }
         if self.show_sized(ui, theme, door, fetcher, host_rect, right, width, route, query, None) {
             self.big = !self.big;
         }
-        self.paint_bar(ui, theme, door, host_rect);
+        if self.scale >= 1.0 {
+            if let Some(rect) = self.rect {
+                let side = theme.icon_button_size.x;
+                let at = EguiRect::from_min_size(rect.right_top() + egui::vec2(-side - pad, pad), egui::vec2(side, side));
+                let tip = crate::shell::i18n::tr("hide preview");
+                if ui.put(at, egui::Button::new(lucide(Icon::EyeOff, theme.font_small.size))).on_hover_text(tip).clicked() {
+                    self.minimized = true;
+                }
+            }
+            self.paint_bar(ui, theme, door, host_rect);
+        } else {
+            self.bar = None;
+            ui.ctx().request_repaint();
+        }
     }
 
     /// The before/after pair (2026-10-09): `self` paints the focused
@@ -299,6 +341,7 @@ impl FloatingPreview {
         after: (&str, &[(&str, String)]),
         source: (&str, &[(&str, String)]),
     ) {
+        self.scale = 1.0;
         let pad = f32::from(theme.pad);
         let width = if self.big {
             (host_rect.width() - pad * 3.0) * 0.5
@@ -435,14 +478,14 @@ impl FloatingPreview {
         };
         self.held = Some((tex_id, tex_size));
 
-        let size = tile_size(width, tex_size, full);
+        let size = tile_size(width, tex_size, full) * self.scale.clamp(0.0, 1.0);
         let pad = f32::from(theme.pad);
         let rect = EguiRect::from_min_size(
             Pos2::new(right - size.x, host_rect.min.y + pad),
             size,
         );
         let painter = ui.painter_at(host_rect);
-        painter.image(tex_id, rect, full, theme.image_tint);
+        painter.image(tex_id, rect, full, theme.image_tint.gamma_multiply(self.scale.clamp(0.0, 1.0)));
         painter.rect_stroke(
             rect,
             theme.corner_radius(),

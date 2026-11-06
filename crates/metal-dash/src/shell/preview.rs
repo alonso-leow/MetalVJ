@@ -171,7 +171,7 @@ impl FloatingPreview {
         let landed = self.frame.landed() + self.gpu_landed;
         match self.fps_mark {
             Some((at, n)) if at.elapsed() >= FPS_WINDOW => {
-                self.fps = (landed - n) as f32 / at.elapsed().as_secs_f32();
+                self.fps = landed.saturating_sub(n) as f32 / at.elapsed().as_secs_f32();
                 self.fps_mark = Some((web_time::Instant::now(), landed));
             }
             None => self.fps_mark = Some((web_time::Instant::now(), landed)),

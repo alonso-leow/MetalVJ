@@ -16,7 +16,7 @@ use crate::shell::classes::Theme;
 
 /// Samples per cable curve: enough for the bands to read as moving, few
 /// enough that a graph of cables stays cheap to paint.
-const SEGMENTS: usize = 24;
+const SEGMENTS: usize = 64;
 
 /// Share of each band's period that is lit; the rest is the transparent gap.
 const BAND_DUTY: f32 = 0.6;
@@ -111,7 +111,7 @@ pub fn observe(ctx: &egui::Context, theme: &Theme, graph: Option<&Value>, live: 
     // never settle there, so only a real frame clock keeps the flow moving.
     let real_clock = ctx.input(|i| i.predicted_dt) < 0.1;
     if real_clock && (!frame.live.is_empty() || !frame.flowing.is_empty()) {
-        ctx.request_repaint_after(std::time::Duration::from_millis(33));
+        ctx.request_repaint_after(std::time::Duration::from_millis(16));
     }
     ctx.data_mut(|d| {
         d.insert_temp(book_id(), book);
@@ -173,19 +173,37 @@ fn band_pass(
     width: f32,
     alpha: f32,
 ) {
-    let last = (pts.len() - 1) as f32;
-    for (i, w) in pts.windows(2).enumerate() {
-        let u = ((i as f32 + 0.5) / last) * bands - phase;
-        let inside = u.rem_euclid(1.0);
-        if inside > BAND_DUTY {
-            continue;
-        }
-        // Smooth across the band: zero at both edges, full in the middle.
-        let lit = (inside / BAND_DUTY * PI).sin() * alpha;
-        let cell = u.floor() as i64;
-        let colour = palette[cell.rem_euclid(palette.len() as i64) as usize];
-        painter.line_segment([w[0], w[1]], Stroke::new(width, colour.gamma_multiply(lit)));
+    let n = pts.len();
+    if n < 2 {
+        return;
     }
+    let last = (n - 1) as f32;
+    let mut mesh = egui::Mesh::default();
+    let at = |c: Color32, pos: Pos2| egui::epaint::Vertex { pos, uv: egui::epaint::WHITE_UV, color: c };
+    for i in 0..n {
+        // One vertex row per sample, coloured by its own place along the curve
+        // so the bands slide and blend continuously, never segment by segment.
+        let u = (i as f32 / last) * bands - phase;
+        let inside = u.rem_euclid(1.0);
+        let lit = if inside > BAND_DUTY { 0.0 } else { (inside / BAND_DUTY * PI).sin() * alpha };
+        let cell = u.floor() as i64;
+        let pick = |k: i64| palette[k.rem_euclid(palette.len() as i64) as usize];
+        let colour = pick(cell).lerp_to_gamma(pick(cell + 1), (inside / BAND_DUTY).min(1.0));
+        let dir = (pts[(i + 1).min(n - 1)] - pts[i.saturating_sub(1)]).normalized();
+        let nor = egui::vec2(-dir.y, dir.x) * width * 0.5;
+        // Centre solid, both rims clear: a soft feathered stroke.
+        let base = mesh.vertices.len() as u32;
+        mesh.vertices.push(at(Color32::TRANSPARENT, pts[i] - nor));
+        mesh.vertices.push(at(colour.gamma_multiply(lit), pts[i]));
+        mesh.vertices.push(at(Color32::TRANSPARENT, pts[i] + nor));
+        if i > 0 {
+            let p = base - 3;
+            for k in 0..2 {
+                mesh.indices.extend_from_slice(&[p + k, p + k + 1, base + k, p + k + 1, base + k + 1, base + k]);
+            }
+        }
+    }
+    painter.add(egui::Shape::mesh(mesh));
 }
 
 /// Whether `id` is a live node (an AI or AI FX generator that is not bypassed).
@@ -201,7 +219,7 @@ pub fn paint_node_outline(ctx: &egui::Context, painter: &Painter, theme: &Theme,
     if !f.live.contains(id) {
         return;
     }
-    let step = 4.0;
+    let step = 2.0;
     let mut pts: Vec<Pos2> = Vec::new();
     let edges = [
         (r.left_top(), r.right_top()),
@@ -273,7 +291,12 @@ pub fn paint_param_live(ctx: &egui::Context, painter: &Painter, theme: &Theme, c
     let [c0, c1] = [theme.flow_colours()[0], theme.flow_colours()[1]];
     let mix = |a: u8, z: u8| (a as f32 + (z as f32 - a as f32) * b) as u8;
     let col = egui::Color32::from_rgb(mix(c0.r(), c1.r()), mix(c0.g(), c1.g()), mix(c0.b(), c1.b()));
-    painter.circle_filled(centre, radius * (1.5 + 0.5 * b), col.gamma_multiply(0.18 + 0.2 * b));
-    painter.circle_filled(centre, radius, col);
+    // A drop-shadow glow: rings widening and fading out, then the dot.
+    for k in (1..=6).rev() {
+        let f = k as f32 / 6.0;
+        let reach = radius * (1.0 + 2.2 * f * (0.8 + 0.4 * b));
+        painter.circle_filled(centre, reach, col.gamma_multiply((0.30 + 0.15 * b) * (1.0 - f).powi(2) + 0.01));
+    }
+    painter.circle_filled(centre, radius * (1.0 + 0.15 * b), col);
     true
 }

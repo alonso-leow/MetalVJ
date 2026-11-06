@@ -2163,7 +2163,7 @@ fn focus_bar(
     // node (top zoom step): the bar is slave to the node's width, icons
     // growing with the zoom past the step and the gaps filling the rest.
     let own_width = own_width || !inside;
-    let bar_w = if own_width { theme.focus_bar_width } else { node.width() };
+    let bar_w = if own_width { theme.focus_bar_width } else { (node.width() - theme.item_gap.x * 2.0).max(0.0) };
     let grow = if inside { (state.zoom / theme.node_text_zoom_max).max(1.0) } else { 1.0 };
     let room = (bar_w - frame_pad - theme.item_gap.x * (units + 1.0)).max(0.0);
     let side = if own_width {
@@ -2235,6 +2235,13 @@ fn focus_bar(
                     // where the picked kind goes, so a card lands wired into
                     // the chain rather than floating free (`insert_request`,
                     // `add_from_gallery`).
+                    if !own_width {
+                        // Slave to the node: the glyphs sit flush against the
+                        // right edge whatever the zoom, so no gap opens there.
+                        let n = units - if kind.starts_with("gen.") { 3.0 } else { 0.0 };
+                        let used = n * side + (n - 1.0) * gap_x;
+                        ui.add_space((ui.available_width() - used - gap_x).max(0.0));
+                    }
                     if icon_button(ui, theme, Icon::InsertBefore, false, tr("add node before")).clicked() {
                         state.insert_request = Some(InsertRequest { node: id.to_string(), after: false });
                         state.new_requested = true;
@@ -3181,11 +3188,9 @@ fn paint_primitive(
             paint_value_field(painter, theme, origin, state, p, drag, live)
         }
         Some("swatch") => paint_swatch(painter, theme, origin, state, p, drag),
-        Some("tile") => paint_tile(painter, theme, origin, state, p, tiles, drag),
-        Some("more") => {
-            let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
-            painter.rect_filled(r, theme.corner_radius(), theme.node_content);
-        }
+        // The model tile and the "more" backing are not painted: both sat
+        // over the node's outline and hid it.
+        Some("tile") | Some("more") => {}
         _ => match p["type"].as_str() {
             Some("path") => paint_cable(painter, theme, origin, state, p, drag, selected, lit_edges),
             Some("text") => paint_text(painter, theme, origin, state, p, drag),
@@ -3412,37 +3417,6 @@ fn paint_swatch(
             painter.rect_filled(r, theme.corner_radius(), theme.node_field);
         }
     }
-}
-
-/// A generator's model tile — the grid texture crop inside the node's body.
-fn paint_tile(
-    painter: &egui::Painter,
-    theme: &Theme,
-    origin: EguiRect,
-    state: &PanelState,
-    p: &Value,
-    tiles: Option<&(egui::TextureId, [usize; 2])>,
-    drag: Option<DragOffset>,
-) {
-    let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
-    // The node's own picture, drawn from its row, once it has landed.
-    let own = node_id_at(state, [num(p, "x"), num(p, "y")])
-        .and_then(|id| state.node_tiles.get(&id))
-        .and_then(|f| f.current_picture());
-    if let Some((tex, _)) = own {
-        painter.rect_filled(r, theme.corner_radius(), theme.node_field);
-        painter.image(tex, r, EguiRect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), theme.image_tint);
-    } else if let Some((tex, _)) = tiles {
-        // The tile's uv is found from the node's own position, the same join
-        // `node_tile_at` makes for the old painter: the rect's `x`/`y` are
-        // the node's `pos`.
-        if let Some(uv) = node_tile_at(state, [num(p, "x"), num(p, "y")]) {
-            painter.rect_filled(r, theme.corner_radius(), theme.node_field);
-            painter.image(*tex, r, uv, theme.image_tint);
-        }
-    }
-    // With no picture yet the tile stays unpainted, so the node's own card
-    // shows through instead of a black box.
 }
 
 /// Whether a cable primitive touches the selected node at either end — the

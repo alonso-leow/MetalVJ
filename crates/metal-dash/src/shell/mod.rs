@@ -1601,6 +1601,7 @@ impl Shell {
             favorites::mark(&mut sections, &self.favorites);
             if let gallery::Outcome::Pick(kind) = gallery::paint(&ctx, &theme, &mut self.gallery, title, &sections) {
                 ctx.request_repaint();
+                self.gallery.pick_listened(&kind);
                 if let Some(item) = sections.iter().flat_map(|s| s.items.iter()).find(|i| i.kind == kind) {
                     self.favorites.note_recent(favorites::entry_of(item));
                     if let Err(e) = self.favorites.save(&favorites::path()) {
@@ -1614,6 +1615,7 @@ impl Shell {
             }
         }
         gallery::paint_drag_ghost(&ctx, &theme);
+        self.gallery.tick_listened(door, &ctx);
 
         // The venue scene (`panels::venue_canvas`) is the canvas's own view
         // state, entered by the gear on a `venue.surface` node's floating bar

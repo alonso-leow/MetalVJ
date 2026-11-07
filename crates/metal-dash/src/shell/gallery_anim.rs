@@ -8,13 +8,14 @@
 //! card keeps the live picture from the render route. Nothing is decoded per
 //! frame; a card only asks for a repaint when its next frame is due.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui::{ColorImage, Context, Id, TextureHandle, TextureOptions};
 
 use super::preview_cache::{PreviewCache, Space};
+use crate::call::{Call, Params};
 
 /// How long one frame stays up: the gallery's own cadence, one float variant
 /// per second.
@@ -162,6 +163,119 @@ fn load_from_bytes(ctx: &Context, kind: &str, bytes: &[u8]) -> Option<Vec<Textur
     )
 }
 
+/// The route a listened picture is read from (`call::render::kind_listened`).
+pub const LISTEN_PATH: &str = "/author/render/kind_listened";
+
+/// The least time between two unselected asks: the gallery asks for one kind
+/// at a time, so a grid of cards does not start a render per card at once.
+pub const ASK_GAP_SECS: f64 = 0.5;
+
+/// How long an ask may go unanswered before it is given up.
+pub const ASK_TIMEOUT_SECS: f64 = 10.0;
+
+/// Whether `kind` has a card with a listened picture: the `fx.*` and `mat.*` kinds.
+pub fn is_listen_kind(kind: &str) -> bool {
+    kind.starts_with("fx.") || kind.starts_with("mat.")
+}
+
+/// The kind to ask for without selecting it: the first of `visible` that is a
+/// listen kind, is not in `asked` yet and `lacks` its picture, once
+/// [`ASK_GAP_SECS`] has passed since `last_ask`.
+pub fn next_unselected_ask(
+    visible: &[String],
+    asked: &HashSet<String>,
+    lacks: impl Fn(&str) -> bool,
+    last_ask: Option<f64>,
+    now: f64,
+) -> Option<String> {
+    if last_ask.is_some_and(|t| now - t < ASK_GAP_SECS) {
+        return None;
+    }
+    visible
+        .iter()
+        .map(String::as_str)
+        .find(|k| is_listen_kind(k) && !asked.contains(*k) && lacks(k))
+        .map(str::to_string)
+}
+
+/// Whether a reply body says its listened picture was drawn (`"status": "rendered"`).
+pub fn is_rendered(body: &[u8]) -> bool {
+    serde_json::from_slice::<serde_json::Value>(body).is_ok_and(|v| v["status"] == "rendered")
+}
+
+/// A listened-picture ask the door has not answered yet.
+struct Ask {
+    kind: String,
+    selected: bool,
+    since: f64,
+}
+
+/// The gallery's asks of the listened route. Unselected: each visible kind is
+/// asked once a session, at most one new ask per [`ASK_GAP_SECS`]. A picked
+/// kind is asked selected at once (the server keeps its own cooldown).
+///
+/// Nothing blocks the frame: a deferred read answers `None` until its worker
+/// has the reply (`reads::CachedDoor`), so each ask is called again on later
+/// ticks until it lands.
+#[derive(Default)]
+pub struct Listens {
+    asked: HashSet<String>,
+    last_ask: Option<f64>,
+    picked: Vec<String>,
+    pending: Vec<Ask>,
+}
+
+impl Listens {
+    /// A card was picked: its listened picture is asked for, selected, on the next tick.
+    pub fn pick(&mut self, kind: &str) {
+        if is_listen_kind(kind) && !self.picked.iter().any(|k| k == kind) {
+            self.picked.push(kind.to_string());
+        }
+    }
+
+    /// One frame's work. `visible` is the kinds on screen while the gallery is
+    /// open (`None` when it is closed); `lacks` says whether a kind has no
+    /// listened picture yet. A rendered answer reloads that kind's card.
+    pub fn tick(
+        &mut self,
+        door: &dyn Call,
+        ctx: &Context,
+        now: f64,
+        visible: Option<&[String]>,
+        lacks: impl Fn(&str) -> bool,
+    ) {
+        for kind in self.picked.drain(..) {
+            self.pending.push(Ask { kind, selected: true, since: now });
+        }
+        if let Some(visible) = visible {
+            if let Some(kind) = next_unselected_ask(visible, &self.asked, lacks, self.last_ask, now) {
+                self.asked.insert(kind.clone());
+                self.last_ask = Some(now);
+                self.pending.push(Ask { kind, selected: false, since: now });
+            }
+        }
+        let mut waiting = Vec::new();
+        for ask in std::mem::take(&mut self.pending) {
+            let mut params = Params::default();
+            params.query.insert("kind".to_string(), ask.kind.clone());
+            params.query.insert("selected".to_string(), if ask.selected { "1" } else { "0" }.to_string());
+            match door.call("GET", LISTEN_PATH, params) {
+                None if now - ask.since < ASK_TIMEOUT_SECS => waiting.push(ask),
+                None => {}
+                Some(reply) => {
+                    if reply.status == 200 && is_rendered(&reply.body) {
+                        reload(ctx, &ask.kind);
+                    }
+                }
+            }
+        }
+        self.pending = waiting;
+        if !self.pending.is_empty() {
+            super::frames::repaint_after(ctx, std::time::Duration::from_millis(250));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,5 +400,96 @@ mod tests {
         let fresh = frames_with_root(&ctx, "gen.x", Some(&previews), Some(&placeholder)).expect("frames");
         assert_eq!(fresh.len(), 3, "reload reads the new listened file");
         assert!(entry_with_roots(&ctx, "gen.x", Some(&previews), Some(&placeholder)).listened);
+    }
+}
+
+#[cfg(test)]
+mod listen_tests {
+    use super::*;
+    use crate::shell::FakeDoor;
+    use serde_json::json;
+
+    fn kinds(list: &[&str]) -> Vec<String> {
+        list.iter().map(|k| k.to_string()).collect()
+    }
+
+    fn listen_calls(door: &FakeDoor) -> Vec<(String, String)> {
+        door.calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "GET" && p == LISTEN_PATH)
+            .map(|(_, _, params)| (params.query["kind"].clone(), params.query["selected"].clone()))
+            .collect()
+    }
+
+    #[test]
+    fn the_first_visible_listen_kind_without_a_picture_is_asked_next() {
+        let visible = kinds(&["gen.x", "fx.a", "mat.b", "fx.c"]);
+        let none_asked = HashSet::new();
+        assert_eq!(next_unselected_ask(&visible, &none_asked, |k| k != "fx.a", None, 0.0).as_deref(), Some("mat.b"));
+        assert_eq!(next_unselected_ask(&visible, &none_asked, |_| false, None, 0.0), None, "every card has its picture");
+
+        let asked: HashSet<String> = ["mat.b".to_string()].into_iter().collect();
+        assert_eq!(next_unselected_ask(&visible, &asked, |k| k != "fx.a", None, 0.0).as_deref(), Some("fx.c"), "asked once");
+    }
+
+    #[test]
+    fn unselected_asks_are_half_a_second_apart() {
+        let visible = kinds(&["fx.a", "fx.b"]);
+        let asked = HashSet::new();
+        assert_eq!(next_unselected_ask(&visible, &asked, |_| true, Some(10.0), 10.3), None);
+        assert_eq!(next_unselected_ask(&visible, &asked, |_| true, Some(10.0), 10.5).as_deref(), Some("fx.a"));
+    }
+
+    #[test]
+    fn only_a_rendered_answer_reloads_the_card() {
+        assert!(is_rendered(br#"{"status":"rendered"}"#));
+        for status in ["fresh", "none", "unsupported", "no_cache"] {
+            assert!(!is_rendered(format!(r#"{{"status":"{status}"}}"#).as_bytes()), "{status}");
+        }
+        assert!(!is_rendered(b"not json"));
+    }
+
+    #[test]
+    fn a_pick_queues_one_selected_ask_for_a_listen_kind_only() {
+        let door = FakeDoor::new();
+        door.respond("GET", LISTEN_PATH, json!({"status": "fresh"}));
+        let ctx = Context::default();
+        let mut listens = Listens::default();
+        listens.pick("gen.b");
+        listens.pick("fx.a");
+        listens.pick("fx.a");
+        listens.tick(&door, &ctx, 0.0, None, |_| true);
+        assert_eq!(listen_calls(&door), vec![("fx.a".to_string(), "1".to_string())]);
+    }
+
+    #[test]
+    fn visible_kinds_are_asked_one_at_a_time_and_each_once() {
+        let door = FakeDoor::new();
+        door.respond("GET", LISTEN_PATH, json!({"status": "fresh"}));
+        let ctx = Context::default();
+        let mut listens = Listens::default();
+        let visible = kinds(&["fx.a", "fx.b"]);
+
+        listens.tick(&door, &ctx, 0.0, Some(&visible), |_| true);
+        listens.tick(&door, &ctx, 0.1, Some(&visible), |_| true);
+        assert_eq!(listen_calls(&door), vec![("fx.a".to_string(), "0".to_string())], "throttled");
+
+        listens.tick(&door, &ctx, 0.6, Some(&visible), |_| true);
+        listens.tick(&door, &ctx, 9.0, Some(&visible), |_| true);
+        assert_eq!(
+            listen_calls(&door),
+            vec![("fx.a".to_string(), "0".to_string()), ("fx.b".to_string(), "0".to_string())],
+            "each kind asked once a session"
+        );
+    }
+
+    #[test]
+    fn a_closed_gallery_asks_nothing_unselected() {
+        let door = FakeDoor::new();
+        door.respond("GET", LISTEN_PATH, json!({"status": "fresh"}));
+        let mut listens = Listens::default();
+        listens.tick(&door, &Context::default(), 0.0, None, |_| true);
+        assert!(listen_calls(&door).is_empty());
     }
 }

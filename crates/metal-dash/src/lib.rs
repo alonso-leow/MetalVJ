@@ -121,6 +121,11 @@ mod update;
 // validate it on every build) and the shell (which consumes it). Top-level
 // so neither has to reach into the other; see the module note.
 mod frame_cap;
+// Sequence playback fallback: cached downscaled frames, the frame-time pacer
+// and autosave. Pure; nothing in the shell draws from it yet (see the report
+// on where `record`/`fallback`/`should_fallback` hook in).
+#[allow(dead_code)]
+mod seq_cache;
 mod ui_scale;
 mod shell_mode;
 // O.10b: external input readers (`src/input/`) — the pieces every reader

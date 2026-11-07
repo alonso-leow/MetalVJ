@@ -9,14 +9,17 @@
 //! a [`NodeDrag`] until the pointer is released over a drop target;
 //! [`paint_drag_ghost`] draws the card under the pointer meanwhile.
 //!
-//! Nothing here calls the door or knows what a kind is: the caller assembled
-//! the cards (regla 5), this file lays them out.
+//! This file lays the cards out and knows nothing of kinds: the caller
+//! assembled them (regla 5). The one door call is [`State::tick_listened`],
+//! which asks the listened route through `gallery_anim::Listens`.
 
 use egui::{Align2, Context, Id, Pos2, Rect, RichText, Sense, Ui, Vec2};
 
 use super::classes::Theme;
 use super::components::{header_field, nav_list, panel_frame, paint_icon_stroked, Icon};
+use super::gallery_anim;
 use super::i18n::tr;
+use crate::call::Call;
 
 /// The card grid never has fewer columns than this…
 const COLUMNS_MIN: usize = 2;
@@ -118,6 +121,9 @@ pub struct State {
     /// The kinds whose cards were on screen the last time the grid painted:
     /// their own previews are fetched, lazily, only for these.
     visible_kinds: Vec<String>,
+    /// The listened pictures asked for while the cards are on screen, and
+    /// the picks asked for selected.
+    listens: gallery_anim::Listens,
 }
 
 impl State {
@@ -132,6 +138,19 @@ impl State {
 
     pub fn close(&mut self) {
         self.target = None;
+    }
+
+    /// A card was picked: its listened picture is asked for, selected.
+    pub fn pick_listened(&mut self, kind: &str) {
+        self.listens.pick(kind);
+    }
+
+    /// Runs the listened-picture asks for this frame. Called every frame,
+    /// open or not, so a pick's answer lands after the overlay has closed.
+    pub fn tick_listened(&mut self, door: &dyn Call, ctx: &Context) {
+        let now = ctx.input(|i| i.time);
+        let visible = self.is_open().then_some(self.visible_kinds.as_slice());
+        self.listens.tick(door, ctx, now, visible, |kind| !gallery_anim::is_listened(ctx, kind));
     }
 
     pub fn target(&self) -> Option<Target> {

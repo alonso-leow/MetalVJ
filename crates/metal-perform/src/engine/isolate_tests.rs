@@ -176,6 +176,36 @@ fn render_kind_draws_an_fx_preview_at_each_variant() {
     assert!(render_kind(&mut *paint, &mut sim, &mut state, "nope.kind", 0, 48, 27).is_none());
 }
 
+/// A recorded snippet draws one frame per time at the size asked for, and the
+/// recording reaches the picture: silence and a loud recording at the same
+/// time give different pixels for some model the painter has.
+#[test]
+fn render_kind_listened_draws_each_time_from_the_recording() {
+    let (mut paint, _sim, mut state) = setup();
+    let times = [0.5, 1.5, 2.5, 3.5, 4.5];
+    let silent = vec![vec![0.0f32; crate::digest::FEATURES]; 64];
+    // rms (column 0) and onset (column 2) high, the rest mid-range.
+    let loud_row: Vec<f32> = (0..crate::digest::FEATURES).map(|c| if c == 0 || c == 2 { 0.9 } else { 0.5 }).collect();
+    let loud = vec![loud_row; 64];
+    let quiet = render_kind_listened(&mut *paint, &mut state, "fx.posterize", 1, 48, 27, &silent, 8.0, &times)
+        .expect("the fx kind has a preview");
+    assert_eq!(quiet.len(), times.len(), "one frame per time");
+    assert!(quiet.iter().all(|(_, w, h)| (*w, *h) == (48, 27)));
+    let hot = render_kind_listened(&mut *paint, &mut state, "fx.posterize", 1, 48, 27, &loud, 8.0, &times)
+        .expect("the fx kind has a preview");
+    assert_eq!(hot.len(), times.len(), "one frame per time");
+    assert!(hot.iter().all(|(_, w, h)| (*w, *h) == (48, 27)));
+    assert!(render_kind_listened(&mut *paint, &mut state, "nope.kind", 0, 48, 27, &loud, 8.0, &times).is_none());
+
+    let at = [2.5];
+    let reacts = paint.ids().into_iter().find(|&model| {
+        let q = listened_kind_frames(&mut *paint, &mut state, "fx.posterize", 1, model, 48, 27, &silent, 8.0, &at);
+        let h = listened_kind_frames(&mut *paint, &mut state, "fx.posterize", 1, model, 48, 27, &loud, 8.0, &at);
+        matches!((q, h), (Some(q), Some(h)) if q[0].0 != h[0].0)
+    });
+    assert!(reacts.is_some(), "no model's pixels move with the recording: the audio node is not reaching the generator");
+}
+
 /// A mask node's stage is its slice of the output: the device frame
 /// cropped to the contour's bounds — the one part of the output it renders.
 #[test]

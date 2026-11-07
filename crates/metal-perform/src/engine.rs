@@ -5384,6 +5384,78 @@ pub fn render_kind(
     }
 }
 
+/// The seed key a recorded-run pool opens its one listener under.
+const LISTENED_SEED: &str = "listened";
+
+/// [`render_kind`] over a recorded run: the same preview graph and source, drawn
+/// once per `times` entry (seconds inside the snippet) through a fresh
+/// [`Listeners`] pool whose clock is a [`crate::replay::Replay`] of `rows` at
+/// `rate_hz`, so an audio-reactive kind moves with the recording rather than
+/// with the synthetic stand-in. `None` for a kind with no preview, or when any
+/// frame draws nothing.
+#[allow(clippy::too_many_arguments)]
+pub fn render_kind_listened(
+    paint: &mut dyn Paint,
+    state: &mut State,
+    kind: &str,
+    variant: usize,
+    w: u32,
+    h: u32,
+    rows: &[Vec<f32>],
+    rate_hz: f32,
+    times: &[f32],
+) -> Option<Vec<(Vec<u8>, u32, u32)>> {
+    let ids = paint.ids();
+    let wanted = if metal_graph::materials::is_material_kind(kind) { KIND_MAT_SOURCE } else { KIND_FX_SOURCE };
+    let wanted = wanted.strip_prefix("gen.").unwrap_or(wanted);
+    let source = ids.iter().copied().find(|id| *id == wanted).or(ids.first().copied())?;
+    listened_kind_frames(paint, state, kind, variant, source, w, h, rows, rate_hz, times)
+}
+
+/// [`render_kind_listened`] for one named source model, so a test can try
+/// each model the painter has.
+#[allow(clippy::too_many_arguments)]
+fn listened_kind_frames(
+    paint: &mut dyn Paint,
+    state: &mut State,
+    kind: &str,
+    variant: usize,
+    source: &str,
+    w: u32,
+    h: u32,
+    rows: &[Vec<f32>],
+    rate_hz: f32,
+    times: &[f32],
+) -> Option<Vec<(Vec<u8>, u32, u32)>> {
+    listened_preview_graph(kind, variant, source)?;
+    let recorded = rows.to_vec();
+    let opener: crate::listeners::Opener = Box::new(move |_k: &crate::listeners::SourceKey| {
+        Ok(Input::from_source(Box::new(crate::replay::Replay::new(recorded.clone(), rate_hz))))
+    });
+    let mut sim = Listeners::with_opener(crate::listeners::SourceKey::Named(LISTENED_SEED.into()), opener);
+    let mut out = Vec::with_capacity(times.len());
+    for &time in times {
+        let (graph, node) = listened_preview_graph(kind, variant, source)?;
+        out.push(match render_isolated(paint, &mut sim, state, KIND_PREVIEW_DEVICE, graph, &node, w, h, time, false)? {
+            NodePicture::Cpu(px, pw, ph) => (px, pw, ph),
+            NodePicture::Gpu(f) => (paint.readback(&f), f.width(), f.height()),
+        });
+    }
+    Some(out)
+}
+
+/// [`kind_preview_graph`] with the one audio node a recording drives it
+/// through: an unset `audio.live` (so it reads the pool's seed, the recording's
+/// [`crate::replay::Replay`]) with a control edge into the kind's source
+/// generator, wired as `chain_graph` wires one in the isolate tests.
+fn listened_preview_graph(kind: &str, variant: usize, source: &str) -> Option<(metal_graph::Graph, metal_graph::NodeId)> {
+    let (mut g, node) = kind_preview_graph(kind, variant, source)?;
+    let src = g.nodes.iter().find(|n| n.kind.starts_with("gen.")).map(|n| n.id.clone())?;
+    let audio = g.add_node("audio", "audio.live", [-400.0, 0.0]);
+    g.add_edge(metal_graph::Endpoint::new(&audio, "control"), metal_graph::Endpoint::new(&src, "control"));
+    Some((g, node))
+}
+
 /// Applies this layer's own fixed effects on top of a row already driven by
 /// `drive::row` from the digest.
 ///

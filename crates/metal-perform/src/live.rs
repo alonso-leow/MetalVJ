@@ -64,6 +64,8 @@ pub const STAND_IN: &str = "stand-in";
 
 pub enum Input {
     Simulated(Simulated),
+    /// Any other digest source, such as a recorded run (`crate::replay::Replay`).
+    Boxed(Box<dyn Source + Send>),
     #[cfg(feature = "listen")]
     Live(Live),
 }
@@ -75,6 +77,11 @@ impl Input {
     /// `crate::listeners`).
     pub fn stand_in() -> Input {
         Input::Simulated(Simulated::new(0x5EED))
+    }
+
+    /// An input that reads `source`: a recorded run, or a test row.
+    pub fn from_source(source: Box<dyn Source + Send>) -> Input {
+        Input::Boxed(source)
     }
 
     /// Open a real device. `pick` is what `devices::inputs()` calls an input —
@@ -92,6 +99,7 @@ impl Input {
     fn as_source(&self) -> &dyn Source {
         match self {
             Input::Simulated(s) => s,
+            Input::Boxed(b) => b.as_ref(),
             #[cfg(feature = "listen")]
             Input::Live(l) => l,
         }
@@ -100,6 +108,7 @@ impl Input {
     fn as_source_mut(&mut self) -> &mut dyn Source {
         match self {
             Input::Simulated(s) => s,
+            Input::Boxed(b) => b.as_mut(),
             #[cfg(feature = "listen")]
             Input::Live(l) => l,
         }
@@ -141,7 +150,7 @@ impl Input {
     /// Samples the capture dropped since it opened; always 0 for the stand-in.
     pub fn dropped(&self) -> u64 {
         match self {
-            Input::Simulated(_) => 0,
+            Input::Simulated(_) | Input::Boxed(_) => 0,
             #[cfg(feature = "listen")]
             Input::Live(l) => l.inner.dropped(),
         }
@@ -153,6 +162,7 @@ impl Input {
     pub fn bpm(&self) -> f32 {
         match self {
             Input::Simulated(s) => s.bpm,
+            Input::Boxed(_) => 0.0,
             #[cfg(feature = "listen")]
             Input::Live(l) => l.inner.bpm().unwrap_or(0.0),
         }
@@ -161,6 +171,7 @@ impl Input {
     pub fn set_bpm(&mut self, v: f32) {
         match self {
             Input::Simulated(s) => s.bpm = v.clamp(60.0, 200.0),
+            Input::Boxed(_) => {}
             // Not an error and not silent-by-accident: you cannot ask a room to
             // play at a different tempo. The page greys the control instead.
             #[cfg(feature = "listen")]
@@ -173,6 +184,7 @@ impl Input {
     pub fn drive(&self) -> f32 {
         match self {
             Input::Simulated(s) => s.drive,
+            Input::Boxed(_) => 0.0,
             #[cfg(feature = "listen")]
             Input::Live(l) => l.last_level.get(),
         }
@@ -181,6 +193,7 @@ impl Input {
     pub fn set_drive(&mut self, v: f32) {
         match self {
             Input::Simulated(s) => s.drive = v.clamp(0.0, 1.0),
+            Input::Boxed(_) => {}
             #[cfg(feature = "listen")]
             Input::Live(_) => {}
         }
@@ -196,7 +209,7 @@ impl Input {
     /// beat is not an estimate.
     pub fn confidence(&self) -> f32 {
         match self {
-            Input::Simulated(_) => 0.0,
+            Input::Simulated(_) | Input::Boxed(_) => 0.0,
             #[cfg(feature = "listen")]
             Input::Live(l) => l.inner.confidence(),
         }
@@ -209,7 +222,7 @@ impl Input {
     /// stays false with the `tone` feature off or the model absent.
     pub fn tone_loaded(&self) -> bool {
         match self {
-            Input::Simulated(_) => false,
+            Input::Simulated(_) | Input::Boxed(_) => false,
             #[cfg(feature = "listen")]
             Input::Live(l) => l.inner.tone_loaded(),
         }
@@ -220,7 +233,7 @@ impl Input {
     /// the first inference). Same cheap read as [`Input::tone_loaded`].
     pub fn tone_latency_ms(&self) -> f32 {
         match self {
-            Input::Simulated(_) => 0.0,
+            Input::Simulated(_) | Input::Boxed(_) => 0.0,
             #[cfg(feature = "listen")]
             Input::Live(l) => l.inner.tone_latency_ms(),
         }

@@ -9,10 +9,12 @@
 //! frame; a card only asks for a repaint when its next frame is due.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui::{ColorImage, Context, Id, TextureHandle, TextureOptions};
+
+use super::preview_cache::{PreviewCache, Space};
 
 /// How long one frame stays up: the gallery's own cadence, one float variant
 /// per second.
@@ -81,32 +83,73 @@ pub fn encode(size: [usize; 2], frames: &[Vec<u8>]) -> Result<Vec<u8>, String> {
 /// The textures of every frame of one kind's GIF, shared by its cards.
 pub type Frames = Arc<Vec<TextureHandle>>;
 
-/// What the context remembers per kind: the frames, or `None` when the kind
-/// has no GIF (so the file is looked for once, not every frame).
+/// What the context remembers per kind: its frames, and whether they come from
+/// the listened picture. `frames` is `None` when neither picture is a GIF that
+/// decodes, so the files are looked for once, not every frame.
 #[derive(Clone, Default)]
-struct Cache(HashMap<String, Option<Frames>>);
+struct Entry {
+    frames: Option<Frames>,
+    listened: bool,
+}
+
+#[derive(Clone, Default)]
+struct Cache(HashMap<String, Entry>);
 
 fn cache_id() -> Id {
     Id::new("shell/gallery-anim/cache")
 }
 
-/// The animated frames of `kind`'s card, loaded on first use. `None` when the
-/// kind has no GIF, or the GIF does not decode.
+/// The animated frames of `kind`'s card, loaded on first use: the listened
+/// picture from the preview cache when it has one, else the synthetic
+/// placeholder. `None` when neither exists or decodes.
 pub fn frames(ctx: &Context, kind: &str) -> Option<Frames> {
+    frames_with_root(ctx, kind, PreviewCache::default_root().as_deref(), cache_dir().as_deref())
+}
+
+/// Whether `kind`'s frames come from the listened picture rather than the placeholder.
+pub fn is_listened(ctx: &Context, kind: &str) -> bool {
+    entry_with_roots(ctx, kind, PreviewCache::default_root().as_deref(), cache_dir().as_deref()).listened
+}
+
+/// Drops `kind`'s cached frames so the next [`frames`] reads the disk again.
+/// Called after the kind's listened picture was re-rendered.
+pub fn reload(ctx: &Context, kind: &str) {
+    ctx.data_mut(|d| d.get_temp_mut_or_default::<Cache>(cache_id()).0.remove(kind));
+}
+
+/// [`frames`] with the directories given: the preview cache root (the listened
+/// picture is read from its gallery space) and the placeholder directory.
+fn frames_with_root(ctx: &Context, kind: &str, preview_root: Option<&Path>, placeholder_dir: Option<&Path>) -> Option<Frames> {
+    entry_with_roots(ctx, kind, preview_root, placeholder_dir).frames
+}
+
+fn entry_with_roots(ctx: &Context, kind: &str, preview_root: Option<&Path>, placeholder_dir: Option<&Path>) -> Entry {
     let hit = ctx.data_mut(|d| d.get_temp_mut_or_default::<Cache>(cache_id()).0.get(kind).cloned());
     if let Some(entry) = hit {
         return entry;
     }
     // Loaded outside the data lock: uploading a texture takes the context.
-    let loaded = load(ctx, kind).map(Arc::new);
+    let loaded = load_entry(ctx, kind, preview_root, placeholder_dir);
     ctx.data_mut(|d| d.get_temp_mut_or_default::<Cache>(cache_id()).0.insert(kind.to_string(), loaded.clone()));
     loaded
 }
 
-fn load(ctx: &Context, kind: &str) -> Option<Vec<TextureHandle>> {
-    let path = cache_dir()?.join(file_name(kind));
-    let bytes = std::fs::read(path).ok()?;
-    let (size, frames) = decode(&bytes)?;
+fn load_entry(ctx: &Context, kind: &str, preview_root: Option<&Path>, placeholder_dir: Option<&Path>) -> Entry {
+    let listened = preview_root
+        .and_then(|root| PreviewCache::new(root).read_gif(Space::Gallery, kind))
+        .and_then(|bytes| load_from_bytes(ctx, kind, &bytes));
+    if let Some(textures) = listened {
+        return Entry { frames: Some(Arc::new(textures)), listened: true };
+    }
+    let placeholder = placeholder_dir
+        .and_then(|dir| std::fs::read(dir.join(file_name(kind))).ok())
+        .and_then(|bytes| load_from_bytes(ctx, kind, &bytes));
+    Entry { frames: placeholder.map(Arc::new), listened: false }
+}
+
+/// Uploads the frames of one GIF's bytes as textures. `None` when they do not decode.
+fn load_from_bytes(ctx: &Context, kind: &str, bytes: &[u8]) -> Option<Vec<TextureHandle>> {
+    let (size, frames) = decode(bytes)?;
     Some(
         frames
             .iter()
@@ -156,5 +199,92 @@ mod tests {
         assert_eq!(back, size);
         assert_eq!(decoded.len(), 3);
         assert_eq!(decoded[0].len(), 4 * 2 * 4, "RGBA out");
+    }
+
+    /// A scratch directory under the system temp dir, removed on drop.
+    struct Scratch(PathBuf);
+
+    impl Scratch {
+        fn new(name: &str) -> Self {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            let dir = std::env::temp_dir().join(format!("mvj-gallery-anim-{name}-{}-{nanos}", std::process::id()));
+            std::fs::create_dir_all(&dir).expect("scratch dir");
+            Scratch(dir)
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// A 4x2 GIF of `frames` solid frames.
+    fn gif(frames: usize) -> Vec<u8> {
+        encode([4, 2], &vec![vec![40u8; 4 * 2 * 3]; frames]).expect("encodes")
+    }
+
+    fn write_placeholder(dir: &Path, kind: &str, bytes: &[u8]) {
+        std::fs::create_dir_all(dir).expect("placeholder dir");
+        std::fs::write(dir.join(file_name(kind)), bytes).expect("placeholder written");
+    }
+
+    fn write_listened(root: &Path, kind: &str, bytes: &[u8]) {
+        let meta = crate::shell::preview_cache::Meta { rendered_at: 0, input_hash: 1, frames: 3, size: [4, 2] };
+        PreviewCache::new(root).write(Space::Gallery, kind, bytes, &meta).expect("listened written");
+    }
+
+    #[test]
+    fn a_listened_picture_wins_over_the_placeholder() {
+        let scratch = Scratch::new("wins");
+        let (previews, placeholder) = (scratch.0.join("previews"), scratch.0.join("gallery"));
+        write_placeholder(&placeholder, "gen.x", &gif(1));
+        write_listened(&previews, "gen.x", &gif(3));
+        let ctx = Context::default();
+        let frames = frames_with_root(&ctx, "gen.x", Some(&previews), Some(&placeholder)).expect("frames");
+        assert_eq!(frames.len(), 3, "the listened picture's frames");
+        assert!(entry_with_roots(&ctx, "gen.x", Some(&previews), Some(&placeholder)).listened);
+    }
+
+    #[test]
+    fn without_a_listened_picture_the_placeholder_still_shows() {
+        let scratch = Scratch::new("falls-back");
+        let (previews, placeholder) = (scratch.0.join("previews"), scratch.0.join("gallery"));
+        write_placeholder(&placeholder, "gen.x", &gif(1));
+        let ctx = Context::default();
+        let frames = frames_with_root(&ctx, "gen.x", Some(&previews), Some(&placeholder)).expect("frames");
+        assert_eq!(frames.len(), 1);
+        assert!(!entry_with_roots(&ctx, "gen.x", Some(&previews), Some(&placeholder)).listened);
+
+        // A listened file that does not decode also falls back to the placeholder.
+        write_listened(&previews, "gen.x", b"not a gif");
+        let ctx = Context::default();
+        let frames = frames_with_root(&ctx, "gen.x", Some(&previews), Some(&placeholder)).expect("frames");
+        assert_eq!(frames.len(), 1, "a corrupt listened file falls back");
+        assert!(!entry_with_roots(&ctx, "gen.x", Some(&previews), Some(&placeholder)).listened);
+
+        assert!(frames_with_root(&Context::default(), "gen.none", None, None).is_none(), "no file, no frames");
+    }
+
+    #[test]
+    fn reload_picks_up_a_newly_written_listened_picture() {
+        let scratch = Scratch::new("reload");
+        let (previews, placeholder) = (scratch.0.join("previews"), scratch.0.join("gallery"));
+        write_placeholder(&placeholder, "gen.x", &gif(1));
+        let ctx = Context::default();
+        let before = frames_with_root(&ctx, "gen.x", Some(&previews), Some(&placeholder)).expect("frames");
+        assert_eq!(before.len(), 1);
+
+        write_listened(&previews, "gen.x", &gif(3));
+        let cached = frames_with_root(&ctx, "gen.x", Some(&previews), Some(&placeholder)).expect("frames");
+        assert_eq!(cached.len(), 1, "the entry is kept until reload");
+
+        reload(&ctx, "gen.x");
+        let fresh = frames_with_root(&ctx, "gen.x", Some(&previews), Some(&placeholder)).expect("frames");
+        assert_eq!(fresh.len(), 3, "reload reads the new listened file");
+        assert!(entry_with_roots(&ctx, "gen.x", Some(&previews), Some(&placeholder)).listened);
     }
 }

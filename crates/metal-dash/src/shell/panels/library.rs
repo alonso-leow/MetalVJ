@@ -47,10 +47,12 @@
 use std::collections::HashMap;
 use crate::shell::components::{filter_chips, icon_button};
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 
 use egui::{
-    CentralPanel, Frame, Id, Panel, Pos2, Rect, Response, RichText, ScrollArea, Sense, Ui,
-    UiBuilder, Vec2,
+    CentralPanel, ColorImage, Context, Frame, Id, Panel, Pos2, Rect, Response, RichText,
+    ScrollArea, Sense, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
 };
 use serde_json::{json, Value};
 
@@ -65,6 +67,7 @@ use crate::shell::components::{
 use crate::shell::i18n::tr;
 use crate::shell::media;
 use crate::shell::preview::PreviewSubject;
+use crate::shell::preview_cache::{PreviewCache, Space};
 
 /// Everything the library panel remembers between frames — form fields the
 /// operator is mid-typing, a folder's cached file listing, and the one
@@ -807,6 +810,21 @@ pub(crate) fn file_like_row(
     previewing: bool,
     tag: Option<usize>,
 ) -> (Response, Rect) {
+    file_like_row_thumb(ui, theme, icon, None, title, subtitle, previewing, tag)
+}
+
+/// [`file_like_row`] with a picture in the leading badge: `thumb`, when given,
+/// is fitted into the badge in place of `icon` (a sequence's first frame).
+pub(crate) fn file_like_row_thumb(
+    ui: &mut Ui,
+    theme: &Theme,
+    icon: Icon,
+    thumb: Option<&TextureHandle>,
+    title: &str,
+    subtitle: Option<&str>,
+    previewing: bool,
+    tag: Option<usize>,
+) -> (Response, Rect) {
     let width = ui.available_width();
     let (rect, _) = ui.allocate_exact_size(Vec2::new(width, theme.library_card_h), Sense::hover());
     let response = ui.interact(
@@ -852,13 +870,24 @@ pub(crate) fn file_like_row(
     // The tag still tints the title. Every kind glyph is light grey stroke
     // with no badge behind it, so the icon reads on the dark row.
     let tint = tag.map(|idx| theme.tag_colours()[idx]);
-    paint_icon_stroked(
-        ui.painter(),
-        slot,
-        icon,
-        theme,
-        theme.line_stroke(theme.ink_weak),
-    );
+    match thumb {
+        Some(tex) => {
+            let fitted = fit_within(slot.size(), tex.size_vec2());
+            ui.painter().image(
+                tex.id(),
+                Rect::from_center_size(slot.center(), fitted),
+                Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+                theme.image_tint,
+            );
+        }
+        None => paint_icon_stroked(
+            ui.painter(),
+            slot,
+            icon,
+            theme,
+            theme.line_stroke(theme.ink_weak),
+        ),
+    }
 
     // The text lives in a child ui that stops short of the menu column, so
     // a long title truncates there and never runs under the `…`. The block's
@@ -1417,7 +1446,22 @@ fn file_card(
     let previewing = matches!(kind, "image" | "video")
         && media::current(ui.ctx()).is_some_and(|c| c.path == path);
     let tag = row_tag(door, &path);
-    let (response, rect) = file_like_row(ui, theme, icon, file, status.as_deref(), previewing, tag);
+    let preview = sequence_preview(ui.ctx(), kind, file);
+    let (response, rect) = file_like_row_thumb(
+        ui,
+        theme,
+        icon,
+        preview.as_ref().and_then(|frames| frames.first()),
+        file,
+        status.as_deref(),
+        previewing,
+        tag,
+    );
+    // A sequence with a cached picture floats it beside the pointer while hovered.
+    let response = match &preview {
+        Some(frames) => response.on_hover_ui_at_pointer(|ui| sequence_hover_preview(ui, theme, frames)),
+        None => response,
+    };
     if matches!(kind, "image" | "video" | "audio") {
         favourite_star(ui, theme, rect, &crate::shell::favorites::file_entry(kind, file, &path));
     }
@@ -1735,8 +1779,129 @@ fn post_bytes(
     }
 }
 
+// --- sequence previews -------------------------------------------------------
+// A sequence row's cached picture (`PreviewCache`, the sequence space): its
+// first frame is the row's thumbnail and all of it animates on hover. Read once
+// per file and kept in the egui context, the way `gallery_anim` keeps its GIFs;
+// nothing here decodes or touches the disk per frame.
+
+/// What the context remembers per sequence file: its uploaded frames, or `None`
+/// when it has no cached picture (so the cache is looked at once, not per frame).
+#[derive(Clone, Default)]
+struct SequencePreviews(HashMap<String, Option<Arc<Vec<TextureHandle>>>>);
+
+fn sequence_previews_id() -> Id {
+    Id::new("shell/library/sequence-previews")
+}
+
+/// The key a sequence's cached picture is stored under: its file name, as the
+/// library lists it. `None` for any other kind, or a nameless file.
+fn sequence_preview_key<'a>(kind: &str, file: &'a str) -> Option<&'a str> {
+    (kind == "sequence" && !file.is_empty()).then_some(file)
+}
+
+/// The uploaded frames of a sequence's cached picture, loaded on first use.
+/// `None` when the kind is not a sequence or it has no usable picture.
+fn sequence_preview(ctx: &Context, kind: &str, file: &str) -> Option<Arc<Vec<TextureHandle>>> {
+    let key = sequence_preview_key(kind, file)?;
+    let hit = ctx.data_mut(|d| {
+        d.get_temp_mut_or_default::<SequencePreviews>(sequence_previews_id())
+            .0
+            .get(key)
+            .cloned()
+    });
+    if let Some(entry) = hit {
+        return entry;
+    }
+    // Loaded outside the data lock: uploading a texture takes the context.
+    let loaded = load_sequence_preview(ctx, key).map(Arc::new);
+    ctx.data_mut(|d| {
+        d.get_temp_mut_or_default::<SequencePreviews>(sequence_previews_id())
+            .0
+            .insert(key.to_string(), loaded.clone())
+    });
+    loaded
+}
+
+/// Reads and decodes a sequence's cached GIF and uploads every frame. A picture
+/// without its sidecar counts as not cached, as [`PreviewCache`] itself says.
+fn load_sequence_preview(ctx: &Context, key: &str) -> Option<Vec<TextureHandle>> {
+    let cache = PreviewCache::new(PreviewCache::default_root()?);
+    cache.meta(Space::Sequence, key)?;
+    let bytes = cache.read_gif(Space::Sequence, key)?;
+    let (size, frames) = crate::shell::gallery_anim::decode(&bytes)?;
+    Some(
+        frames
+            .iter()
+            .enumerate()
+            .map(|(i, rgba)| {
+                let image = ColorImage::from_rgba_unmultiplied(size, rgba);
+                ctx.load_texture(
+                    format!("sequence-preview/{key}/{i}"),
+                    image,
+                    TextureOptions::LINEAR,
+                )
+            })
+            .collect(),
+    )
+}
+
+/// The hover picture of a sequence: its frames in turn, one per
+/// [`crate::shell::gallery_anim::FRAME_SECS`], at the theme's hover width.
+fn sequence_hover_preview(ui: &mut Ui, theme: &Theme, frames: &[TextureHandle]) {
+    let now = ui.ctx().input(|i| i.time);
+    let Some(frame) = frames.get(crate::shell::gallery_anim::frame_index(now, frames.len()))
+    else {
+        return;
+    };
+    let size = fit_within(
+        Vec2::new(theme.library_hover_preview, f32::INFINITY),
+        frame.size_vec2(),
+    );
+    let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+    ui.painter().image(
+        frame.id(),
+        rect,
+        Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+        theme.image_tint,
+    );
+    crate::shell::frames::repaint_after(
+        ui.ctx(),
+        Duration::from_secs_f64(crate::shell::gallery_anim::secs_to_next_frame(now)),
+    );
+}
+
+/// `size` scaled to fit inside `bounds`, keeping its aspect ratio. A picture
+/// with no area fits as nothing, and an infinite side never limits the fit.
+fn fit_within(bounds: Vec2, size: Vec2) -> Vec2 {
+    if size.x <= 0.0 || size.y <= 0.0 {
+        return Vec2::ZERO;
+    }
+    size * (bounds.x / size.x).min(bounds.y / size.y)
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_a_sequence_names_a_preview_by_its_file() {
+        assert_eq!(super::sequence_preview_key("sequence", "intro.seq"), Some("intro.seq"));
+        assert_eq!(super::sequence_preview_key("audio", "intro.seq"), None);
+        assert_eq!(super::sequence_preview_key("sequence", ""), None);
+    }
+
+    #[test]
+    fn a_picture_fits_its_box_keeping_its_shape() {
+        use super::fit_within;
+        use egui::Vec2;
+        assert_eq!(fit_within(Vec2::new(24.0, 24.0), Vec2::new(4.0, 2.0)), Vec2::new(24.0, 12.0));
+        assert_eq!(
+            fit_within(Vec2::new(200.0, f32::INFINITY), Vec2::new(4.0, 2.0)),
+            Vec2::new(200.0, 100.0),
+            "an unbounded height never limits the width"
+        );
+        assert_eq!(fit_within(Vec2::new(24.0, 24.0), Vec2::ZERO), Vec2::ZERO);
+    }
+
 
     /// The search dial walks a list: a dial with no resting place starts at
     /// the first entry, then moves by its steps, clamped at both ends.

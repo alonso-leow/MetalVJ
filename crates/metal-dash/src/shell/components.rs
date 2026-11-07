@@ -962,14 +962,16 @@ pub fn num_value(
 /// agree on height, outline, corners and wash.
 ///
 /// Every cell is `cell_height` tall at least, so a row of any mix of them is
-/// equally sized. `shapes` builds the cell's look once its final rect is
-/// known and is slotted *behind* the content, because the content decides how
-/// tall a cell grows.
+/// equally sized. `fill` builds the cell's wash once its final rect is known
+/// and is slotted *behind* the content, because the content decides how tall
+/// a cell grows. `outline` is painted *after* the content, so an edge the
+/// content covers still shows its border.
 fn cell<R>(
     ui: &mut Ui,
     theme: &Theme,
     width: Option<f32>,
-    shapes: fn(&Theme, Rect) -> Vec<egui::Shape>,
+    fill: fn(&Theme, Rect) -> Vec<egui::Shape>,
+    outline: fn(&Theme, Rect) -> Vec<egui::Shape>,
     add: impl FnOnce(&mut Ui) -> R,
 ) -> R {
     let slot = ui.painter().add(egui::Shape::Noop);
@@ -983,7 +985,8 @@ fn cell<R>(
             add(ui)
         },
     );
-    ui.painter().set(slot, egui::Shape::Vec(shapes(theme, out.response.rect)));
+    ui.painter().set(slot, egui::Shape::Vec(fill(theme, out.response.rect)));
+    ui.painter().add(egui::Shape::Vec(outline(theme, out.response.rect)));
     out.inner
 }
 
@@ -991,21 +994,27 @@ fn cell<R>(
 /// shadow offset behind it, so a column of labels reads as the table's left
 /// spine. `width` `None` fills what is left of the row.
 pub fn key_cell<R>(ui: &mut Ui, theme: &Theme, width: Option<f32>, add: impl FnOnce(&mut Ui) -> R) -> R {
-    cell(ui, theme, width, Theme::key_shapes, add)
+    cell(ui, theme, width, Theme::key_fill, Theme::key_outline, add)
 }
 
 /// The standard PAYLOAD cell: a black outline and the blurred (glass) wash,
 /// sharp corners, so the node canvas grid reads through it.
 pub fn payload_cell<R>(ui: &mut Ui, theme: &Theme, width: Option<f32>, add: impl FnOnce(&mut Ui) -> R) -> R {
-    cell(ui, theme, width, Theme::payload_shapes, add)
+    cell(ui, theme, width, Theme::payload_fill, Theme::payload_outline, add)
+}
+
+/// No outline: the subheader's cell carries only its wash.
+fn no_outline(_: &Theme, _: Rect) -> Vec<egui::Shape> {
+    Vec::new()
 }
 
 /// The compact subheader under a panel's head (2026-11): a row of the
-/// panel's own controls (a back button and a path, a filter) set in a payload
-/// cell, so the bar reads as the head's child and sits flush with the list
-/// under it. Same cell as the properties grid; `add` lays out the row.
+/// panel's own controls (a back button and a path, a filter) on the glass
+/// wash of a payload cell, with no outline of its own. The bright rule sits
+/// on the controls inside (`header_forms`), not on the strip. `add` lays out
+/// the row.
 pub fn subheader<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
-    payload_cell(ui, theme, None, |ui| {
+    cell(ui, theme, None, Theme::payload_fill, no_outline, |ui| {
         // Tall enough for a lit button's frame, so it stays inside the cell.
         ui.set_min_height(theme.icon_button_size.y + theme.field_pad.y * 2.0);
         ui.add_space(theme.field_pad.x);
@@ -1146,7 +1155,8 @@ pub fn card_section<R>(
         .inner_margin(theme.card_pad)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.add_space(theme.item_gap.y);
+            // Air above and below the title, so it does not sit on the table.
+            ui.add_space(theme.item_gap.y * 2.0);
             let text = format!("{} {label}", if *open { "\u{25be}" } else { "\u{25b8}" });
             let head = ui.add(
                 egui::Label::new(
@@ -2474,10 +2484,12 @@ mod tests {
         let cell = Rc::new(RefCell::new(None));
         let seen = cell.clone();
         let mut harness = Harness::new_ui(move |ui| {
-            let area = ui.allocate_ui(egui::vec2(260.0, theme.cell_height()), |ui| {
-                value_label(ui, RichText::new("42"))
-            });
-            *seen.borrow_mut() = Some((area.response.rect, area.inner.rect));
+            let (cell, value) = ui
+                .allocate_ui(egui::vec2(260.0, theme.cell_height()), |ui| {
+                    (ui.max_rect(), value_label(ui, RichText::new("42")).rect)
+                })
+                .inner;
+            *seen.borrow_mut() = Some((cell, value));
         });
         harness.run();
         let (cell, value) = cell.borrow().expect("the cell is laid out");

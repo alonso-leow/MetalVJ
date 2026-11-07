@@ -1565,10 +1565,10 @@ impl Theme {
         Stroke::new(self.hairline, self.rule)
     }
 
-    /// The properties grid's cell border: the hairline in the light grey ink,
-    /// drawn between every two cells.
+    /// The properties grid's cell border: the hairline in a light grey (155),
+    /// the same in both themes, drawn between every two cells.
     pub fn grid_stroke(&self) -> Stroke {
-        Stroke::new(self.hairline, self.ink_weak)
+        Stroke::new(self.hairline, Color32::from_gray(155))
     }
 
     /// The stroke of a library row's painted icon glyph: the weak ink at the
@@ -2065,20 +2065,35 @@ impl Theme {
         ]
     }
 
+    /// The PAYLOAD cell's wash, painted behind its content.
+    pub fn payload_fill(&self, rect: Rect) -> Vec<Shape> {
+        self.glass_layers(rect)
+    }
+
+    /// The PAYLOAD cell's outline, painted over its content so a field or
+    /// wash that reaches the edge cannot hide it.
+    pub fn payload_outline(&self, rect: Rect) -> Vec<Shape> {
+        vec![Shape::rect_stroke(rect, self.sharp_corner(), self.grid_stroke(), StrokeKind::Inside)]
+    }
+
     /// The PAYLOAD cell: glass with a black outline.
     pub fn payload_shapes(&self, rect: Rect) -> Vec<Shape> {
-        let mut shapes = self.glass_layers(rect);
-        shapes.push(Shape::rect_stroke(rect, self.sharp_corner(), self.grid_stroke(), StrokeKind::Inside));
+        let mut shapes = self.payload_fill(rect);
+        shapes.extend(self.payload_outline(rect));
         shapes
     }
 
-    /// The KEY cell: the red shadow, the header's grey and its rule.
-    pub fn key_shapes(&self, rect: Rect) -> Vec<Shape> {
+    /// The KEY cell's fill: the red shadow and the header's grey.
+    pub fn key_fill(&self, rect: Rect) -> Vec<Shape> {
         vec![
             Shape::rect_filled(rect.translate(self.key_shadow_offset()), self.sharp_corner(), self.key_shadow()),
             Shape::rect_filled(rect, self.sharp_corner(), self.panel_head),
-            Shape::rect_stroke(rect, self.sharp_corner(), self.grid_stroke(), StrokeKind::Inside),
         ]
+    }
+
+    /// The KEY cell's rule, painted over its content.
+    pub fn key_outline(&self, rect: Rect) -> Vec<Shape> {
+        vec![Shape::rect_stroke(rect, self.sharp_corner(), self.grid_stroke(), StrokeKind::Inside)]
     }
 
     /// The glass GROUP (a collapsible config group): glass with the quiet rule.
@@ -2572,7 +2587,8 @@ mod tests {
         for theme in [Theme::phosphor(), Theme::daylight(), Theme::contrast()] {
             assert!(theme.glass_fill().a() < 255 && theme.glass_fill().a() > 0, "glass is translucent");
             assert_eq!(theme.cell_height(), theme.interact_size.y);
-            let key = theme.key_shapes(rect);
+            let mut key = theme.key_fill(rect);
+            key.extend(theme.key_outline(rect));
             let payload = theme.payload_shapes(rect);
             let group = theme.group_shapes(rect);
             let rects = |shapes: &[Shape]| -> Vec<(Rect, Color32, CornerRadius)> {

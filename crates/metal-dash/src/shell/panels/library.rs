@@ -838,6 +838,8 @@ pub(crate) fn file_like_row(
             theme.phosphor,
         );
     }
+    // The bright rule outlines every file and folder cell of the library.
+    ui.painter().rect_stroke(rect, theme.sharp_corner(), theme.rule_bright_stroke(), egui::StrokeKind::Inside);
 
     let size = theme.library_badge_size;
     let slot = Rect::from_min_size(

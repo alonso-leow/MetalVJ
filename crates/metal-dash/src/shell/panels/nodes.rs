@@ -2428,6 +2428,90 @@ fn reveal_node(door: &dyn Call, state: &mut PanelState, rect: EguiRect, node: &s
     state.pulse = Some((node.to_string(), web_time::Instant::now()));
 }
 
+/// Width of the margin band (fraction of each canvas axis) where the pointer pushes the view.
+const EDGE_BAND: f32 = 0.22;
+/// Fastest edge-pan, in screen px per second (pointer on the very border).
+const EDGE_SPEED: f32 = 900.0;
+/// Graph-unit room a node card takes around its anchor point.
+const EDGE_NODE_PAD: f32 = 160.0;
+/// Gap left past the last node, in graph units, and the ease-out length before it.
+const EDGE_GAP: f32 = 60.0;
+const EDGE_EASE: f32 = 260.0;
+
+/// The smallest circle (centre, radius) that holds every node card: the graph's own limit
+/// for [`edge_pan`]. Ritter's approximation is plenty for a pan limit.
+fn graph_circle(nodes: &[[f32; 2]]) -> Option<([f32; 2], f32)> {
+    let first = *nodes.first()?;
+    let far = |from: [f32; 2]| nodes.iter().copied().fold(from, |b, n| {
+        let d = |a: [f32; 2]| (a[0] - from[0]).hypot(a[1] - from[1]);
+        if d(n) > d(b) { n } else { b }
+    });
+    let a = far(first);
+    let b = far(a);
+    let mut c = [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5];
+    let mut r = (a[0] - b[0]).hypot(a[1] - b[1]) * 0.5;
+    for n in nodes {
+        let d = (n[0] - c[0]).hypot(n[1] - c[1]);
+        if d > r {
+            let nr = (r + d) * 0.5;
+            let k = (nr - r) / d;
+            c = [c[0] + (n[0] - c[0]) * k, c[1] + (n[1] - c[1]) * k];
+            r = nr;
+        }
+    }
+    Some((c, r + EDGE_NODE_PAD))
+}
+
+/// Pointer-at-the-margin navigation while a node is focused (its properties are open, so
+/// dragging is spoken for): the nearer the border the faster the view moves, a corner moves
+/// diagonally, and the move eases to a stop at the graph's bounding circle plus a small gap.
+fn edge_pan(ui: &Ui, state: &mut PanelState, rect: EguiRect) {
+    let Some(p) = ui.input(|i| i.pointer.hover_pos()).filter(|p| rect.contains(*p)) else {
+        return;
+    };
+    let pts: Vec<[f32; 2]> = state
+        .graph
+        .as_ref()
+        .and_then(|g| g["graph"]["nodes"].as_array())
+        .map(|ns| {
+            ns.iter()
+                .filter_map(|n| Some([n["pos"][0].as_f64()? as f32, n["pos"][1].as_f64()? as f32]))
+                .collect()
+        })
+        .unwrap_or_default();
+    let Some((c, r)) = graph_circle(&pts) else { return };
+    let axis = |v: f32, lo: f32, size: f32| {
+        let band = size * EDGE_BAND;
+        let (a, b) = (v - lo, lo + size - v);
+        if a < band {
+            -(1.0 - a / band).clamp(0.0, 1.0)
+        } else if b < band {
+            (1.0 - b / band).clamp(0.0, 1.0)
+        } else {
+            0.0
+        }
+    };
+    let push = Vec2::new(axis(p.x, rect.min.x, rect.width()), axis(p.y, rect.min.y, rect.height()));
+    if push == Vec2::ZERO {
+        return;
+    }
+    let dt = ui.input(|i| i.stable_dt).min(0.05);
+    // Square the push so the band's inner edge is gentle and the border is fast.
+    let screen = Vec2::new(push.x * push.x.abs(), push.y * push.y.abs()) * EDGE_SPEED * dt;
+    // View centre in graph space, and how far past the slow-down start it already is.
+    let centre = (rect.size() * 0.5 - state.pan) / state.zoom;
+    let off = Vec2::new(centre.x - c[0], centre.y - c[1]);
+    let limit = r + EDGE_GAP;
+    let mut step = screen / state.zoom;
+    if step.dot(off) > 0.0 {
+        let left = (limit - off.length()).max(0.0);
+        let t = (left / EDGE_EASE).clamp(0.0, 1.0);
+        step *= t * t * (3.0 - 2.0 * t);
+    }
+    state.pan -= step * state.zoom;
+    ui.ctx().request_repaint();
+}
+
 fn canvas(
     ui: &mut Ui,
     theme: &Theme,
@@ -2507,6 +2591,9 @@ fn canvas(
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
     }
     wheel_zoom(ui, theme, state, rect, &response);
+    if matches!(selection, Selection::Node(_)) {
+        edge_pan(ui, state, rect);
+    }
     // The cable under the pointer, while nothing is being dragged — it lights
     // exactly like the selected one, so a single cable can be singled out.
     state.hover_edge = match response.hover_pos() {

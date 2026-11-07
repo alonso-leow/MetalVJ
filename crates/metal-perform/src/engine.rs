@@ -5193,6 +5193,27 @@ pub fn render_isolated(
     time: f32,
     textures: bool,
 ) -> Option<NodePicture> {
+    render_isolated_with_bases(paint, sim, state, device, graph, node, w, h, time, textures, &HashMap::new())
+}
+
+/// [`render_isolated`] with some generator nodes' base rows replaced: `bases`
+/// maps a node id to the row that node draws from in place of the operator's
+/// (`state.base`, or the layer's own base). [`render_gen_listened`] uses it to
+/// hold a gen at one of its gallery variants.
+#[allow(clippy::too_many_arguments)]
+fn render_isolated_with_bases(
+    paint: &mut dyn Paint,
+    sim: &mut Listeners,
+    state: &mut State,
+    device: &str,
+    graph: metal_graph::Graph,
+    node: &str,
+    w: u32,
+    h: u32,
+    time: f32,
+    textures: bool,
+    bases: &HashMap<metal_graph::NodeId, Vec<f32>>,
+) -> Option<NodePicture> {
     let mut sub = isolate_graph(&graph, node)?;
     let plan = sub.compile();
     let clock = sim.clock_frame(&mut state.looper, time);
@@ -5245,10 +5266,12 @@ pub fn render_isolated(
             }
         };
         let showing = layer.showing(&air, models);
-        let base: Vec<f32> = layer
-            .base
-            .clone()
-            .unwrap_or_else(|| state.base[showing.min(state.base.len() - 1)].clone());
+        let base: Vec<f32> = bases.get(&gen_id).cloned().unwrap_or_else(|| {
+            layer
+                .base
+                .clone()
+                .unwrap_or_else(|| state.base[showing.min(state.base.len() - 1)].clone())
+        });
         let wired = digests.wired(&sub, &gen_id);
         let mut row = row_for_node(
             Some(&graph),
@@ -5424,6 +5447,33 @@ pub fn render_kind_listened(
     listened_kind_frames(paint, state, kind, variant, source, w, h, rows, rate_hz, times)
 }
 
+/// [`render_kind`] for a `gen.*` model, drawn over a recording the way
+/// [`render_kind_listened`] draws a kind: `audio.live` drives the generator and
+/// the generator is the picture. The generator's row is the operator's base row
+/// for that model at variant `variant` (the floats the gallery's gen tiles
+/// use, see [`gen_variant_row`]). `model` is the model id, with or without its
+/// `gen.` prefix. `None` for a model the painter does not have, or when any
+/// frame draws nothing.
+#[allow(clippy::too_many_arguments)]
+pub fn render_gen_listened(
+    paint: &mut dyn Paint,
+    state: &mut State,
+    model: &str,
+    variant: usize,
+    w: u32,
+    h: u32,
+    rows: &[Vec<f32>],
+    rate_hz: f32,
+    times: &[f32],
+) -> Option<Vec<(Vec<u8>, u32, u32)>> {
+    let model = model.strip_prefix("gen.").unwrap_or(model);
+    let showing = paint.ids().iter().position(|id| *id == model)?;
+    let schema = paint.schemas().get(showing).copied()?;
+    let base = state.base.get(showing).cloned().unwrap_or_else(|| schema.defaults());
+    let base = gen_variant_row(schema, &base, variant);
+    listened_frames(paint, state, &|| listened_gen_graph(model), Some(base), w, h, rows, rate_hz, times)
+}
+
 /// [`render_kind_listened`] for one named source model, so a test can try
 /// each model the painter has.
 #[allow(clippy::too_many_arguments)]
@@ -5439,7 +5489,26 @@ fn listened_kind_frames(
     rate_hz: f32,
     times: &[f32],
 ) -> Option<Vec<(Vec<u8>, u32, u32)>> {
-    listened_preview_graph(kind, variant, source)?;
+    listened_frames(paint, state, &|| listened_preview_graph(kind, variant, source), None, w, h, rows, rate_hz, times)
+}
+
+/// The shared body of the listened pictures: `graph` builds the stand-in graph
+/// (its node is the one drawn), `base` replaces that node's base row when it is
+/// a generator. Each time is drawn from one fresh [`Listeners`] pool whose clock
+/// is a [`crate::replay::Replay`] of `rows` at `rate_hz`.
+#[allow(clippy::too_many_arguments)]
+fn listened_frames(
+    paint: &mut dyn Paint,
+    state: &mut State,
+    graph: &dyn Fn() -> Option<(metal_graph::Graph, metal_graph::NodeId)>,
+    base: Option<Vec<f32>>,
+    w: u32,
+    h: u32,
+    rows: &[Vec<f32>],
+    rate_hz: f32,
+    times: &[f32],
+) -> Option<Vec<(Vec<u8>, u32, u32)>> {
+    graph()?;
     let recorded = rows.to_vec();
     let opener: crate::listeners::Opener = Box::new(move |_k: &crate::listeners::SourceKey| {
         Ok(Input::from_source(Box::new(crate::replay::Replay::new(recorded.clone(), rate_hz))))
@@ -5447,13 +5516,49 @@ fn listened_kind_frames(
     let mut sim = Listeners::with_opener(crate::listeners::SourceKey::Named(LISTENED_SEED.into()), opener);
     let mut out = Vec::with_capacity(times.len());
     for &time in times {
-        let (graph, node) = listened_preview_graph(kind, variant, source)?;
-        out.push(match render_isolated(paint, &mut sim, state, KIND_PREVIEW_DEVICE, graph, &node, w, h, time, false)? {
-            NodePicture::Cpu(px, pw, ph) => (px, pw, ph),
-            NodePicture::Gpu(f) => (paint.readback(&f), f.width(), f.height()),
-        });
+        let (graph, node) = graph()?;
+        let bases: HashMap<metal_graph::NodeId, Vec<f32>> =
+            base.iter().map(|b| (node.clone(), b.clone())).collect();
+        out.push(
+            match render_isolated_with_bases(paint, &mut sim, state, KIND_PREVIEW_DEVICE, graph, &node, w, h, time, false, &bases)? {
+                NodePicture::Cpu(px, pw, ph) => (px, pw, ph),
+                NodePicture::Gpu(f) => (paint.readback(&f), f.width(), f.height()),
+            },
+        );
     }
     Some(out)
+}
+
+/// `base` with every float of the model's own schema moved to variant
+/// `variant`'s point in its range (the same rule the gallery's gen tiles apply:
+/// colour slots, camera and the post block keep their base values).
+fn gen_variant_row(schema: &metal_schema::Schema, base: &[f32], variant: usize) -> Vec<f32> {
+    let t = VARIANT_T[variant % VARIANT_T.len()];
+    let mut out = base.to_vec();
+    for (i, block) in schema.blocks.iter().enumerate() {
+        if let metal_schema::Block::Floats(floats) = block {
+            let at = schema.offset(i);
+            for (j, f) in floats.iter().enumerate() {
+                if let Some(v) = out.get_mut(at + j) {
+                    *v = f.min + (f.max - f.min) * t;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The graph a listened gen picture renders: `audio.live` controls `gen.<model>`
+/// and the generator's image goes to the device output. The generator is the
+/// node drawn.
+fn listened_gen_graph(model: &str) -> Option<(metal_graph::Graph, metal_graph::NodeId)> {
+    let mut g = metal_graph::Graph::new(&device_graph_id(KIND_PREVIEW_DEVICE), KIND_PREVIEW_DEVICE, metal_graph::Domain::Live);
+    let out = g.add_node("out", "output.device", [800.0, 0.0]);
+    let src = g.add_node("src", &format!("gen.{model}"), [400.0, 0.0]);
+    let audio = g.add_node("audio", "audio.live", [-400.0, 0.0]);
+    g.add_edge(metal_graph::Endpoint::new(&src, "image"), metal_graph::Endpoint::new(&out, "image"));
+    g.add_edge(metal_graph::Endpoint::new(&audio, "control"), metal_graph::Endpoint::new(&src, "control"));
+    Some((g, src))
 }
 
 /// [`kind_preview_graph`] with the one audio node a recording drives it

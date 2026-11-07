@@ -753,7 +753,7 @@ fn dir_row(
         seconds: None,
         scene: None,
     });
-    drag_ghost_row(ui, theme, &response, rect, Icon::Folder, name, subtitle.as_deref(), tag);
+    drag_ghost_row(ui, theme, &response, rect, Icon::Folder, None, name, subtitle.as_deref(), tag);
     favourite_star(ui, theme, rect, &crate::shell::favorites::file_entry("folder", name, &path));
     if response.clicked() {
         state.cwd = state.cwd.join(name);
@@ -814,7 +814,9 @@ pub(crate) fn file_like_row(
 }
 
 /// [`file_like_row`] with a picture in the leading badge: `thumb`, when given,
-/// is fitted into the badge in place of `icon` (a sequence's first frame).
+/// is fitted into the badge in place of `icon` (a sequence's first frame). Such
+/// a row floats its hover preview, which takes the name tooltip's place, so the
+/// title's tooltip is left off.
 pub(crate) fn file_like_row_thumb(
     ui: &mut Ui,
     theme: &Theme,
@@ -916,18 +918,19 @@ pub(crate) fn file_like_row_thumb(
             .layout(egui::Layout::top_down(egui::Align::LEFT)),
     );
     child.spacing_mut().item_spacing.y = theme.library_detail_gap;
-    child
-        .add(
-            egui::Label::new(
-                RichText::new(title)
-                    .font(theme.font_body.clone())
-                    .color(tint.unwrap_or(theme.ink)),
-            )
-            .truncate()
-            .selectable(false)
-            .show_tooltip_when_elided(false),
+    let name = child.add(
+        egui::Label::new(
+            RichText::new(title)
+                .font(theme.font_body.clone())
+                .color(tint.unwrap_or(theme.ink)),
         )
-        .on_hover_text(title);
+        .truncate()
+        .selectable(false)
+        .show_tooltip_when_elided(false),
+    );
+    if thumb.is_none() {
+        name.on_hover_text(title);
+    }
     if let Some(sub) = subtitle {
         child.add(
             egui::Label::new(
@@ -950,6 +953,7 @@ fn drag_ghost_row(
     response: &Response,
     rect: Rect,
     icon: Icon,
+    thumb: Option<&TextureHandle>,
     title: &str,
     subtitle: Option<&str>,
     tag: Option<usize>,
@@ -967,7 +971,7 @@ fn drag_ghost_row(
         pointer,
         rect.width(),
         |ui| {
-            file_like_row(ui, theme, icon, title, subtitle, false, tag);
+            file_like_row_thumb(ui, theme, icon, thumb, title, subtitle, false, tag);
         },
     );
 }
@@ -1447,11 +1451,12 @@ fn file_card(
         && media::current(ui.ctx()).is_some_and(|c| c.path == path);
     let tag = row_tag(door, &path);
     let preview = sequence_preview(ui.ctx(), kind, file);
+    let thumb = preview.as_ref().and_then(|frames| frames.first());
     let (response, rect) = file_like_row_thumb(
         ui,
         theme,
         icon,
-        preview.as_ref().and_then(|frames| frames.first()),
+        thumb,
         file,
         status.as_deref(),
         previewing,
@@ -1476,7 +1481,7 @@ fn file_card(
         seconds: f["seconds"].as_f64(),
         scene: None,
     });
-    drag_ghost_row(ui, theme, &response, rect, icon, file, status.as_deref(), tag);
+    drag_ghost_row(ui, theme, &response, rect, icon, thumb, file, status.as_deref(), tag);
     let open = song.is_some_and(|s| s["open"].as_bool() == Some(true));
     let picked = state.selected_path.as_deref() == Some(path.as_str());
     if picked && !state.dial_folders && std::mem::take(&mut state.dial_scroll) {

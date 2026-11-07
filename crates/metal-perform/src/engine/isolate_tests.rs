@@ -206,6 +206,34 @@ fn render_kind_listened_draws_each_time_from_the_recording() {
     assert!(reacts.is_some(), "no model's pixels move with the recording: the audio node is not reaching the generator");
 }
 
+/// A gen model drawn over a recording renders one frame per time at the size
+/// asked for, and the recording reaches its picture: for some model the painter
+/// has, silence and a loud recording give different pixels.
+#[test]
+fn render_gen_listened_draws_each_time_from_the_recording() {
+    let (mut paint, _sim, mut state) = setup();
+    let times = [0.5, 1.5, 2.5];
+    let silent = vec![vec![0.0f32; crate::digest::FEATURES]; 64];
+    let loud_row: Vec<f32> = (0..crate::digest::FEATURES).map(|c| if c == 0 || c == 2 { 0.9 } else { 0.5 }).collect();
+    let loud = vec![loud_row; 64];
+    let quiet = render_gen_listened(&mut *paint, &mut state, "rings", 1, 48, 27, &silent, 8.0, &times)
+        .expect("the rings model renders");
+    assert_eq!(quiet.len(), times.len(), "one frame per time");
+    assert!(quiet.iter().all(|(_, w, h)| (*w, *h) == (48, 27)));
+    let hot = render_gen_listened(&mut *paint, &mut state, "gen.rings", 1, 48, 27, &loud, 8.0, &times)
+        .expect("the gen. prefix is accepted");
+    assert_eq!(hot.len(), times.len(), "one frame per time");
+    assert!(render_gen_listened(&mut *paint, &mut state, "nope", 0, 48, 27, &loud, 8.0, &times).is_none());
+
+    let at = [2.5];
+    let reacts = paint.ids().into_iter().find(|&model| {
+        let q = render_gen_listened(&mut *paint, &mut state, model, 1, 48, 27, &silent, 8.0, &at);
+        let h = render_gen_listened(&mut *paint, &mut state, model, 1, 48, 27, &loud, 8.0, &at);
+        matches!((q, h), (Some(q), Some(h)) if q[0].0 != h[0].0)
+    });
+    assert!(reacts.is_some(), "no gen model's pixels move with the recording: audio.live is not driving the generator");
+}
+
 /// A mask node's stage is its slice of the output: the device frame
 /// cropped to the contour's bounds — the one part of the output it renders.
 #[test]

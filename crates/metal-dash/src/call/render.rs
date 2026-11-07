@@ -323,7 +323,8 @@ fn preview_root() -> Option<std::path::PathBuf> {
 
 /// `GET /author/render/kind_listened?kind=&selected=0|1&w=&h=`: a kind drawn over
 /// a snippet of the live audio the listen tap kept, written as a looping GIF into
-/// the preview cache's gallery space. Variant 0 only.
+/// the preview cache's gallery space. Variant 0 only; a `gen.*` kind is drawn the
+/// same way, its generator driven by the snippet (`render_gen_listened`).
 ///
 /// `selected=1` is a card the user is looking at, so its picture is drawn again
 /// once it is [`LISTENED_COOLDOWN_SECS`] old; any other ask leaves an existing
@@ -331,8 +332,6 @@ fn preview_root() -> Option<std::path::PathBuf> {
 /// - `fresh`: the picture exists and is not due.
 /// - `none`: no snippet has been cut yet, so the placeholder stays.
 /// - `rendered`: a new picture was written.
-/// - `unsupported`: a `gen.*` kind. Its listened picture is not drawn yet (the
-///   gen preview graph is not the kind's own graph), so it is skipped for now.
 /// - `no_cache`: there is no preview cache directory (no home directory).
 pub fn kind_listened(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let Some(kind) = params.param("kind").map(str::to_string) else {
@@ -340,9 +339,6 @@ pub fn kind_listened(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError>
     };
     if !(kind.starts_with("fx.") || kind.starts_with("mat.") || kind.starts_with("gen.")) {
         return Err(CallError::Bad("kind must be fx.*, mat.* or gen.*".into()));
-    }
-    if kind.starts_with("gen.") {
-        return Ok(json!({"status": "unsupported"}));
     }
     let selected = params.param("selected") == Some("1");
     let w = params.num("w", 192.0).clamp(32.0, 480.0) as u32;
@@ -362,17 +358,31 @@ pub fn kind_listened(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError>
     };
     let length = snippet.rows.len() as f32 / snippet.rate_hz;
     let times: Vec<f32> = LISTENED_TIMES.iter().map(|t| t.min(length)).collect();
-    let Some(pictures) = metal_perform::engine::render_kind_listened(
-        ctx.paint,
-        ctx.state,
-        &kind,
-        0,
-        w,
-        h,
-        &snippet.rows,
-        snippet.rate_hz,
-        &times,
-    ) else {
+    let drawn = match kind.strip_prefix("gen.") {
+        Some(model) => metal_perform::engine::render_gen_listened(
+            ctx.paint,
+            ctx.state,
+            model,
+            0,
+            w,
+            h,
+            &snippet.rows,
+            snippet.rate_hz,
+            &times,
+        ),
+        None => metal_perform::engine::render_kind_listened(
+            ctx.paint,
+            ctx.state,
+            &kind,
+            0,
+            w,
+            h,
+            &snippet.rows,
+            snippet.rate_hz,
+            &times,
+        ),
+    };
+    let Some(pictures) = drawn else {
         return Err(CallError::NotFound);
     };
     let Some(&(_, pw, ph)) = pictures.first() else {
@@ -698,6 +708,15 @@ mod tests {
 
         let again = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &query);
         assert_eq!(again, "fresh");
+
+        // A gen kind takes the same path: its own cache entry, the same five frames.
+        let gen_query = [("kind", "gen.rings"), ("selected", "0")];
+        let gen_before = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &gen_query);
+        assert_eq!(gen_before, "rendered");
+        let gen_meta = PreviewCache::new(&dir).meta(Space::Gallery, "gen.rings").expect("sidecar written");
+        assert_eq!(gen_meta.frames, LISTENED_TIMES.len());
+        let gen_again = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &gen_query);
+        assert_eq!(gen_again, "fresh");
 
         std::env::remove_var("METALVJ_PREVIEW_DIR");
         let _ = std::fs::remove_dir_all(&dir);

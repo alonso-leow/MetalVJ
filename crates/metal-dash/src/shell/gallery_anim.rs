@@ -15,6 +15,7 @@ use std::sync::Arc;
 use egui::{ColorImage, Context, Id, TextureHandle, TextureOptions};
 
 use super::preview_cache::{PreviewCache, Space};
+use crate::call::render::STAND_IN_HASH;
 use crate::call::{Call, Params};
 
 /// How long one frame stays up: the gallery's own cadence, one float variant
@@ -84,9 +85,9 @@ pub fn encode(size: [usize; 2], frames: &[Vec<u8>]) -> Result<Vec<u8>, String> {
 /// The textures of every frame of one kind's GIF, shared by its cards.
 pub type Frames = Arc<Vec<TextureHandle>>;
 
-/// What the context remembers per kind: its frames, and whether they come from
-/// the listened picture. `frames` is `None` when neither picture is a GIF that
-/// decodes, so the files are looked for once, not every frame.
+/// What the context remembers per kind: its frames, and whether they are a heard
+/// picture (a stand-in does not count). `frames` is `None` when neither picture
+/// is a GIF that decodes, so the files are looked for once, not every frame.
 #[derive(Clone, Default)]
 struct Entry {
     frames: Option<Frames>,
@@ -107,7 +108,7 @@ pub fn frames(ctx: &Context, kind: &str) -> Option<Frames> {
     frames_with_root(ctx, kind, PreviewCache::default_root().as_deref(), cache_dir().as_deref())
 }
 
-/// Whether `kind`'s frames come from the listened picture rather than the placeholder.
+/// Whether `kind`'s frames are a heard picture, not the placeholder or a stand-in.
 pub fn is_listened(ctx: &Context, kind: &str) -> bool {
     entry_with_roots(ctx, kind, PreviewCache::default_root().as_deref(), cache_dir().as_deref()).listened
 }
@@ -136,11 +137,19 @@ fn entry_with_roots(ctx: &Context, kind: &str, preview_root: Option<&Path>, plac
 }
 
 fn load_entry(ctx: &Context, kind: &str, preview_root: Option<&Path>, placeholder_dir: Option<&Path>) -> Entry {
-    let listened = preview_root
-        .and_then(|root| PreviewCache::new(root).read_gif(Space::Gallery, kind))
+    let cache = preview_root.map(PreviewCache::new);
+    let picture = cache
+        .as_ref()
+        .and_then(|c| c.read_gif(Space::Gallery, kind))
         .and_then(|bytes| load_from_bytes(ctx, kind, &bytes));
-    if let Some(textures) = listened {
-        return Entry { frames: Some(Arc::new(textures)), listened: true };
+    if let Some(textures) = picture {
+        // A stand-in shows its frames, but its card still lacks a heard picture
+        // and keeps asking for one.
+        let stand_in = cache
+            .as_ref()
+            .and_then(|c| c.meta(Space::Gallery, kind))
+            .is_some_and(|m| m.input_hash == STAND_IN_HASH);
+        return Entry { frames: Some(Arc::new(textures)), listened: !stand_in };
     }
     let placeholder = placeholder_dir
         .and_then(|dir| std::fs::read(dir.join(file_name(kind))).ok())
@@ -198,9 +207,11 @@ pub fn next_unselected_ask(
         .map(str::to_string)
 }
 
-/// Whether a reply body says its listened picture was drawn (`"status": "rendered"`).
-pub fn is_rendered(body: &[u8]) -> bool {
-    serde_json::from_slice::<serde_json::Value>(body).is_ok_and(|v| v["status"] == "rendered")
+/// Whether a reply body says its card's picture was written, so the card reloads:
+/// a heard picture (`"rendered"`) or the stand-in drawn while none was heard (`"placeholder"`).
+pub fn wrote_picture(body: &[u8]) -> bool {
+    serde_json::from_slice::<serde_json::Value>(body)
+        .is_ok_and(|v| matches!(v["status"].as_str(), Some("rendered" | "placeholder")))
 }
 
 /// A listened-picture ask the door has not answered yet.
@@ -235,7 +246,8 @@ impl Listens {
 
     /// One frame's work. `visible` is the kinds on screen while the gallery is
     /// open (`None` when it is closed); `lacks` says whether a kind has no
-    /// listened picture yet. A rendered answer reloads that kind's card.
+    /// heard picture yet (a stand-in counts as lacking). A rendered or placeholder
+    /// answer reloads that kind's card.
     pub fn tick(
         &mut self,
         door: &dyn Call,
@@ -263,7 +275,7 @@ impl Listens {
                 None if now - ask.since < ASK_TIMEOUT_SECS => waiting.push(ask),
                 None => {}
                 Some(reply) => {
-                    if reply.status == 200 && is_rendered(&reply.body) {
+                    if reply.status == 200 && wrote_picture(&reply.body) {
                         reload(ctx, &ask.kind);
                     }
                 }
@@ -363,6 +375,19 @@ mod tests {
         assert!(entry_with_roots(&ctx, "gen.x", Some(&previews), Some(&placeholder)).listened);
     }
 
+    /// A stand-in (sidecar hash 0) shows its frames, but is not a heard picture,
+    /// so its card still lacks one and keeps asking for it.
+    #[test]
+    fn a_stand_in_shows_but_is_not_a_heard_picture() {
+        let scratch = Scratch::new("stand-in");
+        let previews = scratch.0.join("previews");
+        let meta = crate::shell::preview_cache::Meta { rendered_at: 0, input_hash: STAND_IN_HASH, frames: 3, size: [4, 2] };
+        PreviewCache::new(&previews).write(Space::Gallery, "gen.x", &gif(3), &meta).expect("stand-in written");
+        let entry = entry_with_roots(&Context::default(), "gen.x", Some(&previews), None);
+        assert_eq!(entry.frames.map(|f| f.len()), Some(3), "the stand-in's frames show");
+        assert!(!entry.listened);
+    }
+
     #[test]
     fn without_a_listened_picture_the_placeholder_still_shows() {
         let scratch = Scratch::new("falls-back");
@@ -442,12 +467,13 @@ mod listen_tests {
     }
 
     #[test]
-    fn only_a_rendered_answer_reloads_the_card() {
-        assert!(is_rendered(br#"{"status":"rendered"}"#));
+    fn only_a_written_picture_reloads_the_card() {
+        assert!(wrote_picture(br#"{"status":"rendered"}"#));
+        assert!(wrote_picture(br#"{"status":"placeholder"}"#));
         for status in ["fresh", "none", "unsupported", "no_cache"] {
-            assert!(!is_rendered(format!(r#"{{"status":"{status}"}}"#).as_bytes()), "{status}");
+            assert!(!wrote_picture(format!(r#"{{"status":"{status}"}}"#).as_bytes()), "{status}");
         }
-        assert!(!is_rendered(b"not json"));
+        assert!(!wrote_picture(b"not json"));
     }
 
     #[test]

@@ -5,6 +5,8 @@
 
 use serde_json::{json, Value};
 
+use metal_perform::digest::{Simulated, Source};
+
 use crate::call::{Bytes, CallError, Ctx, Params};
 use crate::paint::encode_jpeg;
 use crate::shell::gallery_anim::encode;
@@ -311,6 +313,25 @@ const LISTENED_COOLDOWN_SECS: u64 = 600;
 /// The moments a listened GIF is drawn at, in seconds into the snippet (each
 /// clamped to the snippet's length).
 const LISTENED_TIMES: [f32; 5] = [0.5, 1.5, 2.5, 3.5, 4.5];
+/// The `input_hash` of a stand-in picture, drawn from [`stand_in_rows`] while no
+/// snippet has been heard. The first real snippet replaces it. A real picture's
+/// hash is a digest of its floats, which is not 0 in practice.
+pub const STAND_IN_HASH: u64 = 0;
+/// The stand-in snippet: [`STAND_IN_ROWS`] rows of the stand-in digest at
+/// [`STAND_IN_RATE_HZ`], five seconds, enough for every moment in
+/// [`LISTENED_TIMES`].
+const STAND_IN_SEED: u32 = 0x5EED;
+const STAND_IN_RATE_HZ: f32 = 8.0;
+const STAND_IN_ROWS: usize = 40;
+
+/// The stand-in snippet's rows: the stand-in digest polled at `i / rate`, each
+/// the row the digest stepped to (`Frame::raw`).
+fn stand_in_rows() -> Vec<Vec<f32>> {
+    let mut digest = Simulated::new(STAND_IN_SEED);
+    (0..STAND_IN_ROWS)
+        .map(|i| digest.poll(i as f32 / STAND_IN_RATE_HZ).raw.to_vec())
+        .collect()
+}
 
 /// The preview cache root: `METALVJ_PREVIEW_DIR` when set and non-empty, else
 /// `~/.cache/metalvj/previews`. `None` without a home directory.
@@ -326,12 +347,17 @@ fn preview_root() -> Option<std::path::PathBuf> {
 /// the preview cache's gallery space. Variant 0 only; a `gen.*` kind is drawn the
 /// same way, its generator driven by the snippet (`render_gen_listened`).
 ///
-/// `selected=1` is a card the user is looking at, so its picture is drawn again
-/// once it is [`LISTENED_COOLDOWN_SECS`] old; any other ask leaves an existing
-/// picture alone. Replies `{"status": ...}`:
-/// - `fresh`: the picture exists and is not due.
-/// - `none`: no snippet has been cut yet, so the placeholder stays.
-/// - `rendered`: a new picture was written.
+/// `selected=1` is a card the user is looking at, so a heard picture is drawn
+/// again once it is [`LISTENED_COOLDOWN_SECS`] old; any other ask leaves it alone.
+/// While no snippet has been heard, a kind with no picture gets a stand-in
+/// ([`stand_in_rows`], sidecar `input_hash` [`STAND_IN_HASH`]). A stand-in is
+/// replaced by the first real snippet at once, cooldown or not, selected or not.
+/// Replies `{"status": ...}`:
+/// - `fresh`: the picture exists and is not due, or it is a stand-in and still no
+///   snippet has been heard.
+/// - `placeholder`: no snippet yet, so the stand-in was written.
+/// - `rendered`: a picture from a heard snippet was written.
+/// - `none`: a heard picture is due, but no snippet is held to redraw it from.
 /// - `no_cache`: there is no preview cache directory (no home directory).
 pub fn kind_listened(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let Some(kind) = params.param("kind").map(str::to_string) else {
@@ -350,37 +376,52 @@ pub fn kind_listened(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError>
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs());
-    if !cache.should_render(Space::Gallery, &kind, now, LISTENED_COOLDOWN_SECS, selected) {
-        return Ok(json!({"status": "fresh"}));
-    }
-    let Some(snippet) = ctx.state.listen.pick(now).cloned() else {
-        return Ok(json!({"status": "none"}));
+    // What the cache holds for this kind: a heard picture or a stand-in. A
+    // picture without a readable sidecar counts as nothing held.
+    let held = if cache.path(Space::Gallery, &kind).is_file() {
+        cache.meta(Space::Gallery, &kind)
+    } else {
+        None
     };
-    let length = snippet.rows.len() as f32 / snippet.rate_hz;
+    let stand_in = held.as_ref().is_some_and(|m| m.input_hash == STAND_IN_HASH);
+    let due = cache.should_render(Space::Gallery, &kind, now, LISTENED_COOLDOWN_SECS, selected);
+    let (status, rows, rate_hz, input_hash) = match ctx.state.listen.pick(now).cloned() {
+        Some(snippet) => {
+            if !(stand_in || due) {
+                return Ok(json!({"status": "fresh"}));
+            }
+            let flat: Vec<f32> = snippet.rows.iter().flatten().copied().collect();
+            ("rendered", snippet.rows, snippet.rate_hz, metal_perform::frame_cache::hash_floats(&flat, 0.0))
+        }
+        None if stand_in || !due => return Ok(json!({"status": "fresh"})),
+        None if held.is_some() => return Ok(json!({"status": "none"})),
+        None => ("placeholder", stand_in_rows(), STAND_IN_RATE_HZ, STAND_IN_HASH),
+    };
+    let (gif, frames, size) = listened_gif(ctx, &kind, w, h, &rows, rate_hz)?;
+    let meta = Meta { rendered_at: now, input_hash, frames, size };
+    cache
+        .write(Space::Gallery, &kind, &gif, &meta)
+        .map_err(|e| CallError::Internal(e.to_string()))?;
+    Ok(json!({"status": status}))
+}
+
+/// Draws `kind` over `rows` at each of the [`LISTENED_TIMES`] that fall inside
+/// the snippet, through the engine (`render_gen_listened` for a `gen.*` kind,
+/// else `render_kind_listened`), and encodes them as a looping GIF. Returns the
+/// GIF with its frame count and size.
+fn listened_gif(
+    ctx: &mut Ctx,
+    kind: &str,
+    w: u32,
+    h: u32,
+    rows: &[Vec<f32>],
+    rate_hz: f32,
+) -> Result<(Vec<u8>, usize, [usize; 2]), CallError> {
+    let length = rows.len() as f32 / rate_hz;
     let times: Vec<f32> = LISTENED_TIMES.iter().map(|t| t.min(length)).collect();
     let drawn = match kind.strip_prefix("gen.") {
-        Some(model) => metal_perform::engine::render_gen_listened(
-            ctx.paint,
-            ctx.state,
-            model,
-            0,
-            w,
-            h,
-            &snippet.rows,
-            snippet.rate_hz,
-            &times,
-        ),
-        None => metal_perform::engine::render_kind_listened(
-            ctx.paint,
-            ctx.state,
-            &kind,
-            0,
-            w,
-            h,
-            &snippet.rows,
-            snippet.rate_hz,
-            &times,
-        ),
+        Some(model) => metal_perform::engine::render_gen_listened(ctx.paint, ctx.state, model, 0, w, h, rows, rate_hz, &times),
+        None => metal_perform::engine::render_kind_listened(ctx.paint, ctx.state, kind, 0, w, h, rows, rate_hz, &times),
     };
     let Some(pictures) = drawn else {
         return Err(CallError::NotFound);
@@ -397,17 +438,7 @@ pub fn kind_listened(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError>
         .map(|(rgba, _, _)| rgba.chunks_exact(4).flat_map(|px| [px[0], px[1], px[2]]).collect())
         .collect();
     let gif = encode(size, &frames).map_err(CallError::Internal)?;
-    let flat: Vec<f32> = snippet.rows.iter().flatten().copied().collect();
-    let meta = Meta {
-        rendered_at: now,
-        input_hash: metal_perform::frame_cache::hash_floats(&flat, 0.0),
-        frames: frames.len(),
-        size,
-    };
-    cache
-        .write(Space::Gallery, &kind, &gif, &meta)
-        .map_err(|e| CallError::Internal(e.to_string()))?;
-    Ok(json!({"status": "rendered"}))
+    Ok((gif, frames.len(), size))
 }
 
 /// Where `metal-render --bin model-demo` writes its posters: beside the
@@ -680,8 +711,9 @@ mod tests {
         body["status"].as_str().expect("a status").to_string()
     }
 
-    /// With no snippet the route says `none`; once one is in the tap's store it
-    /// draws the kind's GIF (`rendered`), and asking again is `fresh`.
+    /// With no snippet the route draws a stand-in GIF (`placeholder`, sidecar
+    /// hash 0) and does not draw it again while none is heard. The first snippet
+    /// replaces it at once (`rendered`, selected or not), and asking again is `fresh`.
     #[test]
     fn kind_listened_draws_once_a_snippet_is_heard() {
         let dir = std::env::temp_dir().join(format!("mvj-kind-listened-{}", std::process::id()));
@@ -693,9 +725,16 @@ mod tests {
         // cache, so the fixture's tap is swapped for an in-memory one.
         state.listen = metal_perform::listen_cache::ListenTap::in_memory();
         let query = [("kind", "fx.blur"), ("selected", "0")];
+        let picked = [("kind", "fx.blur"), ("selected", "1")];
 
         let before = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &query);
-        assert_eq!(before, "none");
+        assert_eq!(before, "placeholder");
+        assert!(PreviewCache::new(&dir).path(Space::Gallery, "fx.blur").is_file(), "stand-in GIF written");
+        let stand_in = PreviewCache::new(&dir).meta(Space::Gallery, "fx.blur").expect("stand-in sidecar");
+        assert_eq!(stand_in.input_hash, STAND_IN_HASH);
+        assert_eq!(stand_in.frames, LISTENED_TIMES.len());
+        let still = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &picked);
+        assert_eq!(still, "fresh", "no snippet yet, so the stand-in stands");
 
         // 40 rows at 8 Hz, column 0 loud: five seconds of sound.
         let rows: Vec<Vec<f32>> = (0..40).map(|i| vec![0.5, i as f32 / 8.0, 0.0]).collect();
@@ -704,6 +743,7 @@ mod tests {
         let drawn = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &query);
         assert_eq!(drawn, "rendered");
         let meta = PreviewCache::new(&dir).meta(Space::Gallery, "fx.blur").expect("sidecar written");
+        assert_ne!(meta.input_hash, STAND_IN_HASH, "the heard picture replaced the stand-in");
         assert_eq!(meta.frames, LISTENED_TIMES.len());
 
         let again = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &query);

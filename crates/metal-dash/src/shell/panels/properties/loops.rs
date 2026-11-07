@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{kv_row, kv_wrap, note, num_value};
+use crate::shell::components::{kv_row, kv_wrap, note, num_value, value_label};
 use crate::shell::i18n::{tr, trf};
 
 use super::shared::get;
@@ -141,7 +141,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
     let mut pick: Option<String> = None;
     block(ui, theme, Some(tr("Loop")), |ui| {
         kv_row(ui, theme, tr("state"), |ui| {
-            ui.label(small_text(theme, state_label(&state)).color(theme.ink).strong())
+            value_label(ui, small_text(theme, state_label(&state)).color(theme.ink).strong())
         });
         kv_wrap(ui, theme, tr("clock"), |ui| clock_header(ui, theme, door, &info));
         let mut options: Vec<(String, String)> = vec![

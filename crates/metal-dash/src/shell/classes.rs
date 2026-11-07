@@ -230,6 +230,9 @@ pub struct Theme {
     pub header_pad_y: i8,
     /// Gap between items inside a panel.
     pub item_gap: Vec2,
+    /// Gap between the cells of a properties grid, both ways: zero, so rows
+    /// and cells sit flush and share one thin grid line (`grid_stroke`).
+    pub cell_gap: Vec2,
     /// Gap between the buttons of a segmented row (a chip strip, a choice of
     /// modes): the spacing those rows always had, kept apart from `item_gap` so
     /// the panel gap can grow without re-spacing every row.
@@ -789,6 +792,7 @@ impl Theme {
             header_pad: 8,
             header_pad_y: 5,
             item_gap: Vec2::new(8.0, 6.0),
+            cell_gap: Vec2::ZERO,
             segment_gap: Vec2::new(8.0, 3.0),
             wordmark_gap: Vec2::ZERO,
             field_pad: Vec2::new(10.0, 6.0),
@@ -845,7 +849,7 @@ impl Theme {
             table_row_height: 16.0,
             stripe: Color32::from_rgb(0x16, 0x16, 0x1a),
             library_pad: 8,
-            library_gap: 2.0,
+            library_gap: 0.0,
             library_row: 24.0,
             library_card_h: 48.0,
             library_card_radius: 6,
@@ -1025,6 +1029,7 @@ impl Theme {
             header_pad: 8,
             header_pad_y: 5,
             item_gap: Vec2::new(8.0, 6.0),
+            cell_gap: Vec2::ZERO,
             segment_gap: Vec2::new(8.0, 3.0),
             wordmark_gap: Vec2::ZERO,
             field_pad: Vec2::new(10.0, 6.0),
@@ -1081,7 +1086,7 @@ impl Theme {
             table_row_height: 16.0,
             stripe: Color32::from_rgb(0x16, 0x16, 0x1a),
             library_pad: 8,
-            library_gap: 2.0,
+            library_gap: 0.0,
             library_row: 24.0,
             library_card_h: 48.0,
             library_card_radius: 6,
@@ -1337,6 +1342,7 @@ impl Theme {
             header_pad: 14,
             header_pad_y: 13,
             item_gap: Vec2::new(14.0, 12.0),
+            cell_gap: Vec2::ZERO,
             segment_gap: Vec2::new(14.0, 6.0),
             wordmark_gap: Vec2::new(2.0, 0.0),
             field_pad: Vec2::new(10.0, 6.0),
@@ -1393,7 +1399,7 @@ impl Theme {
             table_row_height: 24.0,
             stripe: Color32::from_rgb(0xe2, 0xe2, 0xda),
             library_pad: 14,
-            library_gap: 3.0,
+            library_gap: 0.0,
             library_row: 34.0,
             library_card_h: 64.0,
             library_card_radius: 10,
@@ -1557,6 +1563,12 @@ impl Theme {
     /// The hairline rule as a stroke.
     pub fn rule_stroke(&self) -> Stroke {
         Stroke::new(self.hairline, self.rule)
+    }
+
+    /// The properties grid's cell border: the hairline in the light grey ink,
+    /// drawn between every two cells.
+    pub fn grid_stroke(&self) -> Stroke {
+        Stroke::new(self.hairline, self.ink_weak)
     }
 
     /// The stroke of a library row's painted icon glyph: the weak ink at the
@@ -1765,9 +1777,10 @@ impl Theme {
     }
 
     /// The fill colour of a value track in `state`: a wired control reads in
-    /// the accent-dim (a source owns it), the rest in the phosphor.
+    /// the accent-dim (a source owns it), the rest in the light grey of the
+    /// body ink (`ink` is light on the dark tube, dark on daylight).
     pub fn control_fill(&self, state: ControlState) -> Color32 {
-        let base = if state == ControlState::Wired { self.phosphor_dim } else { self.phosphor };
+        let base = if state == ControlState::Wired { self.phosphor_dim } else { self.ink };
         self.faded(base, self.control_fill_alpha(state))
     }
 
@@ -2055,7 +2068,7 @@ impl Theme {
     /// The PAYLOAD cell: glass with a black outline.
     pub fn payload_shapes(&self, rect: Rect) -> Vec<Shape> {
         let mut shapes = self.glass_layers(rect);
-        shapes.push(Shape::rect_stroke(rect, self.sharp_corner(), self.line_stroke(self.hard_ink()), StrokeKind::Inside));
+        shapes.push(Shape::rect_stroke(rect, self.sharp_corner(), self.grid_stroke(), StrokeKind::Inside));
         shapes
     }
 
@@ -2064,7 +2077,7 @@ impl Theme {
         vec![
             Shape::rect_filled(rect.translate(self.key_shadow_offset()), self.sharp_corner(), self.key_shadow()),
             Shape::rect_filled(rect, self.sharp_corner(), self.panel_head),
-            Shape::rect_stroke(rect, self.sharp_corner(), self.rule_stroke(), StrokeKind::Inside),
+            Shape::rect_stroke(rect, self.sharp_corner(), self.grid_stroke(), StrokeKind::Inside),
         ]
     }
 
@@ -2092,6 +2105,25 @@ impl Theme {
         }
         visuals.widgets.inactive.weak_bg_fill = self.glass_fill();
         visuals.widgets.inactive.bg_fill = self.glass_fill();
+        visuals.menu_corner_radius = r;
+    }
+
+    /// Restyles the widgets of a scope as a panel header's forms (the search
+    /// boxes, the path field, the filter row): sharp corners and the
+    /// lighter-grey outline, the bright rule, so they match the square cells
+    /// rather than the rounded field.
+    pub fn header_form_style(&self, visuals: &mut egui::Visuals) {
+        let r = self.sharp_corner();
+        let outline = self.rule_bright_stroke();
+        for w in [
+            &mut visuals.widgets.inactive,
+            &mut visuals.widgets.hovered,
+            &mut visuals.widgets.active,
+            &mut visuals.widgets.open,
+        ] {
+            w.corner_radius = r;
+            w.bg_stroke = outline;
+        }
         visuals.menu_corner_radius = r;
     }
 

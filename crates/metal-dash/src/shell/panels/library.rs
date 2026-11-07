@@ -59,7 +59,7 @@ use crate::call::{Call, Params};
 use crate::shell::classes::Theme;
 use crate::surface::LibraryIntent;
 use crate::shell::components::{
-    icon_toggle, paint_icon_stroked, square_icon_button_inked, panel_frame, header_edit, panel_head, search_field, section_heading, subheader,
+    icon_toggle, paint_icon_stroked, square_icon_button_inked, panel_frame, header_edit, header_forms, panel_head, search_field, section_heading, subheader,
     Icon,
 };
 use crate::shell::i18n::tr;
@@ -414,12 +414,14 @@ pub fn paint(
                         // The folders column names the region itself, so
                         // `get_by_label("biblioteca")` meets one widget.
                         panel_head(ui, theme, super::Region::Library.title(), |ui| {
-                            search_field(
-                                ui,
-                                theme,
-                                &mut state.folder_query,
-                                tr("search folder…"),
-                            );
+                            header_forms(ui, theme, |ui| {
+                                search_field(
+                                    ui,
+                                    theme,
+                                    &mut state.folder_query,
+                                    tr("search folder…"),
+                                );
+                            });
                         });
                         ScrollArea::vertical()
                             .id_salt("shell/region/library/dirs/scroll")
@@ -431,12 +433,14 @@ pub fn paint(
                         // A distinct label, so the folders header stays the one
                         // `library` a test reaches.
                         panel_head(ui, theme, "library · files", |ui| {
-                            search_field(
-                                ui,
-                                theme,
-                                &mut state.file_query,
-                                tr("search file…"),
-                            );
+                            header_forms(ui, theme, |ui| {
+                                search_field(
+                                    ui,
+                                    theme,
+                                    &mut state.file_query,
+                                    tr("search file…"),
+                                );
+                            });
                         });
                         ScrollArea::vertical()
                             .id_salt("shell/region/library/files/scroll")
@@ -550,7 +554,7 @@ fn dirs_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     let reel = &state_val["reel"];
     let open_name = reel["library"]["name"].as_str().map(str::to_string);
 
-    subheader(ui, theme, |ui| path_field(ui, theme, state));
+    subheader(ui, theme, |ui| header_forms(ui, theme, |ui| path_field(ui, theme, state)));
 
     // A dropped clip's proxy being built, beside the indexing line — same
     // coarse phase, a different pipeline. The first running job is the one
@@ -650,6 +654,8 @@ fn dirs_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
             }
         }
     }
+    // Folder rows sit as close as the file rows below them.
+    ui.spacing_mut().item_spacing.y = theme.library_gap;
     if !in_use.is_empty() {
         section_heading(ui, theme, "in use");
         for name in &in_use {
@@ -1166,22 +1172,23 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
     // kind row. Both are view state kept in `PanelState`, so they survive a
     // folder walk; neither changes the route the column reads.
     subheader(ui, theme, |ui| {
-        ui.spacing_mut().item_spacing = theme.item_gap;
-        // The lit star's frame must stay inside the cell.
-        ui.spacing_mut().button_padding = theme.field_pad;
-        if icon_toggle(ui, theme, Icon::Star, state.fav_only, tr("favourites")).clicked() {
-            state.fav_only = !state.fav_only;
-        }
-        // Chips: nothing picked is "all" (kind 0); clicking the picked one clears it.
-        let mut kind = (state.kind_filter != 0).then_some(state.kind_filter);
-        filter_chips(
-            ui,
-            theme,
-            &mut kind,
-            &[(1, tr("audio")), (2, tr("video")), (3, tr("image")), (4, tr("sequence"))],
-        );
-        state.kind_filter = kind.unwrap_or(0);
-
+        header_forms(ui, theme, |ui| {
+            ui.spacing_mut().item_spacing = theme.item_gap;
+            // The lit star's frame must stay inside the cell.
+            ui.spacing_mut().button_padding = theme.field_pad;
+            if icon_toggle(ui, theme, Icon::Star, state.fav_only, tr("favourites")).clicked() {
+                state.fav_only = !state.fav_only;
+            }
+            // Chips: nothing picked is "all" (kind 0); clicking the picked one clears it.
+            let mut kind = (state.kind_filter != 0).then_some(state.kind_filter);
+            filter_chips(
+                ui,
+                theme,
+                &mut kind,
+                &[(1, tr("audio")), (2, tr("video")), (3, tr("image")), (4, tr("sequence"))],
+            );
+            state.kind_filter = kind.unwrap_or(0);
+        });
     });
 
     let songs_val = door

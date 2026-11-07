@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{colour_button, dropdown, float_row, kv_row, kv_wrap, note, num_value, Float};
+use crate::shell::components::{colour_button, dropdown, float_row, kv_row, kv_wrap, note, num_value, value_label, Float};
 use crate::shell::i18n::{tr, tr_dyn, trf};
 
 
@@ -33,14 +33,16 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, ingest: &mut 
     let at = ingest.playhead;
     let keyed = ingest.keyframes.contains_key(&at);
     kv_row(ui, theme, tr("track"), |ui| {
-        ui.label(
+        value_label(
+            ui,
             RichText::new(trf("track {n} · {model} · tick {t}", &[("n", &(ingest.active + 1)), ("model", &ingest.model), ("t", &at)]))
                 .font(theme.font_small.clone())
                 .color(theme.ink),
         )
     });
     kv_row(ui, theme, tr("keypoint"), |ui| {
-        ui.label(
+        value_label(
+            ui,
             RichText::new(if keyed { tr("keypoint") } else { tr("eased between keypoints") })
                 .font(theme.font_small.clone())
                 .color(theme.ink_weak),
@@ -111,7 +113,7 @@ pub(crate) fn voice_block(
     for (i, name) in metal_schema::VOICE_COLUMNS.iter().enumerate() {
         let value = row.map(|r| r[i]).unwrap_or(0.0);
         kv_row(ui, theme, &tr_dyn(name), |ui| {
-            ui.label(small_text(theme, format!("{value:.2}")).color(theme.ink))
+            value_label(ui, small_text(theme, format!("{value:.2}")).color(theme.ink))
         });
     }
 }

@@ -406,6 +406,8 @@ impl PanelState {
         ScrollArea::vertical()
             .id_salt("shell/region/properties/scroll")
             .show(ui, |ui| {
+                // The cells of a grid sit flush (no gap between rows).
+                ui.spacing_mut().item_spacing = theme.cell_gap;
                 if lanes_focused {
                     if let Some(name) = overlay_focus {
                         overlay::section(ui, theme, door, self, name);

@@ -21,6 +21,7 @@ use egui::{Context, Id, Pos2, Rect, RichText, Sense, StrokeKind, Ui, Vec2};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
+use crate::shell::components::header_forms;
 use crate::shell::i18n::{tr, trf};
 use crate::shell::media::{self, Clip};
 use crate::shell::preview::{FloatingPreview, PreviewSubject};
@@ -85,30 +86,32 @@ pub(crate) fn view(ui: &mut Ui, theme: &Theme, door: &dyn Call) {
     let board = media::board(&ctx);
 
     ui.horizontal_wrapped(|ui| {
-        let now_playing = playing(&ctx);
-        let label = if now_playing { tr("pause clips") } else { tr("play clips") };
-        if ui
-            .button(RichText::new(label).font(theme.font_small.clone()))
-            .clicked()
-        {
-            set_playing(&ctx, !now_playing);
-        }
-        if ui
-            .button(RichText::new(tr("enable effects")).font(theme.font_small.clone()))
-            .clicked()
-        {
-            media::set_effects(&ctx, true);
-            ctx.data_mut(|d| d.insert_temp(Id::new(EFFECTS_ID), board.clips.clone()));
-        }
-        let clear = ui.add_enabled(
-            !board.clips.is_empty(),
-            egui::Button::new(RichText::new(tr("clear")).font(theme.font_small.clone())),
-        );
-        if clear.clicked() {
-            media::clear(&ctx);
-            ctx.data_mut(|d| d.remove_temp::<Clock>(Id::new(CLOCK_ID)));
-            set_playing(&ctx, false);
-        }
+        header_forms(ui, theme, |ui| {
+            let now_playing = playing(&ctx);
+            let label = if now_playing { tr("pause clips") } else { tr("play clips") };
+            if ui
+                .button(RichText::new(label).font(theme.font_small.clone()))
+                .clicked()
+            {
+                set_playing(&ctx, !now_playing);
+            }
+            if ui
+                .button(RichText::new(tr("enable effects")).font(theme.font_small.clone()))
+                .clicked()
+            {
+                media::set_effects(&ctx, true);
+                ctx.data_mut(|d| d.insert_temp(Id::new(EFFECTS_ID), board.clips.clone()));
+            }
+            let clear = ui.add_enabled(
+                !board.clips.is_empty(),
+                egui::Button::new(RichText::new(tr("clear")).font(theme.font_small.clone())),
+            );
+            if clear.clicked() {
+                media::clear(&ctx);
+                ctx.data_mut(|d| d.remove_temp::<Clock>(Id::new(CLOCK_ID)));
+                set_playing(&ctx, false);
+            }
+        });
     });
 
     if board.clips.is_empty() {

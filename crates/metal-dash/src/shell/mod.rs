@@ -1342,7 +1342,7 @@ impl Shell {
             CentralPanel::default_margins()
                 .frame(ground_frame(&theme))
                 .show(ui, |ui| {
-                    lanes_panel::paint(
+                    lanes_panel::paint_timeline(
                         ui,
                         &theme,
                         door,
@@ -1350,7 +1350,6 @@ impl Shell {
                         &mut self.ingest,
                         &self.selection,
                         open_graph.as_deref(),
-                        true,
                     );
                 });
         } else if show {

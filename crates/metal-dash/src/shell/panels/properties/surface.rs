@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown_fill, kv_row, label_row, note, table};
+use crate::shell::components::{dropdown_fill, kv_row, label_row, note, table, value_label};
 use crate::shell::i18n::{tr, trf};
 
 use super::contour::{ContourEditor, ContourEvent, ContourMode};
@@ -65,7 +65,8 @@ pub(crate) fn section(
     let venue = crate::shell::panels::venue_map::venue_for(door, gid, node_id, node, graph);
     let venue_id = venue.id.clone();
     label_row(ui, theme, tr("room"), |ui| {
-        ui.label(
+        value_label(
+            ui,
             RichText::new(&venue_id)
                 .font(theme.font_small.clone())
                 .color(theme.ink),

@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown_fill, label_row, num_track};
+use crate::shell::components::{dropdown_fill, label_row, num_track, value_label};
 use crate::shell::i18n::{tr, trf};
 
 use super::mask::masks_note_and_insert;
@@ -55,7 +55,8 @@ fn venue_row(
     let Some(node_val) = node else { return };
     let venue = crate::shell::panels::venue_map::venue_for(door, gid, node_id, node_val, graph);
     let _ = label_row(ui, theme, tr("room"), |ui| {
-        ui.label(
+        value_label(
+            ui,
             RichText::new(&venue.id)
                 .font(theme.font_small.clone())
                 .color(theme.ink),

@@ -205,6 +205,15 @@ enum Row {
     NewLayer,
 }
 
+impl Row {
+    /// An ingested digest row (song, audio, voice, croma): pinned above the
+    /// authoring rows, at its own fixed height — it neither scrolls nor follows
+    /// the vertical zoom.
+    fn pinned(self) -> bool {
+        matches!(self, Row::Song | Row::Audio | Row::Voice | Row::Chroma)
+    }
+}
+
 /// What a press on a layer row lands on.
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Part {
@@ -233,8 +242,10 @@ fn layout(ingest: &IngestLane, fields: &dyn Fn(&str) -> Vec<Field>) -> Vec<(Row,
         }
     }
     rows.push((Row::NewLayer, TRACK_H));
+    // Only the authoring rows follow the vertical zoom; the ingested rows keep
+    // their fixed height.
     let zoom = ingest.row_zoom.clamp(ROW_ZOOM_MIN, ROW_ZOOM_MAX);
-    rows.into_iter().map(|(r, h)| (r, h * zoom)).collect()
+    rows.into_iter().map(|(r, h)| (r, if r.pinned() { h } else { h * zoom })).collect()
 }
 
 /// The song's length in ticks, else the furthest clip end plus a screen.
@@ -314,16 +325,26 @@ pub fn paint(
     let body = Rect::from_min_max(Pos2::new(rect.left(), ruler.bottom()), Pos2::new(rect.right() - BAR, rect.bottom() - BAR));
     let lanes = Rect::from_min_max(Pos2::new(body.left() + LABEL_W, body.top()), body.max);
     let hbar = Rect::from_min_max(Pos2::new(lanes.left(), body.bottom()), Pos2::new(lanes.right(), rect.bottom()));
-    let vbar = Rect::from_min_max(Pos2::new(body.right(), body.top()), Pos2::new(rect.right(), body.bottom()));
-
     let span = ingest.span.clamp(SPAN_MIN, SPAN_MAX);
     ingest.span = span;
     let total = total_ticks(ingest);
     let _s_layout = Span::new("timeline.layout");
     let rows = layout(ingest, fields);
     drop(_s_layout);
-    let content_h: f32 = rows.iter().map(|(_, h)| h).sum();
-    let max_scroll_y = (content_h - body.height()).max(0.0);
+    // The body in two strips: the ingested rows pinned at the top at their own
+    // height (never scrolled, never zoomed), the authoring rows below them in
+    // what is left, scrolled by `scroll_y` under the same vertical bar.
+    let pinned_h: f32 = rows
+        .iter()
+        .filter(|(r, _)| r.pinned())
+        .map(|(_, h)| h)
+        .sum::<f32>()
+        .min((body.height() - TRACK_H).max(0.0));
+    let digest = Rect::from_min_max(body.min, Pos2::new(body.right(), body.top() + pinned_h));
+    let author = Rect::from_min_max(Pos2::new(body.left(), digest.bottom()), body.max);
+    let vbar = Rect::from_min_max(Pos2::new(body.right(), author.top()), Pos2::new(rect.right(), body.bottom()));
+    let content_h: f32 = rows.iter().filter(|(r, _)| !r.pinned()).map(|(_, h)| h).sum();
+    let max_scroll_y = (content_h - author.height()).max(0.0);
     let max_from = (total as f32 - span as f32).max(0.0);
 
     // --- wheel: both axes zoom and pan -------------------------------------
@@ -343,7 +364,7 @@ pub fn paint(
         if mods.command || mods.ctrl {
             let factor = pinch * ZOOM_STEP.powf(notch / WHEEL_NOTCH);
             if factor != 1.0 {
-                let anchor_y = pointer.map(|p| p.y - body.top()).unwrap_or(0.0).max(0.0);
+                let anchor_y = pointer.map(|p| p.y - author.top()).unwrap_or(0.0).max(0.0);
                 let content_y = (ingest.scroll_y + anchor_y) / ingest.row_zoom;
                 ingest.row_zoom = (ingest.row_zoom * factor).clamp(ROW_ZOOM_MIN, ROW_ZOOM_MAX);
                 ingest.scroll_y = content_y * ingest.row_zoom - anchor_y;
@@ -392,7 +413,7 @@ pub fn paint(
             ingest.view_from = (p.x - hbar.left() - thumb_w * 0.5) / free_x * max_from;
         }
     }
-    let thumb_h = (body.height() / content_h.max(1.0) * vbar.height()).clamp(BAR * 2.0, vbar.height());
+    let thumb_h = (author.height() / content_h.max(1.0) * vbar.height()).clamp(BAR * 2.0, vbar.height());
     let free_y = (vbar.height() - thumb_h).max(1.0);
     let v_resp = ui.interact(vbar, id.with("vbar"), Sense::click_and_drag());
     if v_resp.dragged() {
@@ -518,7 +539,8 @@ pub fn paint(
     // gives an overlapping click to the widget added last.
     let b_resp = ui.interact(body, id.with("body"), Sense::click_and_drag());
     let mut gesture = ui.data(|d| d.get_temp::<Option<Gesture>>(id.with("gesture"))).flatten();
-    let mut y = body.top() - ingest.scroll_y;
+    let mut y_pinned = digest.top();
+    let mut y = author.top() - ingest.scroll_y;
     let mut row_rects = Vec::new();
     let mut clips: Vec<(ClipHit, Rect)> = Vec::new();
     let drag_over = ui.ctx().dragged_id().is_some() && egui::DragAndDrop::has_payload_of_type::<FileDrag>(ui.ctx());
@@ -526,15 +548,19 @@ pub fn paint(
     // `not digested` note) are clipped to the body: a row scrolled up past the
     // ruler must not keep painting its controls over the tick count above it.
     let outer_clip = ui.clip_rect();
-    ui.set_clip_rect(outer_clip.intersect(body));
     for (row, h) in &rows {
-        let r = Rect::from_min_size(Pos2::new(body.left(), y), Vec2::new(body.width(), *h));
-        y += h;
+        // A pinned row lays out and clips in the digest strip, an authoring row
+        // in the scrolled one; each keeps its own painter and widget clip.
+        let (area, cursor) = if row.pinned() { (digest, &mut y_pinned) } else { (author, &mut y) };
+        let r = Rect::from_min_size(Pos2::new(body.left(), *cursor), Vec2::new(body.width(), *h));
+        *cursor += *h;
+        ui.set_clip_rect(outer_clip.intersect(area));
+        let body_painter = ui.painter_at(area);
         // Every row is walked, even one scrolled out of the body: the row
         // widgets must exist in the tree regardless of the body's height, or
         // the structure would change with the theme's spacing (the restyle
         // gate forbids that). Painting stays cheap — `body_painter` clips to
-        // the body, so an off-screen row draws nothing visible.
+        // the strip, so an off-screen row draws nothing visible.
         row_rects.push((*row, r));
         let lane = Rect::from_min_max(Pos2::new(lanes.left(), r.top()), r.max);
         body_painter.line_segment([r.left_bottom(), r.right_bottom()], theme.rule_stroke());
@@ -566,7 +592,7 @@ pub fn paint(
                             body_painter.rect_filled(
                                 Rect::from_min_size(Pos2::new(x_of(t as f32), lane.bottom() - 3.0 - h), Vec2::new((px * 0.5).max(1.0), h)),
                                 0.0,
-                                theme.phosphor_dim,
+                                theme.soft,
                             );
                         }
                     }
@@ -918,7 +944,7 @@ pub fn paint(
                     Pos2::new(x_of(to as f32), r.top() + 2.0),
                     Pos2::new(x_of((to + len) as f32 + 1.0), r.bottom() - 2.0),
                 );
-                ui.painter_at(lanes).rect_stroke(ghost, theme.corner_radius(), theme.line_stroke(theme.phosphor_lit), egui::StrokeKind::Inside);
+                ui.painter_at(lanes.intersect(author)).rect_stroke(ghost, theme.corner_radius(), theme.line_stroke(theme.phosphor_lit), egui::StrokeKind::Inside);
             }
         }
         None => {}
@@ -927,10 +953,18 @@ pub fn paint(
     let _s_gest = Span::new("timeline.gestures");
     // --- gestures on the rows ------------------------------------------------
     let pointer = b_resp.interact_pointer_pos().or(b_resp.hover_pos());
-    let row_at = |p: Pos2| row_rects.iter().find(|(_, r)| r.contains(p)).map(|(row, _)| *row);
+    // A point in the digest strip reads the pinned rows, anywhere else the
+    // authoring rows (a scrolled authoring row may sit under the strip).
+    let row_at = |p: Pos2| {
+        let in_digest = digest.contains(p);
+        row_rects.iter().find(|(row, r)| row.pinned() == in_digest && r.contains(p)).map(|(row, _)| *row)
+    };
     // What a press at `p` lands on: a clip's edge, the active clip's
     // keypoint grip, or a clip's body — the topmost-painted clip first.
     let hit = |p: Pos2| -> Option<(&ClipHit, Part)> {
+        if !author.contains(p) {
+            return None;
+        }
         clips.iter().rev().find_map(|(c, bar)| {
             if p.y < bar.top() || p.y > bar.bottom() || p.x < bar.left() - EDGE || p.x > bar.right() + EDGE {
                 return None;

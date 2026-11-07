@@ -25,7 +25,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{kv_row, note, num_value};
+use crate::shell::components::{kv_row, note, num_value, value_label};
 use crate::shell::i18n::tr;
 
 /// What this editor keeps between frames: the loaded source and the last
@@ -97,7 +97,7 @@ fn source_section(
     );
     if !state.lang.is_empty() {
         kv_row(ui, theme, tr("language"), |ui| {
-            ui.label(small_text(theme, lang_label(&state.lang)).color(theme.ink))
+            value_label(ui, small_text(theme, lang_label(&state.lang)).color(theme.ink))
         });
     }
     // What the AI proposes for this script: the diff against the draft and the

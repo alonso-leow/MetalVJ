@@ -90,6 +90,7 @@ use crate::shell::components::{
 use crate::shell::i18n::{tr, tr_dyn, tr_key, trf};
 use crate::shell::panels::builtins;
 use crate::shell::panels::Selection;
+use crate::shell::preview::FloatingPreview;
 
 /// Everything the lanes panel remembers between frames — all of it is either
 /// a form field the operator is mid-typing (never itself sent until a
@@ -173,6 +174,11 @@ pub struct PanelState {
     last_picture: Option<(String, Vec<(String, String)>)>,
     /// The song fetch on the worker: what it is for, and its answer.
     song_flight: Option<(SongJob, std::sync::mpsc::Receiver<SongLoad>)>,
+    /// The Timeline view's own preview — its header frame, not the edit
+    /// view's floating one over the ticks — and the height its splitter last
+    /// left (`None`: a share of the panel).
+    timeline_preview: FloatingPreview,
+    timeline_preview_h: Option<f32>,
     /// The controller scene whose editor popup is open: the graph id it is
     /// keyed by. The popup is painted at the grid's end, anchored near
     /// [`Self::controller_edit_pos`]; a `⚙` in the scene cell or a right-click
@@ -404,6 +410,8 @@ impl Default for PanelState {
             seek_gen: 0,
             last_picture: None,
             song_flight: None,
+            timeline_preview: FloatingPreview::default(),
+            timeline_preview_h: None,
             editing_controller: None,
             controller_edit_pos: None,
             controller_name_buffer: String::new(),
@@ -707,8 +715,39 @@ pub fn paint(
     open_graph: Option<&str>,
     focused: bool,
 ) -> Response {
+    paint_in(ui, theme, door, state, ingest, selection, open_graph, focused, false)
+}
+
+/// The Timeline view's sequence editor (`ShellView::Timeline`): the same panel
+/// under its own identity (`shell/timeline-view`), with the preview header and
+/// its splitter above the ticks and the bar options docked under them.
+pub fn paint_timeline(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    ingest: &mut crate::shell::lanes::IngestLane,
+    selection: &Selection,
+    open_graph: Option<&str>,
+) -> Response {
+    paint_in(ui, theme, door, state, ingest, selection, open_graph, true, true)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn paint_in(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    ingest: &mut crate::shell::lanes::IngestLane,
+    selection: &Selection,
+    open_graph: Option<&str>,
+    focused: bool,
+    timeline: bool,
+) -> Response {
     let _span = crate::perf::Span::new("lanes");
-    ui.push_id(Id::new(super::Region::Lanes.id()), |ui| {
+    let identity = if timeline { Id::new("shell/timeline-view") } else { Id::new(super::Region::Lanes.id()) };
+    ui.push_id(identity, |ui| {
         let mut frame = crate::shell::components::flush_panel_frame(theme);
         if focused {
             frame = frame.stroke(theme.accent());
@@ -783,7 +822,7 @@ pub fn paint(
                     .max_height(remaining)
                     .scroll_bar_visibility(bars)
                     .scroll([false, true])
-                    .id_salt("shell/region/lanes/scroll")
+                    .id_salt(if timeline { "shell/timeline-view/scroll" } else { "shell/region/lanes/scroll" })
                     .show(ui, |ui| {
                         // No tab row: the state comes from context (`resolve_mode`).
                         match mode {
@@ -792,7 +831,7 @@ pub fn paint(
                                 // (removed 2026-09-21): the lanes are the
                                 // author floats over ticks — see the module
                                 // doc for where each of those three went.
-                                sequence_editor(ui, theme, door, state, ingest, selection, &state_val, remaining, open_graph, focused);
+                                sequence_editor(ui, theme, door, state, ingest, selection, &state_val, remaining, open_graph, focused, timeline);
                             }
                             crate::shell::lanes::Mode::Overlays => {
                                 overlays_grid(ui, theme, door, state, &state_val, open_graph, remaining);
@@ -933,6 +972,12 @@ fn editor_foot_h(ui: &Ui, theme: &Theme, has_note: bool) -> f32 {
     theme.compact_row_height + gap + note
 }
 
+/// The point size of the sequence bars' glyphs: the small text size, lifted so
+/// the icons read as icons rather than as text.
+fn bar_icon(theme: &Theme) -> f32 {
+    theme.font_small.size * 1.6
+}
+
 /// A bar button with no fill and no outline: the glyph or label alone. Hover
 /// only shifts its ink, so the bars read as bare controls, not a row of boxes.
 fn flat(text: RichText) -> egui::Button<'static> {
@@ -960,6 +1005,20 @@ fn compact_row(ui: &mut Ui, theme: &Theme) {
 }
 /// The timeline never shrinks below this, whatever the panel's height.
 const TIMELINE_MIN_H: f32 = 120.0;
+/// The Timeline view's preview frame: its share of the panel by default, its
+/// floor, and the splitter strip under it.
+const PREVIEW_SHARE: f32 = 0.36;
+const PREVIEW_MIN_H: f32 = 72.0;
+const PREVIEW_SPLITTER_H: f32 = 6.0;
+
+/// Which picture slot a sequence preview paints into: the Edit view's
+/// floating one over the ticks (or the nodes canvas), or the Timeline view's
+/// header frame.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PreviewSlot {
+    Canvas,
+    Header,
+}
 
 /// The ticks panel as one sequence editor: a narrow **left icon column** for
 /// what acts on the playhead or the marked range (keypoint toggle, clipboard,
@@ -980,6 +1039,7 @@ fn sequence_editor(
     panel_h: f32,
     open_graph: Option<&str>,
     focused: bool,
+    timeline: bool,
 ) {
     let _s_sequence = crate::perf::Span::new("lanes.sequence");
     let choices = model_choices(door);
@@ -1075,17 +1135,24 @@ fn sequence_editor(
 
     // The whole sequence component, for the OS-file drop below.
     let body = ui.available_rect_before_wrap();
-    // The left icon column reclaims the panel: the playhead/range verbs are
-    // glyph buttons stacked narrow, the timeline and its rows take the rest.
+    // The Edit view's left icon column reclaims the panel: the playhead/range
+    // verbs are glyph buttons stacked narrow, the timeline and its rows take the
+    // rest. The Timeline view has no such column: its bar options dock under
+    // the preview instead, and the timeline takes the whole width.
     ui.horizontal(|ui| {
-        // The panel's own margin on the left, so the icon column does not sit
-        // on the window's edge.
-        ui.add_space(theme.pad as f32);
-        icon_column(ui, theme, door, ingest, layer.as_deref());
+        if !timeline {
+            // The panel's own margin on the left, so the icon column does not sit
+            // on the window's edge.
+            ui.add_space(theme.pad as f32);
+            icon_column(ui, theme, door, ingest, layer.as_deref(), false);
+        }
         ui.vertical(|ui| {
-            // The column never runs past the panel: its right-hand controls
-            // (zoom, the dataset pickers) stay inside the frame.
-            ui.set_max_width((ui.available_width() - theme.pad as f32).max(0.0));
+            if timeline {
+                timeline_header(ui, theme, door, state, ingest, state_val, &choices, focused, panel_h);
+                ui.vertical_centered(|ui| icon_column(ui, theme, door, ingest, layer.as_deref(), true));
+            }
+            // The bars take the whole width the panel gives them: the right-hand
+            // controls (zoom, the dataset pickers) sit flush at its edge.
             // Bar 1 — the page strip on the left and the edit controls
             // (`import ▾` and the zoom) flush right. Only two bars sit over
             // the timeline; everything that can share an edge shares one, so
@@ -1215,8 +1282,11 @@ fn sequence_editor(
             sync_audio(door, state, ingest);
             // The floating preview over the timeline: the row being authored,
             // cut by the active track's mask.
+            // (The Timeline view's picture is its header's, above the ticks.)
             let _s_prev = crate::perf::Span::new("lanes.preview");
-            ingest_preview(ui, theme, door, state, ingest, state_val, &choices, focused);
+            if let Some(host) = ingest.canvas_rect.filter(|_| !timeline) {
+                ingest_preview(ui, theme, door, state, ingest, state_val, &choices, focused, host, PreviewSlot::Canvas);
+            }
             drop(_s_prev);
 
             // Bar 2 — the transport and the tick/seconds readout on the left,
@@ -1230,6 +1300,43 @@ fn sequence_editor(
             crate::shell::song_pull::line(ui, theme, door, &ingest.song);
         });
     });
+}
+
+/// The Timeline view's preview header: the picture of the row being authored,
+/// in its own frame above the ticks, and the splitter under it whose drag
+/// resizes that frame. Its height is what the splitter last left, else a share
+/// of the panel, and never leaves the ticks under [`TIMELINE_MIN_H`].
+#[allow(clippy::too_many_arguments)]
+fn timeline_header(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    ingest: &mut crate::shell::lanes::IngestLane,
+    state_val: &Value,
+    choices: &[(String, String, usize)],
+    focused: bool,
+    panel_h: f32,
+) {
+    let max_h = (panel_h - TIMELINE_MIN_H - 2.0 * theme.compact_row_height - PREVIEW_SPLITTER_H).max(PREVIEW_MIN_H);
+    let h = state
+        .timeline_preview_h
+        .unwrap_or(panel_h * PREVIEW_SHARE)
+        .clamp(PREVIEW_MIN_H, max_h);
+    let (frame, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), h), Sense::hover());
+    ui.painter_at(frame).rect_filled(frame, theme.corner_radius(), theme.inset);
+    ingest_preview(ui, theme, door, state, ingest, state_val, choices, focused, frame, PreviewSlot::Header);
+
+    // The splitter: a thin strip under the frame, dragged up or down.
+    let (split, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), PREVIEW_SPLITTER_H), Sense::drag());
+    if resp.hovered() || resp.dragged() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+    }
+    if resp.dragged() {
+        state.timeline_preview_h = Some((h + resp.drag_delta().y).clamp(PREVIEW_MIN_H, max_h));
+    }
+    let y = split.center().y;
+    ui.painter_at(split).line_segment([Pos2::new(split.left(), y), Pos2::new(split.right(), y)], theme.rule_bright_stroke());
 }
 
 /// Opens a Colourist dataset part (`GET /author/dataset/example`) as a clip
@@ -1499,7 +1606,6 @@ fn top_bar(
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             // Added right-to-left, so the cluster reads `import ▾ − +`.
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.add_space(theme.pad as f32);
             if ui
                 .add(flat(RichText::new("+").font(theme.font_small.clone())))
                 .on_hover_text("zoom in (wheel · ctrl + wheel: row height · shift: move · alt: up/down)")
@@ -1800,19 +1906,19 @@ fn bottom_bar(
         compact_row(ui, theme);
         ui.spacing_mut().item_spacing.x = 0.0;
         // Left: the transport, then the tick/seconds readout.
-        if ui.add(flat(lucide(Icon::SkipBack, theme.font_small.size))).on_hover_text("to the start").clicked() {
+        if ui.add(flat(lucide(Icon::SkipBack, bar_icon(theme)))).on_hover_text("to the start").clicked() {
             ingest.goto(0);
         }
         let play = if ingest.playing.is_some() { Icon::Pause } else { Icon::Play };
-        if ui.add(flat(lucide(play, theme.font_small.size))).on_hover_text("play the sequence in the preview (space)").clicked() {
+        if ui.add(flat(lucide(play, bar_icon(theme)))).on_hover_text("play the sequence in the preview (space)").clicked() {
             ingest.toggle_play(ui.input(|i| i.time));
         }
-        if ui.add(flat(lucide(Icon::StepBack, theme.font_small.size))).on_hover_text("previous keypoint").clicked() {
+        if ui.add(flat(lucide(Icon::StepBack, bar_icon(theme)))).on_hover_text("previous keypoint").clicked() {
             if let Some(t) = ingest.neighbour_keyframe(false) {
                 ingest.goto(t);
             }
         }
-        if ui.add(flat(lucide(Icon::StepForward, theme.font_small.size))).on_hover_text("next keypoint").clicked() {
+        if ui.add(flat(lucide(Icon::StepForward, bar_icon(theme)))).on_hover_text("next keypoint").clicked() {
             if let Some(t) = ingest.neighbour_keyframe(true) {
                 ingest.goto(t);
             }
@@ -1868,14 +1974,16 @@ fn icon_column(
     door: &dyn Call,
     ingest: &mut crate::shell::lanes::IngestLane,
     layer: Option<&str>,
+    horizontal: bool,
 ) {
-    let icon = |i: Icon| lucide(i, theme.font_small.size);
-    panel_frame(theme).show(ui, |ui| {
-        ui.vertical(|ui| {
+    let icon = |i: Icon| lucide(i, bar_icon(theme));
+    // The glyphs in one stack: a column (Edit view) or, docked under the
+    // Timeline view's preview, a row. The rules between groups cross the stack.
+    let mut contents = |ui: &mut Ui| {
             // Glyph buttons packed tight at the top, in three groups divided
             // by linear rules: the keypoint, the clipboard and delete, then
             // undo and save.
-            ui.spacing_mut().item_spacing.y = 0.0;
+            ui.spacing_mut().item_spacing = Vec2::ZERO;
             // Keypoint: file or clear the active track's floats at the
             // playhead — one toggle that reads the map it edits.
             let at = ingest.playhead;
@@ -1895,7 +2003,7 @@ fn icon_column(
                     ingest.note = None;
                 }
             }
-            bar_rule(ui, theme, false);
+            bar_rule(ui, theme, horizontal);
             if ui.add(flat(icon(Icon::Copy))).on_hover_text("the marked range on the ruler").clicked() {
                 let n = ingest.copy_range();
                 ingest.note = Some(format!("{n} keypoint(s) copiados"));
@@ -1918,14 +2026,20 @@ fn icon_column(
                 let n = ingest.delete_range_and_track();
                 ingest.note = Some(format!("{n} keypoint(s) deleted · active clip removed"));
             }
-            bar_rule(ui, theme, false);
+            bar_rule(ui, theme, horizontal);
             if ui.add(flat(icon(Icon::Undo))).on_hover_text("undo").clicked() {
                 ingest.undo();
             }
             let (save, _) = egui::containers::menu::MenuButton::from_button(flat(icon(Icon::Save)))
                 .ui(ui, |ui| save_menu(ui, theme, door, ingest, layer));
             save.on_hover_text("save: sequence, dataset, hits");
-        });
+    };
+    panel_frame(theme).show(ui, |ui| {
+        if horizontal {
+            ui.horizontal(|ui| contents(ui));
+        } else {
+            ui.vertical(|ui| contents(ui));
+        }
     });
 }
 
@@ -2451,10 +2565,9 @@ fn ingest_preview(
     state_val: &Value,
     choices: &[(String, String, usize)],
     focused: bool,
+    host: egui::Rect,
+    slot: PreviewSlot,
 ) {
-    let Some(host) = ingest.canvas_rect else {
-        return;
-    };
     // 2026-10-01: playing, the picture is the clip on top at the playhead
     // (the highest layer of the page whose marks hold it); authoring, the
     // active clip.
@@ -2491,7 +2604,8 @@ fn ingest_preview(
         if !ready {
             repaint_until_landed(ui);
         }
-        show_preview(ui, theme, door, ingest, host, &route, query, focused, subject);
+        let own = own_picture(state, slot);
+        show_preview(ui, theme, door, ingest, own, host, &route, query, focused, subject);
         return;
     }
     if model.is_empty() {
@@ -2589,7 +2703,8 @@ fn ingest_preview(
         repaint_until_landed(ui);
     }
     let solo = route == "/author/render/solo.jpg";
-    show_preview(ui, theme, door, ingest, host, &route, query, focused, subject);
+    let own = own_picture(state, slot);
+    show_preview(ui, theme, door, ingest, own, host, &route, query, focused, subject);
     if let Some(why) = refused.filter(|_| solo) {
         // The picture is older than the row the panel shows: say so.
         ui.painter_at(host).text(
@@ -2666,6 +2781,15 @@ fn sequence_subject(
     }
 }
 
+/// The picture a slot paints into when it owns one: the Timeline header's own
+/// [`FloatingPreview`]; `None` for the Edit view, which shares the canvas's.
+fn own_picture(state: &mut PanelState, slot: PreviewSlot) -> Option<&mut FloatingPreview> {
+    match slot {
+        PreviewSlot::Header => Some(&mut state.timeline_preview),
+        PreviewSlot::Canvas => None,
+    }
+}
+
 /// Hands the sequence's picture to the one preview — the nodes canvas's —
 /// or, while that canvas is not on screen (the tabbed layout), paints it
 /// over the timeline with the play control.
@@ -2675,6 +2799,7 @@ fn show_preview(
     theme: &Theme,
     door: &dyn Call,
     ingest: &mut crate::shell::lanes::IngestLane,
+    own: Option<&mut FloatingPreview>,
     host: egui::Rect,
     route: &str,
     query: Vec<(String, String)>,
@@ -2682,16 +2807,23 @@ fn show_preview(
     subject: crate::shell::preview::PreviewSubject,
 ) {
     let playing = ingest.playing.is_some();
-    if crate::shell::preview::canvas_showing(ui.ctx()) {
-        crate::shell::preview::publish_sequence(ui.ctx(), route, query, focused, playing, Some(subject));
-        return;
-    }
-    ingest.preview.set_subject(Some(subject));
+    // The Timeline view's header paints its own frame, never the canvas's
+    // picture; the Edit view hands the picture to the nodes canvas when it is
+    // on screen, else floats its own over the ticks.
+    let picture = match own {
+        Some(own) => own,
+        None => {
+            if crate::shell::preview::canvas_showing(ui.ctx()) {
+                crate::shell::preview::publish_sequence(ui.ctx(), route, query, focused, playing, Some(subject));
+                return;
+            }
+            &mut ingest.preview
+        }
+    };
+    picture.set_subject(Some(subject));
     let query: Vec<(&str, String)> = query.iter().map(|(k, v)| (k.as_str(), v.clone())).collect();
-    ingest
-        .preview
-        .show(ui, theme, door, None, host, route, &query);
-    if let Some(r) = ingest.preview.rect() {
+    picture.show(ui, theme, door, None, host, route, &query);
+    if let Some(r) = picture.rect() {
         if crate::shell::preview::play_control(ui, theme, r, playing) {
             ingest.toggle_play(ui.input(|i| i.time));
         }

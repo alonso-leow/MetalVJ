@@ -35,7 +35,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{colour_row, dropdown_fill, kv_row, kv_wrap, label_row, note, num_value};
+use crate::shell::components::{colour_row, dropdown_fill, kv_row, kv_wrap, label_row, note, num_value, value_label};
 use crate::shell::i18n::{tr, trf};
 
 use super::mask::MASK_STROKE_MAX;
@@ -222,7 +222,7 @@ pub(crate) fn section(
     }
     let count = if splits.is_empty() { grid.count() } else { splits.len() };
     label_row(ui, theme, tr("sectors"), |ui| {
-        ui.label(small_text(theme, count.to_string()).color(theme.ink))
+        value_label(ui, small_text(theme, count.to_string()).color(theme.ink))
     });
     // The canvas's own scroll anchor: the frame's top-left label, painted
     // before the canvas so a scroll really brings the whole editor up. It is

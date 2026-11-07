@@ -464,6 +464,12 @@ const WHEEL_RANGE_DIVISOR: f32 = 100.0;
 const WHEEL_SCALE: f32 = 10.0;
 /// A wheel gesture must sit still this long before it posts once.
 const WHEEL_POST_DELAY: Duration = Duration::from_millis(150);
+/// Wheel ticks this close together are one run: each tick in a run multiplies
+/// the step by [`WHEEL_RAMP_GROWTH`] up to [`WHEEL_RAMP_MAX`]; a longer gap
+/// drops the step back to the fine (base) step.
+const WHEEL_RAMP_GAP: f64 = 0.25;
+const WHEEL_RAMP_GROWTH: f32 = 1.25;
+const WHEEL_RAMP_MAX: f32 = 12.0;
 
 /// One properties float, wrapped so the wheel over it edits **this** value
 /// and nothing else: `range / 100` per notch (×10 with Shift, ÷10 with Alt),
@@ -552,7 +558,21 @@ fn wheel_edit(
         });
         if notches != 0.0 {
             let (lo, hi) = (*range.start(), *range.end());
-            let mut step = (hi - lo) / WHEEL_RANGE_DIVISOR;
+            // The speed ramp lives in memory beside the pending value: a tick
+            // within WHEEL_RAMP_GAP of the last one grows it, a longer pause
+            // resets it to the fine step.
+            let speed_key = id.with("wheel_speed");
+            let (speed, last_tick) = ui
+                .data(|d| d.get_temp::<(f32, f64)>(speed_key))
+                .unwrap_or((1.0, f64::NEG_INFINITY));
+            let speed = if now - last_tick <= WHEEL_RAMP_GAP {
+                (speed * WHEEL_RAMP_GROWTH).min(WHEEL_RAMP_MAX)
+            } else {
+                1.0
+            };
+            ui.data_mut(|d| d.insert_temp(speed_key, (speed, now)));
+
+            let mut step = (hi - lo) / WHEEL_RANGE_DIVISOR * speed;
             if mods.shift {
                 step *= WHEEL_SCALE;
             }
@@ -725,11 +745,24 @@ fn num_track_sized(
         // The centred readout: a value label and, when there is one, a
         // suffix label after it — both real labels, so AccessKit can name
         // the unit even though the track itself is painted.
+        // A row's labels start at the cursor, so the readout is measured and
+        // its own rect centred on the track: the value and suffix come out
+        // centred both ways, not pinned to the track's left edge.
         let text = format!("{:.*}", decimals, *value);
+        let value_w = ui.fonts_mut(|f| f.layout_no_wrap(text.clone(), theme.font_small.clone(), text_ink).size().x);
+        let (gap, suffix_w) = if suffix.is_empty() {
+            (0.0, 0.0)
+        } else {
+            let w = ui.fonts_mut(|f| {
+                f.layout_no_wrap(suffix.to_owned(), theme.font_small.clone(), theme.ink_faint).size().x
+            });
+            (theme.segment_gap.x, w)
+        };
+        let content = egui::Rect::from_center_size(rect.center(), egui::vec2(value_w + gap + suffix_w, rect.height()));
         let mut text_ui = ui.new_child(
             egui::UiBuilder::new()
-                .max_rect(rect)
-                .layout(egui::Layout::left_to_right(egui::Align::Center).with_main_align(egui::Align::Center)),
+                .max_rect(content)
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
         );
         text_ui.spacing_mut().item_spacing = theme.segment_gap;
         text_ui.label(
@@ -1021,7 +1054,7 @@ pub fn label_row(
     add: impl FnOnce(&mut Ui) -> egui::Response,
 ) -> egui::Response {
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing = theme.item_gap;
+        ui.spacing_mut().item_spacing = theme.cell_gap;
         key_label(ui, theme, Some(theme.label_width), label);
         // The value column is what the label leaves — never wider, so a
         // control cannot push the row past the panel.
@@ -1195,7 +1228,7 @@ pub fn notice(ui: &mut Ui, theme: &Theme, text: &str) {
 /// wrap inside the value column.
 pub fn kv_wrap(ui: &mut Ui, theme: &Theme, key: &str, add: impl FnOnce(&mut Ui)) {
     ui.horizontal_top(|ui| {
-        ui.spacing_mut().item_spacing = theme.item_gap;
+        ui.spacing_mut().item_spacing = theme.cell_gap;
         key_label(ui, theme, Some(theme.label_width), key);
         payload_cell(ui, theme, None, |ui| {
             ui.horizontal_wrapped(add);
@@ -1208,12 +1241,22 @@ pub fn kv_wrap(ui: &mut Ui, theme: &Theme, key: &str, add: impl FnOnce(&mut Ui))
 /// the editable rows' column and the panel stops reading as loose lines.
 pub fn field_row(ui: &mut Ui, theme: &Theme, label: &str, value: &str) {
     label_row(ui, theme, label, |ui| {
-        ui.label(
+        value_label(
+            ui,
             RichText::new(value)
                 .font(theme.font_small.clone())
                 .color(theme.ink),
         )
     });
+}
+
+/// A read-only value in a payload cell, centred both ways in the cell it
+/// sits in — the value look every fact row and label-only row shares, so a
+/// number or a name reads the same wherever the row is. A bare `ui.label`
+/// would start at the cell's left edge.
+pub fn value_label(ui: &mut Ui, text: RichText) -> egui::Response {
+    let rect = ui.max_rect();
+    ui.place(rect, egui::Label::new(text))
 }
 
 /// A collapsible section header: a chevron and the section name, in the
@@ -1538,13 +1581,14 @@ pub fn filter_chips<T: PartialEq + Clone>(
         let size = galley.size() + Vec2::new(18.0, 8.0);
         let (rect, response) = ui.allocate_exact_size(size, Sense::click());
         response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, *label));
-        let radius = egui::CornerRadius::same((size.y / 2.0) as u8);
+        // Square, like the header's other forms (`header_forms`).
+        let radius = theme.sharp_corner();
         let (fill, stroke) = if on {
             (theme.accent_vivid, egui::Stroke::new(theme.accent_stroke, theme.phosphor_lit))
         } else if response.hovered() {
             (theme.library_card_hover, egui::Stroke::new(theme.hairline, theme.rule_bright))
         } else {
-            (theme.inset, egui::Stroke::new(theme.hairline, theme.rule))
+            (theme.inset, egui::Stroke::new(theme.hairline, theme.rule_bright))
         };
         ui.painter().rect_filled(rect, radius, fill);
         ui.painter().rect_stroke(rect, radius, stroke, egui::StrokeKind::Inside);
@@ -1564,6 +1608,17 @@ pub fn search_field(ui: &mut Ui, theme: &Theme, text: &mut String, hint: &str) -
     // Takes the head's whole width, less a margin on each side.
     let width = (ui.available_width() - theme.item_gap.x * 2.0).max(theme.control_width * 0.5);
     ui.add(header_edit(theme, text, hint).desired_width(width))
+}
+
+/// Runs `add` with the panel-header form style on its widgets: square corners
+/// and the lighter-grey outline (`Theme::header_form_style`). The style lives
+/// in the scope, so nothing outside `add` changes.
+pub fn header_forms<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.scope(|ui| {
+        theme.header_form_style(&mut ui.style_mut().visuals);
+        add(ui)
+    })
+    .inner
 }
 
 /// The one-line field a panel head carries (the library's two search boxes,
@@ -2410,6 +2465,24 @@ mod tests {
         });
         harness.run();
         assert!(hit.borrow().0, "the square takes the click");
+    }
+
+    /// A value in a payload cell sits at the cell's centre, not its left edge.
+    #[test]
+    fn a_value_label_is_centred_in_its_cell() {
+        let theme = Theme::phosphor();
+        let cell = Rc::new(RefCell::new(None));
+        let seen = cell.clone();
+        let mut harness = Harness::new_ui(move |ui| {
+            let area = ui.allocate_ui(egui::vec2(260.0, theme.cell_height()), |ui| {
+                value_label(ui, RichText::new("42"))
+            });
+            *seen.borrow_mut() = Some((area.response.rect, area.inner.rect));
+        });
+        harness.run();
+        let (cell, value) = cell.borrow().expect("the cell is laid out");
+        assert!((value.center().x - cell.center().x).abs() < 1.5, "x: {value:?} in {cell:?}");
+        assert!((value.center().y - cell.center().y).abs() < 1.5, "y: {value:?} in {cell:?}");
     }
 
     /// Rows of different payloads are the same height: the key cell and the

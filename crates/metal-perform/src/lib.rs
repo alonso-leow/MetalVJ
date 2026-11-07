@@ -20,6 +20,9 @@
 //! without the HTTP/winit half of the binary, and what makes "one execution
 //! path for both builds" a property of the types rather than a discipline.
 
+pub mod listen_cache;
+pub mod replay;
+pub mod frame_cache;
 pub mod artnet;
 pub mod atomic;
 pub mod backend;

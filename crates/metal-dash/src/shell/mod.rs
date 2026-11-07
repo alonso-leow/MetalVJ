@@ -47,6 +47,7 @@ pub mod components;
 pub mod frames;
 pub mod favorites;
 pub mod gallery;
+pub mod preview_cache;
 pub mod gallery_anim;
 pub(crate) use crate::i18n;
 pub mod insets;

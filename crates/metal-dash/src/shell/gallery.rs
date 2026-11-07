@@ -339,7 +339,7 @@ fn card(ui: &mut Ui, theme: &Theme, item: &Item, size: Vec2) -> (Option<Outcome>
     // The text sits over the picture on a bottom-up shadow gradient.
     let text_h = ui.text_style_height(&egui::TextStyle::Body) + ui.text_style_height(&egui::TextStyle::Small) + theme.item_gap.y * 2.0;
     let shade = Rect::from_min_max(Pos2::new(rect.left(), (rect.bottom() - text_h * 1.5).max(rect.top())), rect.max);
-    let (clear, dark) = (egui::Color32::TRANSPARENT, theme.faded(egui::Color32::BLACK, 217));
+    let (clear, dark) = (theme.faded(theme.node_canvas, 0), theme.faded(theme.node_canvas, 217));
     let mut mesh = egui::Mesh::default();
     mesh.colored_vertex(shade.left_top(), clear);
     mesh.colored_vertex(shade.right_top(), clear);

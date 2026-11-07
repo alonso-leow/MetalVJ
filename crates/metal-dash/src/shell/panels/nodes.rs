@@ -2442,10 +2442,10 @@ const EDGE_BAND: f32 = 0.10;
 /// Fastest edge-pan, in screen px per second (pointer on the very border).
 const EDGE_SPEED: f32 = 380.0;
 /// Graph-unit room a node card takes around its anchor point.
-const EDGE_NODE_PAD: f32 = 160.0;
+const EDGE_NODE_PAD: f32 = 0.0;
 /// Gap left past the last node, in graph units, and the ease-out length before it.
 const EDGE_GAP: f32 = 0.0;
-const EDGE_EASE: f32 = 420.0;
+const EDGE_EASE: f32 = 160.0;
 
 /// The smallest circle (centre, radius) that holds every node card: the graph's own limit
 /// for [`edge_pan`]. Ritter's approximation is plenty for a pan limit.
@@ -2488,6 +2488,10 @@ fn edge_pan(ui: &Ui, state: &mut PanelState, rect: EguiRect) {
                 .collect()
         })
         .unwrap_or_default();
+    // The bar lives in the top-left corner: the pointer there never pans.
+    if EguiRect::from_min_size(rect.min, rect.size() * Vec2::new(0.3, 0.14)).contains(p) {
+        return;
+    }
     let Some((c, r)) = graph_circle(&pts) else { return };
     let axis = |v: f32, lo: f32, size: f32| {
         let band = size * EDGE_BAND;
@@ -2512,10 +2516,13 @@ fn edge_pan(ui: &Ui, state: &mut PanelState, rect: EguiRect) {
     let off = Vec2::new(centre.x - c[0], centre.y - c[1]);
     let limit = r + EDGE_GAP;
     let mut step = screen / state.zoom;
-    if step.dot(off) > 0.0 {
+    if step.dot(off) >= 0.0 {
         let left = (limit - off.length()).max(0.0);
         let t = (left / EDGE_EASE).clamp(0.0, 1.0);
         step *= t * t * (3.0 - 2.0 * t);
+    }
+    if step == Vec2::ZERO {
+        return;
     }
     state.pan -= step * state.zoom;
     ui.ctx().request_repaint();
@@ -2600,7 +2607,9 @@ fn canvas(
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
     }
     wheel_zoom(ui, theme, state, rect, &response);
-    if matches!(selection, Selection::Node(_)) {
+    // Only while the pointer is on the bare canvas: a bar, the gallery or settings above it
+    // take the hover from the canvas response.
+    if matches!(selection, Selection::Node(_)) && response.hovered() && !state.gallery_open {
         edge_pan(ui, state, rect);
     }
     // The cable under the pointer, while nothing is being dragged — it lights
@@ -3268,9 +3277,10 @@ fn paint_primitive(
             paint_value_field(painter, theme, origin, state, p, drag, live)
         }
         Some("swatch") => paint_swatch(painter, theme, origin, state, p, drag),
-        // The model tile and the "more" backing are not painted: both sat
-        // over the node's outline and hid it.
-        Some("tile") | Some("more") => {}
+        // The "more" backing is not painted: it sat over the outline. The
+        // tile is the node's one picture, inset inside the card.
+        Some("tile") => paint_tile(painter, theme, origin, state, p, tiles, drag),
+        Some("more") => {}
         _ => match p["type"].as_str() {
             Some("path") => paint_cable(painter, theme, origin, state, p, drag, selected, lit_edges),
             Some("text") => paint_text(painter, theme, origin, state, p, drag),
@@ -3292,6 +3302,41 @@ fn primitive_in_box(p: &Value, bx: [f32; 4]) -> bool {
     let margin = metal_graph::layout::PORT_R * 2.0;
     let (x, y) = (num(p, "x"), num(p, "y"));
     x >= bx[0] - margin && x <= bx[0] + bx[2] + margin && y >= bx[1] - margin && y <= bx[1] + bx[3] + margin
+}
+
+/// A generator's one picture: its own solo render, else the grid's cell, else
+/// the gallery placeholder, else a flat field — never blank, never two.
+fn paint_tile(
+    painter: &egui::Painter,
+    theme: &Theme,
+    origin: EguiRect,
+    state: &PanelState,
+    p: &Value,
+    tiles: Option<&(egui::TextureId, [usize; 2])>,
+    drag: Option<DragOffset>,
+) {
+    let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
+    painter.rect_filled(r, theme.corner_radius(), theme.node_field);
+    let full = EguiRect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0));
+    let pos = [num(p, "x"), num(p, "y")];
+    if let Some((tex, _)) = node_id_at(state, pos).and_then(|id| state.node_tiles.get(&id)).and_then(|f| f.current_picture()) {
+        painter.image(tex, r, full, theme.image_tint);
+    } else if let Some(((tex, _), uv)) = tiles.zip(node_tile_at(state, pos)) {
+        painter.image(*tex, r, uv, theme.image_tint);
+    } else if let Some(kind) = node_kind_at(state, pos) {
+        if let Some(frames) = crate::shell::gallery_anim::frames(painter.ctx(), &kind).filter(|f| !f.is_empty()) {
+            let t = painter.ctx().input(|i| i.time);
+            let tex = &frames[crate::shell::gallery_anim::frame_index(t, frames.len())];
+            painter.image(tex.id(), r, full, theme.image_tint);
+        }
+    }
+}
+
+/// The kind of the `gen.*` node whose `pos` is exactly `pos`.
+fn node_kind_at(state: &PanelState, pos: [f32; 2]) -> Option<String> {
+    let nodes = state.graph.as_ref()?["graph"]["nodes"].as_array()?;
+    let node = nodes.iter().find(|n| pt(n, "pos") == pos)?;
+    node["kind"].as_str().filter(|k| k.starts_with("gen.")).map(str::to_string)
 }
 
 /// A node drawn as a point, at its box's centre, for the far view.
@@ -3710,7 +3755,7 @@ fn paint_node_text(
     };
     let mut font = theme.font_small.clone();
     let base = font.size;
-    font.size = base * state.zoom.clamp(1.0, theme.node_text_zoom_max);
+    font.size = base * 1.4 * state.zoom.clamp(1.0, theme.node_text_zoom_max);
     let avail = (metal_graph::layout::NODE_W * state.zoom - 2.0 * theme.node_label_inset).max(1.0);
     let width = painter.layout_no_wrap(display.clone(), font.clone(), ink).size().x;
     if width > avail {

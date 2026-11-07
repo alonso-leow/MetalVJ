@@ -35,25 +35,26 @@ use serde_json::Value;
 use crate::params::{self, Param, ParamKind};
 use crate::{Graph, Node, NodeId, NodeKind, PortType};
 
-/// The width of every node box, in graph units.
-pub const NODE_W: f32 = 176.0;
+/// The width of every node box, in graph units (all card constants are 1.4x
+/// the original 176-wide card).
+pub const NODE_W: f32 = 246.4;
 /// The nominal height of a node — kept for the callers (`migrate.rs`) that
 /// only space nodes out with it; the real box height follows its content.
-pub const NODE_H: f32 = 56.0;
+pub const NODE_H: f32 = 78.4;
 /// The header band's own height.
-pub const HEADER_H: f32 = 26.0;
+pub const HEADER_H: f32 = 36.4;
 /// The band under the header that holds the focused node's bar (the strip of
 /// verbs, shown below the title). Every node reserves it, so the rows below
 /// never move when a node takes focus.
-pub const SUBHEADER_H: f32 = 24.0;
+pub const SUBHEADER_H: f32 = 33.6;
 /// Height of one body row.
-pub const ROW_H: f32 = 20.0;
+pub const ROW_H: f32 = 28.0;
 /// Radius of a port or param dot.
-pub const PORT_R: f32 = 6.0;
+pub const PORT_R: f32 = 8.4;
 /// Width of a parameter's value field.
-pub const FIELD_W: f32 = 52.0;
+pub const FIELD_W: f32 = 72.8;
 /// Side of a colour swatch painted in a node's body.
-pub const SWATCH: f32 = 30.0;
+pub const SWATCH: f32 = 42.0;
 /// How many rows are shown before a `▸ n more` row folds the rest away.
 pub const COLLAPSED_ROWS: usize = 6;
 /// How close a click has to land to a cable to count as hitting it, in graph

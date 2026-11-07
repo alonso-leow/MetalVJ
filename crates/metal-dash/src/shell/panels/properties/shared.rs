@@ -168,9 +168,26 @@ pub(crate) fn repaint_while_pending(ctx: &egui::Context) {
     }
 }
 
+/// A direct `POST /graph/node {op:"config"}` is shown at once over the cached
+/// graph exactly like [`post_node_config`], so no caller's edit snaps back.
+fn note_pending_config(path: &str, body: &Value) {
+    if path != "/graph/node" || body["op"] != "config" {
+        return;
+    }
+    let (Some(g), Some(n), Some(fields)) =
+        (body["graph"].as_str(), body["node"].as_str(), body["config"].as_object())
+    else {
+        return;
+    };
+    PENDING.with(|p| {
+        p.borrow_mut().push((g.to_string(), n.to_string(), fields.clone(), web_time::Instant::now()))
+    });
+}
+
 /// A `POST` of one JSON body, discarding the reply — the shape most section
 /// writes take, where the next frame's fresh read is the feedback.
 pub(crate) fn post(door: &dyn Call, path: &str, body: Value) {
+    note_pending_config(path, &body);
     let _ = door.json("POST", path, Some(body));
     WRITES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 }
@@ -178,6 +195,7 @@ pub(crate) fn post(door: &dyn Call, path: &str, body: Value) {
 /// [`post`] that hands back the door's answer, for the writes whose reply
 /// names what was made (`insert`, `add`). Bumps the same generation.
 pub(crate) fn post_reply(door: &dyn Call, path: &str, body: Value) -> Result<Value, (u16, String)> {
+    note_pending_config(path, &body);
     WRITES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     door.json("POST", path, Some(body))
 }

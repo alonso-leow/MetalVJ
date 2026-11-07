@@ -467,6 +467,30 @@ const WHEEL_POST_DELAY: Duration = Duration::from_millis(150);
 /// Wheel ticks this close together are one run: each tick in a run multiplies
 /// the step by [`WHEEL_RAMP_GROWTH`] up to [`WHEEL_RAMP_MAX`]; a longer gap
 /// drops the step back to the fine (base) step.
+/// How long a released value is shown over a caller that still re-reads the
+/// old one (the write lands behind the frame).
+const HELD_FOR: f64 = 1.5;
+
+/// Optimistic hold: keep painting the user's last value after the gesture
+/// ends until the caller's own read agrees (or [`HELD_FOR`] passes), so a
+/// stale read never snaps the control back.
+fn held_apply(ui: &Ui, id: Id, value: &mut f32) {
+    let key = id.with("held");
+    let now = ui.input(|i| i.time);
+    if let Some((v, at)) = ui.data(|d| d.get_temp::<(f32, f64)>(key)) {
+        if (*value - v).abs() <= 1e-4 * v.abs().max(1.0) || now - at > HELD_FOR {
+            ui.data_mut(|d| d.remove::<(f32, f64)>(key));
+        } else {
+            *value = v;
+        }
+    }
+}
+
+fn held_set(ui: &Ui, id: Id, value: f32) {
+    let now = ui.input(|i| i.time);
+    ui.data_mut(|d| d.insert_temp(id.with("held"), (value, now)));
+}
+
 const WHEEL_RAMP_GAP: f64 = 0.25;
 const WHEEL_RAMP_GROWTH: f32 = 1.25;
 const WHEEL_RAMP_MAX: f32 = 12.0;
@@ -586,6 +610,7 @@ fn wheel_edit(
             let next = (base + notches * step).clamp(lo, hi);
             *value = next;
             ui.data_mut(|d| d.insert_temp(key, (next, now)));
+            response.mark_changed();
             ui.ctx().request_repaint_after(WHEEL_POST_DELAY);
         }
     }
@@ -692,6 +717,7 @@ fn num_track_sized(
     };
 
     if enabled {
+        held_apply(ui, id, value);
         if let Some((pending, _)) = ui.data(|d| d.get_temp::<(f32, f64)>(id.with("wheel"))) {
             *value = pending;
         }
@@ -813,6 +839,7 @@ fn num_track_sized(
             if let Ok(parsed) = draft.trim().parse::<f32>() {
                 *value = parsed.clamp(lo, hi);
                 response.mark_changed();
+                held_set(ui, id, *value);
             }
             ui.data_mut(|d| {
                 d.insert_temp(id.with("edit"), false);
@@ -879,6 +906,9 @@ fn num_track_sized(
                 *value = (*value + response.drag_delta().x * sens).clamp(lo, hi);
                 ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
                 let live = *value;
+                if response.drag_delta().x != 0.0 {
+                    changed = true;
+                }
                 ui.data_mut(|d| {
                     d.insert_temp(id.with("scrub"), true);
                     d.insert_temp(id.with("scrubv"), live);
@@ -910,8 +940,9 @@ fn num_track_sized(
         track_gestures(ui, id, value, &range, default, &mut response);
     }
 
-    if changed {
+    if changed || response.changed() {
         response.mark_changed();
+        held_set(ui, id, *value);
     }
     response
 }
@@ -1931,6 +1962,9 @@ pub fn slider_tracked(
         };
         let id = ui.next_auto_id();
         let live_key = id.with("live");
+        if enabled {
+            held_apply(ui, id, value);
+        }
         if let Some(v) = ui.data(|d| d.get_temp::<f32>(live_key)) {
             *value = v;
         }
@@ -2017,8 +2051,9 @@ pub fn slider_tracked(
             changed = true;
         }
         response.widget_info(|| egui::WidgetInfo::slider(enabled, f64::from(*value), label));
-        if changed {
+        if changed || response.changed() {
             response.mark_changed();
+            held_set(ui, id, *value);
         }
         response
     })
@@ -2771,7 +2806,7 @@ mod tests {
     /// (a) A press-and-drag scrub moves the value and marks `changed()` once,
     /// on release — the one-post-per-gesture contract.
     #[test]
-    fn num_track_drag_scrubs_and_reports_once_on_release() {
+    fn num_track_drag_scrubs_and_reports_live_and_on_release() {
         let (mut harness, value, changed, rect) = num_fixture(50.0);
         let start = rect.center();
         let dx = 30.0;
@@ -2787,7 +2822,7 @@ mod tests {
             "the scrub should raise the value, got {}",
             *value.borrow()
         );
-        assert_eq!(*changed.borrow(), 1, "one change per drag gesture");
+        assert!(*changed.borrow() >= 1, "a drag reports its steps and the release");
     }
 
     /// (b) One click on the right arrow steps the value by `range / 100`.

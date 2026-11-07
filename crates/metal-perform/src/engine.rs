@@ -239,6 +239,9 @@ pub struct State {
     /// (the loops design notes T15): while it is set, [`State::on_air`] feeds `music`
     /// from the song's sidecar instead of the input.
     pub song: Option<SongClock>,
+    /// The listen cache's live tap: every device frame offers the music prefix
+    /// of the clock row to it, which keeps a recorder and the snippet store.
+    pub listen: crate::listen_cache::ListenTap,
 }
 
 /// A playing song's beat map and where its playback started — see
@@ -367,6 +370,7 @@ impl State {
             music_pos: crate::clock::Position::from_beats(0.0),
             loops: loops_library(),
             song: None,
+            listen: crate::listen_cache::ListenTap::new(),
         }
     }
 
@@ -2799,6 +2803,14 @@ pub fn render_device_frame(
     // decision 5). `poll` is beat-phase indexed, so the several calls this
     // frame makes all return the same row.
     let frame = sim.clock_frame(&mut state.looper, time);
+    // The listen tap takes the music prefix of the stepped row, but only from a
+    // live clock: a silent source's column 0 is exactly zero.
+    if frame.raw[0] != 0.0 {
+        let now_unix = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        state.listen.feed(&frame.raw[..digest::MUSIC], time, now_unix);
+    }
     let air = state.airing(sim, time);
     let group: Vec<usize> = state.router.group().to_vec();
     let limits = state.limits;

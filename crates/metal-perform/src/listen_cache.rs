@@ -395,3 +395,187 @@ mod tests {
         }
     }
 }
+
+/// Digest time between rows kept: 1/8 s, so a 60 fps caller is throttled.
+const ROW_PERIOD: f32 = 1.0 / ROW_RATE;
+/// Digest time between snippet cuts.
+const TAKE_PERIOD: f32 = 20.0;
+/// Digest time between writes of the store.
+const SAVE_PERIOD: f32 = 60.0;
+/// The directory an in-memory store names. Never created: nothing saves to it.
+const MEMORY_DIR: &str = "<in-memory>";
+
+/// The live tap on the digest rows: feeds a [`Recorder`], cuts a snippet every
+/// [`TAKE_PERIOD`] into the [`Store`], and writes the store every [`SAVE_PERIOD`].
+#[derive(Debug)]
+pub struct ListenTap {
+    pub recorder: Recorder,
+    pub store: Store,
+    /// Digest time of the last row pushed into `recorder`.
+    pub last_row_t: f32,
+    /// Digest time of the last snippet cut.
+    pub last_take_t: f32,
+    /// Digest time of the last `store.save()`.
+    pub last_save_t: f32,
+    /// False for an in-memory store, which is never written.
+    persist: bool,
+}
+
+impl ListenTap {
+    /// The tap a `State` starts with. Under `cfg(test)` it is in memory, so
+    /// tests never touch the real cache. Otherwise `METALVJ_LISTEN_DIR` wins,
+    /// then [`default_dir`]; with neither, the store is in memory.
+    pub fn new() -> Self {
+        if cfg!(test) {
+            return Self::in_memory();
+        }
+        let dir = std::env::var_os("METALVJ_LISTEN_DIR")
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or_else(default_dir);
+        match dir {
+            Some(dir) => Self::at(dir),
+            None => Self::in_memory(),
+        }
+    }
+
+    /// A tap whose store lives only in memory and is never written.
+    pub fn in_memory() -> Self {
+        Self::with_store(Store::open(MEMORY_DIR), false)
+    }
+
+    /// A tap persisted under `dir`. A `snippets.json` there that cannot be
+    /// parsed gives an in-memory tap instead, so it is never overwritten.
+    pub fn at(dir: impl Into<PathBuf>) -> Self {
+        let dir = dir.into();
+        let readable = match std::fs::read(dir.join(FILE_NAME)) {
+            Ok(bytes) => serde_json::from_slice::<Vec<Snippet>>(&bytes).is_ok(),
+            Err(err) => err.kind() == std::io::ErrorKind::NotFound,
+        };
+        if readable {
+            Self::with_store(Store::open(dir), true)
+        } else {
+            Self::in_memory()
+        }
+    }
+
+    fn with_store(store: Store, persist: bool) -> Self {
+        Self {
+            recorder: Recorder::new(),
+            store,
+            last_row_t: f32::NEG_INFINITY,
+            last_take_t: 0.0,
+            last_save_t: 0.0,
+            persist,
+        }
+    }
+
+    /// Offers one digest row at digest time `time` (seconds). A row is kept
+    /// once [`ROW_PERIOD`] has passed since the last kept row; a `time` that
+    /// goes backwards keeps it at once and restarts every timer from there.
+    pub fn feed(&mut self, row: &[f32], time: f32, now_unix: u64) {
+        if time < self.last_row_t || time - self.last_row_t >= ROW_PERIOD {
+            self.recorder.push(row, now_unix);
+            self.last_row_t = time;
+        }
+
+        if time < self.last_take_t {
+            self.last_take_t = time;
+        }
+        if time - self.last_take_t >= TAKE_PERIOD {
+            self.last_take_t = time;
+            if let Some(snippet) = self.recorder.take_snippet(now_unix) {
+                self.store.add(snippet);
+            }
+        }
+
+        if time < self.last_save_t {
+            self.last_save_t = time;
+        }
+        if self.persist && time - self.last_save_t >= SAVE_PERIOD {
+            self.last_save_t = time;
+            let _ = self.store.save();
+        }
+    }
+
+    /// The snippet the store picks for `seed`, or `None` when it is empty.
+    pub fn pick(&self, seed: u64) -> Option<&Snippet> {
+        self.store.pick(seed)
+    }
+}
+
+#[cfg(test)]
+mod tap_tests {
+    use super::*;
+
+    const LOUD: f32 = 0.5;
+
+    /// Feeds rows `from..to` at 8 Hz: row `i` is at digest time `i / 8`, with
+    /// column 0 at [`LOUD`].
+    fn feed_eighths(tap: &mut ListenTap, from: u32, to: u32) {
+        for i in from..to {
+            let t = i as f32 / ROW_RATE;
+            tap.feed(&[LOUD, t, 0.0], t, 1_000 + u64::from(i / 8));
+        }
+    }
+
+    #[test]
+    fn sixty_fps_callers_keep_one_row_per_eighth_second() {
+        let mut tap = ListenTap::in_memory();
+        for frame in 0..60 {
+            tap.feed(&[LOUD], frame as f32 / 60.0, 1_000);
+        }
+        assert_eq!(tap.recorder.rows.len(), 8);
+    }
+
+    #[test]
+    fn eighth_second_rows_are_all_kept() {
+        let mut tap = ListenTap::in_memory();
+        feed_eighths(&mut tap, 0, 80);
+        assert_eq!(tap.recorder.rows.len(), 80);
+    }
+
+    #[test]
+    fn time_going_backwards_resets_the_row_throttle() {
+        let mut tap = ListenTap::in_memory();
+        tap.feed(&[LOUD], 1.0, 1);
+        tap.feed(&[LOUD], 0.5, 2);
+        assert_eq!(tap.recorder.rows.len(), 2, "kept at once after the jump back");
+        tap.feed(&[LOUD], 0.6, 3);
+        assert_eq!(tap.recorder.rows.len(), 2, "0.1 s after the last row is throttled");
+        tap.feed(&[LOUD], 0.7, 4);
+        assert_eq!(tap.recorder.rows.len(), 3);
+    }
+
+    #[test]
+    fn a_snippet_is_cut_every_twenty_seconds() {
+        let mut tap = ListenTap::in_memory();
+        feed_eighths(&mut tap, 0, 160);
+        assert!(tap.store.is_empty(), "no cut before 20 s");
+        feed_eighths(&mut tap, 160, 161);
+        assert_eq!(tap.store.len(), 1, "first cut at 20 s");
+        feed_eighths(&mut tap, 161, 320);
+        assert_eq!(tap.store.len(), 1, "no second cut before 40 s");
+        feed_eighths(&mut tap, 320, 321);
+        assert_eq!(tap.store.len(), 2, "second cut at 40 s");
+        feed_eighths(&mut tap, 321, 481);
+        assert_eq!(tap.store.len(), 3, "third cut at 60 s");
+    }
+
+    #[test]
+    fn the_store_is_saved_at_most_every_sixty_seconds() {
+        let dir = std::env::temp_dir().join(format!("fw-listen-tap-save-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut tap = ListenTap::at(dir.clone());
+        feed_eighths(&mut tap, 0, 480);
+        assert!(!dir.join(FILE_NAME).exists(), "nothing written before 60 s");
+        feed_eighths(&mut tap, 480, 481);
+        assert!(dir.join(FILE_NAME).exists(), "written at 60 s");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_tap_built_under_test_never_persists() {
+        assert!(!ListenTap::new().persist);
+    }
+}

@@ -208,8 +208,8 @@ impl Door {
     }
 }
 
-/// The kind preview route: it needs the engine, so it is not an author route.
-const KIND_PATH: &str = "/author/render/kind.jpg";
+/// The kind preview routes: they need the engine, so they are not author routes.
+const KIND_PATHS: [&str; 2] = ["/author/render/kind.jpg", "/author/render/kind_listened"];
 
 impl Call for Door {
     #[cfg(feature = "gpu")]
@@ -260,7 +260,7 @@ impl Call for Door {
             return Some(reply);
         }
 
-        if (path == "/author" || path.starts_with("/author/")) && path != KIND_PATH {
+        if (path == "/author" || path.starts_with("/author/")) && !KIND_PATHS.contains(&path) {
             let rest = path.strip_prefix("/author").unwrap_or("");
             let inner_path = if rest.is_empty() {
                 "/".to_string()

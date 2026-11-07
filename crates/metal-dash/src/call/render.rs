@@ -3,10 +3,12 @@
 //! Every one of these renders through `render_device`/`render_source`
 //! (`main.rs`) and answers [`Bytes`] rather than JSON.
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::call::{Bytes, CallError, Ctx, Params};
 use crate::paint::encode_jpeg;
+use crate::shell::gallery_anim::encode;
+use crate::shell::preview_cache::{Meta, PreviewCache, Space};
 
 /// The clock `GET /render/<layer>/<frame>` and the remote composition agree
 /// on: frame `n` is `n / LAYER_FPS` seconds into the layer's own clock.
@@ -304,6 +306,100 @@ pub fn kind_jpg(ctx: &mut Ctx, params: &Params) -> Result<Bytes, CallError> {
     }
 }
 
+/// How long a listened picture stands before a selected card draws it again.
+const LISTENED_COOLDOWN_SECS: u64 = 600;
+/// The moments a listened GIF is drawn at, in seconds into the snippet (each
+/// clamped to the snippet's length).
+const LISTENED_TIMES: [f32; 5] = [0.5, 1.5, 2.5, 3.5, 4.5];
+
+/// The preview cache root: `METALVJ_PREVIEW_DIR` when set and non-empty, else
+/// `~/.cache/metalvj/previews`. `None` without a home directory.
+fn preview_root() -> Option<std::path::PathBuf> {
+    std::env::var_os("METALVJ_PREVIEW_DIR")
+        .filter(|v| !v.is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(PreviewCache::default_root)
+}
+
+/// `GET /author/render/kind_listened?kind=&selected=0|1&w=&h=`: a kind drawn over
+/// a snippet of the live audio the listen tap kept, written as a looping GIF into
+/// the preview cache's gallery space. Variant 0 only.
+///
+/// `selected=1` is a card the user is looking at, so its picture is drawn again
+/// once it is [`LISTENED_COOLDOWN_SECS`] old; any other ask leaves an existing
+/// picture alone. Replies `{"status": ...}`:
+/// - `fresh`: the picture exists and is not due.
+/// - `none`: no snippet has been cut yet, so the placeholder stays.
+/// - `rendered`: a new picture was written.
+/// - `unsupported`: a `gen.*` kind. Its listened picture is not drawn yet (the
+///   gen preview graph is not the kind's own graph), so it is skipped for now.
+/// - `no_cache`: there is no preview cache directory (no home directory).
+pub fn kind_listened(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
+    let Some(kind) = params.param("kind").map(str::to_string) else {
+        return Err(CallError::Bad("which kind".into()));
+    };
+    if !(kind.starts_with("fx.") || kind.starts_with("mat.") || kind.starts_with("gen.")) {
+        return Err(CallError::Bad("kind must be fx.*, mat.* or gen.*".into()));
+    }
+    if kind.starts_with("gen.") {
+        return Ok(json!({"status": "unsupported"}));
+    }
+    let selected = params.param("selected") == Some("1");
+    let w = params.num("w", 192.0).clamp(32.0, 480.0) as u32;
+    let h = params.num("h", 108.0).clamp(18.0, 270.0) as u32;
+    let Some(root) = preview_root() else {
+        return Ok(json!({"status": "no_cache"}));
+    };
+    let cache = PreviewCache::new(root);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    if !cache.should_render(Space::Gallery, &kind, now, LISTENED_COOLDOWN_SECS, selected) {
+        return Ok(json!({"status": "fresh"}));
+    }
+    let Some(snippet) = ctx.state.listen.pick(now).cloned() else {
+        return Ok(json!({"status": "none"}));
+    };
+    let length = snippet.rows.len() as f32 / snippet.rate_hz;
+    let times: Vec<f32> = LISTENED_TIMES.iter().map(|t| t.min(length)).collect();
+    let Some(pictures) = metal_perform::engine::render_kind_listened(
+        ctx.paint,
+        ctx.state,
+        &kind,
+        0,
+        w,
+        h,
+        &snippet.rows,
+        snippet.rate_hz,
+        &times,
+    ) else {
+        return Err(CallError::NotFound);
+    };
+    let Some(&(_, pw, ph)) = pictures.first() else {
+        return Err(CallError::NotFound);
+    };
+    if pictures.iter().any(|&(_, fw, fh)| (fw, fh) != (pw, ph)) {
+        return Err(CallError::Internal("listened frames differ in size".into()));
+    }
+    let size = [pw as usize, ph as usize];
+    let frames: Vec<Vec<u8>> = pictures
+        .iter()
+        .map(|(rgba, _, _)| rgba.chunks_exact(4).flat_map(|px| [px[0], px[1], px[2]]).collect())
+        .collect();
+    let gif = encode(size, &frames).map_err(CallError::Internal)?;
+    let flat: Vec<f32> = snippet.rows.iter().flatten().copied().collect();
+    let meta = Meta {
+        rendered_at: now,
+        input_hash: metal_perform::frame_cache::hash_floats(&flat, 0.0),
+        frames: frames.len(),
+        size,
+    };
+    cache
+        .write(Space::Gallery, &kind, &gif, &meta)
+        .map_err(|e| CallError::Internal(e.to_string()))?;
+    Ok(json!({"status": "rendered"}))
+}
+
 /// Where `metal-render --bin model-demo` writes its posters: beside the
 /// data root, in the repo's `tools/song-gate/demos`.
 fn demos_dir() -> std::path::PathBuf {
@@ -556,6 +652,55 @@ mod tests {
 
         let result = output_jpg(&mut ctx, &params(&[("device", "probe")]));
         assert!(!matches!(result, Err(CallError::Conflict(_))));
+    }
+
+    /// Asks `kind_listened` through the route table and returns its `status`.
+    fn listened_status(
+        paint: &mut dyn crate::paint::Paint,
+        state: &mut crate::State,
+        sim: &mut crate::listeners::Listeners,
+        author: &crate::Author,
+        query: &[(&str, &str)],
+    ) -> String {
+        let mut ctx = Ctx { state, paint, sim, author };
+        let reply = crate::call::dispatch("GET", "/author/render/kind_listened", &params(query), &mut ctx)
+            .expect("the route dispatches");
+        assert_eq!(reply.status, 200, "{}", String::from_utf8_lossy(&reply.body));
+        let body: Value = serde_json::from_slice(&reply.body).expect("json reply");
+        body["status"].as_str().expect("a status").to_string()
+    }
+
+    /// With no snippet the route says `none`; once one is in the tap's store it
+    /// draws the kind's GIF (`rendered`), and asking again is `fresh`.
+    #[test]
+    fn kind_listened_draws_once_a_snippet_is_heard() {
+        let dir = std::env::temp_dir().join(format!("mvj-kind-listened-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::env::set_var("METALVJ_PREVIEW_DIR", &dir);
+
+        let (mut paint, mut state, mut sim, author) = fixture();
+        // Outside metal-perform's own tests the tap reads the real listen
+        // cache, so the fixture's tap is swapped for an in-memory one.
+        state.listen = metal_perform::listen_cache::ListenTap::in_memory();
+        let query = [("kind", "fx.blur"), ("selected", "0")];
+
+        let before = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &query);
+        assert_eq!(before, "none");
+
+        // 40 rows at 8 Hz, column 0 loud: five seconds of sound.
+        let rows: Vec<Vec<f32>> = (0..40).map(|i| vec![0.5, i as f32 / 8.0, 0.0]).collect();
+        state.listen.store.add(metal_perform::listen_cache::Snippet { rows, rate_hz: 8.0, heard_at: 1 });
+
+        let drawn = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &query);
+        assert_eq!(drawn, "rendered");
+        let meta = PreviewCache::new(&dir).meta(Space::Gallery, "fx.blur").expect("sidecar written");
+        assert_eq!(meta.frames, LISTENED_TIMES.len());
+
+        let again = listened_status(paint.as_mut(), &mut state, &mut sim, &author, &query);
+        assert_eq!(again, "fresh");
+
+        std::env::remove_var("METALVJ_PREVIEW_DIR");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 

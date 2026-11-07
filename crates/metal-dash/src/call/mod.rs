@@ -502,12 +502,20 @@ pub static ROUTES: &[Route] = &[
     },
     // The gallery's fx/material cards: a kind at one float variant. It sits
     // under `/author` but needs the engine (`Paint`), so `Door::call` routes it
-    // here before the author table (see `KIND_PATH`).
+    // here before the author table (see `KIND_PATHS`).
     Route {
         method: "GET",
         path: "/author/render/kind.jpg",
         prefix: false,
         handler: Handler::Bytes(render::kind_jpg),
+    },
+    // The same kind, drawn over a snippet of the live audio and kept as a GIF
+    // in the preview cache (see `render::kind_listened`).
+    Route {
+        method: "GET",
+        path: "/author/render/kind_listened",
+        prefix: false,
+        handler: Handler::Json(render::kind_listened),
     },
     // The models dropdown's hover poster: the `model-demo` JPEG and its caption.
     Route {

@@ -63,8 +63,8 @@ pub fn decode(bytes: &[u8]) -> Option<([usize; 2], Vec<Vec<u8>>)> {
 }
 
 /// Encodes RGB frames of one size as a looping GIF, one frame per
-/// [`FRAME_SECS`]. The generator writes these; the shell only reads them.
-#[cfg(test)]
+/// [`FRAME_SECS`]. The generator and the listened route write these; the shell
+/// only reads them.
 pub fn encode(size: [usize; 2], frames: &[Vec<u8>]) -> Result<Vec<u8>, String> {
     let (w, h) = (size[0] as u16, size[1] as u16);
     let mut out = Vec::new();

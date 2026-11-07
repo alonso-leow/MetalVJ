@@ -293,9 +293,7 @@ fn card_grid(ui: &mut Ui, theme: &Theme, state: &mut State, sections: &[Section]
     let columns = columns_for(theme, width);
     let gap = theme.item_gap.x;
     let card_w = ((width - gap * (columns as f32 - 1.0) - theme.scroll_gutter) / columns as f32).max(1.0);
-    let preview_h = card_w / PREVIEW_ASPECT;
-    let label_h = ui.text_style_height(&egui::TextStyle::Body) + ui.text_style_height(&egui::TextStyle::Small);
-    let card_h = preview_h + theme.card_margin().sum().y + label_h + theme.item_gap.y;
+    let card_h = card_w / PREVIEW_ASPECT;
     let mut outcome = None;
     let mut seen = false;
     egui::ScrollArea::vertical()
@@ -332,24 +330,30 @@ fn card(ui: &mut Ui, theme: &Theme, item: &Item, size: Vec2) -> (Option<Outcome>
     let visible = ui.is_rect_visible(rect);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &item.label));
     let painter = ui.painter_at(rect);
-    painter.rect_filled(rect, theme.library_card_corner(), theme.library_card);
+    paint_preview(&painter, theme, rect, item);
     if visible && super::gallery_anim::frames(ui.ctx(), &item.kind).is_some() {
         // Only a card on screen asks for its next frame, and only when it is due.
         let now = ui.ctx().input(|i| i.time);
         super::frames::repaint_after(ui.ctx(), std::time::Duration::from_secs_f64(super::gallery_anim::secs_to_next_frame(now)));
     }
+    // The text sits over the picture on a bottom-up shadow gradient.
+    let text_h = ui.text_style_height(&egui::TextStyle::Body) + ui.text_style_height(&egui::TextStyle::Small) + theme.item_gap.y * 2.0;
+    let shade = Rect::from_min_max(Pos2::new(rect.left(), (rect.bottom() - text_h * 1.5).max(rect.top())), rect.max);
+    let (clear, dark) = (egui::Color32::TRANSPARENT, theme.faded(egui::Color32::BLACK, 217));
+    let mut mesh = egui::Mesh::default();
+    mesh.colored_vertex(shade.left_top(), clear);
+    mesh.colored_vertex(shade.right_top(), clear);
+    mesh.colored_vertex(shade.right_bottom(), dark);
+    mesh.colored_vertex(shade.left_bottom(), dark);
+    mesh.add_triangle(0, 1, 2);
+    mesh.add_triangle(0, 2, 3);
+    painter.add(egui::Shape::mesh(mesh));
     if response.hovered() {
         // The red emphasis: a wash over the card and an accent outline.
-        painter.rect_filled(rect, theme.library_card_corner(), theme.faded(theme.phosphor, theme.hover_alpha));
-        painter.rect_stroke(rect, theme.library_card_corner(), theme.accent(), egui::StrokeKind::Inside);
+        painter.rect_filled(rect, theme.sharp_corner(), theme.faded(theme.phosphor, theme.hover_alpha));
+        painter.rect_stroke(rect, theme.sharp_corner(), theme.accent(), egui::StrokeKind::Inside);
     }
-    let pad = theme.card_margin();
-    let inner = Rect::from_min_max(
-        rect.min + Vec2::new(f32::from(pad.left), f32::from(pad.top)),
-        rect.max - Vec2::new(f32::from(pad.right), f32::from(pad.bottom)),
-    );
-    let preview = Rect::from_min_size(inner.min, Vec2::new(inner.width(), inner.width() / PREVIEW_ASPECT));
-    paint_preview(&painter, theme, preview, item);
+    let inner = rect.shrink2(Vec2::new(theme.item_gap.x, theme.item_gap.y));
     // The star corner: a click on it toggles the global favourite, and it is
     // added after the card so it wins the click over the card's own response.
     let star_side = theme.item_gap.x * 2.0 + ui.text_style_height(&egui::TextStyle::Body);
@@ -362,16 +366,12 @@ fn card(ui: &mut Ui, theme: &Theme, item: &Item, size: Vec2) -> (Option<Outcome>
         return (None, visible);
     }
     let label = if item.starred { format!("★ {}", item.label) } else { item.label.clone() };
+    let body_h = ui.text_style_height(&egui::TextStyle::Body);
+    let small_h = ui.text_style_height(&egui::TextStyle::Small);
     let fitted = fit_text(&painter, &label, theme.font_body.clone(), theme.ink, inner.width());
-    painter.text(Pos2::new(inner.left(), preview.bottom() + theme.item_gap.y), Align2::LEFT_TOP, fitted, theme.font_body.clone(), theme.ink);
+    painter.text(Pos2::new(inner.left(), inner.bottom() - small_h - body_h), Align2::LEFT_TOP, fitted, theme.font_body.clone(), theme.ink);
     let family = fit_text(&painter, &item.family, theme.font_small.clone(), theme.ink_weak, inner.width());
-    painter.text(
-        Pos2::new(inner.left(), preview.bottom() + theme.item_gap.y + ui.text_style_height(&egui::TextStyle::Body)),
-        Align2::LEFT_TOP,
-        family,
-        theme.font_small.clone(),
-        theme.ink_weak,
-    );
+    painter.text(Pos2::new(inner.left(), inner.bottom() - small_h), Align2::LEFT_TOP, family, theme.font_small.clone(), theme.ink_weak);
     response.dnd_set_drag_payload(NodeDrag { item: item.clone() });
     if response.drag_started() {
         return (Some(Outcome::Dragging), visible);
@@ -496,8 +496,8 @@ mod tests {
     #[test]
     fn the_gallery_is_forty_percent_of_its_former_size() {
         let theme = Theme::phosphor();
-        assert!((theme.gallery_share - 0.8 * 0.4).abs() < 1e-4, "overlay share {}", theme.gallery_share);
-        assert!((theme.gallery_card_min_w - 170.0 * 0.4).abs() < 1e-4, "card min width {}", theme.gallery_card_min_w);
+        assert!((theme.gallery_share - 0.8 * 0.4 * 1.3).abs() < 1e-4, "overlay share {}", theme.gallery_share);
+        assert!((theme.gallery_card_min_w - 170.0 * 0.4 * 1.3).abs() < 1e-4, "card min width {}", theme.gallery_card_min_w);
         assert_eq!(columns_for(&theme, theme.gallery_card_min_w * 2.0), 2);
     }
 }

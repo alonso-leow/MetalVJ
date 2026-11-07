@@ -2438,14 +2438,14 @@ fn reveal_node(door: &dyn Call, state: &mut PanelState, rect: EguiRect, node: &s
 }
 
 /// Width of the margin band (fraction of each canvas axis) where the pointer pushes the view.
-const EDGE_BAND: f32 = 0.22;
+const EDGE_BAND: f32 = 0.10;
 /// Fastest edge-pan, in screen px per second (pointer on the very border).
-const EDGE_SPEED: f32 = 900.0;
+const EDGE_SPEED: f32 = 380.0;
 /// Graph-unit room a node card takes around its anchor point.
 const EDGE_NODE_PAD: f32 = 160.0;
 /// Gap left past the last node, in graph units, and the ease-out length before it.
-const EDGE_GAP: f32 = 60.0;
-const EDGE_EASE: f32 = 260.0;
+const EDGE_GAP: f32 = 0.0;
+const EDGE_EASE: f32 = 420.0;
 
 /// The smallest circle (centre, radius) that holds every node card: the graph's own limit
 /// for [`edge_pan`]. Ritter's approximation is plenty for a pan limit.

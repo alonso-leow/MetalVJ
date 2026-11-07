@@ -12,8 +12,63 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use web_time::{Duration, Instant};
 
-use metal_perform::gpu_compose::{region_async, GpuCx, PendingRegion};
+use metal_perform::gpu_compose::{region_async, AsyncReadback, GpuCx, PendingRegion};
 use metal_perform::gpu_frame::GpuFrame;
+
+use crate::seq_cache::INSERT_GAP_MS;
+
+/// The least time between two recorded sequence frames, wall clock: the
+/// sequence cache's own insertion gap, on the device side too.
+const RECORD_GAP: Duration = Duration::from_millis(INSERT_GAP_MS as u64);
+
+/// A recording readback still unfinished after this long is abandoned with its
+/// whole [`AsyncReadback`], so one stuck copy cannot hold the recorder shut.
+const FLIGHT_TIMEOUT: Duration = Duration::from_secs(1);
+
+/// Finished records kept for the shell to drain; the oldest go first.
+const MAX_READY: usize = 8;
+
+/// What a recorded frame is filed under in the sequence cache: the sequence
+/// it belongs to, its sequence time, and the overlay floats it was drawn from.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RecordTag {
+    pub seq: String,
+    pub t_ms: u32,
+    pub floats: Vec<f32>,
+}
+
+/// One recorded frame: its tag and its pixels, RGBA8 at `w` x `h`.
+pub struct Recorded {
+    pub tag: RecordTag,
+    pub w: u32,
+    pub h: u32,
+    pub rgba: Vec<u8>,
+}
+
+/// A route's landing count and the frame time its latest landing measured.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Landing {
+    /// How many frames have landed for the key, ever.
+    pub count: u64,
+    /// Milliseconds between the last two landings; `None` before the second.
+    pub gap_ms: Option<f32>,
+}
+
+/// The sequence taps (`shell/panels/lanes.rs` drives them each frame).
+#[derive(Default)]
+struct Taps {
+    /// The key whose landed frames are recorded now, and their tag. `None`
+    /// records nothing: the pacer says the live render is behind.
+    record: Option<(String, RecordTag)>,
+    /// When the last record was taken, from either route (throttle).
+    last_record: Option<Instant>,
+    /// The copy of one landed frame in flight, and when it was queued.
+    flight: Option<(RecordTag, Instant)>,
+    rb: Option<AsyncReadback>,
+    ready: Vec<Recorded>,
+    /// Pictures the shell shows in place of the late live frame, by key.
+    fallback: HashMap<String, egui::TextureHandle>,
+}
 
 /// What a [`Presenter`] knows about one picture.
 pub enum Shown {
@@ -45,6 +100,9 @@ struct Slot {
     id: Option<egui::TextureId>,
     size: [u32; 2],
     landed: u64,
+    /// When the last frame landed, and the gap to the one before it.
+    last_landing: Option<Instant>,
+    gap_ms: Option<f32>,
     in_flight: bool,
     unsupported: bool,
     /// G5: the caller wants this picture's histogram (a grade page is open).
@@ -75,6 +133,43 @@ struct Inner {
     ctx: Mutex<Option<egui::Context>>,
     slots: Mutex<HashMap<String, Slot>>,
     pick: Mutex<Pick>,
+    taps: Mutex<Taps>,
+}
+
+/// The gap between two landings of one key, in milliseconds (`None` for the
+/// first). A landing time is the frame time the sequence pacer reads.
+pub fn frame_gap_ms(prev: Option<Instant>, now: Instant) -> Option<f32> {
+    prev.map(|p| now.saturating_duration_since(p).as_secs_f32() * 1000.0)
+}
+
+/// An RGB frame as RGBA with opaque alpha, the form the sequence cache keeps.
+pub fn rgb_to_rgba(rgb: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(rgb.len() / 3 * 4);
+    for px in rgb.chunks_exact(3) {
+        out.extend_from_slice(px);
+        out.push(255);
+    }
+    out
+}
+
+/// Counts one landing of a slot and measures its gap to the one before.
+fn note(slot: &mut Slot, now: Instant) {
+    slot.landed += 1;
+    slot.gap_ms = frame_gap_ms(slot.last_landing, now);
+    slot.last_landing = Some(now);
+}
+
+/// Whether a record may be taken now: none was taken within [`RECORD_GAP`].
+fn record_due(last: Option<Instant>) -> bool {
+    last.is_none_or(|at| at.elapsed() >= RECORD_GAP)
+}
+
+/// Files a finished record, dropping the oldest once [`MAX_READY`] wait.
+fn push_ready(t: &mut Taps, r: Recorded) {
+    if t.ready.len() >= MAX_READY {
+        t.ready.remove(0);
+    }
+    t.ready.push(r);
 }
 
 /// The shared mailbox; clones are handles to the same one.
@@ -180,6 +275,22 @@ impl Presenter {
         true
     }
 
+    /// Counts one landed frame of `key` for the pacer's timing, without a
+    /// picture: the CPU (JPEG) route lands through here.
+    pub fn note_landed(&self, key: &str) {
+        if let Ok(mut slots) = crate::perf::locked(&self.inner.slots, "present.slots") {
+            note(slots.entry(key.to_string()).or_default(), Instant::now());
+        }
+    }
+
+    /// The landing count of `key` and its latest frame gap (see [`Landing`]);
+    /// `None` for a key that never landed.
+    pub fn landing(&self, key: &str) -> Option<Landing> {
+        let slots = crate::perf::locked(&self.inner.slots, "present.slots").ok()?;
+        let s = slots.get(key)?;
+        (s.landed > 0).then_some(Landing { count: s.landed, gap_ms: s.gap_ms })
+    }
+
     /// The worker's answer: a frame, or `None` when the door has no texture.
     pub fn land(&self, key: &str, frame: Option<GpuFrame>) {
         if let Ok(mut slots) = crate::perf::locked(&self.inner.slots, "present.slots") {
@@ -188,7 +299,7 @@ impl Presenter {
             match frame {
                 Some(f) => {
                     slot.size = [f.width(), f.height()];
-                    slot.landed += 1;
+                    note(slot, Instant::now());
                     slot.pending = Some(f);
                     slot.unsupported = false;
                 }
@@ -208,10 +319,101 @@ impl Presenter {
         }
     }
 
+    /// Sequence taps: which key's landed frames are recorded now, and under
+    /// what tag. `None` records nothing (the pacer says the render is behind).
+    pub fn set_record(&self, want: Option<(String, RecordTag)>) {
+        if let Ok(mut t) = crate::perf::locked(&self.inner.taps, "present.taps") {
+            t.record = want;
+        }
+    }
+
+    /// Sequence taps: the records finished since the last call, oldest first.
+    pub fn take_records(&self) -> Vec<Recorded> {
+        match crate::perf::locked(&self.inner.taps, "present.taps") {
+            Ok(mut t) => std::mem::take(&mut t.ready),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    /// Sequence taps: the picture `key` shows in place of its live frame, or
+    /// `None` to show the live frame again.
+    pub fn set_fallback(&self, key: &str, pic: Option<egui::TextureHandle>) {
+        if let Ok(mut t) = crate::perf::locked(&self.inner.taps, "present.taps") {
+            match pic {
+                Some(h) => t.fallback.insert(key.to_string(), h),
+                None => t.fallback.remove(key),
+            };
+        }
+    }
+
+    /// Sequence taps: the fallback picture of `key`, if one is set.
+    pub fn fallback(&self, key: &str) -> Option<egui::TextureHandle> {
+        crate::perf::locked(&self.inner.taps, "present.taps").ok()?.fallback.get(key).cloned()
+    }
+
+    /// Sequence taps: nothing recorded, no fallback picture, no records
+    /// waiting. Called when no sequence is playing.
+    pub fn clear_sequence(&self) {
+        if let Ok(mut t) = crate::perf::locked(&self.inner.taps, "present.taps") {
+            t.record = None;
+            t.fallback.clear();
+            t.ready.clear();
+        }
+    }
+
+    /// The CPU route's landed frame (`Frame::tick`): recorded when `key` is
+    /// the one being recorded and the record gap has passed. Copies only then.
+    pub fn offer_frame(&self, key: &str, w: u32, h: u32, rgb: &[u8]) {
+        let Ok(mut t) = crate::perf::locked(&self.inner.taps, "present.taps") else { return };
+        let Some((want, tag)) = t.record.clone() else { return };
+        let len = (w as usize) * (h as usize) * 3;
+        if want != key || rgb.len() != len || !record_due(t.last_record) {
+            return;
+        }
+        t.last_record = Some(Instant::now());
+        push_ready(&mut t, Recorded { tag, w, h, rgba: rgb_to_rgba(rgb) });
+    }
+
+    /// Window thread: finishes the recording readback in flight, and starts
+    /// one for the frame `record` names when the gap has passed. The copy is
+    /// queued now and read on a later call; nothing waits on the GPU. Skipped
+    /// while a copy is out, so the recorder never holds two.
+    fn records_pending(&self, cx: &GpuCx) {
+        let Ok(mut guard) = crate::perf::locked(&self.inner.taps, "present.taps") else { return };
+        let t = &mut *guard;
+        if let Some((tag, at)) = t.flight.clone() {
+            let polled = t.rb.as_mut().and_then(|rb| rb.poll(cx));
+            match polled {
+                Some((rgba, w, h)) => {
+                    t.flight = None;
+                    push_ready(t, Recorded { tag, w, h, rgba });
+                }
+                None if at.elapsed() > FLIGHT_TIMEOUT => {
+                    t.flight = None;
+                    t.rb = None;
+                }
+                None => {}
+            }
+        }
+        let Some((key, tag)) = t.record.clone() else { return };
+        if t.flight.is_some() || !record_due(t.last_record) {
+            return;
+        }
+        let Ok(slots) = crate::perf::locked(&self.inner.slots, "present.slots") else { return };
+        let Some(frame) = slots.get(&key).and_then(|s| s.shown.as_ref().or(s.pending.as_ref())) else { return };
+        let rb = t.rb.get_or_insert_with(|| AsyncReadback::new(cx));
+        if rb.submit(cx, frame) {
+            let now = Instant::now();
+            t.flight = Some((tag, now));
+            t.last_record = Some(now);
+        }
+    }
+
     /// Window thread, before the UI: starts the copy of a pixel asked for
     /// since the last call, and returns the colour of one that has finished.
     /// Never waits on the GPU; an unfinished copy asks for another frame.
     pub fn picks_pending(&self, cx: &GpuCx) -> Option<[u8; 3]> {
+        self.records_pending(cx);
         let mut pick = self.inner.pick.lock().ok()?;
         if let Some(polled) = pick.in_flight.as_ref().map(|r| r.poll(cx)) {
             match polled {
@@ -388,5 +590,91 @@ mod tests {
         let pick_after = t.elapsed().as_secs_f64() * 1000.0 / n as f64;
         println!("MEASURE sensor {w}x{h}: JPEG encode+decode {sensor_before:.2} ms, texture upload {sensor_after:.2} ms");
         println!("MEASURE pick {w}x{h}: readback+JPEG encode+decode {pick_before:.2} ms, 1x1 region {pick_after:.3} ms");
+    }
+}
+
+#[cfg(test)]
+mod sequence_tap_tests {
+    use super::*;
+
+    fn tag(t_ms: u32) -> RecordTag {
+        RecordTag { seq: "show".into(), t_ms, floats: vec![0.5] }
+    }
+
+    #[test]
+    fn the_gap_between_landings_is_the_frame_time() {
+        let t0 = Instant::now();
+        assert_eq!(frame_gap_ms(None, t0), None, "the first landing has no gap");
+        let g = frame_gap_ms(Some(t0), t0 + Duration::from_millis(40)).expect("gap");
+        assert!((g - 40.0).abs() < 0.01, "{g}");
+    }
+
+    #[test]
+    fn landings_count_and_measure_per_key() {
+        let p = Presenter::default();
+        assert!(p.landing("/output.jpg?[]").is_none(), "never landed");
+        p.note_landed("/output.jpg?[]");
+        let first = p.landing("/output.jpg?[]").expect("one landing");
+        assert_eq!((first.count, first.gap_ms), (1, None));
+        std::thread::sleep(Duration::from_millis(5));
+        p.note_landed("/output.jpg?[]");
+        let second = p.landing("/output.jpg?[]").expect("two landings");
+        assert_eq!(second.count, 2);
+        assert!(second.gap_ms.is_some_and(|g| g >= 4.0), "{second:?}");
+        assert!(p.landing("/node.jpg?[]").is_none(), "other keys are not counted");
+    }
+
+    #[test]
+    fn rgb_becomes_opaque_rgba() {
+        assert_eq!(rgb_to_rgba(&[1, 2, 3, 4, 5, 6]), vec![1, 2, 3, 255, 4, 5, 6, 255]);
+        assert!(rgb_to_rgba(&[]).is_empty());
+    }
+
+    #[test]
+    fn a_frame_is_recorded_only_for_the_wanted_key_and_throttled() {
+        let p = Presenter::default();
+        let rgb = vec![9u8; 2 * 2 * 3];
+        p.offer_frame("k", 2, 2, &rgb);
+        assert!(p.take_records().is_empty(), "nothing wanted: nothing copied");
+        p.set_record(Some(("k".into(), tag(100))));
+        p.offer_frame("other", 2, 2, &rgb);
+        assert!(p.take_records().is_empty(), "another key is not recorded");
+        p.offer_frame("k", 2, 2, &rgb[..5]);
+        assert!(p.take_records().is_empty(), "a short buffer is refused");
+        p.offer_frame("k", 2, 2, &rgb);
+        p.offer_frame("k", 2, 2, &rgb);
+        let got = p.take_records();
+        assert_eq!(got.len(), 1, "the second offer falls inside the record gap");
+        assert_eq!(got[0].tag, tag(100));
+        assert_eq!(got[0].rgba.len(), 2 * 2 * 4);
+        assert!(got[0].rgba.chunks_exact(4).all(|px| px == [9, 9, 9, 255]));
+    }
+
+    #[test]
+    fn the_ready_queue_keeps_the_newest_records() {
+        let mut t = Taps::default();
+        for i in 0..(MAX_READY as u32 + 3) {
+            push_ready(&mut t, Recorded { tag: tag(i), w: 1, h: 1, rgba: vec![0; 4] });
+        }
+        assert_eq!(t.ready.len(), MAX_READY);
+        assert_eq!(t.ready[0].tag.t_ms, 3, "the three oldest went first");
+    }
+
+    #[test]
+    fn a_fallback_picture_is_set_per_key_and_cleared_with_the_sequence() {
+        let p = Presenter::default();
+        assert!(p.fallback("k").is_none());
+        // A texture handle needs a context; the taps only store it, so a
+        // default context is enough to make one.
+        let ctx = egui::Context::default();
+        let tex = ctx.load_texture("t", egui::ColorImage::example(), egui::TextureOptions::LINEAR);
+        p.set_fallback("k", Some(tex.clone()));
+        assert_eq!(p.fallback("k").map(|h| h.id()), Some(tex.id()));
+        assert!(p.fallback("other").is_none());
+        p.set_fallback("k", None);
+        assert!(p.fallback("k").is_none());
+        p.set_fallback("k", Some(tex));
+        p.clear_sequence();
+        assert!(p.fallback("k").is_none(), "clearing drops every fallback");
     }
 }

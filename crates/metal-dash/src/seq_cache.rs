@@ -212,6 +212,11 @@ impl SeqRenderCache {
         self.pacer.observe(frame_ms, target_ms)
     }
 
+    /// Whether the pacer has fallback on, without feeding it a frame.
+    pub fn falling_back(&self) -> bool {
+        self.pacer.falling_back()
+    }
+
     /// Save every sequence whose cache is dirty and whose autosave is due at
     /// `now_secs` (seconds on any clock that only moves forward). Returns how
     /// many were written. Every due sequence is attempted; the first error is
@@ -289,6 +294,22 @@ pub fn fit_size(w: u32, h: u32) -> (u32, u32) {
     (dw, dh)
 }
 
+/// An RGBA `w` x `h` frame reduced the way the cache keeps it (see
+/// [`fit_size`]): `(pixels, width, height)`. `None` when the buffer does not
+/// match the size. Used for the library thumbnail of a sequence.
+pub fn shrink(rgba: &[u8], w: u32, h: u32) -> Option<(Vec<u8>, u32, u32)> {
+    if rgba.len() != frame_len(w, h)? {
+        return None;
+    }
+    let (dw, dh) = fit_size(w, h);
+    let pixels = if (dw, dh) == (w, h) {
+        rgba.to_vec()
+    } else {
+        downscale(rgba, w, h, dw, dh)
+    };
+    Some((pixels, dw, dh))
+}
+
 /// Bytes of an RGBA `w` x `h` frame, or `None` on overflow or an empty size.
 fn frame_len(w: u32, h: u32) -> Option<usize> {
     if w == 0 || h == 0 {
@@ -360,6 +381,18 @@ mod tests {
         assert_eq!(fit_size(100, 1000), (9, 90));
         // A wide frame of nearly zero height never goes below one pixel.
         assert_eq!(fit_size(10_000, 1), (160, 1));
+    }
+
+    #[test]
+    fn shrink_keeps_the_cache_size_and_rejects_bad_buffers() {
+        let big = solid(640, 360, [30, 60, 90, 255]);
+        let (px, w, h) = shrink(&big, 640, 360).expect("fits");
+        assert_eq!((w, h), (160, 90));
+        assert_eq!(px.len(), 160 * 90 * 4);
+        let small = solid(8, 4, [1, 2, 3, 4]);
+        assert_eq!(shrink(&small, 8, 4), Some((small.clone(), 8, 4)));
+        assert_eq!(shrink(&small[..10], 8, 4), None);
+        assert_eq!(shrink(&[], 0, 0), None);
     }
 
     #[test]

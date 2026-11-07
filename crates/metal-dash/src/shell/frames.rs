@@ -48,6 +48,18 @@ mod tests {
         let want = 1.0 / f64::from(crate::frame_cap::get());
         assert!((live_gap().as_secs_f64() - want).abs() < 1e-9);
     }
+
+    /// A route's key ignores the picture size and keeps the query: the same
+    /// string the preview files its picture under (`route?{query:?}`).
+    #[test]
+    fn route_key_ignores_the_size_and_keeps_the_query() {
+        let q = [("device", "d1".to_string()), ("w", "320".to_string())];
+        let key = route_key("/output.jpg", &q);
+        assert_eq!(key, route_key("/output.jpg", &[("device", "d1".to_string()), ("w", "96".to_string()), ("h", "54".to_string())]));
+        assert_eq!(key, format!("/output.jpg?{:?}", vec![("device".to_string(), "d1".to_string())]));
+        assert_ne!(key, route_key("/output.jpg", &[("device", "d2".to_string())]));
+        assert_ne!(key, route_key("/node.jpg", &[("device", "d1".to_string())]));
+    }
 }
 
 /// Set once when the window opens, from the adapter: a software one.
@@ -236,6 +248,24 @@ fn texture_of<D: Call>(_: &D, _: &str, _: &[(&str, String)]) -> Option<metal_per
     None
 }
 
+/// The mailbox of the worker the shell published to `ctx`, when there is one
+/// (the window's own run; a kittest harness has none).
+pub fn presenter_of(ctx: &Context) -> Option<super::present::Presenter> {
+    fetcher_of(ctx).map(|f| f.presenter().clone())
+}
+
+/// The key a route's picture is known by: the route and its query with the
+/// picture size (`w`, `h`) left out, so any size of one picture is one key.
+/// The presenter files pictures under it and the sequence fallback is set by it.
+pub fn route_key(path: &str, query: &[(&str, String)]) -> String {
+    let kept: Vec<(String, String)> = query
+        .iter()
+        .filter(|(k, _)| *k != "w" && *k != "h")
+        .map(|(k, v)| (k.to_string(), v.clone()))
+        .collect();
+    format!("{path}?{kept:?}")
+}
+
 /// One pumped image: the texture the last fetch decoded into, *when* that
 /// fetch was made — [`Self::tick`] asks the door again only after
 /// `min_gap` has passed (the live pictures pass [`live_gap()`]) —
@@ -259,6 +289,9 @@ pub struct Frame {
     landed: u64,
     /// G5: the presented picture (a shared-device texture), when it is one.
     pic: Option<(egui::TextureId, [usize; 2])>,
+    /// The sequence fallback picture shown in place of `tex` this frame, when
+    /// the shell has set one for the route (`Presenter::set_fallback`).
+    over: Option<egui::TextureHandle>,
 }
 
 /// A decoded frame as the worker hands it back: size, RGB bytes and their
@@ -312,6 +345,7 @@ impl Default for Frame {
             want_pick: false,
             landed: 0,
             pic: None,
+            over: None,
         }
     }
 }
@@ -398,6 +432,13 @@ impl Frame {
                     if self.want_hist {
                         self.hist = Some(Box::new(histogram_of(&rgb, HIST_STRIDE)));
                     }
+                    // The pacer's timing and the sequence recorder both see
+                    // this landing: the CPU route's frame is in hand here.
+                    if let Some(f) = fetcher {
+                        let key = route_key(path, query);
+                        f.presenter().note_landed(&key);
+                        f.presenter().offer_frame(&key, w, h, &rgb);
+                    }
                     self.show(ctx, path, w, h, &rgb, fp);
                     if self.want_pick {
                         self.pixels = Some((w, h, rgb));
@@ -445,7 +486,11 @@ impl Frame {
                 }
             }
         }
-        self.tex.as_ref()
+        // A sequence fallback picture, when the shell set one, is what this
+        // frame shows; the live fetch above still went out, so the pacer keeps
+        // timing the live render.
+        self.over = fetcher.and_then(|f| f.presenter().fallback(&route_key(path, query)));
+        self.over.as_ref().or(self.tex.as_ref())
     }
 
     /// A picture for an editor canvas, asked through the worker the shell
@@ -464,7 +509,7 @@ impl Frame {
         let _span = crate::perf::Span::new("frame.picture");
         let fetcher = fetcher_of(ctx);
         if let Some(f) = fetcher.as_ref() {
-            let key = format!("{path}?{query:?}");
+            let key = route_key(path, query);
             match self.tick_texture(ctx, f, &key, path, query, min_gap) {
                 Shown::Ready { id, size, .. } => {
                     let picture = (id, [size[0] as usize, size[1] as usize]);
@@ -520,7 +565,19 @@ impl Frame {
                 presenter.land(key, None);
             }
         }
-        shown
+        // The sequence fallback, when one is set for this key, is shown in
+        // place of the live picture (which was still requested above).
+        match presenter.fallback(key) {
+            Some(tex) => {
+                let landed = match &shown {
+                    Shown::Ready { landed, .. } => *landed,
+                    _ => 0,
+                };
+                let size = tex.size();
+                Shown::Ready { id: tex.id(), size: [size[0] as u32, size[1] as u32], landed }
+            }
+            None => shown,
+        }
     }
 
     /// Puts a landed frame on screen: into the texture already held (2026-10-06 —

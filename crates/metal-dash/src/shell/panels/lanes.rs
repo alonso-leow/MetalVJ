@@ -82,15 +82,20 @@ use serde_json::{json, Value};
 
 use crate::call::{Call, Params};
 
+use crate::seq_cache::{SeqRenderCache, FLOAT_QUANT};
 use crate::shell::classes::Theme;
 use crate::shell::components::{
     dropdown, label_row, lucide, num_track, panel_frame, panel_head, payload_cell, section_heading,
     slider_row, toggle_row, Icon,
 };
+use crate::shell::gallery_anim;
+use crate::shell::frames;
 use crate::shell::i18n::{tr, tr_dyn, tr_key, trf};
 use crate::shell::panels::builtins;
 use crate::shell::panels::Selection;
 use crate::shell::preview::FloatingPreview;
+use crate::shell::preview_cache::{Meta, PreviewCache, Space};
+use crate::shell::present::RecordTag;
 
 /// Everything the lanes panel remembers between frames — all of it is either
 /// a form field the operator is mid-typing (never itself sent until a
@@ -172,6 +177,24 @@ pub struct PanelState {
     /// The picture last shown, so a frame whose write has not landed yet
     /// keeps drawing it.
     last_picture: Option<(String, Vec<(String, String)>)>,
+    /// Sequence playback's frame cache and its pacer (`seq_cache`): the
+    /// fallback pictures, the autosave clock.
+    seq_cache: SeqRenderCache,
+    /// The route key and landing count the pacer last read.
+    seq_seen: Option<(String, u64)>,
+    /// The texture the fallback picture is drawn from, refilled each frame.
+    seq_fallback_tex: Option<egui::TextureHandle>,
+    /// Each sequence's first recorded frame, shrunk: its library thumbnail.
+    seq_thumbs: HashMap<String, SeqThumb>,
+    /// The clock value of each sequence's last thumbnail write.
+    seq_thumb_at: HashMap<String, f64>,
+    /// The sequence last recorded; a save writes its thumbnail.
+    seq_last: Option<String>,
+    /// Set by a frame whose preview ran the sequence tap; read at the next
+    /// frame's start (see [`sequence_housekeeping`]).
+    seq_tapped: bool,
+    /// Whether the taps are on in the presenter.
+    seq_active: bool,
     /// The song fetch on the worker: what it is for, and its answer.
     song_flight: Option<(SongJob, std::sync::mpsc::Receiver<SongLoad>)>,
     /// The Timeline view's own preview — its header frame, not the edit
@@ -409,6 +432,14 @@ impl Default for PanelState {
             preview_gen: 0,
             seek_gen: 0,
             last_picture: None,
+            seq_cache: default_seq_cache(),
+            seq_seen: None,
+            seq_fallback_tex: None,
+            seq_thumbs: HashMap::new(),
+            seq_thumb_at: HashMap::new(),
+            seq_last: None,
+            seq_tapped: false,
+            seq_active: false,
             song_flight: None,
             timeline_preview: FloatingPreview::default(),
             timeline_preview_h: None,
@@ -759,6 +790,7 @@ fn paint_in(
             state.refresh(door);
             let state_val = get(door, "GET", "/state", &[]).unwrap_or_else(|| json!({}));
             drop(_s_state);
+            sequence_housekeeping(ui, state);
             ui.vertical(|ui| {
                 // The click-to-focus catcher goes right after the passive
                 // heading and before every interactive row — `nodes.rs`'s
@@ -2633,6 +2665,12 @@ fn ingest_preview(
         .clone()
         .filter(|d| state_val["outputs"].as_array().is_some_and(|os| os.iter().any(|o| o["id"] == json!(d))));
 
+    // The running sequence's library key and its sequence time (`t_ms`): the
+    // live output is the frame at that time, so the cache is keyed by it.
+    let running = match (&shown_running, &device) {
+        (Some(name), Some(_)) => playhead_for(name, state_val).map(|tick| (library_key(ingest, name), tick_ms(tick))),
+        _ => None,
+    };
     let (route, query) = match (&shown_running, &device) {
         (Some(_), Some(d)) => {
             let mut q = vec![("device".to_string(), d.clone())];
@@ -2702,6 +2740,9 @@ fn ingest_preview(
     if !ready {
         repaint_until_landed(ui);
     }
+    if let Some((seq, t_ms)) = &running {
+        sequence_tap(ui, state, seq, *t_ms, &row, &route, &query);
+    }
     let solo = route == "/author/render/solo.jpg";
     let own = own_picture(state, slot);
     show_preview(ui, theme, door, ingest, own, host, &route, query, focused, subject);
@@ -2724,6 +2765,183 @@ fn fit_width(mut row: Vec<f32>, width: usize) -> Vec<f32> {
         row.resize(width, 0.0);
     }
     row
+}
+
+// ---------------------------------------------------------------------------
+// Sequence playback through the frame cache (`seq_cache`)
+// ---------------------------------------------------------------------------
+
+/// A sequence's library thumbnail is written at most this often.
+const THUMB_SECS: f64 = 30.0;
+
+/// A sequence's first recorded frame, shrunk to the cache's picture size.
+struct SeqThumb {
+    w: u32,
+    h: u32,
+    rgba: Vec<u8>,
+    floats_hash: u64,
+}
+
+/// The cache the lanes panel holds. Tests never write the user's cache.
+fn default_seq_cache() -> SeqRenderCache {
+    if cfg!(test) {
+        SeqRenderCache::with_dir(None)
+    } else {
+        SeqRenderCache::new()
+    }
+}
+
+/// The pacer's target: one frame at the live fps cap, in milliseconds.
+fn target_ms() -> f32 {
+    frames::live_gap().as_secs_f32() * 1000.0
+}
+
+/// Sequence time, in milliseconds, of an overlay tick on the editor's grid.
+pub fn tick_ms(tick: f32) -> u32 {
+    (tick.max(0.0) * 1000.0 / crate::shell::lanes::EDITOR_RATE) as u32
+}
+
+/// The library's name for a sequence: the song it is saved for (the row
+/// `/project/play` lists), else the movement it plays.
+fn library_key(ingest: &crate::shell::lanes::IngestLane, movement: &str) -> String {
+    let song = ingest.song.trim();
+    if song.is_empty() {
+        movement.to_string()
+    } else {
+        song.to_string()
+    }
+}
+
+/// Whether a thumbnail may be written at `now`: none written yet, or the last
+/// one at least [`THUMB_SECS`] ago.
+fn thumb_due(last: Option<f64>, now: f64) -> bool {
+    last.is_none_or(|at| now - at >= THUMB_SECS)
+}
+
+/// A one-frame GIF of an RGBA picture, as the library's thumbnails are stored.
+fn thumbnail_gif(w: u32, h: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
+    let rgb: Vec<u8> = rgba.chunks_exact(4).flat_map(|p| [p[0], p[1], p[2]]).collect();
+    gallery_anim::encode([w as usize, h as usize], &[rgb])
+}
+
+/// Stores `thumb` as the library picture of `seq` in the sequence space.
+fn save_thumbnail(cache: &PreviewCache, seq: &str, thumb: &SeqThumb, rendered_at: u64) -> Result<(), String> {
+    let gif = thumbnail_gif(thumb.w, thumb.h, &thumb.rgba)?;
+    let meta = Meta {
+        rendered_at,
+        input_hash: thumb.floats_hash,
+        frames: 1,
+        size: [thumb.w as usize, thumb.h as usize],
+    };
+    cache.write(Space::Sequence, seq, &gif, &meta).map_err(|e| e.to_string())
+}
+
+/// The fallback picture as a texture, refilled in place once one exists.
+fn fallback_picture(ctx: &egui::Context, slot: &mut Option<egui::TextureHandle>, w: u32, h: u32, rgba: &[u8]) -> egui::TextureHandle {
+    let image = egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], rgba);
+    if let Some(tex) = slot.as_mut() {
+        tex.set(image, egui::TextureOptions::LINEAR);
+    } else {
+        *slot = Some(ctx.load_texture("sequence fallback", image, egui::TextureOptions::LINEAR));
+    }
+    slot.clone().expect("set above")
+}
+
+/// Each frame, before the panel: the taps go off when no sequence played in
+/// the frame before, the cache autosaves once, and a save writes the library
+/// thumbnail of the sequence it was recording (at most every [`THUMB_SECS`]).
+fn sequence_housekeeping(ui: &Ui, state: &mut PanelState) {
+    let tapped = std::mem::take(&mut state.seq_tapped);
+    if !tapped && state.seq_active {
+        state.seq_active = false;
+        if let Some(presenter) = frames::presenter_of(ui.ctx()) {
+            presenter.clear_sequence();
+        }
+    }
+    let now = ui.input(|i| i.time);
+    let saved = match state.seq_cache.autosave(now) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("[lanes] sequence cache autosave: {e}");
+            0
+        }
+    };
+    if saved == 0 {
+        return;
+    }
+    let Some(seq) = state.seq_last.clone() else { return };
+    if !thumb_due(state.seq_thumb_at.get(&seq).copied(), now) {
+        return;
+    }
+    let (Some(thumb), Some(root)) = (state.seq_thumbs.get(&seq), PreviewCache::default_root()) else {
+        return;
+    };
+    // Stamped before the write, so a failed one also waits a full interval.
+    state.seq_thumb_at.insert(seq.clone(), now);
+    let rendered_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    if let Err(e) = save_thumbnail(&PreviewCache::new(root), &seq, thumb, rendered_at) {
+        eprintln!("[lanes] sequence thumbnail {seq}: {e}");
+    }
+}
+
+/// The running sequence's live output goes through the cache, once per frame.
+///
+/// Finished records are filed (the first of each sequence also becomes its
+/// thumbnail). Each newly landed frame is timed into the pacer. The pacer
+/// then says whether this frame is recorded (not while falling behind) and
+/// whether a cached picture of this sequence time stands in for the late live
+/// one; the presenter shows it, the live fetch still goes out.
+fn sequence_tap(
+    ui: &Ui,
+    state: &mut PanelState,
+    seq: &str,
+    t_ms: u32,
+    floats: &[f32],
+    route: &str,
+    query: &[(String, String)],
+) {
+    let Some(presenter) = frames::presenter_of(ui.ctx()) else { return };
+    state.seq_tapped = true;
+    state.seq_active = true;
+    state.seq_last = Some(seq.to_string());
+    state.seq_cache.start(seq);
+
+    for r in presenter.take_records() {
+        if !state.seq_cache.record(&r.tag.seq, r.tag.t_ms, &r.tag.floats, &r.rgba, r.w, r.h) {
+            continue;
+        }
+        if !state.seq_thumbs.contains_key(&r.tag.seq) {
+            if let Some((rgba, w, h)) = crate::seq_cache::shrink(&r.rgba, r.w, r.h) {
+                let floats_hash = metal_perform::frame_cache::hash_floats(&r.tag.floats, FLOAT_QUANT);
+                state.seq_thumbs.insert(r.tag.seq.clone(), SeqThumb { w, h, rgba, floats_hash });
+            }
+        }
+    }
+
+    let refs: Vec<(&str, String)> = query.iter().map(|(k, v)| (k.as_str(), v.clone())).collect();
+    let key = frames::route_key(route, &refs);
+    if let Some(landing) = presenter.landing(&key) {
+        let fresh = state.seq_seen.as_ref().is_none_or(|(k, n)| *k != key || *n != landing.count);
+        if fresh {
+            state.seq_seen = Some((key.clone(), landing.count));
+            if let Some(ms) = landing.gap_ms {
+                state.seq_cache.should_fallback(ms, target_ms());
+            }
+        }
+    }
+
+    let falling = state.seq_cache.falling_back();
+    let tag = RecordTag { seq: seq.to_string(), t_ms, floats: floats.to_vec() };
+    presenter.set_record((!falling).then(|| (key.clone(), tag)));
+    let hit = if falling {
+        state.seq_cache.fallback(seq, t_ms, floats).map(|e| (e.w, e.h, e.rgba.clone()))
+    } else {
+        None
+    };
+    let pic = hit.map(|(w, h, rgba)| fallback_picture(ui.ctx(), &mut state.seq_fallback_tex, w, h, &rgba));
+    presenter.set_fallback(&key, pic);
 }
 
 /// The picture a frame draws: `want` once its write has landed (and it is
@@ -10862,5 +11080,58 @@ mod audio_transport_tests {
         ingest.song = "tone".into();
         ingest.toggle_play(0.0);
         assert_eq!(audible_clock(&door, &ingest), None, "ffplay has no clock to read");
+    }
+}
+
+#[cfg(test)]
+mod sequence_cache_tests {
+    use super::*;
+
+    #[test]
+    fn a_tick_is_its_sequence_time_on_the_editor_grid() {
+        assert_eq!(tick_ms(0.0), 0);
+        assert_eq!(tick_ms(-5.0), 0, "a negative tick is the start");
+        assert_eq!(tick_ms(crate::shell::lanes::EDITOR_RATE), 1000, "one second of ticks");
+        assert_eq!(tick_ms(crate::shell::lanes::EDITOR_RATE * 2.5), 2500);
+    }
+
+    #[test]
+    fn a_thumbnail_is_written_once_per_interval() {
+        assert!(thumb_due(None, 0.0), "never written");
+        assert!(!thumb_due(Some(100.0), 100.0 + THUMB_SECS - 0.5));
+        assert!(thumb_due(Some(100.0), 100.0 + THUMB_SECS));
+    }
+
+    #[test]
+    fn the_library_name_is_the_song_else_the_movement() {
+        let mut ingest = crate::shell::lanes::IngestLane::default();
+        ingest.song = "  Cumbia.mp3 ".into();
+        assert_eq!(library_key(&ingest, "opening"), "Cumbia.mp3");
+        ingest.song.clear();
+        assert_eq!(library_key(&ingest, "opening"), "opening");
+    }
+
+    #[test]
+    fn a_thumbnail_is_a_one_frame_gif_of_the_picture() {
+        let (w, h) = (4u32, 2u32);
+        let rgba: Vec<u8> = (0..w * h).flat_map(|i| [(i * 10) as u8, 80, 160, 255]).collect();
+        let gif = thumbnail_gif(w, h, &rgba).expect("encodes");
+        let (size, frames) = gallery_anim::decode(&gif).expect("decodes");
+        assert_eq!(size, [4, 2]);
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].len(), (w * h * 4) as usize);
+    }
+
+    #[test]
+    fn a_saved_thumbnail_is_listed_as_the_sequence_picture() {
+        let dir = std::env::temp_dir().join(format!("fw-seq-thumb-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let cache = PreviewCache::new(&dir);
+        let thumb = SeqThumb { w: 2, h: 2, rgba: vec![7; 16], floats_hash: 3 };
+        save_thumbnail(&cache, "Cumbia.mp3", &thumb, 1234).expect("written");
+        let meta = cache.meta(Space::Sequence, "Cumbia.mp3").expect("sidecar");
+        assert_eq!((meta.frames, meta.size, meta.rendered_at), (1, [2, 2], 1234));
+        assert!(cache.read_gif(Space::Sequence, "Cumbia.mp3").is_some());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

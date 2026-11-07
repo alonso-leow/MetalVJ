@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{
-    float_row, key_cell, key_label, kv_row, kv_wrap, label_row, number_row, section_heading, toggle_row, Float,
+    float_row, key_cell, key_label, kv_row, kv_wrap, label_row, number_row, payload_button, payload_buttons, section_heading, toggle_row, Float,
 };
 use crate::shell::i18n::{tr, trf};
 
@@ -280,9 +280,15 @@ fn vector_rows(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
             post_vector(door, gid, node_id, &name, Some(&vector));
             invalidate(state);
         }
-        if held.is_some() && ui.button(small_text(theme, trf("release {param}", &[("param", &name)]))).clicked() {
-            post_vector(door, gid, node_id, &name, None);
-            invalidate(state);
+        if held.is_some() {
+            let mut release = false;
+            kv_wrap(ui, theme, "", |ui| {
+                release = payload_button(ui, theme, small_text(theme, trf("release {param}", &[("param", &name)]))).clicked();
+            });
+            if release {
+                post_vector(door, gid, node_id, &name, None);
+                invalidate(state);
+            }
         }
     }
 }
@@ -387,7 +393,11 @@ pub(crate) fn source_section(
     // models that route has not grown it for yet. Read once per click; each
     // entry whose var an upstream source offers posts the same bind op the
     // per-row combos do.
-    if ui.button(small_text(theme, tr("restore sources"))).clicked() {
+    let mut restore = false;
+    kv_wrap(ui, theme, "", |ui| {
+        restore = payload_button(ui, theme, small_text(theme, tr("restore sources"))).clicked();
+    });
+    if restore {
         let model_id = io["kind"].as_str().unwrap_or_default().strip_prefix("gen.").unwrap_or_default();
         let bindings_of = |data: Value| -> Option<Vec<Value>> {
             data["models"]
@@ -564,7 +574,11 @@ pub(crate) fn parameters_section(
     // Unbind actions for bound rows.
     for p in params.iter().filter(|p| !p["bound"].is_null()) {
         let name = p["name"].as_str().unwrap_or("").to_string();
-        if ui.button(small_text(theme, trf("unbind {param}", &[("param", &name)]))).clicked() {
+        let mut unbind = false;
+        kv_wrap(ui, theme, &name, |ui| {
+            unbind = payload_button(ui, theme, small_text(theme, trf("unbind {param}", &[("param", &name)]))).clicked();
+        });
+        if unbind {
             post_bind(door, gid, node_id, &name, None);
             invalidate(state);
             state.browser_note = Some(trf("unbound {param}", &[("param", &name)]));
@@ -573,10 +587,15 @@ pub(crate) fn parameters_section(
 
     if authored {
         kv_wrap(ui, theme, "", |ui| {
-            if ui.button(small_text(theme, tr("set keypoint"))).clicked() {
+            let mut labels = vec![small_text(theme, tr("set keypoint"))];
+            if keyed {
+                labels.push(small_text(theme, tr("remove keypoint")));
+            }
+            let clicked = payload_buttons(ui, theme, labels);
+            if clicked[0] {
                 ingest.write_keyframe();
             }
-            if keyed && ui.button(small_text(theme, tr("remove keypoint"))).clicked() {
+            if keyed && clicked[1] {
                 ingest.clear_keyframe();
             }
         });

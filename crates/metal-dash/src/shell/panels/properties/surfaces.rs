@@ -18,7 +18,7 @@ use serde_json::{json, Map, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{kv_row, note, choice, slider_row};
+use crate::shell::components::{button_row, kv_row, note, choice, slider_row};
 use crate::shell::i18n::{tr, tr_dyn};
 
 use super::chain::name_of;
@@ -271,7 +271,7 @@ fn source_menu(
                 if !models.is_empty() {
                     heading(ui, theme, tr("models"));
                     for (kind, label) in &models {
-                        let button = ui.button(small_text(theme, tr_dyn(label)));
+                        let button = button_row(ui, theme, small_text(theme, tr_dyn(label)));
                         if let Some(id) = kind.strip_prefix("gen.") {
                             button.clone().on_hover_ui(|ui| super::poster::show(ui, theme, door, id));
                         }
@@ -287,8 +287,7 @@ fn source_menu(
                 if !shaders.is_empty() {
                     heading(ui, theme, tr("shaders"));
                     for id in shaders {
-                        if ui
-                            .button(small_text(theme, id.as_str()))
+                        if button_row(ui, theme, small_text(theme, id.as_str()))
                             .clicked()
                         {
                             pick = Some(Pick::Kind {

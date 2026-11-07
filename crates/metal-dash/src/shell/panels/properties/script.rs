@@ -20,6 +20,7 @@
 //! same validated writer the AI's `set_params` uses.
 
 use crate::shell::components::small_text;
+use crate::shell::components::{button_row};
 use egui::{Id, RichText, Ui};
 use serde_json::{json, Value};
 
@@ -130,8 +131,7 @@ fn source_section(
             .layouter(&mut layouter)
             .font(theme.font_small.clone()),
     );
-    let save = ui
-        .button(small_text(theme, tr("Save")))
+    let save = button_row(ui, theme, small_text(theme, tr("Save")))
         .clicked();
     if let Some(error) = state.error.clone() {
         ui.label(

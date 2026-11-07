@@ -54,6 +54,7 @@ mod text;
 mod transition;
 
 use crate::shell::components::small_text;
+use crate::shell::components::{button_row, payload_button};
 use std::collections::HashMap;
 
 use egui::{Id, Response, RichText, ScrollArea, Ui};
@@ -565,7 +566,7 @@ impl PanelState {
         let mut meta = ingest.layer_meta(&page, layer);
         let mut changed = false;
         label_row(ui, theme, tr("blend"), |ui| {
-            let response = ui.button(small_text(theme, meta.blend.clone()));
+            let response = payload_button(ui, theme, small_text(theme, meta.blend.clone()));
             if response.clicked() {
                 meta.cycle_blend();
                 changed = true;
@@ -1644,7 +1645,7 @@ fn file_page(ui: &mut Ui, theme: &Theme, door: &dyn Call, file: &crate::shell::p
                 node::field_row(ui, theme, tr("error"), err);
             }
             if matches!(status.as_str(), "undigested" | "failed")
-                && ui.button(small_text(theme, tr("digest"))).clicked()
+                && button_row(ui, theme, small_text(theme, tr("digest"))).clicked()
             {
                 let _ = shared::get(door, "POST", "/author/digest", &[("name", file.name.clone())]);
             }

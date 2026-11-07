@@ -15,7 +15,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{float_row, kv_row, kv_wrap, lucide, note, Float, Icon};
+use crate::shell::components::{float_row, kv_row, kv_wrap, lucide, note, payload_button, payload_buttons, payload_split, Float, Icon};
 use crate::shell::i18n::{tr, tr_dyn};
 
 use super::listen;
@@ -76,8 +76,11 @@ pub(crate) fn pick_row(
 }
 
 fn refresh_button(ui: &mut Ui, theme: &Theme) -> bool {
-    ui.button(small_text(theme, tr("refresh list")))
-        .clicked()
+    let mut refresh = false;
+    kv_wrap(ui, theme, "", |ui| {
+        refresh = payload_button(ui, theme, small_text(theme, tr("refresh list"))).clicked();
+    });
+    refresh
 }
 
 /// `capture`'s page: which camera, screen or window it shows.
@@ -219,17 +222,23 @@ pub(crate) fn reel_batch_section(
                 )
                 .wrap(),
             );
-            if i > 0 && ui.small_button(lucide(Icon::ArrowUp, theme.font_small.size)).clicked() {
+            // The item's move up, move down and remove: equal sub-cells beside the name.
+            let clicked = payload_split(ui, theme, 3, |ui, k| match k {
+                0 => i > 0 && payload_button(ui, theme, lucide(Icon::ArrowUp, theme.font_small.size)).clicked(),
+                1 => i + 1 < items.len() && payload_button(ui, theme, lucide(Icon::ArrowDown, theme.font_small.size)).clicked(),
+                _ => payload_button(ui, theme, small_text(theme, tr("remove"))).clicked(),
+            });
+            if clicked[0] {
                 let mut v = items.clone();
                 v.swap(i, i - 1);
                 edited = Some(v);
             }
-            if i + 1 < items.len() && ui.small_button(lucide(Icon::ArrowDown, theme.font_small.size)).clicked() {
+            if clicked[1] {
                 let mut v = items.clone();
                 v.swap(i, i + 1);
                 edited = Some(v);
             }
-            if ui.small_button(tr("remove")).clicked() {
+            if clicked[2] {
                 let mut v = items.clone();
                 v.remove(i);
                 edited = Some(v);
@@ -250,12 +259,13 @@ pub(crate) fn reel_batch_section(
         still = ["jpg", "jpeg", "png", "webp"]
             .iter()
             .any(|e| trimmed.to_lowercase().ends_with(&format!(".{e}")));
-        if ui.small_button(tr("add video")).clicked() && !trimmed.is_empty() {
+        let clicked = payload_buttons(ui, theme, vec![small_text(theme, tr("add video")), small_text(theme, tr("add still"))]);
+        if clicked[0] && !trimmed.is_empty() {
             let mut v = edited.clone().unwrap_or_else(|| items.clone());
             v.push(json!({ "kind": "video", "path": trimmed }));
             edited = Some(v);
             path.clear();
-        } else if ui.small_button(tr("add still")).clicked() && !trimmed.is_empty() {
+        } else if clicked[1] && !trimmed.is_empty() {
             let mut v = edited.clone().unwrap_or_else(|| items.clone());
             v.push(json!({ "kind": "image", "path": trimmed }));
             edited = Some(v);

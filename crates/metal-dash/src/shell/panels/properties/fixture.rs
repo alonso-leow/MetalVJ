@@ -17,7 +17,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{field_row, kv_row, kv_wrap, note, num_value};
+use crate::shell::components::{field_row, kv_row, kv_wrap, note, num_value, payload_button, payload_buttons};
 use crate::shell::i18n::{tr, trf};
 use crate::shell::panels::venue_editor::State as EditorState;
 
@@ -181,7 +181,7 @@ fn row_fields(
     kv_row(ui, theme, tr("profile"), |ui| {
         let mut chosen = current.clone();
         let r = crate::shell::components::combo_box(theme, ("venue-fixture/profile", venue_id, fixture, node_id))
-            .width(theme.control_width)
+            .fill()
             .selected_text((if chosen.is_empty() { tr("none").to_string() } else { chosen.clone() }).to_string())
             .show_ui(ui, |ui| {
                 for p in &profiles {
@@ -200,7 +200,7 @@ fn row_fields(
     let wire = f["wire"].as_str().unwrap_or_default().to_string();
     if wire == "bluetooth" {
         kv_row(ui, theme, tr("Bluetooth pairing"), |ui| {
-            let r = ui.button(small_text(theme, tr("pair")));
+            let r = payload_button(ui, theme, small_text(theme, tr("pair")));
             if r.clicked() {
                 post_config(door, venue_id, fixture, json!({ "pair": true }));
             }
@@ -269,21 +269,19 @@ fn row_fields(
     }
 
     kv_wrap(ui, theme, "", |ui| {
-        if ui.button(small_text(theme, tr("aim at origin"))).clicked() {
-            if door.json("POST", "/venue", Some(json!({ "op": "aim", "id": venue_id, "fixture": fixture, "target": [4.0, 1.5, -5.0] }))).is_ok() {
-                editor.note = Some(format!("{} {}", tr("aimed"), fixture));
-            }
+        // Two buttons, one equal sub-cell each.
+        let clicked = payload_buttons(ui, theme, vec![small_text(theme, tr("aim at origin")), small_text(theme, tr("test"))]);
+        if clicked[0] && door.json("POST", "/venue", Some(json!({ "op": "aim", "id": venue_id, "fixture": fixture, "target": [4.0, 1.5, -5.0] }))).is_ok() {
+            editor.note = Some(format!("{} {}", tr("aimed"), fixture));
         }
-        if ui.button(small_text(theme, tr("test"))).clicked() {
-            if door.json("POST", "/venue", Some(json!({ "op": "identify", "id": venue_id, "fixture": fixture }))).is_ok() {
-                editor.note = Some(format!("{} {}", tr("identifying"), fixture));
-            }
-        }
-        let mut highlight = editor.highlight.as_deref() == Some(fixture);
-        if crate::shell::components::toggle_row(ui, theme, tr("highlight in frame"), &mut highlight).changed() {
-            editor.highlight = highlight.then(|| fixture.to_string());
+        if clicked[1] && door.json("POST", "/venue", Some(json!({ "op": "identify", "id": venue_id, "fixture": fixture }))).is_ok() {
+            editor.note = Some(format!("{} {}", tr("identifying"), fixture));
         }
     });
+    let mut highlight = editor.highlight.as_deref() == Some(fixture);
+    if crate::shell::components::toggle_row(ui, theme, tr("highlight in frame"), &mut highlight).changed() {
+        editor.highlight = highlight.then(|| fixture.to_string());
+    }
 }
 
 fn fmt(v: &Value) -> String {

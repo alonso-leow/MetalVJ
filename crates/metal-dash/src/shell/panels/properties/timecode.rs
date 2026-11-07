@@ -39,7 +39,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
     let text_field = |ui: &mut Ui, key: &str, label: &str, hint: &str| {
         let mut text = cfg[key].as_str().unwrap_or_default().to_string();
         if label_row(ui, theme, label, |ui| {
-            ui.add(egui::TextEdit::singleline(&mut text).hint_text(hint).desired_width(theme.control_width))
+            ui.add(egui::TextEdit::singleline(&mut text).hint_text(hint).desired_width(ui.available_width()))
         })
         .changed()
         {

@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{colour_row, kv_row, kv_wrap, note, num_value};
+use crate::shell::components::{colour_row, kv_row, kv_wrap, note, num_value, payload_button};
 use crate::shell::i18n::{tr, trf};
 
 use super::contour::{ContourEditor, ContourEvent, ContourMode};
@@ -46,11 +46,13 @@ pub(crate) fn masks_note_and_insert(
     ui.separator();
     crate::shell::components::section_heading(ui, theme, tr("masks"));
     note(ui, theme, tr("masks are edited on the Mask node"));
+    let mut node_clicked = false;
     kv_wrap(ui, theme, "", |ui| {
-        if ui.button(small_text(theme, tr("+ mask node"))).clicked() {
-            insert_mask_node(door, state, gid, node_id, device_id);
-        }
+        node_clicked = payload_button(ui, theme, small_text(theme, tr("+ mask node"))).clicked();
     });
+    if node_clicked {
+        insert_mask_node(door, state, gid, node_id, device_id);
+    }
     if let Some(msg) = state.mask_note.clone() {
         note(ui, theme, &msg);
     }
@@ -139,7 +141,7 @@ pub(crate) fn section(
 
     kv_row(ui, theme, tr("output"), |ui| {
         crate::shell::components::combo_box(theme, Id::new("shell/region/properties/mask-node-device"))
-            .width(theme.control_width)
+            .fill()
             .selected_text((device.clone().unwrap_or_else(|| "—".into())).to_string())
             .show_ui(ui, |ui| {
                 for oid in &output_ids {
@@ -198,7 +200,7 @@ pub(crate) fn section(
         .unwrap_or_else(|| "—".into());
     kv_row(ui, theme, tr("mask"), |ui| {
         let r = crate::shell::components::combo_box(theme, Id::new("shell/region/properties/mask-node-mask"))
-            .width(theme.control_width)
+            .fill()
             .selected_text((picked_text).to_string())
             .show_ui(ui, |ui| {
                 for m in &masks {
@@ -211,21 +213,25 @@ pub(crate) fn section(
                 }
             })
             .response;
-        if ui.button(small_text(theme, tr("+ new"))).clicked() {
-            let id = format!("mask-{}", masks.len() + 1);
-            let body = json!({ "op": "mask", "id": device_id, "mask": id, "name": id });
-            state.mask_note = match door.json("POST", "/outputs", Some(body)) {
-                Ok(_) => Some(trf("mask created: {id}", &[("id", &id)])),
-                Err((_, msg)) => Some(msg),
-            };
-            // A fresh mask has no points, so nothing would ever light it or
-            // project it: `+ new` drops straight into draw mode (`O.1`).
-            state.mask_tab = Some(id.clone());
-            state.mask_draft.clear();
-            state.mask_draw = Some(id);
-        }
         r
     });
+    let mut new_clicked = false;
+    kv_wrap(ui, theme, "", |ui| {
+        new_clicked = payload_button(ui, theme, small_text(theme, tr("+ new"))).clicked();
+    });
+    if new_clicked {
+        let id = format!("mask-{}", masks.len() + 1);
+        let body = json!({ "op": "mask", "id": device_id, "mask": id, "name": id });
+        state.mask_note = match door.json("POST", "/outputs", Some(body)) {
+            Ok(_) => Some(trf("mask created: {id}", &[("id", &id)])),
+            Err((_, msg)) => Some(msg),
+        };
+        // A fresh mask has no points, so nothing would ever light it or
+        // project it: `+ new` drops straight into draw mode (`O.1`).
+        state.mask_tab = Some(id.clone());
+        state.mask_draft.clear();
+        state.mask_draw = Some(id);
+    }
     if picked_now {
         super::text::post_text(door, gid, node_id, json!({ "mask": chosen.clone() }));
         state.mask_tab = chosen.clone();
@@ -250,7 +256,7 @@ pub(crate) fn section(
         r
     });
     kv_wrap(ui, theme, "", |ui| {
-        if ui.button(small_text(theme, tr("+ grid"))).clicked() {
+        if payload_button(ui, theme, small_text(theme, tr("+ grid"))).clicked() {
             let body = json!({ "device_id": device_id, "rows": state.mask_rows, "cols": state.mask_cols });
             state.mask_note = match door.json("POST", "/mask/grid", Some(body)) {
                 Ok(reply) => {
@@ -314,7 +320,7 @@ pub(crate) fn editor(
 
         crate::shell::components::field_row(ui, theme, &mid, &name);
         kv_wrap(ui, theme, "", |ui| {
-            if ui.button(small_text(theme, tr("remove mask"))).clicked() {
+            if payload_button(ui, theme, small_text(theme, tr("remove mask"))).clicked() {
                 post_mask(door, state, device, &mid, json!({}));
             }
         });
@@ -358,7 +364,7 @@ pub(crate) fn editor(
         });
         kv_row(ui, theme, tr("inside"), |ui| {
             crate::shell::components::combo_box(theme, Id::new(("shell/region/properties/mask-parent", &mid)))
-                .width(theme.control_width)
+                .fill()
                 .selected_text((parent.as_str()).to_string())
                 .show_ui(ui, |ui| {
                     if ui.selectable_label(parent == NO_PARENT, NO_PARENT).clicked() && parent != NO_PARENT {
@@ -403,7 +409,7 @@ pub(crate) fn editor(
             let can_compose = others.len() >= 2;
             ui.add_enabled_ui(can_compose || op != NO_COMPOSE, |ui| {
                 crate::shell::components::combo_box(theme, Id::new(("shell/region/properties/mask-compose", &mid)))
-                    .width(theme.control_width)
+                    .fill()
                     .selected_text((op.as_str()).to_string())
                     .show_ui(ui, |ui| {
                         for candidate in COMPOSE_OPS {
@@ -437,7 +443,7 @@ pub(crate) fn editor(
             for (which, current) in [("a", &a), ("b", &b)] {
                 kv_row(ui, theme, which, |ui| {
                     crate::shell::components::combo_box(theme, Id::new(("shell/region/properties/mask-operand", &mid, which)))
-                        .width(theme.control_width)
+                        .fill()
                         .selected_text((current.as_str()).to_string())
                         .show_ui(ui, |ui| {
                             for o in &others {

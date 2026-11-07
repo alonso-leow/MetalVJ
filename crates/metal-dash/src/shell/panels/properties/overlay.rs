@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{kv_row, kv_wrap, note};
+use crate::shell::components::{kv_row, kv_wrap, note, payload_button, payload_buttons};
 use crate::shell::i18n::{tr, trf};
 use crate::shell::media;
 
@@ -181,9 +181,7 @@ pub(crate) fn section(
             })
             .response
     });
-    kv_wrap(ui, theme, "", |ui| {
-        crate::shell::components::toggle_row(ui, theme, tr("loop"), &mut new_loop);
-    });
+    crate::shell::components::toggle_row(ui, theme, tr("loop"), &mut new_loop);
     if new_device != dest_device || new_layer != cur_layer || new_loop != cur_loop {
         write_overlay_trigger(
             door,
@@ -227,20 +225,15 @@ pub(crate) fn section(
         &format!("POST /trigger/{}", state.overlay_trigger_id),
     );
     kv_wrap(ui, theme, "", |ui| {
-        if ui
-            .button(small_text(theme, tr("test")))
-            .clicked()
-        {
+        let clicked = payload_buttons(ui, theme, vec![small_text(theme, tr("test")), small_text(theme, tr("remove trigger"))]);
+        if clicked[0] {
             let _ = door.json(
                 "POST",
                 &format!("/trigger/{}", state.overlay_trigger_id),
                 None,
             );
         }
-        if ui
-            .button(small_text(theme, tr("remove trigger")))
-            .clicked()
-        {
+        if clicked[1] {
             let _ = door.json(
                 "POST",
                 "/outputs",
@@ -256,8 +249,7 @@ pub(crate) fn section(
             .map(|os| os.iter().any(|o| o["movement"] == json!(name)))
             .unwrap_or(false);
         if running {
-            if ui
-                .button(small_text(theme, tr("stop")))
+            if payload_button(ui, theme, small_text(theme, tr("stop")))
                 .clicked()
             {
                 let _ = door.json(
@@ -266,8 +258,7 @@ pub(crate) fn section(
                     Some(json!({ "op": "stop", "device": new_device, "layer": new_layer })),
                 );
             }
-        } else if ui
-            .button(small_text(theme, tr("play")))
+        } else if payload_button(ui, theme, small_text(theme, tr("play")))
             .clicked()
         {
             let _ = door.json(
@@ -329,8 +320,7 @@ pub(crate) fn section(
         ui.add(egui::TextEdit::singleline(&mut button_name).desired_width(ui.available_width()))
     });
     kv_wrap(ui, theme, "", |ui| {
-        if ui
-            .button(small_text(theme, tr("create button")))
+        if payload_button(ui, theme, small_text(theme, tr("create button")))
             .clicked()
         {
             write_overlay_trigger(
@@ -347,13 +337,13 @@ pub(crate) fn section(
     ui.ctx().data_mut(|d| d.insert_temp(button_id, button_name));
 
     let armed = !state.overlay_trigger_id.trim().is_empty();
-    if ui
-        .add_enabled(
-            armed,
-            egui::Button::new(small_text(theme, tr("fire"))),
-        )
-        .clicked()
-    {
+    let mut fire = false;
+    kv_wrap(ui, theme, "", |ui| {
+        fire = ui
+            .add_enabled_ui(armed, |ui| payload_button(ui, theme, small_text(theme, tr("fire"))).clicked())
+            .inner;
+    });
+    if fire {
         let _ = door.json(
             "POST",
             &format!("/trigger/{}", state.overlay_trigger_id),

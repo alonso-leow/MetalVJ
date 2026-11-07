@@ -17,6 +17,7 @@
 //! `set_params` also reaches (rule 6).
 
 use crate::shell::components::small_text;
+use crate::shell::components::{payload_button};
 use egui::{Id, Ui};
 use serde_json::{json, Value};
 
@@ -83,7 +84,7 @@ pub(crate) fn audio_live_section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gi
     let mut picked: Option<Option<String>> = None;
     kv_row(ui, theme, tr("source"), |ui| {
         crate::shell::components::combo_box(theme, Id::new(("shell/region/properties", "listen-source")))
-            .width(theme.control_width)
+            .fill()
             .selected_text((shown).to_string())
             .show_ui(ui, |ui| {
                 for (id, label) in &choices {
@@ -101,7 +102,7 @@ pub(crate) fn audio_live_section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gi
     let probe_id = Id::new(("shell/properties/listen-probe", node_id));
     let mut probe = false;
     kv_wrap(ui, theme, "", |ui| {
-        probe = ui.button(small_text(theme, tr("probar"))).clicked();
+        probe = payload_button(ui, theme, small_text(theme, tr("probar"))).clicked();
     });
     if probe {
         let source = want.clone().unwrap_or_default();

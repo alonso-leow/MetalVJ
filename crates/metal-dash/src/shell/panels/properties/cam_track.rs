@@ -15,8 +15,8 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{slider_row, toggle_row};
-use crate::shell::i18n::{tr, trf};
+use crate::shell::components::{label_row, payload_split, slider_row, toggle_row};
+use crate::shell::i18n::tr;
 
 use super::text::post_text;
 
@@ -109,19 +109,16 @@ pub(crate) fn section(
         cfg["invert"][1].as_bool().unwrap_or(false),
         cfg["invert"][2].as_bool().unwrap_or(false),
     ];
-    ui.horizontal_wrapped(|ui| {
-        ui.label(
-            RichText::new(tr("invert"))
-                .font(theme.font_small.clone())
-                .color(theme.ink_weak),
-        );
-        for (i, axis) in ["x", "y", "z"].iter().enumerate() {
-            let label = trf("invert {axis}", &[("axis", axis)]);
-            if toggle_row(ui, theme, &label, &mut invert[i]).changed() {
-                post_text(door, gid, node_id, json!({ "invert": invert }));
-            }
-        }
+    // One checkbox per axis, one equal sub-cell each.
+    let mut inverted = false;
+    label_row(ui, theme, tr("invert"), |ui| {
+        let rs = payload_split(ui, theme, 3, |ui, i| crate::shell::components::check_box(ui, &mut invert[i], ["x", "y", "z"][i]));
+        inverted = rs.iter().any(|r| r.changed());
+        rs[0].clone()
     });
+    if inverted {
+        post_text(door, gid, node_id, json!({ "invert": invert }));
+    }
     ui.label(
         RichText::new(tr("flip an axis for a camera mounted the other way round."))
             .font(theme.font_small.clone())

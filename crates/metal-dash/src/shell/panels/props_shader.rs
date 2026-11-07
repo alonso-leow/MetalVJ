@@ -21,6 +21,7 @@ use serde_json::Value;
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{kv_row, note};
+use crate::shell::components::{button_row};
 use crate::shell::i18n::{tr, tr_key};
 
 /// What this module keeps between frames.
@@ -150,7 +151,7 @@ fn shader_folder(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut State)
             .desired_rows(theme.code_rows)
             .font(theme.font_small.clone()),
     );
-    if ui.button(RichText::new(tr("Save")).font(theme.font_small.clone())).clicked() {
+    if button_row(ui, theme, RichText::new(tr("Save")).font(theme.font_small.clone())).clicked() {
         let wgsl = state.draft.clone();
         save(door, &id, &wgsl, state);
     }

@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{kv_row, kv_wrap, note, num_value, value_label};
+use crate::shell::components::{kv_row, kv_wrap, note, num_value, payload_button, payload_buttons, payload_split, value_label};
 use crate::shell::i18n::{tr, trf};
 
 use super::shared::get;
@@ -232,8 +232,8 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
     if edit.dirty && edit.factory {
         block(ui, theme, None, |ui| {
             note(ui, theme, tr("A factory template stays as shipped."));
-            ui.horizontal_wrapped(|ui| {
-            if ui.button(small_text(theme, tr("Save as copy"))).clicked() {
+            let clicked = payload_buttons(ui, theme, vec![small_text(theme, tr("Save as copy")), small_text(theme, tr("Discard"))]);
+            if clicked[0] {
                 if let Some(d) = edit.draft.as_ref() {
                     match save_as_copy(door, gid, node_id, d) {
                         Ok(new_id) => {
@@ -245,11 +245,10 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
                     }
                 }
             }
-            if ui.button(small_text(theme, tr("Discard"))).clicked() {
+            if clicked[1] {
                 edit.draft = None;
                 edit.dirty = false;
             }
-            });
         });
     } else if commit && edit.dirty {
         if let Some(d) = edit.draft.as_ref() {
@@ -363,47 +362,60 @@ fn slot_editor(
                 Curve::Step => tr("Step"),
                 Curve::Ramp => tr("Ramp"),
             };
-            let button_w = theme.interact_size.x * 1.5;
-            let track_w = (ui.available_width() - button_w - theme.item_gap.x).max(theme.interact_size.x);
-            let mut resp = None;
-            if let Some(value) = row.get_mut(j) {
-                let r = num_value(ui, theme, track_w, value, 0.0..=1.0, "", 2, 0.0, true);
-                changed |= r.changed();
-                resp = Some(r);
-            }
-            let b = ui.add_sized(
-                [button_w, ui.spacing().interact_size.y],
-                egui::Button::new(small_text(theme, text)),
-            );
-            if b.clicked() {
-                draft.tracks[*track].curve = match curve {
-                    Curve::Step => Curve::Ramp,
-                    Curve::Ramp => Curve::Step,
-                };
-                changed = true;
-            }
-            resp.unwrap_or(b)
+            // The value and the curve toggle: two equal sub-cells of the column.
+            let mut num_resp = None;
+            let mut btn_resp = None;
+            payload_split(ui, theme, 2, |ui, k| {
+                if k == 0 {
+                    if let Some(value) = row.get_mut(j) {
+                        let r = num_value(ui, theme, ui.available_width(), value, 0.0..=1.0, "", 2, 0.0, true);
+                        changed |= r.changed();
+                        num_resp = Some(r);
+                    }
+                } else {
+                    let b = payload_button(ui, theme, small_text(theme, text.to_string()));
+                    if b.clicked() {
+                        draft.tracks[*track].curve = match curve {
+                            Curve::Step => Curve::Ramp,
+                            Curve::Ramp => Curve::Step,
+                        };
+                        changed = true;
+                    }
+                    btn_resp = Some(b);
+                }
+            });
+            num_resp.or(btn_resp).expect("two sub-cells always leave one response")
         });
     }
     if changed {
         draft.set_slot(selected, Some(row));
     }
     kv_wrap(ui, theme, tr("actions"), |ui| {
-        if ui.button(small_text(theme, tr("Copy slot"))).clicked() {
+        let clicked = payload_buttons(
+            ui,
+            theme,
+            vec![
+                small_text(theme, tr("Copy slot")),
+                small_text(theme, tr("Paste slot")),
+                small_text(theme, tr("Copy previous")),
+                small_text(theme, tr("Clear slot")),
+            ],
+        );
+        if clicked[0] {
             *copied = draft.slot_held(selected).cloned();
         }
-        if ui.button(small_text(theme, tr("Paste slot"))).clicked() {
+        if clicked[1] {
             if let Some(row) = copied.as_ref().cloned() {
                 changed |= draft.set_slot(selected, Some(row));
             }
         }
-        if ui.button(small_text(theme, tr("Copy previous"))).clicked() {
+        if clicked[2] {
             let prev = (selected + STEPS - 1) % STEPS;
             if let Some(row) = draft.slot_held(prev).cloned() {
                 changed |= draft.set_slot(selected, Some(row));
             }
         }
-        if ui.button(small_text(theme, tr("Clear slot"))).clicked() {
+        if clicked[3] {
             changed |= draft.set_slot(selected, None);
         }
     });
@@ -426,8 +438,7 @@ fn clock_header(ui: &mut Ui, theme: &Theme, door: &dyn Call, info: &Value) {
     let lights: String = (0..4).map(|i| if i == beat { if i == 0 { '●' } else { '◆' } } else { '·' }).collect();
     ui.label(small_text(theme, lights).color(theme.ink))
         .on_hover_text(tr("The bar's four beats; the first is the \"1\"."));
-    let tap = ui
-        .button(small_text(theme, tr("Tap 1")))
+    let tap = payload_button(ui, theme, small_text(theme, tr("Tap 1")))
         .on_hover_text(tr("Press on the \"1\": the nearest beat becomes the start of the bar."));
     if tap.clicked() {
         tap_one(door);

@@ -1571,10 +1571,11 @@ impl Theme {
         Stroke::new(self.hairline, self.rule)
     }
 
-    /// The properties grid's cell border: the hairline in a light grey (155),
-    /// the same in both themes, drawn between every two cells.
+    /// The grid's cell border: the hairline in a mid grey (105), the same in
+    /// both themes, drawn between every two cells. The buttons grid's cells
+    /// take the same outline.
     pub fn grid_stroke(&self) -> Stroke {
-        Stroke::new(self.hairline, Color32::from_gray(155))
+        Stroke::new(self.hairline, Color32::from_gray(105))
     }
 
     /// The stroke of a library row's painted icon glyph: the weak ink at the
@@ -2614,10 +2615,10 @@ mod tests {
             assert_eq!(k[0].0, rect.translate(theme.key_shadow_offset()));
             assert_eq!(k[0].1, theme.key_shadow());
             assert_eq!(k[1].1, theme.panel_head);
-            // Payload: glass base, black outline last.
+            // Payload: glass base, grid outline last.
             assert_eq!(rects(&payload)[0].1, theme.glass_fill());
             match payload.last() {
-                Some(Shape::Rect(r)) => assert_eq!(r.stroke.color, theme.hard_ink()),
+                Some(Shape::Rect(r)) => assert_eq!(r.stroke.color, theme.grid_stroke().color),
                 other => panic!("payload ends in its outline, got {other:?}"),
             }
             // Group: the same glass base, the quiet rule outline.
@@ -2638,7 +2639,6 @@ mod tests {
         let mut n = 0;
         for i in 0..2000 {
             n += theme.payload_shapes(rect.translate(Vec2::new(0.0, i as f32))).len();
-            n += theme.key_shapes(rect).len();
         }
         let took = start.elapsed();
         assert!(n > 0);

@@ -65,6 +65,7 @@ pub(crate) fn section(
         .map(|(_, label)| label.clone())
         .unwrap_or_else(|| tr("every surface").to_string());
     crate::shell::components::combo_box(theme, Id::new(("shell/region/properties/material-part", node_id)))
+        .fill()
         .selected_text((selected).to_string())
         .show_ui(ui, |ui| {
             for (id, label) in &options {

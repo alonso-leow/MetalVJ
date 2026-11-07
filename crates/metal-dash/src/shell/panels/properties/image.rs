@@ -8,6 +8,7 @@
 //! and reads back off `GET /graph`'s own `node.config` (rule 4).
 
 use crate::shell::components::small_text;
+use crate::shell::components::{button_row};
 use egui::Ui;
 use serde_json::{json, Value};
 
@@ -47,7 +48,7 @@ fn pick(ui: &mut Ui, theme: &Theme, door: &dyn Call, ids: (&str, &str), cfg: &Va
 fn text(ui: &mut Ui, theme: &Theme, door: &dyn Call, ids: (&str, &str), cfg: &Value, key: &str, label: &str, hint: &str) {
     let mut s = cfg[key].as_str().unwrap_or_default().to_string();
     let r = label_row(ui, theme, label, |ui| {
-        ui.add(egui::TextEdit::singleline(&mut s).hint_text(hint).desired_width(theme.control_width))
+        ui.add(egui::TextEdit::singleline(&mut s).hint_text(hint).desired_width(ui.available_width()))
     });
     if r.changed() {
         let v = if s.trim().is_empty() { Value::Null } else { json!(s.trim()) };
@@ -70,7 +71,7 @@ fn eyedropper(ui: &mut Ui, theme: &Theme, door: &dyn Call, ids: (&str, &str)) {
     }
     let armed = preview::pick_target(&ctx).as_ref() == Some(&me);
     let label = if armed { tr("click the preview") } else { tr("pick key colour") };
-    if ui.button(small_text(theme, label)).clicked() {
+    if button_row(ui, theme, small_text(theme, label)).clicked() {
         preview::set_pick_target(&ctx, if armed { None } else { Some(me) });
     }
 }

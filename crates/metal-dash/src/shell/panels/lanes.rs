@@ -4988,9 +4988,7 @@ fn paint_cell(
             if lit {
                 button = button.fill(theme.accent_vivid);
             }
-            if cell.running {
-                button = button.stroke(theme.accent());
-            }
+            button = button.stroke(if cell.running { theme.accent() } else { theme.grid_stroke() });
             // A stable id per cell key: the grid's cells come and go, and an
             // auto id that shifted with them would orphan an open popup (the
             // `+` menu) mid-pick.

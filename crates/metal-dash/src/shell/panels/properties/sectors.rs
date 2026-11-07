@@ -35,7 +35,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{colour_row, dropdown_fill, kv_row, kv_wrap, label_row, note, num_value, value_label};
+use crate::shell::components::{colour_row, dropdown_fill, kv_row, kv_wrap, label_row, note, num_value, payload_buttons, value_label};
 use crate::shell::i18n::{tr, trf};
 
 use super::mask::MASK_STROKE_MAX;
@@ -285,14 +285,12 @@ pub(crate) fn section(
     // --- `+ línea` / `close` ---------------------------------------------
     let mut cleared = false;
     kv_wrap(ui, theme, "", |ui| {
-        if ui.button(small_text(theme, tr("+ línea"))).clicked() {
+        let clicked = payload_buttons(ui, theme, vec![small_text(theme, tr("+ línea")), small_text(theme, tr("clear grid"))]);
+        if clicked[0] {
             // A new streak: the next click starts one, whatever was grabbed.
             ui.data_mut(|d| d.insert_temp(drag_key(venue_id, &surface_id), None::<usize>));
         }
-        if ui
-            .button(small_text(theme, tr("clear grid")))
-            .clicked()
-        {
+        if clicked[1] {
             ui.data_mut(|d| d.insert_temp(drag_key(venue_id, &surface_id), None::<usize>));
             // Clearing the points is the draft's clear: an empty `Grid`.
             ui.data_mut(|d| d.remove_temp::<Draft>(draft_key(venue_id, &surface_id)));

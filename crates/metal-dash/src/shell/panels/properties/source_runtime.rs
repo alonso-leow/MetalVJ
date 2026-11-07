@@ -9,6 +9,7 @@
 //! engine refuses with; it reads nothing itself.
 
 use crate::shell::components::small_text;
+use crate::shell::components::{button_row, payload_button};
 use egui::{TextEdit, Ui};
 use serde_json::{json, Value};
 
@@ -139,8 +140,7 @@ pub(crate) fn section(
         forge_below(graph, node_id)
     };
     let Some(forge) = forge else {
-        if ui
-            .button(small_text(theme, "añadir runtime"))
+        if button_row(ui, theme, small_text(theme, "añadir runtime"))
             .clicked()
         {
             state.note = add_runtime(door, gid, node_id, graph).err();
@@ -174,8 +174,7 @@ pub(crate) fn section(
         ui.add(TextEdit::singleline(&mut state.script).desired_width(ui.available_width()))
     });
     kv_wrap(ui, theme, "", |ui| {
-        if ui
-            .button(small_text(theme, "cargar script…"))
+        if payload_button(ui, theme, small_text(theme, "cargar script…"))
             .clicked()
             && !state.script.trim().is_empty()
         {

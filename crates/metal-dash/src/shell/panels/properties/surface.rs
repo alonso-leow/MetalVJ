@@ -8,6 +8,7 @@
 //! reads its own device.
 
 use crate::shell::components::small_text;
+use crate::shell::components::{button_row};
 use egui::{Id, RichText, Sense, Ui};
 use serde_json::{json, Value};
 
@@ -178,8 +179,7 @@ pub(crate) fn section(
     } else {
         tr("calibrar")
     };
-    if ui
-        .button(small_text(theme, label))
+    if button_row(ui, theme, small_text(theme, label))
         .clicked()
     {
         calibrating = !calibrating;

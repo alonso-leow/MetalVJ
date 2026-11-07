@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{colour_button, dropdown, float_row, kv_row, kv_wrap, note, num_value, value_label, Float};
+use crate::shell::components::{colour_button, dropdown_fill, float_row, kv_row, kv_wrap, note, num_value, payload_buttons, payload_split, value_label, Float};
 use crate::shell::i18n::{tr, tr_dyn, trf};
 
 
@@ -49,10 +49,15 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, ingest: &mut 
         )
     });
     kv_wrap(ui, theme, "", |ui| {
-        if ui.button(small_text(theme, tr("set keypoint"))).clicked() {
+        let mut labels = vec![small_text(theme, tr("set keypoint"))];
+        if keyed {
+            labels.push(small_text(theme, tr("remove keypoint")));
+        }
+        let clicked = payload_buttons(ui, theme, labels);
+        if clicked[0] {
             ingest.write_keyframe();
         }
-        if keyed && ui.button(small_text(theme, tr("remove keypoint"))).clicked() {
+        if keyed && clicked[1] {
             ingest.clear_keyframe();
         }
     });
@@ -63,7 +68,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, ingest: &mut 
                 .chain(crate::shell::lanes::LOOP_CHOICES.iter().map(|&b| (Some(b), crate::shell::lanes::loop_beats_text(b))))
                 .collect();
             let options: Vec<(Option<f32>, &str)> = labels.iter().map(|(v, s)| (*v, s.as_str())).collect();
-            let response = dropdown(ui, theme, "loop_beats", &mut current, &options);
+            let response = dropdown_fill(ui, theme, "loop_beats", &mut current, &options);
             if response.changed() {
                 ingest.set_loop_beats(current);
             }
@@ -152,17 +157,17 @@ pub(crate) fn properties_panel(ui: &mut Ui, theme: &Theme, blocks: &[Value], row
                     row.resize(offset + 12, 1.0);
                 }
                 kv_wrap(ui, theme, name, |ui| {
-                    for c in 0..4 {
+                    // Four stops, one equal sub-cell each.
+                    payload_split(ui, theme, 4, |ui, c| {
                         let at = offset + c * 3;
                         let mut hsb = Hsb::from_rgb(row[at], row[at + 1], row[at + 2]);
-                        let size = egui::vec2(theme.control_width, ui.spacing().interact_size.y);
-                        if ui.allocate_ui(size, |ui| colour_button(ui, theme, &mut hsb)).inner.changed() {
+                        if colour_button(ui, theme, &mut hsb).changed() {
                             let [r, g, b] = hsb.to_rgb();
                             row[at] = r;
                             row[at + 1] = g;
                             row[at + 2] = b;
                         }
-                    }
+                    });
                 });
                 offset += 12;
             }
@@ -172,9 +177,9 @@ pub(crate) fn properties_panel(ui: &mut Ui, theme: &Theme, blocks: &[Value], row
                 }
                 for (key, base) in [(tr("camera · position"), offset), (tr("camera · target"), offset + 3)] {
                     kv_wrap(ui, theme, key, |ui| {
-                        for k in 0..3 {
+                        payload_split(ui, theme, 3, |ui, k| {
                             float_row(ui, &mut row[base + k], -10.0..=10.0, Float::Drag { speed: 0.02, decimals: None });
-                        }
+                        });
                     });
                 }
                 kv_row(ui, theme, tr("camera · fov"), |ui| {

@@ -10,7 +10,8 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{field_row, label_row, number_row, toggle_row};
+use crate::shell::components::{button_row, field_row, label_row, number_row, toggle_row};
+use crate::shell::components::small_text;
 use crate::shell::i18n::{tr, trf};
 
 use super::text::post_text;
@@ -40,7 +41,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
     ] {
         let mut text = cfg[key].as_str().unwrap_or_default().to_string();
         if label_row(ui, theme, label, |ui| {
-            ui.add(egui::TextEdit::singleline(&mut text).hint_text(hint).desired_width(theme.control_width))
+            ui.add(egui::TextEdit::singleline(&mut text).hint_text(hint).desired_width(ui.available_width()))
         })
         .changed()
         {
@@ -63,7 +64,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
     // Discovery: kept in egui's temp memory per node, so it survives frames
     // without a field on the panel's state.
     let found_id = egui::Id::new(("artnet-found", node_id));
-    if ui.button(tr("find nodes")).clicked() {
+    if button_row(ui, theme, small_text(theme, tr("find nodes"))).clicked() {
         let reply = door.json("GET", &format!("/artnet/nodes?ms={DISCOVER_MS}"), None);
         let value = match reply {
             Ok(v) => v,
@@ -88,7 +89,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
         let outputs: Vec<u64> = n["outputs"].as_array().map(|a| a.iter().filter_map(Value::as_u64).collect()).unwrap_or_default();
         for out in outputs {
             let (net, sub, uni) = metal_perform::artnet::split_port_address(out as u16);
-            if ui.small_button(trf("use port {pa}", &[("pa", &out)])).clicked() {
+            if button_row(ui, theme, small_text(theme, trf("use port {pa}", &[("pa", &out)]))).clicked() {
                 post_text(
                     door,
                     gid,

@@ -51,7 +51,7 @@ pub(crate) fn section(
         ui.add(
             egui::TextEdit::singleline(&mut unicast)
                 .hint_text(tr("multicast when empty"))
-                .desired_width(theme.control_width),
+                .desired_width(ui.available_width()),
         )
     })
     .changed()

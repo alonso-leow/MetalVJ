@@ -765,16 +765,24 @@ fn num_track_sized(
                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
         );
         text_ui.spacing_mut().item_spacing = theme.segment_gap;
-        text_ui.label(
-            RichText::new(text)
-                .font(theme.font_small.clone())
-                .color(text_ink),
+        text_ui.add(
+            egui::Label::new(
+                RichText::new(text)
+                    .font(theme.font_small.clone())
+                    .color(text_ink),
+            )
+            .selectable(false)
+            .sense(egui::Sense::hover()),
         );
         if !suffix.is_empty() {
-            text_ui.label(
-                RichText::new(suffix)
-                    .font(theme.font_small.clone())
-                    .color(theme.ink_faint),
+            text_ui.add(
+                egui::Label::new(
+                    RichText::new(suffix)
+                        .font(theme.font_small.clone())
+                        .color(theme.ink_faint),
+                )
+                .selectable(false)
+                .sense(egui::Sense::hover()),
             );
         }
     }
@@ -970,6 +978,7 @@ fn cell<R>(
     ui: &mut Ui,
     theme: &Theme,
     width: Option<f32>,
+    main: egui::Align,
     fill: fn(&Theme, Rect) -> Vec<egui::Shape>,
     outline: fn(&Theme, Rect) -> Vec<egui::Shape>,
     add: impl FnOnce(&mut Ui) -> R,
@@ -978,7 +987,7 @@ fn cell<R>(
     let width = width.unwrap_or_else(|| ui.available_width()).max(0.0);
     let out = ui.allocate_ui_with_layout(
         egui::vec2(width, theme.cell_height()),
-        egui::Layout::left_to_right(egui::Align::Center),
+        egui::Layout::left_to_right(egui::Align::Center).with_main_align(main),
         |ui| {
             ui.set_width(width);
             ui.set_min_height(theme.cell_height());
@@ -994,13 +1003,55 @@ fn cell<R>(
 /// shadow offset behind it, so a column of labels reads as the table's left
 /// spine. `width` `None` fills what is left of the row.
 pub fn key_cell<R>(ui: &mut Ui, theme: &Theme, width: Option<f32>, add: impl FnOnce(&mut Ui) -> R) -> R {
-    cell(ui, theme, width, Theme::key_fill, Theme::key_outline, add)
+    cell(ui, theme, width, egui::Align::Min, Theme::key_fill, Theme::key_outline, add)
 }
 
 /// The standard PAYLOAD cell: a black outline and the blurred (glass) wash,
 /// sharp corners, so the node canvas grid reads through it.
+///
+/// Its content is centred across the cell (`main` centre), so a button, a
+/// checkbox, a dropdown's label or a number sits in the middle of the cell
+/// whatever its own width; a control that asks for the whole width (a field,
+/// a track, a dropdown) still fills it.
 pub fn payload_cell<R>(ui: &mut Ui, theme: &Theme, width: Option<f32>, add: impl FnOnce(&mut Ui) -> R) -> R {
-    cell(ui, theme, width, Theme::payload_fill, Theme::payload_outline, add)
+    cell(ui, theme, width, egui::Align::Center, Theme::payload_fill, Theme::payload_outline, add)
+}
+
+/// `n` equal sub-cells that together use the whole value column of a
+/// [`payload_cell`]: the same thin payload outline around each, no gap between
+/// them and no margin on the right. The wash is the payload cell's own, so
+/// call this inside one. `add(ui, i)` draws sub-cell `i`, centred in its own
+/// width; the responses come back in order. A multi-value payload (W×H, x/y/z,
+/// a range) is one of these.
+pub fn payload_split<R>(
+    ui: &mut Ui,
+    theme: &Theme,
+    n: usize,
+    mut add: impl FnMut(&mut Ui, usize) -> R,
+) -> Vec<R> {
+    if n == 0 {
+        return Vec::new();
+    }
+    let each = (ui.available_width() / n as f32).max(0.0);
+    let height = theme.cell_height();
+    let mut out = Vec::with_capacity(n);
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+        for i in 0..n {
+            let sub = ui.allocate_ui_with_layout(
+                egui::vec2(each, height),
+                egui::Layout::left_to_right(egui::Align::Center).with_main_align(egui::Align::Center),
+                |ui| {
+                    ui.set_width(each);
+                    ui.set_min_height(height);
+                    add(ui, i)
+                },
+            );
+            ui.painter().add(egui::Shape::Vec(theme.payload_outline(sub.response.rect)));
+            out.push(sub.inner);
+        }
+    });
+    out
 }
 
 /// No outline: the subheader's cell carries only its wash.
@@ -1014,7 +1065,7 @@ fn no_outline(_: &Theme, _: Rect) -> Vec<egui::Shape> {
 /// on the controls inside (`header_forms`), not on the strip. `add` lays out
 /// the row.
 pub fn subheader<R>(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui) -> R) -> R {
-    cell(ui, theme, None, Theme::payload_fill, no_outline, |ui| {
+    cell(ui, theme, None, egui::Align::Min, Theme::payload_fill, no_outline, |ui| {
         // Tall enough for a lit button's frame, so it stays inside the cell.
         ui.set_min_height(theme.icon_button_size.y + theme.field_pad.y * 2.0);
         ui.add_space(theme.field_pad.x);
@@ -1040,6 +1091,12 @@ pub fn ai_button(ui: &mut Ui, theme: &Theme, label: &str) -> egui::Response {
 
 /// A key cell holding one truncated label (weak ink, small face).
 pub fn key_label(ui: &mut Ui, theme: &Theme, width: Option<f32>, label: &str) {
+    key_label_response(ui, theme, width, label, egui::Sense::hover());
+}
+
+/// [`key_label`] with its response, sensed as `sense` (a toggle's label is
+/// clickable so the whole row flips the box).
+fn key_label_response(ui: &mut Ui, theme: &Theme, width: Option<f32>, label: &str, sense: egui::Sense) -> egui::Response {
     key_cell(ui, theme, width, |ui| {
         // Put at the cell's whole rect so the label (and its accessibility
         // node) spans the cell, not just its text.
@@ -1047,9 +1104,10 @@ pub fn key_label(ui: &mut Ui, theme: &Theme, width: Option<f32>, label: &str) {
         ui.put(
             rect,
             egui::Label::new(RichText::new(label).font(theme.font_small.clone()).color(theme.ink_weak).strong())
-                .truncate(),
-        );
-    });
+                .truncate()
+                .sense(sense),
+        )
+    })
 }
 
 /// A row of a leading KEY cell and one PAYLOAD the caller draws, both on the
@@ -1171,10 +1229,9 @@ pub fn card_section<R>(
             if head.clicked() {
                 *open = !*open;
             }
-            (*open).then(|| {
-                ui.add_space(theme.item_gap.y);
-                add(ui)
-            })
+            // The same air below the title as above it, folded or open.
+            ui.add_space(theme.item_gap.y * 2.0);
+            (*open).then(|| add(ui))
         });
     ui.painter().set(slot, egui::Shape::Vec(theme.group_shapes(framed.response.rect)));
     ui.add_space(theme.card_gap);
@@ -1241,9 +1298,49 @@ pub fn kv_wrap(ui: &mut Ui, theme: &Theme, key: &str, add: impl FnOnce(&mut Ui))
         ui.spacing_mut().item_spacing = theme.cell_gap;
         key_label(ui, theme, Some(theme.label_width), key);
         payload_cell(ui, theme, None, |ui| {
-            ui.horizontal_wrapped(add);
+            // Centred both ways: wrapped lines and their items sit in the
+            // middle of the value column.
+            ui.with_layout(
+                egui::Layout::left_to_right(egui::Align::Center)
+                    .with_main_wrap(true)
+                    .with_main_align(egui::Align::Center),
+                add,
+            );
         });
     });
+}
+
+/// Several buttons in one PAYLOAD cell, each an equal sub-cell of it (see
+/// [`payload_split`]) in the payload look. Returns, in order, which one was
+/// clicked this frame.
+pub fn payload_buttons(ui: &mut Ui, theme: &Theme, labels: Vec<RichText>) -> Vec<bool> {
+    payload_split(ui, theme, labels.len(), |ui, i| {
+        ui.scope(|ui| {
+            theme.payload_style(&mut ui.style_mut().visuals);
+            let w = ui.available_width().max(theme.interact_size.x);
+            ui.add_sized([w, theme.cell_height()], egui::Button::new(labels[i].clone())).clicked()
+        })
+        .inner
+    })
+}
+
+/// A button on its own row: a key cell with no label and the button spanning
+/// the payload cell, for a standalone action in a section. Returns the
+/// button's response.
+pub fn button_row(ui: &mut Ui, theme: &Theme, text: RichText) -> egui::Response {
+    label_row(ui, theme, "", |ui| payload_button(ui, theme, text))
+}
+
+/// A button that spans its payload cell: the whole width the cell leaves, the
+/// label centred, the payload look. Several in one cell go through
+/// [`payload_split`] instead, so each takes its own equal share.
+pub fn payload_button(ui: &mut Ui, theme: &Theme, text: RichText) -> egui::Response {
+    ui.scope(|ui| {
+        theme.payload_style(&mut ui.style_mut().visuals);
+        let w = ui.available_width().max(theme.interact_size.x);
+        ui.add_sized([w, theme.cell_height()], egui::Button::new(text))
+    })
+    .inner
 }
 
 /// A read-only row: label on the left, `value` in the panel's own ink on the
@@ -1297,6 +1394,7 @@ pub struct Combo<'a> {
     theme: &'a Theme,
     id: Id,
     width: Option<f32>,
+    fill: bool,
     text: String,
     enabled: bool,
 }
@@ -1304,12 +1402,18 @@ pub struct Combo<'a> {
 /// Starts a dropdown: the shell's only way to spell an egui combo. Chain
 /// `.width()`, `.selected_text()`, `.enabled()`, then `.show_ui()`.
 pub fn combo_box<'a>(theme: &'a Theme, id: impl std::hash::Hash + std::fmt::Debug) -> Combo<'a> {
-    Combo { theme, id: Id::new(id), width: None, text: String::new(), enabled: true }
+    Combo { theme, id: Id::new(id), width: None, fill: false, text: String::new(), enabled: true }
 }
 
 impl Combo<'_> {
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
+        self
+    }
+    /// Spans the whole width the cell leaves (a payload's dropdown), instead
+    /// of the kit's own width.
+    pub fn fill(mut self) -> Self {
+        self.fill = true;
         self
     }
     pub fn selected_text(mut self, text: impl Into<String>) -> Self {
@@ -1321,7 +1425,8 @@ impl Combo<'_> {
         self
     }
     pub fn show_ui<R>(self, ui: &mut Ui, items: impl FnOnce(&mut Ui) -> R) -> egui::InnerResponse<Option<R>> {
-        let Combo { theme, id, width, text, enabled } = self;
+        let Combo { theme, id, width, fill, text, enabled } = self;
+        let width = if fill { Some(ui.available_width().max(theme.interact_size.x)) } else { width };
         ui.add_enabled_ui(enabled, |ui| {
             // A dropdown rests on a plain opaque fill, not the glass wash
             // its payload cell gives other controls: the grid must not
@@ -1496,21 +1601,41 @@ pub fn slider_row(
 
 /// A labelled checkbox row: the box and its own label, so the whole row is
 /// the click target and the label names the box for AccessKit.
+/// A labelled checkbox for panels (the kit owns raw egui controls).
+pub fn check_box(ui: &mut Ui, value: &mut bool, label: &str) -> egui::Response {
+    ui.checkbox(value, label)
+}
+
 pub fn toggle_row(ui: &mut Ui, theme: &Theme, label: &str, value: &mut bool) -> egui::Response {
     toggle_row_enabled(ui, theme, label, value, true)
 }
 
 /// [`toggle_row`] with an explicit `enabled`. An empty `label` is a bare box.
 pub fn toggle_row_enabled(ui: &mut Ui, theme: &Theme, label: &str, value: &mut bool, enabled: bool) -> egui::Response {
-    ui.add_enabled(
-        enabled,
-        egui::Checkbox::new(
-            value,
-            RichText::new(label)
-                .font(theme.font_small.clone())
-                .color(theme.ink_weak),
-        ),
-    )
+    if label.is_empty() {
+        return ui.add_enabled(enabled, egui::Checkbox::without_text(value));
+    }
+    // The label is the key cell and a click on it flips the box, so the whole
+    // row is the target; the box is the payload, centred in its cell.
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing = theme.cell_gap;
+        let key = key_label_response(
+            ui,
+            theme,
+            Some(theme.label_width),
+            label,
+            if enabled { egui::Sense::click() } else { egui::Sense::hover() },
+        );
+        let mut boxed = payload_cell(ui, theme, None, |ui| {
+            ui.add_enabled(enabled, egui::Checkbox::without_text(value)).on_hover_text(label)
+        });
+        if enabled && key.clicked() {
+            *value = !*value;
+            boxed.mark_changed();
+        }
+        boxed
+    })
+    .inner
 }
 
 /// A square icon toggle (a play/stop, a lock, an eye): the glyph lit in the
@@ -2585,7 +2710,7 @@ mod tests {
             toggle_row(ui, &theme, "Bypass", &mut *state.borrow_mut());
         });
         harness.run();
-        harness.get_by_label("Bypass").click();
+        harness.get_by_role(egui::accesskit::Role::CheckBox).click();
         harness.run();
         assert!(*on.borrow());
     }

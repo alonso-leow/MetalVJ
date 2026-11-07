@@ -7,6 +7,7 @@ use egui::{RichText, Ui};
 use serde_json::{json, Value};
 
 use crate::call::Call;
+use crate::shell::components::{payload_button};
 use crate::shell::classes::Theme;
 use crate::shell::i18n::{tr, trf};
 
@@ -65,7 +66,7 @@ pub(crate) fn rows(ui: &mut Ui, theme: &Theme, door: &dyn Call, device: Option<&
                     .color(if ceded.is_some() { theme.warn } else { theme.ink_weak }),
             );
             let verb = if ceded.is_some() { tr("take back") } else { tr("hand over") };
-            if ui.button(RichText::new(verb).font(theme.font_small.clone())).clicked() {
+            if payload_button(ui, theme, RichText::new(verb).font(theme.font_small.clone())).clicked() {
                 let to = if ceded.is_some() { Value::Null } else { json!("otro programa") };
                 let _ = door.json("POST", "/outputs", Some(json!({ "op": "cede", "id": id, "to": to })));
             }

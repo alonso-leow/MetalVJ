@@ -349,7 +349,6 @@
 "— no generators in this graph —" = "— no hay generadores en este grafo —"
 "strength" = "fuerza"
 "invert" = "invertir"
-"invert {axis}" = "invertir {axis}"
 "flip an axis for a camera mounted the other way round." = "invertí un eje para una cámara montada al revés."
 
 # --- the source "modo" (2026-10-08) -----------------------------------------

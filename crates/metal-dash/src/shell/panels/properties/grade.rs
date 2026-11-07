@@ -28,7 +28,7 @@ use serde_json::{json, Map, Value};
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{
-    curve_graph_fixed, grading_wheel_sized, histogram, hue_band_selector, kv_wrap, note, section as kit_section, slider_tracked, Track,
+    curve_graph_fixed, grading_wheel_sized, histogram, hue_band_selector, kv_wrap, note, payload_button, section as kit_section, slider_tracked, Track,
 };
 use crate::shell::components::choice;
 use crate::shell::i18n::{tr, tr_key};
@@ -273,7 +273,7 @@ pub(crate) fn section(
     );
     if edited > 0 {
         kv_wrap(ui, theme, "", |ui| {
-            if ui.small_button(small_text(theme, tr("reset all"))).clicked() {
+            if payload_button(ui, theme, small_text(theme, tr("reset all"))).clicked() {
                 t.reset(ui, &p, all.iter().cloned());
             }
         });

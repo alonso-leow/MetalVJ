@@ -25,7 +25,7 @@ use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{kv_row, note, num_value};
+use crate::shell::components::{button_row, kv_row, note, num_value, payload_button};
 use crate::shell::i18n::{tr, tr_key, trf};
 
 use super::properties::surface;
@@ -475,14 +475,12 @@ pub(crate) fn device_section(
 
     // The two verbs first: they are the section's reason for existing, and a
     // calibration table under them must not push them off a short panel.
-    if ui
-        .button(RichText::new(tr("project venue")).font(theme.font_small.clone()))
+    if button_row(ui, theme, RichText::new(tr("project venue")).font(theme.font_small.clone()))
         .clicked()
     {
         project_venue(door, state, &venue_id, &device);
     }
-    if ui
-        .button(RichText::new(tr("look at venue")).font(theme.font_small.clone()))
+    if button_row(ui, theme, RichText::new(tr("look at venue")).font(theme.font_small.clone()))
         .clicked()
     {
         look_at_venue(door, state, &venue_id);
@@ -523,7 +521,7 @@ pub(crate) fn device_section(
         let title = if name.is_empty() { surface_id.as_str() } else { name.as_str() };
         let clicked = kv_row(ui, theme, title, |ui| {
             let label = if calibrating { tr("stop calibrating") } else { tr("calibrar") };
-            ui.button(RichText::new(label).font(theme.font_small.clone()))
+            payload_button(ui, theme, RichText::new(label).font(theme.font_small.clone()))
         })
         .clicked();
         if clicked {

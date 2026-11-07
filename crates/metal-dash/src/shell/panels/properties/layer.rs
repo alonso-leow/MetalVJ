@@ -78,7 +78,7 @@ pub(crate) fn section(
     }
 
     if label_row(ui, theme, tr("mask"), |ui| {
-        ui.add(egui::TextEdit::singleline(&mut mask).desired_width(theme.text_input_width))
+        ui.add(egui::TextEdit::singleline(&mut mask).desired_width(ui.available_width()))
     })
     .lost_focus()
     {

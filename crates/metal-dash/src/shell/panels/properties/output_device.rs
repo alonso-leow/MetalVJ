@@ -9,12 +9,13 @@
 //! `Output` behind this node yet" — and both show [`create_output_controls`].
 
 use crate::shell::components::small_text;
+use crate::shell::components::{button_row, payload_button};
 use egui::{Id, RichText, Ui};
 use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown_fill, label_row, num_track, value_label};
+use crate::shell::components::{dropdown_fill, kv_row, label_row, num_track, payload_split, value_label};
 use crate::shell::i18n::{tr, trf};
 
 use super::mask::masks_note_and_insert;
@@ -69,8 +70,7 @@ fn venue_row(
             tr("this room is the one the graph already used."),
         );
     }
-    if ui
-        .button(small_text(theme, tr("open the scene")))
+    if button_row(ui, theme, small_text(theme, tr("open the scene")))
         .on_hover_text(tr("the room's scene, as its grid reads this device's frame"))
         .clicked()
     {
@@ -156,15 +156,18 @@ pub(crate) fn section(
     let mut width = output["width"].as_u64().unwrap_or(1920) as u32;
     let mut height = output["height"].as_u64().unwrap_or(1080) as u32;
     let mut resolution_changed = false;
+    // W and H: one payload cell split into two equal sub-cells.
     let _ = label_row(ui, theme, tr("resolution"), |ui| {
         let mut w = width as f32;
         let mut h = height as f32;
-        let wr = num_track(ui, theme, &mut w, 1.0..=7680.0, "", 0, 1920.0, true);
-        let hr = num_track(ui, theme, &mut h, 1.0..=7680.0, "", 0, 1080.0, true);
+        let rs = payload_split(ui, theme, 2, |ui, k| {
+            let (v, default) = if k == 0 { (&mut w, 1920.0) } else { (&mut h, 1080.0) };
+            num_track(ui, theme, v, 1.0..=7680.0, "", 0, default, true)
+        });
         width = w.round().clamp(1.0, 7680.0) as u32;
         height = h.round().clamp(1.0, 7680.0) as u32;
-        resolution_changed = wr.changed() || hr.changed();
-        wr
+        resolution_changed = rs[0].changed() || rs[1].changed();
+        rs[0].clone()
     });
     if resolution_changed {
         post_resolution(door, device_id, width, height);
@@ -275,9 +278,7 @@ pub(crate) fn section(
         } else {
             (tr("calibrate"), theme.ink_weak)
         };
-        if ui
-            .button(
-                RichText::new(label)
+        if payload_button(ui, theme, RichText::new(label)
                     .font(theme.font_small.clone())
                     .color(colour),
             )
@@ -289,7 +290,7 @@ pub(crate) fn section(
 
     let mut node_name = output["node"].as_str().unwrap_or_default().to_string();
     let shows_on = label_row(ui, theme, tr("shows on"), |ui| {
-        ui.add(egui::TextEdit::singleline(&mut node_name).desired_width(theme.control_width))
+        ui.add(egui::TextEdit::singleline(&mut node_name).desired_width(ui.available_width()))
     });
     if shows_on.lost_focus() {
         post_output_text(door, device_id, "node", &node_name);
@@ -336,8 +337,7 @@ pub(crate) fn section(
         if caps.windows && open.clicked() {
             post_monitor_open(door, device_id);
         }
-        if ui
-            .button(small_text(theme, tr("remove output")))
+        if button_row(ui, theme, small_text(theme, tr("remove output")))
             .clicked()
         {
             post_remove_output(door, device_id);
@@ -367,8 +367,9 @@ pub(crate) fn create_output_controls(
     let displays = get(door, "GET", "/state", &[])
         .and_then(|v| v["io"]["displays"].as_array().cloned())
         .unwrap_or_default();
-    ui.horizontal_wrapped(|ui| {
+    label_row(ui, theme, tr("add display"), |ui| {
         crate::shell::components::combo_box(theme, Id::new("shell/region/properties/output-add"))
+            .fill()
             .selected_text((tr("add display")).to_string())
             .show_ui(ui, |ui| {
                 for disp in &displays {
@@ -390,24 +391,38 @@ pub(crate) fn create_output_controls(
                         };
                     }
                 }
-            });
-        if device_hint.is_some() && state.output_new_id.is_empty() {
-            state.output_new_id = device_hint.unwrap().to_string();
-        }
-        ui.add(
-            egui::TextEdit::singleline(&mut state.output_new_id)
-                .hint_text(tr("screen id"))
-                .desired_width(theme.text_input_width),
-        );
-        if ui.button(small_text(theme, tr("add"))).clicked() {
-            let id = state.output_new_id.clone();
-            let body = json!({ "op": "add", "id": id, "label": id, "width": 1920, "height": 1080 });
-            state.output_note = match door.json("POST", "/outputs", Some(body)) {
-                Ok(_) => Some(trf("output added: {id}", &[("id", &id)])),
-                Err((_, msg)) => Some(msg),
-            };
-        }
+            })
+            .response
     });
+    if device_hint.is_some() && state.output_new_id.is_empty() {
+        state.output_new_id = device_hint.unwrap().to_string();
+    }
+    // The screen id and its add button: two equal sub-cells of one payload.
+    let mut add_clicked = false;
+    kv_row(ui, theme, tr("screen id"), |ui| {
+        let rs = payload_split(ui, theme, 2, |ui, k| {
+            if k == 0 {
+                ui.add(
+                    egui::TextEdit::singleline(&mut state.output_new_id)
+                        .hint_text(tr("screen id"))
+                        .desired_width(ui.available_width()),
+                )
+            } else {
+                let b = payload_button(ui, theme, small_text(theme, tr("add")));
+                add_clicked = b.clicked();
+                b
+            }
+        });
+        rs[0].clone()
+    });
+    if add_clicked {
+        let id = state.output_new_id.clone();
+        let body = json!({ "op": "add", "id": id, "label": id, "width": 1920, "height": 1080 });
+        state.output_note = match door.json("POST", "/outputs", Some(body)) {
+            Ok(_) => Some(trf("output added: {id}", &[("id", &id)])),
+            Err((_, msg)) => Some(msg),
+        };
+    }
 
     if let Some(note) = state.output_note.clone() {
         ui.label(
@@ -554,7 +569,7 @@ fn sink_controls(ui: &mut Ui, theme: &Theme, door: &dyn Call, device_id: &str, s
         let id = Id::new(("shell/properties/output-sink-name", device_id));
         let mut name: String = ui.ctx().data(|d| d.get_temp(id)).unwrap_or_else(|| target.clone());
         let r = label_row(ui, theme, tr("published name"), |ui| {
-            ui.add(egui::TextEdit::singleline(&mut name).desired_width(theme.control_width))
+            ui.add(egui::TextEdit::singleline(&mut name).desired_width(ui.available_width()))
         });
         ui.ctx().data_mut(|d| d.insert_temp(id, name.clone()));
         if r.lost_focus() && name != target {

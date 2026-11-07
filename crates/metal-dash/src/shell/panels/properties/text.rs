@@ -50,7 +50,7 @@ pub(crate) fn section(
 
     let mut content = cfg["content"].as_str().unwrap_or("MetalVJ").to_string();
     if label_row(ui, theme, tr("text"), |ui| {
-        ui.add(egui::TextEdit::singleline(&mut content).desired_width(theme.control_width))
+        ui.add(egui::TextEdit::singleline(&mut content).desired_width(ui.available_width()))
     })
     .changed()
     {

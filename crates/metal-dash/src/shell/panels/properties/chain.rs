@@ -18,7 +18,7 @@ use super::browser::RowKey;
 use super::shared::{get, post_reply};
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{kv_wrap, note};
+use crate::shell::components::{kv_wrap, note, payload_button, payload_split};
 use crate::shell::i18n::{tr, tr_dyn};
 
 /// The `fx.*` node ids downstream of `gen` along `image` edges, in graph
@@ -90,19 +90,20 @@ pub(crate) fn section(
     }
     kv_wrap(ui, theme, "", |ui| {
         for (i, id) in chain.iter().enumerate() {
+            // One effect per line: its name and its remove, two equal sub-cells.
             let name = name_of(graph, id);
-            if ui
-                .button(small_text(theme, tr_dyn(&name)))
-                .clicked()
-            {
-                clicked = Some(RowKey::Text(id.clone()));
-            }
-            let remove = ui
-                .small_button(small_text(theme, "×"))
-                .on_hover_text(tr("remove this effect"));
-            if remove.clicked() {
-                remove_from_chain(door, gid, graph, gen, &chain, i);
-            }
+            payload_split(ui, theme, 2, |ui, k| {
+                if k == 0 {
+                    if payload_button(ui, theme, small_text(theme, tr_dyn(&name))).clicked() {
+                        clicked = Some(RowKey::Text(id.clone()));
+                    }
+                } else if payload_button(ui, theme, small_text(theme, "×"))
+                    .on_hover_text(tr("remove this effect"))
+                    .clicked()
+                {
+                    remove_from_chain(door, gid, graph, gen, &chain, i);
+                }
+            });
         }
     });
 

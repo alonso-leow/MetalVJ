@@ -26,6 +26,7 @@ pub mod props_venue;
 pub mod scenes;
 pub mod sequence;
 pub mod settings;
+pub mod stage_view;
 pub mod venue_canvas;
 pub mod venue_editor;
 pub mod venue_map;

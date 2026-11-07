@@ -26,7 +26,7 @@
 //! the starter scene below, which posts the same bodies the gallery and the
 //! Settings page post (rule 6).
 
-use egui::{Align2, Id, Order, Rect, RichText, Sense, Ui, Vec2};
+use egui::{Align2, Id, Order, Rect, RichText, Sense, Ui, UiBuilder, Vec2};
 use serde_json::{json, Value};
 
 use crate::call::Call;
@@ -36,6 +36,7 @@ use crate::shell::i18n::tr;
 
 use super::nodes::{PanelState, VenueScene};
 use super::venue_map;
+use super::stage_view;
 use super::venue_popup;
 use super::viewport::{self, OrbitCamera, RoomView};
 use metal_perform::venue::Venue;
@@ -168,6 +169,14 @@ pub(crate) fn paint(
     ui.painter()
         .rect_filled(rect, theme.corner_radius(), theme.node_canvas);
 
+    // The stage hitbox replaces the room while its toggle is on: the grid the
+    // fixture AI speaks in, not the 3D room. No starter room, no orbit.
+    if scene.stage {
+        paint_stage(ui, theme, door, state, &mut scene, &mut frame, rect, &gid, &graph);
+        state.venue_scene = if frame.leave { None } else { Some(scene) };
+        return frame;
+    }
+
     let detail = venue_map::venue_detail(door, &scene.room);
     let mut venue = detail.as_ref().and_then(venue_popup::parse_venue);
     // An empty room gets its starter scene once per session: a floor and one
@@ -213,7 +222,7 @@ pub(crate) fn paint(
     viewport::paint_room(&ui.painter_at(rect), theme, rect, &view, &venue);
     // The bar rides over the painted room, not under it: the room's ground
     // fill and its grid are painted first, then the frame and its buttons.
-    paint_bar(ui, theme, state, &mut scene, &mut frame, rect);
+    paint_bar(ui, theme, door, state, &mut scene, &mut frame, rect);
     if let Some(note) = scene.note.clone() {
         ui.painter().text(
             rect.left_bottom() + theme.item_gap * 2.0,
@@ -290,8 +299,65 @@ fn paint_room_absent(
     let gallery_open = state.gallery.is_some();
     paint_empty_room(ui, theme, rect, scene);
     scene_gestures(ui, theme, rect, scene, gallery_open);
-    paint_bar(ui, theme, state, scene, frame, rect);
+    paint_bar(ui, theme, door, state, scene, frame, rect);
     paint_gallery(ui, theme, door, state, gid, graph, frame);
+}
+
+/// The stage hitbox in the scene: the room's grid in place of the 3D room, with
+/// the same bar and gallery. A plan, not a room, so the drag pins fixtures and
+/// does not orbit.
+#[allow(clippy::too_many_arguments)]
+fn paint_stage(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut PanelState,
+    scene: &mut VenueScene,
+    frame: &mut SceneFrame,
+    rect: Rect,
+    gid: &str,
+    graph: &Value,
+) {
+    let gallery_open = state.gallery.is_some();
+    let inner = rect.shrink(theme.item_gap.x);
+    ui.scope_builder(UiBuilder::new().max_rect(inner), |ui| {
+        egui::ScrollArea::both().show(ui, |ui| {
+            stage_view::show(ui, theme, door, &scene.room);
+        });
+    });
+    paint_bar(ui, theme, door, state, scene, frame, rect);
+    paint_gallery(ui, theme, door, state, gid, graph, frame);
+    if !gallery_open && frame.gallery.is_none() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        frame.leave = true;
+    }
+}
+
+/// The stage hitbox needs its room's `venue.fixtures` node: a graph with none
+/// gets one through the normal graph route (`POST /graph/node {op:"add"}`, the
+/// call `add_node` makes), owning this room. A graph that has one is left alone.
+fn ensure_stage_node(door: &dyn Call, state: &mut PanelState, room: &str) {
+    let Some(gid) = state.selected_graph().map(str::to_string) else {
+        return;
+    };
+    let graph = state.graph_reply();
+    let has_node = graph["graph"]["nodes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .any(|n| n["kind"].as_str() == Some(metal_graph::VENUE_FIXTURES_KIND));
+    if has_node {
+        return;
+    }
+    let body = json!({
+        "op": "add",
+        "graph": gid,
+        "kind": metal_graph::VENUE_FIXTURES_KIND,
+        "pos": super::nodes::free_spot(Some(&graph)),
+        "config": { "venue": room },
+    });
+    if let Ok(reply) = door.json("POST", "/graph/node", Some(body)) {
+        state.set_graph_reply(reply);
+    }
 }
 
 /// The empty room: a [`Venue`] with its name and nothing in it. Written here
@@ -337,10 +403,11 @@ fn paint_empty_room(ui: &Ui, theme: &Theme, rect: Rect, scene: &mut VenueScene) 
     viewport::paint_room(&ui.painter_at(rect), theme, rect, &view, &empty);
 }
 
-/// The scene's bar: `+` (the gallery) and `Back to nodes`.
+/// The scene's bar: `+` (the gallery), the stage hitbox toggle and `Back to nodes`.
 fn paint_bar(
     ui: &mut Ui,
     theme: &Theme,
+    door: &dyn Call,
     state: &mut PanelState,
     scene: &mut VenueScene,
     frame: &mut SceneFrame,
@@ -381,6 +448,20 @@ fn paint_bar(
                                 state.gallery = Some(node);
                             }
                             frame.gallery = Some(!gallery_open);
+                        }
+                        let stage_on = scene.stage;
+                        if ui
+                            .selectable_label(
+                                stage_on,
+                                RichText::new(tr("stage hitbox")).font(theme.font_small.clone()),
+                            )
+                            .on_hover_text(tr("the stage's grid of points, with this room's fixtures in them"))
+                            .clicked()
+                        {
+                            scene.stage = !stage_on;
+                            if scene.stage {
+                                ensure_stage_node(door, state, &scene.room);
+                            }
                         }
                         if ui
                             .button(RichText::new(tr("Back to nodes")).font(theme.font_small.clone()))
@@ -526,6 +607,7 @@ mod tests {
             selected: None,
             note: None,
             fitted: true,
+            stage: false,
         };
 
         let drag = |button: PointerButton, scene: &mut VenueScene, gallery_open: bool| {

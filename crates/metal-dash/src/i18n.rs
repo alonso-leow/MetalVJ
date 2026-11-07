@@ -104,6 +104,7 @@ const ES_FILES: &[(&str, &str)] = &[
     ("harness", include_str!("../locales/es/harness.toml")),
     ("loops", include_str!("../locales/es/loops.toml")),
     ("venue", include_str!("../locales/es/venue.toml")),
+    ("stage", include_str!("../locales/es/stage.toml")),
     ("shader", include_str!("../locales/es/shader.toml")),
     ("colour", include_str!("../locales/es/colour.toml")),
     ("script", include_str!("../locales/es/script.toml")),

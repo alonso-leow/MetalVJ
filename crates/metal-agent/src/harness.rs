@@ -163,6 +163,10 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     // D1: the venue's fixtures — add, edit or remove one (POST /venue {op:
     // "fixture"}), the same body the Settings "Fixtures" page posts (rule 6).
     ("set_fixture", "Adds, edits or deletes a fixture of a venue (POST /venue {op: \"fixture\"}): `venue` and, to edit/delete, `id`; `kind` (wash|spot|led_strip|moving|backlight|panel|continuous|led_bar|camera|matrix), `profile` (a model under data/fixtures/), `group`, `wire`, `universe`, `address` (1..512, clamped), `pixels`, `order` (forward|reverse), `start`, `drive` (frame|fixed), `projector`; `matrix` (object with x_pixels/y_pixels/start_corner/orientation/snake/first_channels/last_channels/dmx_matrix) for a 2-D LED matrix; `delete: true` removes it.", true),
+    // Stage hitbox (plan: "Stage hitbox"): the grid of 21 points the AI's floats speak in.
+    ("stage_grid", "The stage hitbox of a venue: its 21 grid points (`l1|l2|l3`.`back|mid|pro|house`.`l|c|r`), the float names of the patch (`<level>.<row>.<col>.<type>.<channel>`), each fixture's point, aim and whether it is pinned or tuned, the cells, and the `unfilled` (no position, no stage words) and `ambiguous` (between two points, unpinned) fixtures. Optional `venue` (default: the last projected). Reads only.", true),
+    ("stage_place", "Pins a venue fixture to a stage point and/or sets its tuned pose (POST /venue {op: \"fixture\"}, the Settings page's own op): `venue`, `id`; `stage_point` (a grid point such as `l2.back.l`, or \"\" to clear the pin); `yaw`/`pitch` (degrees, the tuned pose — it wins over the point's default aim). At least one of `stage_point`, `yaw`, `pitch`.", true),
+    ("stage_view", "Draws the stage's plan (top view, the audience at the bottom): the grid points, the proscenium, every placed fixture in its kind's colour with its aim, pinned ones ringed. Returns `png_base64` (shown in the chat) and a `legend` of the fixtures. Works with an empty rig; optional `venue`, `width`, `height`. Reads only.", true),
     ("add_fixture_node", "Creates a venue.fixture node for a fixture of the active room (POST /graph/node {op:\"add\", kind:\"venue.fixture\", config}): `fixture` (the row's id), `colour_from` (frame|model|signal), `model` (node whose colour output is wired), `pick`/`offset` (slot distribution). The node points at the row, not a copy, and the `frame` colour works on creation.", true),
     ("blend_edges", "Edge blending between projectors that share a surface (POST /venue {op: \"blend\"}): `surface` (all projectors with pins on it) o `projector`; `enabled`, `gamma` (~2.2), `curve` (linear|smoothstep|cosine), `black_lift` (0..0.5).", true),
     ("calibrate_projector", "Sets the four pins of a projector for a surface (POST /venue {op: \"pins\"}): the corners (0,0) (1,0) (1,1) (0,1) of the surface in that device's 0..1.", true),
@@ -390,6 +394,7 @@ pub fn capability_of(name: &str) -> Option<Capability> {
         | "solve_head"
         | "aim_fixture"
         | "set_fixture"
+        | "stage_place"
         | "add_fixture_node"
         | "artnet_nodes"
         | "artnet_in_status"
@@ -1877,6 +1882,7 @@ impl ToolExecutor for Harness {
             | "add_stage" | "add_truss" | "add_dummy" | "venue_spline"
             | "place_mask_in_space" | "venue_boolean" | "venue_hit" | "venue_report"
             | "venue_view" | "venue_assets_search" | "venue_asset_import"
+            | "stage_grid" | "stage_place" | "stage_view"
             | "list_video_io" | "set_output_sink" | "dmx_bus" | "import_gdtf" | "capture_output"
             | "play_sequence" | "edit_loops" | "transport" | "fire_trigger" | "overlay_control"
             | "colour_apply"
@@ -3367,6 +3373,8 @@ mod capability_tests {
         "venue_hit",
         "venue_report",
         "venue_view",
+        "stage_grid",
+        "stage_view",
         "venue_assets_search",
         "venue_asset_import",
         "list_switches",

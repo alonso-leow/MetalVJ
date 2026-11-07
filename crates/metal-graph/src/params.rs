@@ -307,7 +307,7 @@ pub const VENUE_FIXTURE_CONFIG_KEYS: &[&str] = &[
 ];
 
 /// The colour sources a `venue.fixture` node may name (decision 3).
-pub const VENUE_FIXTURE_COLOUR_FROM: &[&str] = &["frame", "model", "signal"];
+pub const VENUE_FIXTURE_COLOUR_FROM: &[&str] = &["frame", "model", "signal", "stage", "ai_stage"];
 /// Which channels a patch-driven node packs: colour only, or the whole signal.
 pub const VENUE_FIXTURE_DRIVE: &[&str] = &["colour", "patch"];
 /// How a rig splits a model's four colour slots (decision 5).

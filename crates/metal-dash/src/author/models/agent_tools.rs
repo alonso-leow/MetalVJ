@@ -1132,6 +1132,89 @@ impl AgentHarness {
             .map_err(|(status, msg)| format!("/venue answered {status}: {msg}"))
     }
 
+    /// The venue a stage tool reads: `GET /venue` (the route `look_venue` reads),
+    /// `last` when none is named. The grid is built from this same venue.
+    fn stage_venue(&self, args: &Value) -> Result<crate::venue::Venue, String> {
+        let id = args.get("venue").and_then(Value::as_str).unwrap_or("last");
+        let door = self.door()?;
+        let read = door
+            .bytes("GET", "/venue", &[("id", id.to_string())])
+            .map_err(|(status, msg)| format!("/venue answered {status}: {msg}"))?;
+        let read: Value = serde_json::from_slice(&read.body)
+            .map_err(|e| format!("/venue answered a body that is not JSON: {e}"))?;
+        serde_json::from_value(read["venue"].clone())
+            .map_err(|e| format!("/venue answered no venue: {e}"))
+    }
+
+    /// Stage hitbox: `stage_grid(venue?)` — the grid's 21 points, the float names
+    /// of the patch, every fixture's point and aim, its cells, and what the grid
+    /// cannot fill or cannot place (`metal_perform::stage::grid_report`).
+    fn stage_grid(&self, args: &Value) -> Result<Value, String> {
+        let v = self.stage_venue(args)?;
+        Ok(metal_perform::stage::grid_report(&v, &crate::output::data_root()))
+    }
+
+    /// Stage hitbox: `stage_place(venue, id, stage_point?, yaw?, pitch?)` — one
+    /// fixture's pin and tuned pose, through `POST /venue {op: "fixture"}`, the
+    /// op the Settings "Fixtures" page posts (rule 6). `stage_point: ""` (or
+    /// `null`) clears the pin; `yaw`/`pitch` set the tuned pose, which wins over
+    /// the point's default aim.
+    fn stage_place(&self, args: &Value) -> Result<Value, String> {
+        let venue = Self::require_str(args, "venue")?;
+        let id = Self::require_str(args, "id")?;
+        if ["stage_point", "yaw", "pitch"].iter().all(|k| args.get(*k).is_none()) {
+            return Err("stage_place needs `stage_point` (a grid point, or \"\" to clear the pin) and/or a tuned pose `yaw`/`pitch`".into());
+        }
+        let mut body = json!({ "op": "fixture", "venue": venue, "id": id });
+        for key in ["stage_point", "yaw", "pitch"] {
+            if let Some(v) = args.get(key) {
+                body[key] = v.clone();
+            }
+        }
+        let door = self.door()?;
+        door.json("POST", "/venue", Some(body))
+            .map_err(|(status, msg)| format!("/venue answered {status}: {msg}"))
+    }
+
+    /// Stage hitbox: `stage_view(venue?, width?, height?)` — the stage's plan as a
+    /// picture (`png_base64`, lifted into the turn the way `look_venue`'s frames
+    /// are) with a legend of the fixtures. It works in any state: an empty rig
+    /// shows the grid alone; with no venue to read it shows the default stage and
+    /// says why in `note`.
+    fn stage_view(&self, args: &Value) -> Result<Value, String> {
+        let root = crate::output::data_root();
+        let (patch, note) = match self.stage_venue(args) {
+            Ok(v) => (metal_perform::stage::patch_of(&v, &root), Value::Null),
+            Err(e) => (metal_perform::stage::empty_patch(), json!(e)),
+        };
+        let dim = |key: &str, default: u64| {
+            args.get(key).and_then(Value::as_u64).unwrap_or(default).clamp(160, 1600) as u32
+        };
+        let png = metal_perform::stage::plan_png(&patch, dim("width", 480), dim("height", 360))?;
+        let legend: Vec<Value> = patch
+            .fixtures
+            .iter()
+            .zip(patch.placements())
+            .map(|(f, p)| {
+                json!({
+                    "fixture": p.fixture,
+                    "kind": f.kind.word(),
+                    "point": p.point.word(),
+                    "pinned": f.point.is_some(),
+                    "tuned": p.tuned,
+                })
+            })
+            .collect();
+        let count = legend.len();
+        Ok(json!({
+            "venue": patch.name,
+            "png_base64": metal_agent::harness::base64_encode(&png),
+            "fixtures": count,
+            "legend": legend,
+            "note": note,
+        }))
+    }
+
     /// F9: `add_fixture_node(fixture, colour_from?, model?)` — one
     /// `venue.fixture` node for the active venue's fixture, through
     /// `POST /graph/node {op:"add"}` (rule 6): the same route the Settings
@@ -2798,6 +2881,9 @@ impl ToolExecutor for AgentHarness {
             "venue_assets_search" => self.venue_assets_search(&call.arguments),
             "venue_asset_import" => self.venue_asset_import(&call.arguments),
             "set_fixture" => self.set_fixture(&call.arguments),
+            "stage_grid" => self.stage_grid(&call.arguments),
+            "stage_place" => self.stage_place(&call.arguments),
+            "stage_view" => self.stage_view(&call.arguments),
             "add_fixture_node" => self.add_fixture_node(&call.arguments),
             "calibrate_projector" => self.calibrate_projector(&call.arguments),
             "blend_edges" => self.blend_edges(&call.arguments),
@@ -4422,6 +4508,83 @@ mod tests {
         let body = posted(&door, "POST", "/venue").expect("a call");
         assert_eq!(body["op"], "pins");
         assert_eq!(body["pins"], json!([[0, 0], [1, 0], [1, 1], [0, 1]]));
+    }
+
+    /// The real stage venue as the route answers it: `{ "venue": … }`.
+    fn stage_venue_reply() -> Value {
+        let text = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/agent/venues/stage.toml"),
+        )
+        .expect("the stage venue");
+        let v = crate::venue::Venue::parse(&text).expect("parses");
+        json!({ "venue": v })
+    }
+
+    /// Stage hitbox: `stage_grid` reads the venue the route serves and answers the
+    /// grid — 21 points, its float names, every fixture's point and aim — and writes nothing.
+    #[test]
+    fn stage_grid_reads_the_venue_and_answers_the_grid() {
+        let door = std::sync::Arc::new(ScriptedDoor::new().json("GET", "/venue", stage_venue_reply()));
+        let mut h = with_door(&door);
+        let out = h.execute(&call("stage_grid", json!({}))).expect("stage_grid");
+        assert_eq!(out["points"].as_array().unwrap().len(), metal_stage::Point::all().len());
+        assert!(out["floats"].as_array().unwrap().iter().all(|f| metal_stage::FloatName::parse(f.as_str().unwrap()).is_some()));
+        assert!(!out["placements"].as_array().unwrap().is_empty());
+        assert!(posted(&door, "POST", "/venue").is_none(), "a read writes nothing");
+    }
+
+    /// Stage hitbox: `stage_place` posts the venue fixture op the Settings page posts
+    /// (`op: fixture`, the venue, the fixture id, the pin and the pose) and needs one of them.
+    #[test]
+    fn stage_place_posts_the_fixture_op_and_needs_a_pin_or_a_pose() {
+        let door = std::sync::Arc::new(
+            ScriptedDoor::new().json("POST", "/venue", json!({ "ok": true, "id": "stage", "fixture": {} })),
+        );
+        let mut h = with_door(&door);
+        h.execute(&call("stage_place", json!({ "venue": "stage", "id": "wash-1", "stage_point": "l2.back.l" })))
+            .expect("stage_place");
+        let body = posted(&door, "POST", "/venue").expect("posted");
+        assert_eq!(body["op"], "fixture");
+        assert_eq!(body["venue"], "stage");
+        assert_eq!(body["id"], "wash-1");
+        assert_eq!(body["stage_point"], "l2.back.l");
+        assert!(body.get("yaw").is_none(), "only the keys the call named go out");
+
+        // A clear: "" passes through, and a tuned pose on its own is fine.
+        h.execute(&call("stage_place", json!({ "venue": "stage", "id": "wash-1", "stage_point": "" })))
+            .expect("clear");
+        h.execute(&call("stage_place", json!({ "venue": "stage", "id": "wash-1", "yaw": 30.0, "pitch": -15.0 })))
+            .expect("pose");
+        let calls = door.calls.lock().unwrap();
+        assert_eq!(calls.iter().filter(|(m, p, _)| m == "POST" && p == "/venue").count(), 3);
+        drop(calls);
+
+        let err = h
+            .execute(&call("stage_place", json!({ "venue": "stage", "id": "wash-1" })))
+            .unwrap_err();
+        assert!(err.contains("stage_point") && err.contains("yaw"), "{err}");
+    }
+
+    /// Stage hitbox: `stage_view` answers a PNG the chat can show (`png_base64`, which
+    /// the loop lifts into an image), with a legend, and draws the empty rig too.
+    #[test]
+    fn stage_view_draws_the_stage_in_any_state() {
+        let door = std::sync::Arc::new(ScriptedDoor::new().json("GET", "/venue", stage_venue_reply()));
+        let mut h = with_door(&door);
+        let out = h.execute(&call("stage_view", json!({ "width": 320, "height": 240 }))).expect("stage_view");
+        let b64 = out["png_base64"].as_str().expect("the picture");
+        let bytes = metal_agent::harness::base64_decode(b64).expect("base64");
+        assert_eq!(&bytes[..4], &[0x89, b'P', b'N', b'G']);
+        assert!(out["legend"].as_array().unwrap().len() >= 5);
+        assert!(out["note"].is_null());
+
+        // No venue to read: the default stage, and the note says why.
+        let none = std::sync::Arc::new(ScriptedDoor::new());
+        let mut h = with_door(&none);
+        let out = h.execute(&call("stage_view", json!({}))).expect("stage_view without a venue");
+        assert!(out["png_base64"].is_string());
+        assert_eq!(out["fixtures"], 0);
+        assert!(out["note"].is_string(), "{out}");
     }
 
     /// `look_venue` reads the venue (`GET /venue`), then every output it

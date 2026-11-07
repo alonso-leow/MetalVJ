@@ -221,6 +221,12 @@ union of its predicted genre's rows. Colour slots come only from
 drop, break, bridge, harmonic change, outro, with margins); design in
 `data/dataset/colourist/README.md`, process in `docs/briefs/colourist-dataset.md`.
 
+**Stage fixtures (`data/dataset/stage`, `feat/stage-d`, 2026-11-07).** `scripts/stage_timelines.py` reads the
+636 ShowXpress timelines: 48 songs, none on the external drive under its timeline name (full walk of the
+drive, hidden dirs included; one near-match to confirm, `LA BELLA Y LA BESTIA OK` vs `LA BELLA Y LA BESTIA`).
+Parts, scaffold and author are in place and smoke-tested on a synthetic digest; no stage examples until the
+audio is on disk. `crates/metal-perform/tests/stage_examples.rs` validates whatever examples exist.
+
 **Steps.**
 
 1. **Retire `ai.colourist` as a node** (`fx-layout-colour-plan.md` §4.3): move
@@ -403,6 +409,16 @@ the closing verification.
 9. **MCP camera solves**: see §4 (rewritten by the lead).
 10. **Flaky tests.** metal-perform JS script tests time out under load: longer
     budget or serialize. metal-sync two-node tests get the same treatment.
+
+## Stage hitbox
+
+**Status (feat/stage-hitbox).** Data layer in `crates/metal-stage` (grid, names, patch, seq,
+dataset) and `metal_perform::stage::patch_of`, which reads a fixture's pinned
+`stage_point`. The venue canvas has a `stage hitbox` toggle (creates a `venue.fixtures`
+node through `POST /graph/node` when the graph has none), and a `venue.fixtures` node's
+`hitbox` folder shows the same view. Dragging a fixture to another cell pins it through
+`POST /venue { op: "fixture", stage_point }`. Left: a control that clears a pin from the
+view, and the dataset authoring in `data/dataset/stage/`.
 
 ## 9. Show control: standing decisions
 
@@ -695,6 +711,21 @@ Still Spanish with stale material (`escena`/`pared`).
    heads at the hotel); MIDI/OSC latency (`midir` on the Pi).
 
 ---
+
+## Stage hitbox
+
+Decision (2026-11-06): fixtures get an implicit position/type awareness through a **stage
+hitbox**, a coarse grid of named points the AI's floats speak in. A venue pose, once tuned,
+wins over the point's default aim. Details: `docs/DOCS.md`, section "Stage hitbox".
+
+- **Status (2026-11-07):** data layer built (`crates/metal-stage`, `metal-perform/src/stage.rs`,
+  dataset scaffold). AI side built: `stage_grid`, `stage_place` (pin and tuned pose through
+  `POST /venue {op: "fixture"}`), `stage_view` (plan picture in the chat, any rig state),
+  `venue::Fixture.stage_point`, system prompt section 21. Open: the hitbox view in the venue
+  canvas and the `venue.*` node hookup; `ai.stage` reading the pairs; `Matrix::expand` in
+  `drive_head`; first authored examples (needs the song digests). Known gap: `Fixture::new`
+  sets `pitch = -20`, so `patch_of` counts every fixture as tuned and the hitbox aim never
+  applies. The fix is an explicit "pose set by hand" flag.
 
 # Audio and trained reaction
 

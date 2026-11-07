@@ -1156,6 +1156,10 @@ pub struct Fixture {
     /// the heads (M3).
     #[serde(default)]
     pub group: Option<String>,
+    /// The stage hitbox point this fixture is pinned to (`l2.back.l`); absent
+    /// means the nearest point of the grid. Read by `stage::patch_of`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stage_point: Option<String>,
     /// A per-fixture universe override (M4.2); the profile's own when `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub universe: Option<u16>,
@@ -1216,6 +1220,7 @@ impl Fixture {
             order: PixelOrder::default(),
             start: 0,
             group: None,
+            stage_point: None,
             universe: None,
             address: None,
             roll: 0.0,

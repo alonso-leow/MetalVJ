@@ -955,6 +955,10 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         "blend_edges",
         "aim_fixture",
         "look_venue",
+        // Stage hitbox reads: the venue's grid and its plan picture, both built
+        // in the executor from `GET /venue` (`stage_place` posts `/venue` itself).
+        "stage_grid",
+        "stage_view",
         "scan_venue",
         "discover_fixture",
         "solve_head",
@@ -1062,6 +1066,8 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         "overlay_control" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         "colour_apply" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         "focus" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        // Stage hitbox: one fixture's pin and tuned pose, the same `POST /venue {op:"fixture"}` (rule 6).
+        "stage_place" => Some(("POST", "/venue")),
         // F9: the per-fixture node's arguments (`fixture`/`colour_from`/
         // `model`) are not the route body, so it runs through the chat's
         // executor like the other in-process tools; it posts `POST /graph/node`

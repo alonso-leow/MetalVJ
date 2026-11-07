@@ -490,6 +490,9 @@ pub struct Theme {
     /// The narrowest a gallery card gets (40% of the former 170 / 220 linear):
     /// the column count follows from it.
     pub gallery_card_min_w: f32,
+    /// The Stage hitbox view: one grid cell, and one fixture chip inside it.
+    pub stage_cell: Vec2,
+    pub stage_chip: Vec2,
     /// A port dot's radius on a gallery thumbnail.
     pub node_port_preview_radius: f32,
     /// Width kept free beside a scroll area's content for its scroll bar.
@@ -884,6 +887,8 @@ impl Theme {
             hold_bar_pad: 2,
             gallery_share: 0.32,
             gallery_card_min_w: 68.0,
+            stage_cell: Vec2::new(64.0, 48.0),
+            stage_chip: Vec2::new(18.0, 16.0),
             node_port_preview_radius: 2.5,
             scroll_gutter: 12.0,
             compact_row_pad: Vec2::new(6.0, 2.0),
@@ -1122,6 +1127,8 @@ impl Theme {
             hold_bar_pad: 2,
             gallery_share: 0.32,
             gallery_card_min_w: 68.0,
+            stage_cell: Vec2::new(64.0, 48.0),
+            stage_chip: Vec2::new(18.0, 16.0),
             node_port_preview_radius: 2.5,
             scroll_gutter: 12.0,
             compact_row_pad: Vec2::new(6.0, 2.0),
@@ -1436,6 +1443,8 @@ impl Theme {
             hold_bar_pad: 3,
             gallery_share: 0.36,
             gallery_card_min_w: 88.0,
+            stage_cell: Vec2::new(80.0, 60.0),
+            stage_chip: Vec2::new(22.0, 20.0),
             node_port_preview_radius: 3.5,
             scroll_gutter: 16.0,
             compact_row_pad: Vec2::new(6.0, 2.0),

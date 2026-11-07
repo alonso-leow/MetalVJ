@@ -40,6 +40,7 @@ pub mod face;
 pub mod escena;
 pub mod export;
 pub mod fixture;
+pub mod stage;
 // D2 (show-control lote): the GDTF importer — a `.gdtf` zip to a
 // `data/fixtures/<model>.toml` profile in the `fixture` model.
 pub mod gdtf;

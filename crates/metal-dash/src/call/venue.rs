@@ -107,8 +107,9 @@ pub fn list(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             .collect();
         let draft = load_draft(&root, id);
         let blend = blend_report(&v);
+        let stage = stage_reply(&v, &root);
         return Ok(
-            json!({ "venue": v, "report": report, "outputs": outputs, "compositions": spans, "patch": patch, "draft": draft, "blend": blend, "dmx_bus": dmx_bus }),
+            json!({ "venue": v, "report": report, "outputs": outputs, "compositions": spans, "patch": patch, "draft": draft, "blend": blend, "dmx_bus": dmx_bus, "stage": stage }),
         );
     }
     let venues: Vec<Value> = venue::list(&root)
@@ -790,6 +791,38 @@ fn creates_room(op: &str) -> bool {
         op,
         "surface" | "screen" | "object" | "stage" | "truss" | "dummy" | "projector" | "place" | "fixture"
     )
+}
+
+/// The Stage hitbox of a venue (`metal_perform::stage`): every emitting
+/// fixture's grid point, its aim and whether that aim was hand-tuned or pinned
+/// by hand, and the cells (`point` × `kind`) the hitbox view draws. The panel
+/// reads this, never the venue file (rule 9).
+pub(crate) fn stage_reply(v: &Venue, root: &std::path::Path) -> Value {
+    let patch = metal_perform::stage::patch_of(v, root);
+    let placements: Vec<Value> = patch
+        .placements()
+        .iter()
+        .map(|p| {
+            let fixture = patch.fixtures.iter().find(|f| f.id == p.fixture);
+            json!({
+                "fixture": p.fixture,
+                "kind": fixture.map(|f| f.kind.word()).unwrap_or_default(),
+                "point": p.point.word(),
+                "yaw": p.yaw,
+                "pitch": p.pitch,
+                "tuned": p.tuned,
+                "pinned": fixture.is_some_and(|f| f.point.is_some()),
+            })
+        })
+        .collect();
+    let cells: Vec<Value> = patch
+        .cells()
+        .into_iter()
+        .map(|((point, kind), fixtures)| {
+            json!({ "point": point.word(), "kind": kind.word(), "fixtures": fixtures })
+        })
+        .collect();
+    json!({ "name": patch.name, "placements": placements, "cells": cells })
 }
 
 /// An empty room under `id`: its name is its id, and nothing else is in it.
@@ -2305,10 +2338,42 @@ fn edit_fixture(v: &mut Venue, root: &std::path::Path, body: &Value) -> Result<V
             other => return Err(format!("unknown drive {other:?}: frame or fixed")),
         };
     }
+    // The hitbox point this fixture is pinned to (`"l2.back.l"`); `null` or `""`
+    // unpins it. A word that is not a grid point is refused, so a pin can never
+    // name a place the stage cannot hold.
+    match body.get("stage_point") {
+        Some(Value::Null) => f.stage_point = None,
+        Some(Value::String(p)) if p.is_empty() => f.stage_point = None,
+        Some(Value::String(p)) => {
+            let point = metal_stage::Point::parse(p).ok_or_else(|| {
+                format!("unknown stage point {p:?}: a grid point such as l2.back.l")
+            })?;
+            f.stage_point = Some(point.word());
+        }
+        Some(_) => return Err("`stage_point` is a grid point word or null".into()),
+        None => {}
+    }
     match body.get("projector") {
         Some(Value::Null) => f.projector = None,
         Some(Value::String(p)) => f.projector = (!p.is_empty()).then(|| p.clone()),
         _ => {}
+    }
+    // The stage hitbox: `stage_point` pins the fixture to a grid point (`null`
+    // or "" clears the pin, back to the nearest point); `yaw`/`pitch` are its
+    // tuned pose, which wins over the point's default aim. Checked before any
+    // write (the stage tools and the Settings page post this same body).
+    match body.get("stage_point") {
+        Some(Value::Null) => f.stage_point = None,
+        Some(Value::String(p)) if p.is_empty() => f.stage_point = None,
+        Some(Value::String(p)) => f.stage_point = Some(metal_perform::stage::pin_word(p)?),
+        Some(_) => return Err("`stage_point` is a grid point (l2.back.l) or null".into()),
+        None => {}
+    }
+    if let Some(yaw) = body["yaw"].as_f64() {
+        f.yaw = yaw as f32;
+    }
+    if let Some(pitch) = body["pitch"].as_f64() {
+        f.pitch = pitch as f32;
     }
     // D4: a matrix fixture's grid, scan order and channel map. `null` clears
     // it; a matrix body was validated above.
@@ -3167,6 +3232,33 @@ mod tests {
     use super::*;
     use crate::output::{Mask, Output};
 
+    /// `POST /venue { op: "fixture", stage_point }` pins a fixture to a grid
+    /// point, a bad word is refused without touching the fixture, and `null`
+    /// unpins it; the stage reply then places it there.
+    #[test]
+    fn a_stage_point_pins_a_fixture_and_a_bad_word_is_refused() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut v = blank_room("stage-test");
+        let mut f = venue::Fixture::new("wash-1".into(), "wash-1".into(), venue::FixtureKind::Wash);
+        f.at = Some([-3.0, 6.7, -0.8]);
+        v.fixtures.push(f);
+
+        let err = edit_fixture(&mut v, &root, &json!({ "id": "wash-1", "stage_point": "l1.mid.l" }));
+        assert!(err.is_err(), "a mid row is not on the floor level");
+        assert_eq!(v.fixtures[0].stage_point, None);
+
+        edit_fixture(&mut v, &root, &json!({ "id": "wash-1", "stage_point": "l3.mid.c" })).unwrap();
+        assert_eq!(v.fixtures[0].stage_point.as_deref(), Some("l3.mid.c"));
+        let stage = stage_reply(&v, &root);
+        let placed = &stage["placements"][0];
+        assert_eq!(placed["point"], "l3.mid.c");
+        assert_eq!(placed["pinned"], true);
+        assert_eq!(stage["cells"][0]["fixtures"][0], "wash-1");
+
+        edit_fixture(&mut v, &root, &json!({ "id": "wash-1", "stage_point": null })).unwrap();
+        assert_eq!(v.fixtures[0].stage_point, None);
+    }
+
     /// The screen op reconciles a physical aspect with its pixels, on the
     /// side the body names.
     #[test]
@@ -3931,6 +4023,35 @@ mod tests {
             v.fixtures.is_empty(),
             "nothing is written on a refused body"
         );
+        let _ = metal_vfs::remove_dir_all(&root);
+    }
+
+    /// Stage hitbox: the fixture op pins a fixture to a grid point and sets its tuned
+    /// pose; `""` clears the pin; a word that is not a grid point is refused and the
+    /// venue keeps its pin (nothing is saved on a refused body, the route saves on `Ok`).
+    #[test]
+    fn the_fixture_op_pins_a_stage_point_and_sets_a_tuned_pose() {
+        let root = fixture_root("stage-pin");
+        let mut v = fixture_venue();
+        let added = edit_fixture(&mut v, &root, &json!({ "op": "fixture", "venue": "test", "kind": "wash" }))
+            .expect("adds");
+        let id = added["id"].as_str().unwrap().to_string();
+
+        let pin = json!({ "op": "fixture", "venue": "test", "id": id, "stage_point": "l2.back.l", "yaw": 12.0, "pitch": -25.0 });
+        let out = edit_fixture(&mut v, &root, &pin).expect("pins and poses");
+        assert_eq!(out["stage_point"], json!("l2.back.l"));
+        assert_eq!(out["yaw"], json!(12.0));
+        assert_eq!(out["pitch"], json!(-25.0));
+
+        let bad = json!({ "op": "fixture", "venue": "test", "id": id, "stage_point": "l1.mid.l" });
+        let err = edit_fixture(&mut v, &root, &bad).unwrap_err();
+        assert!(err.contains("l1.mid.l"), "{err}");
+        let kept = v.fixtures.iter().find(|f| f.id == id).unwrap();
+        assert_eq!(kept.stage_point.as_deref(), Some("l2.back.l"), "a refused pin changes nothing");
+
+        let clear = json!({ "op": "fixture", "venue": "test", "id": id, "stage_point": "" });
+        edit_fixture(&mut v, &root, &clear).expect("clears the pin");
+        assert!(v.fixtures.iter().find(|f| f.id == id).unwrap().stage_point.is_none());
         let _ = metal_vfs::remove_dir_all(&root);
     }
 

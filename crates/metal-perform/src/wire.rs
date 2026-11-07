@@ -1023,6 +1023,25 @@ fn heads_of(
     fixtures: &[&crate::venue::Fixture],
     root: &Path,
 ) -> Vec<(u16, SampledHead)> {
+    heads_with(v, fixtures, root, &|f| v.fixture_points(f).ok().map(|points| points.first().copied().flatten()))
+}
+
+/// The DMX heads of every fixture of the venue that a stage-float (or any signal) row can
+/// drive. Unlike [`venue_heads`] it needs no projector: a signal does not sample the frame,
+/// so a venue without one (the stage venue, which is all LED wall and moving heads) still
+/// gets its addresses from the same allocator.
+fn signal_heads(v: &crate::venue::Venue, root: &Path) -> Vec<(u16, SampledHead)> {
+    heads_with(v, &venue_selection(v, None, None), root, &|_| Some(None))
+}
+
+/// [`heads_of`] with the fixture's sample point supplied by the caller. `None` leaves the
+/// fixture out (a frame sample that cannot be taken: no projector, or no such point).
+fn heads_with(
+    v: &crate::venue::Venue,
+    fixtures: &[&crate::venue::Fixture],
+    root: &Path,
+    sample_of: &dyn Fn(&crate::venue::Fixture) -> Option<Option<[f32; 2]>>,
+) -> Vec<(u16, SampledHead)> {
     use crate::venue::FixtureKind;
 
     let profiles = fixture::load_with(root, &fixture::extra_dirs(root));
@@ -1035,10 +1054,7 @@ fn heads_of(
         if !matches!(f.wire.as_str(), "dmx" | "sacn") {
             continue;
         }
-        let points = match v.fixture_points(f) {
-            Ok(points) => points,
-            Err(_) => continue,
-        };
+        let Some(sample) = sample_of(f) else { continue };
         let Some(model) = f.profile.as_deref() else { continue };
         let Some(profile) = profiles.iter().find(|p| p.model == model) else { continue };
         // D1: the fixture's own override wins over the profile's defaults.
@@ -1054,7 +1070,7 @@ fn heads_of(
         placed.push((
             universe,
             model.to_string(),
-            points.first().copied().flatten(),
+            sample,
             f.id.clone(),
             address,
             span,
@@ -1494,7 +1510,7 @@ fn fixture_signal_packet(
     wire: &Signal,
     patch: PatchMode,
 ) -> Option<VenuePacket> {
-    let (universe, head) = venue_heads(v, None, root).into_iter().find(|(_, h)| h.id == fixture_id)?;
+    let (universe, head) = signal_heads(v, root).into_iter().find(|(_, h)| h.id == fixture_id)?;
     let slots = fixture::drive_head_mode(root, &head.head(), Some(graph), None, wire, patch)?;
     Some(VenuePacket { wire: "sacn".into(), key: universe.to_string(), universe, slots, state: None, pixels: 0 })
 }
@@ -1571,6 +1587,23 @@ fn drive_venue_nodes(
                     fixture_signal_packet(&v, &cfg.fixture, root, graph, &signal, cfg.patch_mode())
                         .into_iter()
                         .collect()
+                }
+                // Stage floats (`stage`: the row wired into `stage`; `ai_stage`: the venue's
+                // trained weights on the digest's music). With no usable row the node falls
+                // through to the frame, so a graph without stage floats is unchanged.
+                "stage" | "ai_stage" => {
+                    let row = if cfg.colour_from() == "stage" {
+                        rows.row_for_port(graph, &node.id, "stage")
+                    } else {
+                        crate::stage::ai_row(&v, root, rows.raw)
+                    };
+                    let signal = row
+                        .and_then(|row| crate::stage::expand_row(&v, root, &row))
+                        .and_then(|mut signals| signals.remove(&cfg.fixture));
+                    match signal {
+                        Some(signal) => fixture_signal_packet(&v, &cfg.fixture, root, graph, &signal, cfg.patch_mode()).into_iter().collect(),
+                        None => packets_of(&v, &venue_selection(&v, None, Some(&cfg.fixture)), forced, frame, w, h, root),
+                    }
                 }
                 _ => packets_of(&v, &venue_selection(&v, None, Some(&cfg.fixture)), forced, frame, w, h, root),
             }
@@ -4039,6 +4072,98 @@ mod venue_tests {
             }
         }
         let _ = metal_vfs::remove_dir_all(&root);
+    }
+
+    /// One `venue.fixture` node on `venue`'s `fixture`, `config` merged over the pointer.
+    /// `feed` wires a row source into its `stage` port.
+    fn fixture_graph(venue: &str, fixture: &str, config: serde_json::Value, feed: bool) -> metal_graph::Graph {
+        let mut g = metal_graph::Graph::new("device-fx", "t", metal_graph::Domain::Live);
+        let node = g.add_node("fx", metal_graph::VENUE_FIXTURE_KIND, [1.0, 0.0]);
+        let mut cfg = serde_json::json!({ "venue": venue, "fixture": fixture });
+        for (k, v) in config.as_object().unwrap() {
+            cfg[k] = v.clone();
+        }
+        g.node_mut(&node).unwrap().config = metal_graph::Config::from_json_str(&cfg.to_string()).unwrap();
+        if feed {
+            g.add_node("src", "source.const", [0.0, 0.0]);
+            g.add_edge(metal_graph::Endpoint::new("src", "row"), metal_graph::Endpoint::new(&node, "stage"));
+        }
+        g
+    }
+
+    /// The bus bytes one graph drives on the universe `fixture`'s head sits on, after one frame.
+    fn bus_bytes(root: &Path, rows: &SourceRows, g: &metal_graph::Graph, venue: &str, fixture: &str) -> Vec<u8> {
+        let (px, w, h) = frame();
+        let mut wires = HashMap::new();
+        let mut bus = DmxBus::new();
+        let now = Instant::now();
+        drive_sampled_bus_with(g, &px, w, h, root, rows, &mut wires, &mut bus, now);
+        let v = crate::venue::load(root, venue).unwrap();
+        let (universe, _) = signal_heads(&v, root).into_iter().find(|(_, h)| h.id == fixture).unwrap();
+        bus.resolve(universe, now).expect("the head's universe is live").to_vec()
+    }
+
+    /// A stage-float row (the stage patch's matrix order) drives the fixture it names through
+    /// the same head and profile packing a `signal` node uses.
+    #[test]
+    fn a_stage_row_drives_the_fixture_it_names() {
+        let root = data_root();
+        let venue = crate::venue::load(&root, "stage").unwrap();
+        let patch = crate::stage::patch_of(&venue, &root);
+        let mut row = vec![0.0f32; patch.matrix().columns.len()];
+        row[crate::stage::tests::column_of(&patch, "move-1", metal_stage::Channel::Level)] = 1.0;
+        let signal = crate::stage::expand_row(&venue, &root, &row).unwrap().remove("move-1").unwrap();
+        assert!(signal.level > 0.99, "the level float reached the signal");
+
+        let g = fixture_graph("stage", "move-1", serde_json::json!({ "colour_from": "stage" }), true);
+        let rows = SourceRows { rows: None, base: None, script_rows: None, raw: &row };
+        let bytes = bus_bytes(&root, &rows, &g, "stage", "move-1");
+        let (_, head) = signal_heads(&venue, &root).into_iter().find(|(_, h)| h.id == "move-1").unwrap();
+        let expected = fixture::drive_head(&root, &head.head(), Some(&g), None, &signal).unwrap();
+        assert!(expected.iter().any(|(_, v)| *v == 255), "the level byte is on");
+        for (address, value) in expected {
+            assert_eq!(bytes[address as usize - 1], value, "slot {address}");
+        }
+    }
+
+    /// No stage floats (no row wired, or no trained weights for `ai_stage`): the node samples
+    /// the frame exactly as a node that never heard of stage floats does.
+    #[test]
+    fn a_stage_node_with_no_stage_floats_samples_the_frame_as_before() {
+        let root = data_root();
+        let empty = SourceRows { rows: None, base: None, script_rows: None, raw: &[] };
+        let plain = fixture_graph("bar", "wash-1", serde_json::json!({}), false);
+        let frame_bytes = bus_bytes(&root, &empty, &plain, "bar", "wash-1");
+        assert!(frame_bytes.iter().any(|b| *b != 0), "the frame drives the wash");
+        for config in [serde_json::json!({ "colour_from": "stage" }), serde_json::json!({ "colour_from": "ai_stage" })] {
+            let g = fixture_graph("bar", "wash-1", config, false);
+            assert_eq!(bus_bytes(&root, &empty, &g, "bar", "wash-1"), frame_bytes);
+        }
+    }
+
+    /// `ai_stage` on trained weights: the music row is the digest's first columns, the
+    /// weights turn it into the stage floats, and the node drives its fixture from them.
+    #[test]
+    fn a_trained_ai_stage_node_drives_its_fixture_from_the_music() {
+        let root = crate::stage::tests::scratch_root("wire-ai");
+        let venue = crate::venue::load(&root, "stage").unwrap();
+        crate::stage::tests::trained(&venue, &root);
+        let mut music = vec![0.0f32; metal_schema::MUSIC + 13];
+        music[0] = 0.8;
+        music[2] = 0.3;
+        music[4] = 1.0;
+
+        let g = fixture_graph("stage", "move-1", serde_json::json!({ "colour_from": "ai_stage" }), false);
+        let rows = SourceRows { rows: None, base: None, script_rows: None, raw: &music };
+        let bytes = bus_bytes(&root, &rows, &g, "stage", "move-1");
+        let row = crate::stage::ai_row(&venue, &root, &music).expect("trained weights answer");
+        let signal = crate::stage::expand_row(&venue, &root, &row).unwrap().remove("move-1").unwrap();
+        let (_, head) = signal_heads(&venue, &root).into_iter().find(|(_, h)| h.id == "move-1").unwrap();
+        let expected = fixture::drive_head(&root, &head.head(), Some(&g), None, &signal).unwrap();
+        for (address, value) in expected {
+            assert_eq!(bytes[address as usize - 1], value, "slot {address}");
+        }
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
 

@@ -1714,7 +1714,7 @@ impl NodeKind {
         // Fixtures F1: one node per venue fixture (decision 2). The group node
         // above drives a whole rig from the picture; this drives one row from
         // the frame, a model's colour slots (`colour`) or a `sig_*` row
-        // (`signal`). Like the group node it is a wire terminal — nothing out —
+        // (`signal`) or a stage-float row (`stage`). Like the group node it is a wire terminal — nothing out —
         // and a **pointer** at the venue row, never a copy of its address,
         // universe, profile or pose (decision 1).
         out.push(NodeKind::new(
@@ -1725,6 +1725,7 @@ impl NodeKind {
                 Port::new("image", PortType::Image),
                 Port::new("colour", PortType::Control),
                 Port::new("signal", PortType::Control),
+                Port::new("stage", PortType::Control),
             ],
             vec![],
         ));
@@ -2388,7 +2389,7 @@ mod tests {
         assert!(k.menu);
     }
 
-    /// F1: the per-fixture node is in the catalog — `image`/`colour`/`signal`
+    /// F1: the per-fixture node is in the catalog — `image`/`colour`/`signal`/`stage`
     /// in, nothing out, family `Venue`, stage `Output`, Live only, and every
     /// param carries a default inside its own range.
     #[test]
@@ -2406,6 +2407,7 @@ mod tests {
                 ("image", PortType::Image),
                 ("colour", PortType::Control),
                 ("signal", PortType::Control),
+                ("stage", PortType::Control),
             ]
         );
         assert!(k.outputs.is_empty());

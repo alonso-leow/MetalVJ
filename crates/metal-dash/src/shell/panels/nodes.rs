@@ -408,6 +408,8 @@ pub(crate) struct VenueScene {
     pub note: Option<String>,
     /// Whether the camera already took the room's own default framing.
     pub(crate) fitted: bool,
+    /// The scene shows the stage hitbox (`stage_view`) instead of the room.
+    pub(crate) stage: bool,
 }
 
 impl Default for PanelState {
@@ -520,6 +522,7 @@ impl PanelState {
             selected: None,
             note: None,
             fitted: false,
+            stage: false,
         });
     }
 
@@ -535,6 +538,12 @@ impl PanelState {
     #[cfg(test)]
     pub(crate) fn venue_room_for_test(&self) -> Option<String> {
         self.venue_scene.as_ref().map(|s| s.room.clone())
+    }
+
+    /// Records the graph a write just returned, so the canvas paints it at once
+    /// (the same cache `add_node_at` fills).
+    pub(crate) fn set_graph_reply(&mut self, graph: Value) {
+        self.graph = Some(graph);
     }
 
     /// Whether the canvas is in its venue scene — test-only reader for the

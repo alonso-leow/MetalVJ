@@ -1,0 +1,35 @@
+# Spanish for the shell module `stage_view`: the Stage hitbox (the grid of
+# points the fixture AI speaks in). See ../README.md.
+
+"hitbox" = "hitbox"
+"stage hitbox" = "hitbox del escenario"
+"the stage's grid of points, with this room's fixtures in them" = "la grilla de puntos del escenario, con los fixtures de este venue en sus celdas"
+
+"floor level" = "nivel piso"
+"rig level" = "nivel rig"
+"zenith level" = "nivel cenital"
+"back row" = "fondo"
+"mid row" = "medio"
+"pro row" = "boca"
+"house row" = "sala"
+"left" = "izq."
+"centre" = "centro"
+"right" = "der."
+"{point} · {row}, {col}" = "{point} · {row}, {col}"
+
+"wash" = "lavado"
+"spot" = "spot"
+"moving" = "móvil"
+"backlight" = "contraluz"
+"panel" = "panel"
+"continuous" = "continua"
+"led bar" = "barra LED"
+"led strip" = "tira LED"
+"matrix" = "matriz"
+"{id} · {kind}" = "{id} · {kind}"
+"hand-tuned pose" = "pose ajustada a mano"
+"pinned to this point" = "fijado a este punto"
+
+"no fixtures on the grid yet." = "todavía no hay fixtures en la grilla."
+"drag a fixture to another point to pin it there." = "arrastrá un fixture a otro punto para fijarlo ahí."
+"could not pin the fixture: {error}" = "no se pudo fijar el fixture: {error}"

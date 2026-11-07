@@ -163,6 +163,10 @@ fn tool_schema(name: &str) -> Option<&'static [&'static str]> {
         // mapping field are optional — the same "which venue" shape the
         // surface tool has.
         "set_fixture" => Some(&["venue"]),
+        // Stage hitbox: a pin or tuned pose names its venue and fixture; the two
+        // reads name no key (the venue is the one last projected when omitted).
+        "stage_place" => Some(&["venue", "id"]),
+        "stage_grid" | "stage_view" => Some(&[]),
         // F9: the per-fixture node is named by its fixture (the venue is the
         // active one); `colour_from`/`model`/`pick`/`offset` are optional.
         "add_fixture_node" => Some(&["fixture"]),
@@ -604,5 +608,9 @@ mod tests {
         // phrases pulled from the real `//` comments cited alongside them.
         assert!(prompt.contains("un cuadro, no un") && prompt.contains("modelo"));
         assert!(prompt.contains("nunca una segunda") && prompt.contains("verdad"));
+        // The stage hitbox section: the three tools and the grid's own word for a point.
+        for name in ["stage_grid", "stage_place", "stage_view", "l2.back.l"] {
+            assert!(prompt.contains(name), "the system prompt names {name}");
+        }
     }
 }

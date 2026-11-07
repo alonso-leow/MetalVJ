@@ -55,6 +55,8 @@ const READONLY: &[&str] = &[
     "venue_view",
     "venue_hit",
     "venue_assets_search",
+    "stage_grid",
+    "stage_view",
 ];
 
 /// Tools that change what is on air or destroy authored work: they default to
@@ -198,6 +200,11 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         "venue_report" => vec!["venue"],
         "venue_view" => vec!["venue", "shot", "width", "height"],
         "venue_assets_search" => vec!["query", "licence", "limit"],
+        // Stage hitbox: the grid read (`venue`), one fixture's pin and pose
+        // (the `POST /venue {op: "fixture"}` keys), the plan picture (`venue`, size).
+        "stage_grid" => vec!["venue"],
+        "stage_place" => vec!["venue", "id", "stage_point", "yaw", "pitch"],
+        "stage_view" => vec!["venue", "width", "height"],
         "venue_asset_import" => vec![
             "venue", "object", "path", "licence", "author", "url", "scale", "at", "name",
         ],
@@ -329,6 +336,8 @@ pub fn parameters(name: &str) -> Option<Value> {
         // `dir` and `target` are either-or; only `origin` is forced.
         "venue_hit" => vec!["origin"],
         "venue_report" | "venue_view" | "venue_assets_search" => Vec::new(),
+        "stage_grid" | "stage_view" => Vec::new(),
+        "stage_place" => vec!["venue", "id"],
         "venue_asset_import" => vec!["object", "path", "licence"],
         _ => crate::shots::tool_args(name)
             .map(|s| s.to_vec())
@@ -524,5 +533,24 @@ mod tests {
         }
         assert_eq!(crate::shots::tool_args("set_fixture"), Some(&["venue"][..]));
         assert!(meta("set_fixture").is_some());
+    }
+
+    /// Stage hitbox: the two reads only read; `stage_place` writes (so it asks), names
+    /// the pin and the pose keys, requires its venue and fixture, and types its numbers.
+    #[test]
+    fn stage_tools_read_or_write_and_name_their_keys() {
+        assert_eq!(meta("stage_grid").unwrap(), ToolMeta { readonly: true, destructive: false });
+        assert_eq!(meta("stage_view").unwrap(), ToolMeta { readonly: true, destructive: false });
+        assert!(!meta("stage_place").unwrap().readonly, "a pin writes the venue");
+
+        let place = parameters("stage_place").unwrap();
+        assert_eq!(place["required"], json!(["venue", "id"]));
+        for key in ["stage_point", "yaw", "pitch"] {
+            assert!(place["properties"].get(key).is_some(), "missing {key}");
+        }
+        assert_eq!(place["properties"]["stage_point"]["type"], "string");
+        assert_eq!(place["properties"]["yaw"]["type"], "number");
+        assert_eq!(parameters("stage_view").unwrap()["properties"]["width"]["type"], "number");
+        assert_eq!(parameters("stage_grid").unwrap()["required"], json!([]));
     }
 }

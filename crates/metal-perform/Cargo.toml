@@ -72,6 +72,7 @@ metal-ingest = { path = "../metal-ingest" }
 metal-ble = { path = "../metal-ble" }
 metal-videoio = { path = "../metal-videoio", optional = true }
 # `drive.rs`'s colour maths (Oklch → sRGB) — pure, no GPU in it.
+metal-stage = { path = "../metal-stage" }
 metal-notation = { path = "../metal-notation" }
 metal-render = { path = "../metal-render", optional = true }
 # default-features off: `metal-listen`'s default is `tone` (ONNX Runtime), which

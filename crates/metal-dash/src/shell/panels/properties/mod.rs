@@ -938,6 +938,11 @@ impl PanelState {
                 let vid = node["config"]["venue"].as_str().unwrap_or_default().to_string();
                 patch::section(ui, theme, door, &vid, &mut self.venue_editor);
             }
+            // The stage hitbox: the grid the fixture AI speaks in, with this
+            // room's fixtures in their cells (`panels::stage_view`).
+            "hitbox" => crate::shell::panels::stage_view::section(
+                ui, theme, door, gid, node_id, node, graph,
+            ),
             "grade" => {
                 let kind = node["kind"].as_str().unwrap_or_default();
                 let _ = grade::section(ui, theme, door, kind, gid, node_id, graph, io);
@@ -1577,6 +1582,7 @@ fn own_sections(kind: &str) -> Vec<&'static str> {
             crate::shell::i18n::tr_key("venue editor"),
             crate::shell::i18n::tr_key("fixture"),
             crate::shell::i18n::tr_key("patch"),
+            crate::shell::i18n::tr_key("hitbox"),
         ];
     }
     Vec::new()

@@ -176,6 +176,8 @@ metal-update = { path = "../metal-update" }
 # today, `resolve → compile → execute → output` as it lands. No wgpu, no
 # winit, no HTTP — on both builds.
 metal-perform = { path = "../metal-perform" }
+# The stage hitbox grid (`shell/panels/stage_view.rs` draws its points).
+metal-stage = { path = "../metal-stage" }
 metal-geom = { path = "../metal-geom" }
 metal-videoio = { path = "../metal-videoio", optional = true }
 # Transmissions. No GPU in it either, so like `metal-router` it is on both builds:

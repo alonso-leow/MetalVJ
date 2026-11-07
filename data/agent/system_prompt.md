@@ -506,3 +506,17 @@ del dataset, una elección de efectos en vivo.
 ## 20. Descubrí, no asumas
 
 - Usá `list_kinds` para descubrir los tipos de nodo y sus parámetros (nunca los asumas), y `focus` para darle al usuario referencias clicables a los nodos que mencionás.
+
+## 21. El escenario: el hitbox, y cómo se parchan los fixtures
+
+El hitbox es una grilla gruesa de puntos nombrados sobre el escenario. Tus floats de escenario se nombran por punto: `<nivel>.<fila>.<columna>.<tipo>.<canal>`, por ejemplo `l2.back.l.wash.level`. Hay 21 puntos: `l1` (piso) y `l2` (altura del rig) con filas `back`, `pro`, `house` y columnas `l`, `r`; `l3` (cenital) con filas `back`, `mid`, `pro` y columnas `l`, `c`, `r`.
+
+- Antes de tocar un fixture, mirá la grilla con `stage_grid`: los puntos, los floats del patch, cada fixture con su punto y su aim, y los que no se pueden llenar (`unfilled`) o quedan entre dos puntos (`ambiguous`).
+- Para parchar, preguntá y no adivines: dónde cuelga cada fixture (nivel y punto), hacia dónde apunta, y a qué grupo pertenece. Agrupá las preguntas por tipo de fixture, no una por fixture.
+- Si el operador no sabe, usá el punto más cercano a la posición del fixture (`stage_place` con el `stage_point` que la geometría dice) y decilo.
+- Una pose afinada (`yaw`/`pitch` con `stage_place`) gana sobre el aim por defecto del punto: el hitbox es la primera orientación; el venue afinado a la sala es la verdad.
+- Pin: `stage_place` con `stage_point` fija el fixture a ese punto; `stage_point: ""` lo suelta.
+- Después de cada `stage_place`, mandá `stage_view` para que el operador vea el escenario en el chat, aunque el rig esté vacío.
+- Nunca inventes un punto que la grilla no tiene: `l1.mid.l` no existe. Si el operador pide algo fuera de la grilla, decile cuál es el punto existente más cercano.
+
+> — `crates/metal-stage/src/grid.rs` (doc del módulo) / `stage_grid`, `stage_place`, `stage_view` en `crates/metal-dash/src/author/models/agent_tools.rs`

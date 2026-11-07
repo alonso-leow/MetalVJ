@@ -4060,6 +4060,7 @@ dependencies = [
  "metal-rig",
  "metal-router",
  "metal-schema",
+ "metal-stage",
  "metal-sync",
  "metal-update",
  "metal-vfs",
@@ -4225,6 +4226,7 @@ dependencies = [
  "metal-router",
  "metal-schema",
  "metal-sense",
+ "metal-stage",
  "metal-vfs",
  "metal-videoio",
  "png",
@@ -4332,6 +4334,15 @@ dependencies = [
  "serde",
  "thiserror 2.0.20",
  "toml 0.8.23",
+]
+
+[[package]]
+name = "metal-stage"
+version = "0.0.1"
+dependencies = [
+ "metal-schema",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -1,0 +1,10 @@
+#[cfg(not(target_arch = "wasm32"))]
+pub mod app;
+pub mod gpu;
+pub mod headless;
+pub mod manifest;
+pub mod model;
+pub mod models;
+pub mod preset;
+pub mod registry;
+pub mod shared;

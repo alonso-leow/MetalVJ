@@ -1,0 +1,33 @@
+{
+ "id": "aurora-skip",
+ "name": "Skip",
+ "target": {
+  "model": "aurora"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "energy"
+   },
+   "curve": "step",
+   "steps": [0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "impact"
+   },
+   "curve": "step",
+   "steps": [0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15, 0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "palette",
+    "palette": "skies"
+   },
+   "steps": [{"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null]
+  }
+ ]
+}

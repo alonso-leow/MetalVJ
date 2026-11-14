@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# The vision weights, downloaded once — never committed.
+#
+# H1's detector reads an ONNX face/pose model through `ort` (the `mediapipe`
+# cargo feature). The weights are large and licence-bound, so they live
+# outside the tree, under `~/.cache/metalvj/models/`, which is where
+# `metal-sense`'s `MediaPipeDetector::try_load` looks for them. Nothing in git
+# carries a model.
+#
+# The exact file depends on the runtime chosen in H0 (rule 11: measured, not
+# assumed), so this script does not hard-code a guess at a URL. Point it at
+# the export you measured:
+#
+#   FW_VISION_URL=https://…/face_landmarker.onnx scripts/setup-vision
+#   scripts/setup-vision https://…/pose_landmarker_heavy.onnx pose.onnx
+#
+# The optional second argument renames the file; the default name is the
+# basename of the URL, which is what `try_load` expects (`Mode::Eyes` ->
+# `pose_landmarker_heavy.onnx`, `Mode::Hands` -> `hand_landmarker.onnx`).
+#
+# Re-running is safe: an existing file with a matching size is left alone
+# unless `--force` is given.
+set -euo pipefail
+
+DEST="${HOME:?HOME is not set}/.cache/metalvj/models"
+FORCE=0
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --force) FORCE=1 ;;
+        *) ARGS+=("$arg") ;;
+    esac
+done
+
+URL="${FW_VISION_URL:-${ARGS[0]:-}}"
+if [ -z "$URL" ]; then
+    echo "usage: FW_VISION_URL=<onnx-url> scripts/setup-vision [name.onnx] [--force]" >&2
+    echo "the model export is an H0 decision; see the design notes" >&2
+    exit 2
+fi
+NAME="${ARGS[1]:-$(basename "${URL%%\?*}")}"
+
+mkdir -p "$DEST"
+OUT="${DEST}/${NAME}"
+
+if [ -s "$OUT" ] && [ "$FORCE" -eq 0 ]; then
+    echo "already present: ${OUT}"
+    exit 0
+fi
+
+echo "downloading ${URL}"
+curl -fL --retry 3 -o "${OUT}.part" "$URL"
+mv "${OUT}.part" "$OUT"
+echo "vision model: ${OUT}"
+echo "licence: check the model card at the export source and keep its licence next to the file"

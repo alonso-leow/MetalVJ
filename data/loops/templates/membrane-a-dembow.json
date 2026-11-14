@@ -1,0 +1,96 @@
+{
+ "id": "membrane-a-dembow",
+ "name": "Dembow",
+ "target": {
+  "model": "membrane"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "wind_force"
+   },
+   "curve": "step",
+   "steps": [
+    0.15,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.15,
+    null,
+    0.9,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.15,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "density"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.9,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "tip",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "id": "fx-particles-storm",
+ "name": "Storm",
+ "target": {
+  "effect": "particles"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "drift"
+   },
+   "curve": "step",
+   "steps": [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "jitter"
+   },
+   "curve": "step",
+   "steps": [0.1, null, null, null, 0.26, null, null, null, 0.1, null, null, null, 0.9, 0.34, 0.9, 0.34]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "direction"
+   },
+   "curve": "ramp",
+   "steps": [0.0, 0.019, 0.073, 0.154, 0.25, 0.346, 0.427, 0.481, 0.5, 0.481, 0.427, 0.346, 0.25, 0.154, 0.073, 0.019]
+  }
+ ]
+}

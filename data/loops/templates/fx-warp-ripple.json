@@ -1,0 +1,33 @@
+{
+ "id": "fx-warp-ripple",
+ "name": "Ripple",
+ "target": {
+  "effect": "warp"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "mode"
+   },
+   "curve": "step",
+   "steps": [0.58, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "amount"
+   },
+   "curve": "ramp",
+   "steps": [0.6, 0.375, 0.25, 0.175, 0.6, 0.375, 0.25, 0.175, 0.6, 0.375, 0.25, 0.175, 0.6, 0.375, 0.25, 0.175]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "phase"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.067, 0.133, 0.2, 0.267, 0.333, 0.4, 0.467, 0.533, 0.6, 0.667, 0.733, 0.8, 0.867, 0.933, 1.0]
+  }
+ ]
+}

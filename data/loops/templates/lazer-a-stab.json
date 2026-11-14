@@ -1,0 +1,121 @@
+{
+ "id": "lazer-a-stab",
+ "name": "Stab",
+ "target": {
+  "model": "laser"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "dispersion"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    0.9,
+    null,
+    0.9,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    0.9,
+    null,
+    0.2,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "variety"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    0.2,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "laser",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    {
+     "colour": 0
+    },
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+{
+ "id": "parallax-cueva-a-stab",
+ "name": "Stab",
+ "target": {"model": "parallax-cave"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "fog"}, "curve": "step",
+   "steps": [0.85, 0.15, 0.15, 0.85, 0.15, 0.15, 0.85, 0.15, 0.15, 0.15, 0.85, 0.15, 0.15, 0.15, 0.85, 0.15]},
+  {"target": {"kind": "float", "param": "pixel"}, "curve": "step",
+   "steps": [null, null, null, null, null, null, 0.6, null, null, null, null, null, null, null, 0.6, null]},
+  {"target": {"kind": "palette", "slot": "fog_c", "palette": "psychedelia"},
+   "steps": [{"colour": 1}, null, null, null, {"colour": 3}, null, null, null, {"colour": 0}, null, null, null, {"colour": 2}, null, null, null]}
+ ]
+}

@@ -1,0 +1,90 @@
+{
+ "id": "geoterrain-a-breath-build",
+ "name": "Breath Build",
+ "target": {
+  "model": "geoterrain"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "density"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.85,
+    0.8,
+    0.7,
+    0.6,
+    0.5,
+    0.4,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "radius"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.35,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "spiral",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

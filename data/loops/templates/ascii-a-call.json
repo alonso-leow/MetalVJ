@@ -1,0 +1,90 @@
+{
+ "id": "ascii-a-call",
+ "name": "Call",
+ "target": {
+  "model": "ascii"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "amplitude"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    0.3,
+    null,
+    0.6,
+    null,
+    0.3,
+    null,
+    0.2,
+    null,
+    0.2,
+    null,
+    0.95,
+    null,
+    0.4,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "speed"
+   },
+   "curve": "step",
+   "steps": [
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "text",
+    "palette": "rays"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

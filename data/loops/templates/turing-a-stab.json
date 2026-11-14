@@ -1,0 +1,90 @@
+{
+ "id": "turing-a-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "turing"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "sharp"
+   },
+   "curve": "step",
+   "steps": [
+    0.95,
+    null,
+    null,
+    null,
+    null,
+    0.95,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.95,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "flow_force"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "patron",
+    "palette": "metalvj-red"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,94 @@
+{
+ "id": "solvent-a-call-answer",
+ "name": "Call Answer",
+ "target": {
+  "model": "solvent"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "center_x"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "hit"
+   },
+   "curve": "step",
+   "steps": [
+    0.7,
+    0.1,
+    0.7,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.7,
+    0.1,
+    0.7,
+    0.1,
+    0.95,
+    0.1,
+    0.1,
+    0.1
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "liquid_b",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

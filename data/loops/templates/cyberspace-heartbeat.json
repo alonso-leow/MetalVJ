@@ -1,0 +1,33 @@
+{
+ "id": "cyberspace-heartbeat",
+ "name": "Heartbeat",
+ "target": {
+  "model": "cyberspace"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "neon"
+   },
+   "curve": "ramp",
+   "steps": [0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "speed_parallax"
+   },
+   "curve": "ramp",
+   "steps": [0.15, 0.253, 0.5, 0.747, 0.85, 0.747, 0.5, 0.253, 0.15, 0.253, 0.5, 0.747, 0.85, 0.747, 0.5, 0.253]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "neon",
+    "palette": "neon"
+   },
+   "steps": [{"colour": 0}, null, null, null, {"colour": 1}, null, null, null, {"colour": 2}, null, null, null, {"colour": 3}, null, null, null]
+  }
+ ]
+}

@@ -1,0 +1,90 @@
+{
+ "id": "vitral-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "stained-glass"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "bevel"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "burst"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.85,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "lead",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

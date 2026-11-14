@@ -1,0 +1,69 @@
+{
+  "domain": "dmx",
+  "step": "tilt-delay-wave",
+  "date": "2026-11-12",
+  "status": "ready",
+  "requires": "a running metal-dash (POST /outputs, GET /venue, POST /graph/node reachable through metal-mcp); the bar venue group heads should have at least two distinct points",
+  "venue": "bar",
+  "calls": [
+    {
+      "tool": "create_node",
+      "args": {
+        "graph": "{graph}",
+        "kind": "stage.group",
+        "config": {
+          "venue": "bar",
+          "group": "heads"
+        }
+      },
+      "saves": {
+        "group_node": "node"
+      }
+    },
+    {
+      "tool": "create_node",
+      "args": {
+        "graph": "{graph}",
+        "kind": "source.const"
+      },
+      "saves": {
+        "src_node": "node"
+      }
+    },
+    {
+      "tool": "connect_nodes",
+      "args": {
+        "graph": "{graph}",
+        "from": {
+          "node": "{src_node}",
+          "port": "control"
+        },
+        "to": {
+          "node": "{group_node}",
+          "port": "signal"
+        }
+      }
+    },
+    {
+      "tool": "set_params",
+      "args": {
+        "graph": "{graph}",
+        "id": "{group_node}",
+        "patch": {
+          "tilt_delay": 0.25
+        }
+      }
+    },
+    {
+      "tool": "look_venue",
+      "args": {
+        "id": "bar"
+      },
+      "reads": "dmx_bus"
+    }
+  ],
+  "expect": {
+    "step": "with the source's tilt stepped from 0 to 1 at t0, every fixture on position k of the group (positions in patch order, one per distinct point) shows the step at t0 + k * 0.25 s; fixtures sharing a position share that time",
+    "read": "dmx_bus universes: each head's tilt slot equals the lead's tilt k * 0.25 s earlier, k its position index (a 5-head group with all five on one point shows one time for all five)"
+  }
+}

@@ -1,0 +1,16 @@
+{
+ "id": "fx-light-leak-bloom",
+ "name": "Bloom",
+ "target": {
+  "effect": "light_leak"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "ramp",
+   "steps": [0.0, 0.103, 0.35, 0.597, 0.7, 0.597, 0.35, 0.103, 0.0, 0.103, 0.35, 0.597, 0.7, 0.597, 0.35, 0.103]
+  }
+ ]
+}

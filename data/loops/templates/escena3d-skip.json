@@ -1,0 +1,25 @@
+{
+ "id": "escena3d-skip",
+ "name": "Skip",
+ "target": {
+  "model": "scene3d"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "grid_scale"
+   },
+   "curve": "step",
+   "steps": [0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "metal"
+   },
+   "curve": "step",
+   "steps": [0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15, 0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15]
+  }
+ ]
+}

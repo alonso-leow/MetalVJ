@@ -1,0 +1,16 @@
+{
+ "id": "fx-speed-lurch",
+ "name": "Lurch",
+ "target": {
+  "effect": "speed"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.4, 0.4, 0.4, 0.4, 0.8, 0.56, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.8, 0.56, 0.4, 0.4]
+  }
+ ]
+}

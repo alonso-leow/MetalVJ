@@ -1,0 +1,92 @@
+{
+ "id": "chamber-a-call-answer",
+ "name": "Call Answer",
+ "target": {
+  "model": "chamber"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "height"
+   },
+   "curve": "step",
+   "steps": [
+    0.85,
+    null,
+    0.35,
+    null,
+    0.85,
+    null,
+    0.35,
+    null,
+    0.5,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    0.35,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "origin_x"
+   },
+   "curve": "step",
+   "steps": [
+    0.5,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.15,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

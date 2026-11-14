@@ -1,0 +1,33 @@
+{
+ "id": "fx-image-pop-wander",
+ "name": "Wander",
+ "target": {
+  "effect": "image-pop"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "position_x"
+   },
+   "curve": "ramp",
+   "steps": [0.2, 0.223, 0.288, 0.385, 0.5, 0.615, 0.712, 0.777, 0.8, 0.777, 0.712, 0.615, 0.5, 0.385, 0.288, 0.223]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "position_y"
+   },
+   "curve": "ramp",
+   "steps": [0.3, 0.359, 0.5, 0.641, 0.7, 0.641, 0.5, 0.359, 0.3, 0.359, 0.5, 0.641, 0.7, 0.641, 0.5, 0.359]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "scale"
+   },
+   "curve": "step",
+   "steps": [0.15, null, 0.35, null, 0.15, null, 0.35, null, 0.15, null, 0.35, null, 0.15, null, 0.35, null]
+  }
+ ]
+}

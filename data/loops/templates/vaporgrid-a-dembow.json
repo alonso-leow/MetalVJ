@@ -1,0 +1,69 @@
+{
+ "id": "vaporgrid-a-dembow",
+ "name": "Dembow",
+ "target": {
+  "model": "vaporgrid"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "perturbation"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "horizon",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null
+   ]
+  }
+ ]
+}

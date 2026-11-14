@@ -1,0 +1,16 @@
+[package]
+name = "metal-midi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# The MIDI wire, decoded: what a controller sent (note on/off, CC, pitch bend),
+# the input id a binding is keyed by, and how a knob's value turns into a
+# step. Pure and dependency-free by default, so the shell, the tests and the
+# browser build can all speak it; the port side (`midir`, which links the
+# system ALSA sequencer) is the `ports` feature only.
+[features]
+ports = ["dep:midir"]
+
+[dependencies]
+midir = { version = "0.11", optional = true }

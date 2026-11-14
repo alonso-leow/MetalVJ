@@ -1,0 +1,59 @@
+{
+ "id": "fx-geometry-shift",
+ "name": "Shift",
+ "target": {
+  "effect": "geometry"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "fx_geometry_vertical"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.56,
+    0.398,
+    0.308,
+    0.254,
+    0.56,
+    0.398,
+    0.308,
+    0.254,
+    0.56,
+    0.398,
+    0.308,
+    0.254,
+    0.56,
+    0.398,
+    0.308,
+    0.254
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "fx_geometry_horizontal"
+   },
+   "curve": "step",
+   "steps": [
+    0.5,
+    null,
+    0.41,
+    null,
+    0.5,
+    null,
+    0.41,
+    null,
+    0.5,
+    null,
+    0.41,
+    null,
+    0.5,
+    null,
+    0.41,
+    null
+   ]
+  }
+ ]
+}

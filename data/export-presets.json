@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Default 1080p H.264",
+    "codec": "h264",
+    "bitrate_kbps": null,
+    "fps": 30.0,
+    "width": 1920,
+    "height": 1080
+  }
+]

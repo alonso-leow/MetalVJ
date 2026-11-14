@@ -1,0 +1,11 @@
+# UNLABELED TEMPLATE — fill in while listening, then uncomment `voice`.
+#
+# Resolution: ~1 s. Times are seconds from the start of the file.
+# `voice` is half-open [start, end); everything NOT listed is no voice.
+# `style` is optional, one entry per voice span (sing | rap | speak | whisper).
+#
+# The probe treats a file with no `voice` key as *pending*, never as
+# all-silent: an empty list means "labeled, no voice" (see click-100.toml).
+song = "Fruko Y Sus Tesos - El Preso - DJ Mag Club Edit"
+# voice = [[12.0, 31.5], [45.0, 78.0]]
+# style = ["rap", "sing"]

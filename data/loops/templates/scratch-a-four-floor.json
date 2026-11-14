@@ -1,0 +1,117 @@
+{
+ "id": "scratch-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "scratch"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "width"
+   },
+   "curve": "step",
+   "steps": [
+    0.08,
+    null,
+    null,
+    null,
+    0.08,
+    null,
+    null,
+    null,
+    0.08,
+    null,
+    null,
+    null,
+    0.08,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "grain"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    0.35,
+    null,
+    null,
+    null,
+    0.5,
+    null,
+    null,
+    null,
+    0.65,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "scratchable",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

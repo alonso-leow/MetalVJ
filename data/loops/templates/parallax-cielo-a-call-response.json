@@ -1,0 +1,96 @@
+{
+ "id": "parallax-cielo-a-call-response",
+ "name": "Call Response",
+ "target": {
+  "model": "parallax-sky"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "blink"
+   },
+   "curve": "step",
+   "steps": [
+    0.7,
+    null,
+    0.2,
+    null,
+    0.7,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    0.9,
+    0.9
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "light"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.867,
+    null,
+    null,
+    0.467
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "background",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0,
+     "group": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1,
+     "group": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 0,
+     "group": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3,
+     "group": 0
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

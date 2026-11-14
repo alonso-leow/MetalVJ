@@ -1,0 +1,13 @@
+{
+  "grid": [
+    { "key": "F1", "mods": [], "trigger": "pedal" }
+  ],
+  "global": [
+    { "key": "Space", "mods": [], "action": "transport" },
+    { "key": "Escape", "mods": [], "action": "close" },
+    { "key": "Tab", "mods": [], "action": "switch-panel" }
+  ],
+  "panel": [
+    { "key": "Z", "mods": ["ctrl"], "action": "undo" }
+  ]
+}

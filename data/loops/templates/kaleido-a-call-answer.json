@@ -1,0 +1,94 @@
+{
+ "id": "kaleido-a-call-answer",
+ "name": "Call and Answer",
+ "target": {
+  "model": "kaleido"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "arms"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "mirrors"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    0.85,
+    null,
+    null,
+    null,
+    null,
+    0.2
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "crystal",
+    "palette": "rays"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    }
+   ]
+  }
+ ]
+}

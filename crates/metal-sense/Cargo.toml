@@ -1,0 +1,22 @@
+[package]
+name = "metal-sense"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# O.9: MediaPipe integration behind a feature flag (default off).
+# The trait Detector exists; StandInDetector remains the no-inference fallback.
+# MediaPipe backend (Apache 2.0, permissive) gated on `mediapipe` feature.
+# Production builds measure frame rate; this crate just provides both paths.
+[features]
+# O.9: Enable MediaPipe ONNX detector. When disabled, falls back to StandInDetector.
+mediapipe = ["dep:ort"]
+
+[dependencies]
+ort = { version = "2.0.0-rc.13", optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The examples find the model cache the same way the app does (`metal-config`).
+metal-config = { path = "../metal-config" }

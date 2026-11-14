@@ -1,0 +1,12 @@
+[package]
+name = "metal-shot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+serde.workspace = true
+toml.workspace = true
+thiserror.workspace = true

@@ -1,0 +1,16 @@
+[package]
+name = "metal-face"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Pure CPU maths: landmarks are glam vectors, controls and species are serde
+# values. No GPU, no audio, no I/O — the solver in metal-perform and the
+# `monstruo` model in metal-render both depend on this, and neither should drag
+# the other's world in.
+glam.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

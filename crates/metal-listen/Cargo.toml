@@ -1,0 +1,67 @@
+[package]
+name = "metal-listen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+# The core — STFT and the sixteen columns — has one dependency and builds in
+# seconds. Capture drags in cpal and the platform audio stack, so it is asked
+# for rather than assumed: `metal-listen` has to stay testable on a box with no
+# sound card, which is exactly where its correctness tests want to run.
+default = ["tone"]
+capture = ["dep:cpal"]
+# Whole files off disk (mp3, wav, flac, ogg, aac), decoded in pure Rust — the
+# replacement for `digest_audio.py`'s librosa.load, so digesting a song needs
+# no Python at all.
+decode = ["dep:symphonia"]
+# The tone block (plan D10): Basic Pitch inference through `metal-ml`, reduced to
+# the six tone columns. On by default — the colour mapping reads the block
+# whenever it is there — but a headless/minimal build can drop it and with it
+# ONNX Runtime, exactly as `gpu` does. With the feature off the row is still 35
+# wide; the tone block is just always zero (`tone::reducer` still compiles, so
+# its tests run in a minimal build).
+tone = ["dep:metal-ml"]
+
+[dependencies]
+# `std::time::Instant` panics on wasm32-unknown-unknown; `web-time` is std on native.
+web-time = "1"
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+# The digest's column contract — the array this crate's `FEATURES`/`COLUMNS`
+# are now re-exported from, so the digester and every consumer cannot disagree
+# about the width. A leaf crate (serde only), so this costs nothing.
+metal-schema = { path = "../metal-schema" }
+# The ONNX Runtime wrapper (D6). Optional because it drags in a prebuilt native
+# library and is only needed by the tone path; see the `tone` feature above.
+metal-ml = { path = "../metal-ml", optional = true }
+rustfft = "6"
+cpal = { version = "0.15", optional = true }
+symphonia = { version = "0.5", optional = true, default-features = false, features = ["mp3", "wav", "pcm", "flac", "vorbis", "ogg", "aac", "isomp4"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Lowers the tone worker's scheduling priority (`tone::live`): a per-thread
+# `setpriority` has no std equivalent.
+libc = "0.2"
+# WebRTC's GMM voice activity detector (a C core). Native only; wasm32 gets the
+# energy-floor stand-in in `voice/vad.rs`.
+webrtc-vad = "0.4.0"
+
+[dev-dependencies]
+# Nothing. The reference bundle is read with the tiny .npy reader in
+# `tests/npy.rs` — a plain float32 array is a header and then the floats, and
+# a dependency to parse that would cost more than it saves.
+#
+# The one exception is the V0 voice probe, which reads the hand labels in
+# `data/voice-labels/*.toml` with the same `toml` the workspace already uses.
+toml.workspace = true
+# The example looks for the song cache the same way the app does.
+metal-config = { path = "../metal-config" }
+
+[[example]]
+name = "live_from_file"
+required-features = ["decode"]
+
+[[example]]
+name = "voice_probe"
+required-features = ["decode"]

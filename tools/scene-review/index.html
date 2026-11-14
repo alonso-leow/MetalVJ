@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scene Review</title>
+<style>
+  :root { --bg:#0e1116; --panel:#161b22; --rule:#2a313c; --ink:#e6e9ee; --weak:#8b95a3; --ok:#3fb950; --no:#f85149; --accent:#d29922; }
+  * { box-sizing:border-box; border-radius:0; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:13px/1.4 system-ui, sans-serif; display:grid; grid-template-columns:320px 1fr; height:100vh; overflow:hidden; }
+  aside { background:var(--panel); border-right:1px solid var(--rule); display:flex; flex-direction:column; min-height:0; }
+  aside header { padding:10px; border-bottom:1px solid var(--rule); display:grid; gap:6px; }
+  input, select, textarea, button { background:var(--bg); color:var(--ink); border:1px solid var(--rule); font:inherit; padding:6px 8px; }
+  button { cursor:pointer; } button:hover { border-color:var(--weak); }
+  #list { overflow:auto; flex:1; }
+  .row { padding:6px 10px; border-bottom:1px solid var(--rule); cursor:pointer; display:grid; grid-template-columns:14px 1fr auto; gap:6px; align-items:center; }
+  .row:hover { background:#1c222b; } .row.sel { background:#22303f; }
+  .row .n { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .row .m { color:var(--weak); font-size:11px; }
+  .dot { width:10px; height:10px; border:1px solid var(--weak); } .dot.use { background:var(--ok); border-color:var(--ok); } .dot.no { background:var(--no); border-color:var(--no); }
+  main { display:grid; grid-template-rows:auto 1fr auto; min-height:0; }
+  #top { padding:8px 12px; border-bottom:1px solid var(--rule); display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; }
+  #title { font-size:15px; font-weight:600; } #meta { color:var(--weak); }
+  #view { position:relative; min-height:0; } canvas { display:block; width:100%; height:100%; }
+  #hud { position:absolute; left:10px; bottom:10px; color:var(--weak); font-size:11px; background:#0e1116cc; padding:4px 8px; }
+  #form { border-top:1px solid var(--rule); padding:10px 12px; display:grid; grid-template-columns:auto auto 1fr auto; gap:8px; align-items:start; }
+  #use.on { background:var(--ok); color:#000; } #no.on { background:var(--no); color:#000; }
+  textarea { width:100%; height:54px; resize:vertical; }
+  .keys { color:var(--weak); font-size:11px; grid-column:1/-1; }
+  label.chk { display:flex; gap:6px; align-items:center; color:var(--weak); }
+</style>
+</head>
+<body>
+<aside>
+  <header>
+    <input id="q" placeholder="buscar escena, carpeta, canción…">
+    <div style="display:flex;gap:6px">
+      <select id="type"><option value="">todo</option><option value="look">looks (mezclas)</option><option value="scene">escenas</option></select>
+      <select id="state"><option value="">todas</option><option value="todo">sin etiqueta</option><option value="use">usar</option><option value="no">no usar</option></select>
+    </div>
+    <div id="count" class="m" style="color:var(--weak)"></div>
+  </header>
+  <div id="list"></div>
+</aside>
+<main>
+  <div id="top"><span id="title">—</span><span id="meta"></span>
+    <label class="chk"><input type="checkbox" id="synth" checked> marcar sintéticos</label>
+    <label class="chk"><input type="checkbox" id="play" checked> reproducir</label></div>
+  <div id="view"><div id="hud"></div></div>
+  <div id="form">
+    <button id="use" title="U">✓ usar</button>
+    <button id="no" title="N">✗ no usar</button>
+    <textarea id="comment" placeholder="comentario / cambio pedido para esta escena (va al batch)"></textarea>
+    <button id="save" title="Ctrl+Enter">guardar y siguiente</button>
+    <div class="keys">U usar · N no usar · ←/→ anterior/siguiente · Ctrl+Enter guardar · arrastrar para girar, rueda para acercar</div>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+let index = [], labels = {}, shown = [], cur = -1, item = null, venue = null, choice = null;
+const rig = {};            // fixture id → {group, beam, head, segs}
+const W = () => $('#view').clientWidth, H = () => $('#view').clientHeight;
+
+// --- 3D ---------------------------------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+$('#view').prepend(renderer.domElement);
+const scene3 = new THREE.Scene();
+scene3.background = new THREE.Color(0x07090c);
+scene3.fog = new THREE.Fog(0x07090c, 30, 70);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+let orbit = { yaw: 0.35, pitch: 0.28, dist: 26, target: new THREE.Vector3(0, 3, -3) };
+function placeCamera() {
+  const t = orbit.target, c = Math.cos(orbit.pitch);
+  camera.position.set(t.x + orbit.dist * Math.sin(orbit.yaw) * c, t.y + orbit.dist * Math.sin(orbit.pitch), t.z + orbit.dist * Math.cos(orbit.yaw) * c);
+  camera.lookAt(t);
+}
+let drag = null;
+renderer.domElement.addEventListener('pointerdown', e => drag = [e.clientX, e.clientY]);
+addEventListener('pointerup', () => drag = null);
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  orbit.yaw -= (e.clientX - drag[0]) * 0.006; orbit.pitch = Math.min(1.4, Math.max(-0.1, orbit.pitch + (e.clientY - drag[1]) * 0.006));
+  drag = [e.clientX, e.clientY]; placeCamera();
+});
+renderer.domElement.addEventListener('wheel', e => { orbit.dist = Math.min(80, Math.max(5, orbit.dist * (1 + e.deltaY * 0.001))); placeCamera(); e.preventDefault(); }, { passive: false });
+function resize() { renderer.setSize(W(), H()); camera.aspect = W() / H(); camera.updateProjectionMatrix(); }
+addEventListener('resize', resize);
+scene3.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+function buildStage(v) {
+  const f = v.frame;
+  const mat = c => new THREE.MeshLambertMaterial({ color: c });
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(f.width, 0.2, f.depth), mat(0x1b2028));
+  deck.position.set(0, -0.1, -f.depth / 2); scene3.add(deck);
+  const house = new THREE.Mesh(new THREE.BoxGeometry(f.width * 1.6, 0.05, f.house * 1.4), mat(0x101318));
+  house.position.set(0, -0.6, f.house * 0.7); scene3.add(house);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(f.width, f.zenith_y + 2, 0.1), mat(0x14181f));
+  back.position.set(0, (f.zenith_y + 2) / 2, -f.depth - 0.4); scene3.add(back);
+  // A haze plane catches the beams' feet.
+  const grid = new THREE.GridHelper(Math.max(f.width, f.depth) * 2, 20, 0x222833, 0x161b22); grid.position.y = 0.01; scene3.add(grid);
+  orbit.target.set(0, f.rig_y * 0.6, -f.depth * 0.3);
+  for (const fx of v.fixtures) {
+    const g = new THREE.Group();
+    g.position.set(fx.at[0], fx.at[1], fx.at[2]);
+    const pix = fx.segments > 0, run = fx.spot.includes('.run.');
+    const o = { group: g, kind: fx.kind, base: [fx.yaw, fx.pitch], segs: [], beam: null, head: null };
+    if (pix) {
+      const n = fx.segments, len = 1.6;
+      for (let k = 0; k < n; k++) {
+        const s = new THREE.Mesh(new THREE.BoxGeometry(run ? 0.12 : len / n * 0.9, 0.12, run ? len / n * 0.9 : 0.12), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        const off = (k + 0.5) / n * len - len / 2;
+        s.position.set(run ? 0 : off, 0, run ? off : 0); g.add(s); o.segs.push(s);
+      }
+    } else {
+      o.head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+      g.add(o.head);
+      const wide = fx.kind === 'wash' || fx.kind === 'panel' || fx.kind === 'continuous';
+      const cone = new THREE.ConeGeometry(wide ? 2.2 : 0.7, 12, 24, 1, true);
+      cone.translate(0, -6, 0); cone.rotateX(-Math.PI / 2);   // apex at the fixture, opening along -z
+      o.beam = new THREE.Mesh(cone, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      g.add(o.beam);
+    }
+    // An outline marks a fixture the look did not write (filled by the voices).
+    const bx = pix && !run ? 1.8 : 0.45, bz = pix && run ? 1.8 : 0.45;
+    o.edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(bx, 0.45, bz)), new THREE.LineBasicMaterial({ color: 0x5aa0ff }));
+    o.edge.visible = false; g.add(o.edge);
+    scene3.add(g); rig[fx.id] = o;
+  }
+  placeCamera();
+}
+
+const color = new THREE.Color();
+function aim(mesh, yawDeg, pitchDeg) {
+  // yaw 0 looks at the back wall (-z), +90 looks +x; pitch > 0 up.
+  mesh.rotation.order = 'YXZ';
+  mesh.rotation.set(THREE.MathUtils.degToRad(pitchDeg), THREE.MathUtils.degToRad(-yawDeg), 0);
+}
+function apply(key, t) {
+  const syn = new Set($('#synth').checked ? key.synthetic : []);
+  for (const [id, o] of Object.entries(rig)) {
+    const s = key.fixtures[id];
+    o.edge.visible = syn.has(id);
+    if (o.segs.length) {
+      o.segs.forEach((m, k) => {
+        paint(m.material, key.fixtures[id + '#' + k] || s, t, 1);
+      });
+    } else if (s) {
+      const lv = paint(o.head.material, s, t, 1);
+      const mov = o.kind === 'moving';
+      aim(o.beam, o.base[0] + (mov ? s[4] : 0), o.base[1] + (mov ? s[5] : 0));
+      o.beam.material.color.copy(color);
+      o.beam.material.opacity = 0.32 * lv;
+      const z = mov ? 0.4 + (s[6] ?? 0.5) : 1; o.beam.scale.set(z, z, 1);
+    }
+  }
+}
+function paint(material, s, t, gain) {
+  if (!s) { material.color.setRGB(0, 0, 0); return 0; }
+  let [lv, h, sat, strobe] = s;
+  if (strobe > 0.05 && Math.sin(t * (6 + strobe * 30)) < 0) lv = 0;
+  color.setHSL(h, Math.min(1, sat), 0.5 * (1 - sat) + 0.5);
+  color.multiplyScalar(lv * gain);
+  material.color.copy(color);
+  return lv;
+}
+
+let t0 = performance.now();
+function frame() {
+  requestAnimationFrame(frame);
+  if (item && item.keys.length) {
+    const len = Math.max(1, (cur >= 0 ? shown[cur].length_ms : 0) || item.keys[item.keys.length - 1].ms + 500);
+    const ms = $('#play').checked ? (performance.now() - t0) % len : 0;
+    let k = item.keys[0];
+    for (const x of item.keys) if (x.ms <= ms) k = x;
+    apply(k, performance.now() / 1000);
+    const synth = k.synthetic.length, total = Object.keys(rig).length;
+    $('#hud').textContent = `${(ms / 1000).toFixed(1)} / ${(len / 1000).toFixed(1)} s · key ${item.keys.indexOf(k) + 1}/${item.keys.length} · sintéticos ${synth}/${total} · movidos ${k.moved}`;
+  }
+  renderer.render(scene3, camera);
+}
+
+// --- list and labels ---------------------------------------------------------
+function stateOf(id) { const l = labels[id]; return !l ? 'todo' : l.use === true ? 'use' : l.use === false ? 'no' : 'todo'; }
+function filter() {
+  const q = $('#q').value.trim().toLowerCase(), ty = $('#type').value, st = $('#state').value;
+  shown = index.filter(r => (!ty || r.type === ty) && (!st || stateOf(r.id) === st) &&
+    (!q || (r.name + ' ' + (r.folder || '') + ' ' + (r.songs || []).join(' ')).toLowerCase().includes(q)));
+  const done = index.filter(r => stateOf(r.id) !== 'todo').length;
+  $('#count').textContent = `${shown.length} de ${index.length} · etiquetadas ${done}`;
+  const list = $('#list'); list.innerHTML = '';
+  shown.slice(0, 2000).forEach((r, i) => {
+    const d = document.createElement('div'); d.className = 'row' + (i === cur ? ' sel' : ''); d.dataset.i = i;
+    d.innerHTML = `<span class="dot ${stateOf(r.id)}"></span><span class="n" title="${esc(r.name)}">${esc(r.name)}</span><span class="m">${r.type === 'look' ? 'look ×' + r.uses : (r.tags || []).join(' ')}</span>`;
+    d.onclick = () => open(i); list.appendChild(d);
+  });
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function open(i) {
+  if (i < 0 || i >= shown.length) return;
+  cur = i; const r = shown[i];
+  document.querySelectorAll('.row').forEach(d => d.classList.toggle('sel', +d.dataset.i === i));
+  document.querySelector(`.row[data-i="${i}"]`)?.scrollIntoView({ block: 'nearest' });
+  $('#title').textContent = r.name;
+  $('#meta').textContent = r.type === 'look' ? `look · ${r.scenes.length} escenas · ${r.uses} usos · ${(r.songs || []).slice(0, 3).join(', ')}` : `escena · ${r.folder || '—'} · ${r.keys} pasos`;
+  const l = labels[r.id]; choice = l ? l.use : null; $('#comment').value = l?.comment || ''; mark();
+  item = await (await fetch(`/data/items/${encodeURIComponent(r.id)}.json`)).json(); t0 = performance.now();
+}
+function mark() { $('#use').classList.toggle('on', choice === true); $('#no').classList.toggle('on', choice === false); }
+async function save() {
+  if (cur < 0) return; const r = shown[cur];
+  const row = { id: r.id, use: choice, comment: $('#comment').value };
+  await fetch('/label', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
+  labels[r.id] = row; const next = cur + 1; filter(); open(Math.min(next, shown.length - 1));
+}
+$('#use').onclick = () => { choice = true; mark(); };
+$('#no').onclick = () => { choice = false; mark(); };
+$('#save').onclick = save;
+['#q', '#type', '#state'].forEach(s => $(s).addEventListener('input', () => { cur = -1; filter(); }));
+addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') return save();
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.key === 'u' || e.key === 'U') { choice = true; mark(); }
+  if (e.key === 'n' || e.key === 'N') { choice = false; mark(); }
+  if (e.key === 'ArrowRight') open(cur + 1);
+  if (e.key === 'ArrowLeft') open(cur - 1);
+});
+
+(async () => {
+  resize(); frame();
+  [venue, index, labels] = await Promise.all(['/data/venue.json', '/data/index.json', '/labels'].map(u => fetch(u).then(r => r.json())));
+  index.sort((a, b) => (a.type === b.type ? 0 : a.type === 'look' ? -1 : 1) || (b.uses || 0) - (a.uses || 0) || a.name.localeCompare(b.name));
+  buildStage(venue); filter(); open(0);
+})();
+</script>
+</body>
+</html>

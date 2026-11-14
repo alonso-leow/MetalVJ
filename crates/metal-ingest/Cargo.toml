@@ -1,0 +1,20 @@
+[package]
+name = "metal-ingest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+metal-schema = { path = "../metal-schema" }
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+metal-rig = { path = "../metal-rig" }
+metal-shot = { path = "../metal-shot" }
+# H.5a: `camera::capture_frame` hands its bytes straight to `metal_sense::Image`
+# — the CPU-side shape a real capture backend is supposed to fill, per that
+# crate's own doc comment. No cycle: `metal-sense` depends on nothing.
+metal-sense = { path = "../metal-sense" }
+clap = { version = "4", features = ["derive"] }
+serde = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true

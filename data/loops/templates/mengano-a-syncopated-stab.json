@@ -1,0 +1,13 @@
+{
+ "id": "mengano-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {"model": "someone"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "elasticity"}, "curve": "step",
+   "steps": [0.95, 0.2, null, null, null, 0.95, 0.2, null, null, null, null, 0.95, 0.2, null, null, null]},
+  {"target": {"kind": "float", "param": "target_y"}, "curve": "step",
+   "steps": [0.8, null, null, null, null, 0.2, null, null, null, null, null, 0.8, null, null, null, null]},
+  {"target": {"kind": "palette", "slot": "body", "palette": "neon"},
+   "steps": [{"colour": 3}, null, null, null, null, {"colour": 0}, null, null, null, null, null, {"colour": 2}, null, null, null, null]}
+ ]
+}

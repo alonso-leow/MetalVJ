@@ -1,0 +1,23 @@
+{
+  "domain": "venue",
+  "step": "common-matrix-dedup",
+  "date": "2026-11-13",
+  "status": "ready",
+  "requires": "a running metal-dash reachable through metal-mcp; the bar venue on disk",
+  "venue": "bar",
+  "calls": [
+    {
+      "tool": "stage_matrix",
+      "args": {
+        "op": "get",
+        "venue": "bar"
+      },
+      "saves": {
+        "report": "dedup"
+      }
+    }
+  ],
+  "expect": {
+    "read": "dedup.cells: one per (point, type), each listing every fixture of that type at that point; dedup.cell_rows <= dedup.fixture_rows; dedup.groups_after <= dedup.groups_before; every name in floats parses as a common float (covered <= common)"
+  }
+}

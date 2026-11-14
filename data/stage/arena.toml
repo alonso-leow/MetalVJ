@@ -1,0 +1,751 @@
+# Example stage venue, invented: no photo behind it. An arena rig that fills the
+# common stage matrix (`metal_stage::common`) end to end: every fixture type on
+# points and on lines, and pixel bars over the audience and on the walls.
+#
+# What this example teaches:
+#
+# - **Lines.** Fixtures of one type hung in a row become one line of the grid:
+#   the proscenium truss (`l2.pro.x`), five trusses running front to back over
+#   the stage (`l3.run.l|c|r`), a truss over the audience (`l3.house.x`), the
+#   back wall (`l2.back.x`), the side walls (`l1.run.wl`, `l1.run.wr`) and a
+#   floor strip along the stage edge (`l1.pro.x`).
+# - **Variants.** Each line deals its fixtures alpha, beta, gamma, delta in order
+#   along it, so a look can paint four colours, mirror pan/tilt, or run a wave.
+# - **Pixel bars.** `pixels = N` on a `led_bar` splits it into segments the AI
+#   can paint one by one (`l3.house.x.led_bar.beta.p3.hue`).
+#
+# Units: metres, +y up, floor y = 0, the stage front edge at z = 0, the back
+# wall at z = -10. yaw 0 looks at the back wall (-z), +90 looks right (+x).
+
+[venue]
+id = "arena"
+name = "Arena stage, trusses and pixel walls"
+setting = "indoor"
+based_on = []
+notes = """
+Invented. A 16 x 10 m stage with a proscenium truss at 6 m, five trusses over
+the deck at 9 m, a truss over the audience, pixel bars on both side walls and
+on the back wall, and a floor strip along the stage edge.
+"""
+
+# --- Proscenium truss: eight heads across, 6 m up.
+
+[[fixture]]
+id = "pro-1"
+name = "proscenium head 1"
+kind = "moving"
+profile = "moving-head-beam"
+at = [-7.00, 6.00, 0.00]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+group = "pro-heads"
+notes = "Proscenium truss, left to right."
+
+[[fixture]]
+id = "pro-2"
+name = "proscenium head 2"
+kind = "moving"
+profile = "moving-head-beam"
+at = [-5.00, 6.00, 0.00]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+group = "pro-heads"
+notes = "Proscenium truss, left to right."
+
+[[fixture]]
+id = "pro-3"
+name = "proscenium head 3"
+kind = "moving"
+profile = "moving-head-beam"
+at = [-3.00, 6.00, 0.00]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+group = "pro-heads"
+notes = "Proscenium truss, left to right."
+
+[[fixture]]
+id = "pro-4"
+name = "proscenium head 4"
+kind = "moving"
+profile = "moving-head-beam"
+at = [-1.00, 6.00, 0.00]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+group = "pro-heads"
+notes = "Proscenium truss, left to right."
+
+[[fixture]]
+id = "pro-5"
+name = "proscenium head 5"
+kind = "moving"
+profile = "moving-head-beam"
+at = [1.00, 6.00, 0.00]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+group = "pro-heads"
+notes = "Proscenium truss, left to right."
+
+[[fixture]]
+id = "pro-6"
+name = "proscenium head 6"
+kind = "moving"
+profile = "moving-head-beam"
+at = [3.00, 6.00, 0.00]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+group = "pro-heads"
+notes = "Proscenium truss, left to right."
+
+[[fixture]]
+id = "pro-7"
+name = "proscenium head 7"
+kind = "moving"
+profile = "moving-head-beam"
+at = [5.00, 6.00, 0.00]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+group = "pro-heads"
+notes = "Proscenium truss, left to right."
+
+[[fixture]]
+id = "pro-8"
+name = "proscenium head 8"
+kind = "moving"
+profile = "moving-head-beam"
+at = [7.00, 6.00, 0.00]
+yaw = 0.0
+pitch = -50.0
+beam = 12.0
+wire = "dmx"
+drive = "fixed"
+group = "pro-heads"
+notes = "Proscenium truss, left to right."
+
+# --- Five trusses over the deck, front to back, a wash on each node. The
+# washes also line up across, so `stage_point` says which way the trusses run.
+
+[[fixture]]
+id = "run1-1"
+name = "truss 1 wash 1"
+kind = "wash"
+profile = "example-wash"
+at = [-6.00, 9.00, -2.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.l"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run1-2"
+name = "truss 1 wash 2"
+kind = "wash"
+profile = "example-wash"
+at = [-6.00, 9.00, -5.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.l"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run1-3"
+name = "truss 1 wash 3"
+kind = "wash"
+profile = "example-wash"
+at = [-6.00, 9.00, -8.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.l"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run2-1"
+name = "truss 2 wash 1"
+kind = "wash"
+profile = "example-wash"
+at = [-3.00, 9.00, -2.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.l"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run2-2"
+name = "truss 2 wash 2"
+kind = "wash"
+profile = "example-wash"
+at = [-3.00, 9.00, -5.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.l"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run2-3"
+name = "truss 2 wash 3"
+kind = "wash"
+profile = "example-wash"
+at = [-3.00, 9.00, -8.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.l"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run3-1"
+name = "truss 3 wash 1"
+kind = "wash"
+profile = "example-wash"
+at = [0.00, 9.00, -2.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.c"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run3-2"
+name = "truss 3 wash 2"
+kind = "wash"
+profile = "example-wash"
+at = [0.00, 9.00, -5.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.c"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run3-3"
+name = "truss 3 wash 3"
+kind = "wash"
+profile = "example-wash"
+at = [0.00, 9.00, -8.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.c"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run4-1"
+name = "truss 4 wash 1"
+kind = "wash"
+profile = "example-wash"
+at = [3.00, 9.00, -2.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.r"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run4-2"
+name = "truss 4 wash 2"
+kind = "wash"
+profile = "example-wash"
+at = [3.00, 9.00, -5.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.r"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run4-3"
+name = "truss 4 wash 3"
+kind = "wash"
+profile = "example-wash"
+at = [3.00, 9.00, -8.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.r"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run5-1"
+name = "truss 5 wash 1"
+kind = "wash"
+profile = "example-wash"
+at = [6.00, 9.00, -2.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.r"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run5-2"
+name = "truss 5 wash 2"
+kind = "wash"
+profile = "example-wash"
+at = [6.00, 9.00, -5.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.r"
+notes = "Over the deck, looking down."
+
+[[fixture]]
+id = "run5-3"
+name = "truss 5 wash 3"
+kind = "wash"
+profile = "example-wash"
+at = [6.00, 9.00, -8.00]
+yaw = 0.0
+pitch = -90.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+stage_point = "l3.run.r"
+notes = "Over the deck, looking down."
+
+# --- Over the audience: a truss of pixel bars and two spots.
+
+[[fixture]]
+id = "house-bar-1"
+name = "audience bar 1"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-6.00, 8.00, 8.00]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 16
+notes = "Pixel bar over the audience, facing the stage."
+
+[[fixture]]
+id = "house-bar-2"
+name = "audience bar 2"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-3.60, 8.00, 8.00]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 16
+notes = "Pixel bar over the audience, facing the stage."
+
+[[fixture]]
+id = "house-bar-3"
+name = "audience bar 3"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-1.20, 8.00, 8.00]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 16
+notes = "Pixel bar over the audience, facing the stage."
+
+[[fixture]]
+id = "house-bar-4"
+name = "audience bar 4"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [1.20, 8.00, 8.00]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 16
+notes = "Pixel bar over the audience, facing the stage."
+
+[[fixture]]
+id = "house-bar-5"
+name = "audience bar 5"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [3.60, 8.00, 8.00]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 16
+notes = "Pixel bar over the audience, facing the stage."
+
+[[fixture]]
+id = "house-bar-6"
+name = "audience bar 6"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [6.00, 8.00, 8.00]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 16
+notes = "Pixel bar over the audience, facing the stage."
+
+[[fixture]]
+id = "house-spot-1"
+name = "audience spot 1"
+kind = "spot"
+profile = "example-wash"
+at = [-4.00, 8.00, 8.00]
+yaw = 0.0
+pitch = -25.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+notes = "Front light from over the audience."
+
+[[fixture]]
+id = "house-spot-2"
+name = "audience spot 2"
+kind = "spot"
+profile = "example-wash"
+at = [4.00, 8.00, 8.00]
+yaw = 0.0
+pitch = -25.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+notes = "Front light from over the audience."
+
+# --- Side walls: pixel bars at the stage edges, back to front.
+
+[[fixture]]
+id = "wall-l-1"
+name = "left wall bar 1"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-8.00, 2.50, -9.00]
+yaw = 90.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 24
+notes = "Side wall pixel bar."
+
+[[fixture]]
+id = "wall-l-2"
+name = "left wall bar 2"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-8.00, 2.50, -6.00]
+yaw = 90.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 24
+notes = "Side wall pixel bar."
+
+[[fixture]]
+id = "wall-l-3"
+name = "left wall bar 3"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-8.00, 2.50, -3.00]
+yaw = 90.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 24
+notes = "Side wall pixel bar."
+
+[[fixture]]
+id = "wall-l-4"
+name = "left wall bar 4"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-8.00, 2.50, -0.50]
+yaw = 90.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 24
+notes = "Side wall pixel bar."
+
+[[fixture]]
+id = "wall-r-1"
+name = "right wall bar 1"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [8.00, 2.50, -9.00]
+yaw = -90.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 24
+notes = "Side wall pixel bar."
+
+[[fixture]]
+id = "wall-r-2"
+name = "right wall bar 2"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [8.00, 2.50, -6.00]
+yaw = -90.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 24
+notes = "Side wall pixel bar."
+
+[[fixture]]
+id = "wall-r-3"
+name = "right wall bar 3"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [8.00, 2.50, -3.00]
+yaw = -90.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 24
+notes = "Side wall pixel bar."
+
+[[fixture]]
+id = "wall-r-4"
+name = "right wall bar 4"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [8.00, 2.50, -0.50]
+yaw = -90.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 24
+notes = "Side wall pixel bar."
+
+# --- Back wall: four pixel bars across at rig height, backlights below.
+
+[[fixture]]
+id = "back-bar-1"
+name = "back wall bar 1"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-6.00, 6.00, -10.00]
+yaw = 180.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 32
+notes = "Back wall pixel bar, facing the audience."
+
+[[fixture]]
+id = "back-bar-2"
+name = "back wall bar 2"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [-2.00, 6.00, -10.00]
+yaw = 180.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 32
+notes = "Back wall pixel bar, facing the audience."
+
+[[fixture]]
+id = "back-bar-3"
+name = "back wall bar 3"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [2.00, 6.00, -10.00]
+yaw = 180.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 32
+notes = "Back wall pixel bar, facing the audience."
+
+[[fixture]]
+id = "back-bar-4"
+name = "back wall bar 4"
+kind = "led_bar"
+profile = "example-pixel-bar"
+at = [6.00, 6.00, -10.00]
+yaw = 180.0
+pitch = 0.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 32
+notes = "Back wall pixel bar, facing the audience."
+
+[[fixture]]
+id = "back-1"
+name = "backlight 1"
+kind = "backlight"
+profile = "example-wash"
+at = [-5.00, 4.00, -9.50]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+notes = "Backlight behind the band."
+
+[[fixture]]
+id = "back-2"
+name = "backlight 2"
+kind = "backlight"
+profile = "example-wash"
+at = [0.00, 4.00, -9.50]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+notes = "Backlight behind the band."
+
+[[fixture]]
+id = "back-3"
+name = "backlight 3"
+kind = "backlight"
+profile = "example-wash"
+at = [5.00, 4.00, -9.50]
+yaw = 180.0
+pitch = -30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+notes = "Backlight behind the band."
+
+# --- Floor strip along the stage edge.
+
+[[fixture]]
+id = "edge-1"
+name = "edge strip 1"
+kind = "led_strip"
+profile = "example-pixel-bar"
+at = [-6.00, 0.10, 0.20]
+yaw = 0.0
+pitch = 30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 8
+notes = "Floor strip on the stage lip."
+
+[[fixture]]
+id = "edge-2"
+name = "edge strip 2"
+kind = "led_strip"
+profile = "example-pixel-bar"
+at = [-3.00, 0.10, 0.20]
+yaw = 0.0
+pitch = 30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 8
+notes = "Floor strip on the stage lip."
+
+[[fixture]]
+id = "edge-3"
+name = "edge strip 3"
+kind = "led_strip"
+profile = "example-pixel-bar"
+at = [0.00, 0.10, 0.20]
+yaw = 0.0
+pitch = 30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 8
+notes = "Floor strip on the stage lip."
+
+[[fixture]]
+id = "edge-4"
+name = "edge strip 4"
+kind = "led_strip"
+profile = "example-pixel-bar"
+at = [3.00, 0.10, 0.20]
+yaw = 0.0
+pitch = 30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 8
+notes = "Floor strip on the stage lip."
+
+[[fixture]]
+id = "edge-5"
+name = "edge strip 5"
+kind = "led_strip"
+profile = "example-pixel-bar"
+at = [6.00, 0.10, 0.20]
+yaw = 0.0
+pitch = 30.0
+beam = 30.0
+wire = "dmx"
+drive = "fixed"
+pixels = 8
+notes = "Floor strip on the stage lip."

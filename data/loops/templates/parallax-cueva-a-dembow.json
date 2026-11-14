@@ -1,0 +1,13 @@
+{
+ "id": "parallax-cueva-a-dembow",
+ "name": "Dembow",
+ "target": {"model": "parallax-cave"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "halo"}, "curve": "step",
+   "steps": [0.1, null, null, 0.9, null, 0.1, 0.9, null, null, 0.1, 0.9, null, null, null, 0.9, 0.1]},
+  {"target": {"kind": "float", "param": "blink"}, "curve": "step",
+   "steps": [null, null, null, 0.7, null, null, 0.7, null, null, null, 0.7, null, null, null, 0.7, null]},
+  {"target": {"kind": "palette", "slot": "layers", "palette": "rays"},
+   "steps": [{"colour": 0}, null, null, {"colour": 2}, null, null, {"colour": 3}, null, null, null, {"colour": 1}, null, null, null, {"colour": 2}, null]}
+ ]
+}

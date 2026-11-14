@@ -1,0 +1,59 @@
+{
+ "id": "fx-chroma-key-spill-pulse",
+ "name": "Spill pulse",
+ "target": {
+  "effect": "chroma_key"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "spill"
+   },
+   "curve": "step",
+   "steps": [
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1,
+    1,
+    0.6,
+    0.3,
+    0.1
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "tolerance"
+   },
+   "curve": "step",
+   "steps": [
+    0.3,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+{
+ "id": "aurora-a-dembow",
+ "name": "Dembow",
+ "target": {"model": "aurora"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "band_0"}, "curve": "step",
+   "steps": [null, null, null, 0.85, null, null, 0.85, null, null, null, 0.85, null, null, null, 0.85, null]},
+  {"target": {"kind": "float", "param": "band_3"}, "curve": "step",
+   "steps": [null, null, null, null, 0.9, null, null, null, null, null, null, null, 0.9, null, null, null]},
+  {"target": {"kind": "palette", "slot": "palette", "palette": "rays"},
+   "steps": [{"colour": 0}, null, null, null, null, null, null, {"colour": 2}, null, null, null, {"colour": 1}, null, null, null, {"colour": 3}]}
+ ]
+}

@@ -1,0 +1,26 @@
+# Spanish for the shell module `scenes`: "English source text" = "Spanish text".
+# See ../README.md.
+
+# --- the properties gallery ---------------------------------------------------
+"scenes · {n}" = "escenas · {n}"
+"cutting scenes…" = "cortando escenas…"
+"preview" = "ver"
+"save" = "guardar"
+"favourite" = "favorita"
+"groups" = "grupos"
+"no groups yet — make one in the library's scenes" = "todavía no hay grupos — creá uno en las escenas de la biblioteca"
+"decoding…" = "decodificando…"
+"loop scene" = "bucle"
+"{n} selected" = "{n} seleccionadas"
+"send to sequence" = "enviar a secuencia"
+"export clips" = "exportar clips"
+"clear selection" = "limpiar"
+
+# --- the library's Scenes route -----------------------------------------------
+"all scenes" = "todas las escenas"
+"search scenes…" = "buscar escenas…"
+"group name" = "nombre del grupo"
+"new group" = "grupo nuevo"
+"rename group" = "renombrar grupo"
+"delete group" = "borrar grupo"
+"no saved or favourite scenes" = "no hay escenas guardadas ni favoritas"

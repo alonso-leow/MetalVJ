@@ -1,0 +1,16 @@
+{
+ "id": "fx-vignette-iris",
+ "name": "Iris",
+ "target": {
+  "effect": "vignette"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.1, 0.153, 0.207, 0.26, 0.313, 0.367, 0.42, 0.473, 0.527, 0.58, 0.633, 0.687, 0.74, 0.793, 0.847, 0.9]
+  }
+ ]
+}

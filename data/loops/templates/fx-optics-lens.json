@@ -1,0 +1,59 @@
+{
+ "id": "fx-optics-lens",
+ "name": "Lens",
+ "target": {
+  "effect": "optics"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "fx_optics_distortion"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.2,
+    0.253,
+    0.38,
+    0.507,
+    0.56,
+    0.507,
+    0.38,
+    0.253,
+    0.2,
+    0.253,
+    0.38,
+    0.507,
+    0.56,
+    0.507,
+    0.38,
+    0.253
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "fx_optics_vignetting"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.2,
+    0.26,
+    0.332,
+    0.41,
+    0.5,
+    0.572,
+    0.65,
+    0.728,
+    0.8,
+    0.728,
+    0.65,
+    0.572,
+    0.5,
+    0.41,
+    0.332,
+    0.26
+   ]
+  }
+ ]
+}

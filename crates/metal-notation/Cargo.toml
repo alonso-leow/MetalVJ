@@ -1,0 +1,8 @@
+[package]
+name = "metal-notation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+metal-rig = { path = "../metal-rig" }

@@ -1,0 +1,32 @@
+[package]
+name = "metal-videoio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "metal_videoio"
+path = "src/lib.rs"
+
+# P-C: frames out to other programs (virtual camera, NDI, Spout, Syphon) and
+# NDI frames in. Never in the browser build: `metal-perform` names this crate
+# only behind its `videoio` feature, which `metal-dash`'s `desktop` turns on.
+# Nothing here links a vendor SDK at build time — NDI and Spout are opened with
+# `libloading` when asked, and a missing runtime is a disabled mode with a
+# reason, never a build failure.
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+libloading = "0.8"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# GPU-share senders (the design notes P-C). Each is off unless its feature is on and the
+# target matches; the Syphon objc bindings only exist on macOS.
+[features]
+spout = []
+syphon = ["dep:objc2", "dep:objc2-foundation"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", optional = true }
+objc2-foundation = { version = "0.3", optional = true, default-features = false, features = ["std", "NSString"] }

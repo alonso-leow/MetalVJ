@@ -1,0 +1,80 @@
+{
+  "id": "device-sync-mixer-737857",
+  "name": "sync-mixer-737857",
+  "domain": "live",
+  "nodes": [
+    {
+      "id": "gen-0",
+      "kind": "gen.geoterrain",
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "a",
+      "bypass": false,
+      "solo": false,
+      "config": {
+        "blend": "normal",
+        "mask": null,
+        "opacity": 1.0,
+        "sector": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        "source_id": "layer-a",
+        "z": 0
+      }
+    },
+    {
+      "id": "gen-1",
+      "kind": "gen.domain",
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "b",
+      "bypass": false,
+      "solo": false,
+      "config": {
+        "blend": "normal",
+        "mask": null,
+        "opacity": 1.0,
+        "sector": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        "source_id": "layer-b",
+        "z": 0
+      }
+    },
+    {
+      "id": "out-0",
+      "kind": "output.device",
+      "pos": [
+        800.0,
+        0.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": {
+        "mode": {
+          "kind": "compose.layers"
+        }
+      }
+    }
+  ],
+  "edges": [],
+  "ids": {
+    "next": {
+      "comp": 1,
+      "edge": 2,
+      "gen": 2,
+      "out": 1
+    }
+  }
+}

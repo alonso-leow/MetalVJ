@@ -1,0 +1,25 @@
+#!/bin/sh
+# AppRun -- the entry point baked into the AppImage.
+#
+# linuxdeploy would generate one of these itself, but ours is explicit: it
+# resolves the bundle root from the AppImage mount, points the loader at the
+# libraries linuxdeploy copied in, and forwards every argument (including
+# `--backend glow` and the HTTP port) to the real binary. scripts/
+# package-linux.sh reinstalls this file after linuxdeploy runs.
+#
+# Kept POSIX sh: it may run under busybox/dash, and an AppImage should not
+# assume bash is installed.
+
+set -eu
+
+here="$(dirname "$(readlink -f "$0")")"
+export APPDIR="${APPDIR:-$here}"
+
+export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$APPDIR/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+
+# The app opens data/ relative to its working directory. Running from the
+# user's current directory keeps `dist/../data` semantics when launched from a
+# checkout; a desktop launch uses $HOME, which is where a release install
+# keeps its content.
+exec "$APPDIR/usr/bin/metal-dash" "$@"

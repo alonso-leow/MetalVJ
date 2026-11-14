@@ -1,0 +1,14 @@
+# Spanish for the shell module `stage_scenes`: "English source text" = "Spanish text".
+# See ../README.md.
+"copy the clip" = "copiar el clip"
+"discard the changes" = "descartar los cambios"
+"fade" = "fundido"
+"folder" = "carpeta"
+"length" = "duración"
+"paste at the playhead" = "pegar en el cabezal"
+"reload the scene into the clip" = "recargar la escena en el clip"
+"save the scene" = "guardar la escena"
+"scene saved" = "escena guardada"
+"scene" = "escena"
+"step {n}" = "paso {n}"
+"the scene was not saved" = "la escena no se guardó"

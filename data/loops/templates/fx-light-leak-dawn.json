@@ -1,0 +1,16 @@
+{
+ "id": "fx-light-leak-dawn",
+ "name": "Dawn",
+ "target": {
+  "effect": "light_leak"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.053, 0.107, 0.16, 0.213, 0.267, 0.32, 0.373, 0.427, 0.48, 0.533, 0.587, 0.64, 0.693, 0.747, 0.8]
+  }
+ ]
+}

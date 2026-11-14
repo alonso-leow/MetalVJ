@@ -1,0 +1,59 @@
+{
+ "id": "lazer-a-call-answer",
+ "name": "Call Answer",
+ "target": {
+  "model": "laser"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "thickness"
+   },
+   "curve": "step",
+   "steps": [
+    0.02,
+    null,
+    null,
+    0.04,
+    null,
+    null,
+    null,
+    null,
+    0.035,
+    null,
+    null,
+    0.045,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "variety"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    0.6,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

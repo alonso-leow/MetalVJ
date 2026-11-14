@@ -1,0 +1,11 @@
+# Spanish for the shell module `shader`: "English source text" = "Spanish text".
+# See ../README.md.
+
+"Shader" = "Shader"
+"No shaders yet" = "Todavía no hay shaders"
+"Pick a shader" = "Elegí un shader"
+"effect" = "efecto"
+"generator" = "Generador"
+"Save" = "Guardar"
+"Validation errors" = "Errores de validación"
+"the save was refused" = "no se pudo guardar"

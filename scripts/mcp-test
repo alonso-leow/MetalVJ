@@ -1,0 +1,292 @@
+#!/usr/bin/env python3
+"""MCP step runner for MetalVJ (stdlib only). See docs/MCP-TESTING.md.
+
+Starts or reuses metal-dash and metal-mcp --http, runs the step files of a
+domain (or one step), evaluates `expect`, writes `last_run` back, prints a table.
+Only processes this script started are terminated.
+"""
+import argparse, datetime, json, os, re, signal, subprocess, sys, time
+import urllib.request, urllib.error
+
+HOME = os.path.expanduser("~")
+STORE = os.environ.get("MVJ_MCP_TESTS", os.path.join(HOME, ".cache/metalvj/mcp-tests"))
+TARGET = os.environ.get("CARGO_TARGET_DIR", os.path.join(HOME, ".cache/mvj-targets/mcp-tests"))
+TOKEN_FILE = os.environ.get("FW_AGENT_TOKEN_FILE",
+                            os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME, ".config")),
+                                         "metalvj/agent-token"))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def now():
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
+# ---------- store ----------
+
+def load_steps(domain=None, step=None):
+    steps = []
+    if not os.path.isdir(STORE):
+        return steps
+    for dom in sorted(os.listdir(STORE)):
+        ddir = os.path.join(STORE, dom)
+        if not os.path.isdir(ddir) or (domain and dom != domain):
+            continue
+        for fn in sorted(os.listdir(ddir)):
+            if not fn.endswith(".json"):
+                continue
+            path = os.path.join(ddir, fn)
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            if step and data.get("id") != step and fn[:-5] != step:
+                continue
+            data["_path"] = path
+            steps.append(data)
+    return steps
+
+
+def save_step(s):
+    data = {k: v for k, v in s.items() if not k.startswith("_")}
+    with open(s["_path"], "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+# ---------- services ----------
+
+def reachable(url, path="/ai-config", timeout=2):
+    try:
+        urllib.request.urlopen(url.rstrip("/") + path, timeout=timeout).read()
+        return True
+    except Exception:
+        return False
+
+
+def wait_for(url, path, seconds=120):
+    end = time.time() + seconds
+    while time.time() < end:
+        if reachable(url, path):
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def port_of(url):
+    m = re.search(r":(\d+)", url)
+    return int(m.group(1)) if m else None
+
+
+def start_services(dash_url, mcp_url, token, started):
+    """Start metal-dash / metal-mcp if they are not already answering."""
+    if not reachable(dash_url):
+        exe = os.path.join(TARGET, "debug/metal-dash")
+        data = os.path.join(TARGET, "data")
+        if not os.path.exists(exe):
+            sys.exit(f"missing {exe}: build with CARGO_TARGET_DIR={TARGET} cargo build -p metal-dash -p metal-mcp --no-default-features --features desktop")
+        p = subprocess.Popen([exe, "--no-window", "--port", str(port_of(dash_url)), "--data", data],
+                             stdout=subprocess.DEVNULL, stderr=open(os.path.join(TARGET, "dash.log"), "w"))
+        started.append(("metal-dash", p))
+        if not wait_for(dash_url, "/ai-config"):
+            sys.exit(f"metal-dash did not answer at {dash_url}")
+    if not reachable_mcp(mcp_url, token):
+        exe = os.path.join(TARGET, "debug/metal-mcp")
+        if not os.path.exists(exe):
+            sys.exit(f"missing {exe}")
+        bind = f":{port_of(mcp_url)}"
+        p = subprocess.Popen([exe, "--dash", dash_url, "--http", bind, "--http-token", token],
+                             stdout=subprocess.DEVNULL, stderr=open(os.path.join(TARGET, "mcp.log"), "w"))
+        started.append(("metal-mcp", p))
+        end = time.time() + 30
+        while time.time() < end and not reachable_mcp(mcp_url, token):
+            time.sleep(0.5)
+        if not reachable_mcp(mcp_url, token):
+            sys.exit(f"metal-mcp did not answer at {mcp_url}")
+
+
+def stop_services(started):
+    for name, p in reversed(started):
+        if p.poll() is None:
+            p.send_signal(signal.SIGTERM)
+            try:
+                p.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                p.kill()
+        print(f"stopped {name} (pid {p.pid}, started by this run)")
+
+
+# ---------- MCP wire ----------
+
+def rpc(mcp_url, token, method, params=None, rid=1):
+    body = json.dumps({"jsonrpc": "2.0", "id": rid, "method": method,
+                       "params": params or {}}).encode()
+    req = urllib.request.Request(mcp_url, data=body, method="POST", headers={
+        "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            raw = r.read().decode()
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"HTTP {e.code} from {mcp_url}")
+    # Streamable HTTP may answer as SSE: take the last `data:` line.
+    if raw.lstrip().startswith("event:") or "\ndata:" in raw or raw.startswith("data:"):
+        lines = [l[5:].strip() for l in raw.splitlines() if l.startswith("data:")]
+        raw = lines[-1] if lines else "{}"
+    return json.loads(raw)
+
+
+def reachable_mcp(mcp_url, token):
+    try:
+        rpc(mcp_url, token, "ping")
+        return True
+    except Exception:
+        return False
+
+
+def tool_names(mcp_url, token):
+    res = rpc(mcp_url, token, "tools/list")
+    return {t["name"] for t in res.get("result", {}).get("tools", [])}
+
+
+def call_tool(mcp_url, token, name, args):
+    res = rpc(mcp_url, token, "tools/call", {"name": name, "arguments": args or {}})
+    if "error" in res:
+        return {"isError": True, "json": None, "text": json.dumps(res["error"])}
+    result = res.get("result", {})
+    text = "".join(c.get("text", "") for c in result.get("content", []) if c.get("type") == "text")
+    try:
+        parsed = json.loads(text)
+    except (ValueError, TypeError):
+        parsed = None
+    return {"isError": bool(result.get("isError")), "json": parsed, "text": text}
+
+
+# ---------- expect ----------
+
+_MISSING = object()
+
+
+def resolve(obj, path):
+    """`a.b[0].c` against parsed JSON. `.length` gives len() of a list/str."""
+    cur = obj
+    for part in re.findall(r"[^.\[\]]+|\[\d+\]", path or ""):
+        if cur is _MISSING:
+            return _MISSING
+        if part.startswith("["):
+            i = int(part[1:-1])
+            cur = cur[i] if isinstance(cur, list) and i < len(cur) else _MISSING
+        elif part == "length" and isinstance(cur, (list, str, dict)):
+            cur = len(cur)
+        elif isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        else:
+            cur = _MISSING
+    return cur
+
+
+def check(exp, results):
+    """One expect: {path, op, value, call?}. `call` indexes calls (default last)."""
+    idx = exp.get("call", len(results) - 1)
+    if not results:
+        return False, "no call ran"
+    res = results[idx]
+    if exp["path"] == "isError":
+        got = res["isError"]
+    elif exp["path"] == "text":
+        got = res["text"]
+    else:
+        got = resolve(res["json"], exp["path"])
+    want, op = exp.get("value"), exp["op"]
+    if op == "exists":
+        ok = got is not _MISSING
+    elif got is _MISSING:
+        ok = False
+    elif op == "eq":
+        ok = got == want
+    elif op == "ne":
+        ok = got != want
+    elif op in ("gt", "gte", "lt", "lte"):
+        ok = isinstance(got, (int, float)) and {"gt": got > want, "gte": got >= want,
+                                               "lt": got < want, "lte": got <= want}[op]
+    elif op == "contains":
+        ok = want in got if isinstance(got, (str, list, dict)) else False
+    elif op == "matches":
+        ok = isinstance(got, str) and re.search(want, got) is not None
+    else:
+        return False, f"unknown op {op}"
+    return ok, f"{exp['path']}={got!r}" if not ok else ""
+
+
+# ---------- run ----------
+
+def run_step(s, mcp_url, token, names):
+    problems, results = [], []
+    for c in s.get("setup_calls", []) + s.get("calls", []):
+        if c["tool"] not in names:
+            problems.append(f"missing tool {c['tool']}")
+            break
+        results.append(call_tool(mcp_url, token, c["tool"], c.get("args", {})))
+    # setup calls are not the subject of expect; keep them, check only the step calls
+    step_results = results[len(s.get("setup_calls", [])):]
+    if not problems:
+        if not step_results:
+            problems.append("no calls")
+        for e in s.get("expect", []):
+            ok, why = check(e, step_results) if step_results else (False, "no call ran")
+            if not ok:
+                problems.append(why or "failed")
+    ok = not problems
+    detail = "; ".join(problems) if problems else f"{len(s.get('expect', []))} expect ok"
+    return ok, detail
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--domain", help="run the steps of one domain")
+    ap.add_argument("--step", help="run one step (id or file name)")
+    ap.add_argument("--list", action="store_true", help="list steps and their last run")
+    ap.add_argument("--dash", default=os.environ.get("FW_DASH_URL", "http://127.0.0.1:7960"))
+    ap.add_argument("--mcp", default="http://127.0.0.1:7961/mcp")
+    ap.add_argument("--no-start", action="store_true", help="never start services; use the running ones")
+    args = ap.parse_args()
+
+    steps = load_steps(args.domain, args.step)
+    if args.list:
+        print(f"{'domain':<10} {'step':<28} {'ok':<5} {'date':<20} detail")
+        for s in steps:
+            lr = s.get("last_run") or {}
+            print(f"{s.get('domain',''):<10} {s.get('id',''):<28} {str(lr.get('ok','-')):<5} "
+                  f"{lr.get('date','-'):<20} {lr.get('detail','')}")
+        return 0
+    if not steps:
+        print("no steps match", file=sys.stderr)
+        return 1
+
+    token = os.environ.get("FW_MCP_TOKEN")
+    if not token:
+        with open(TOKEN_FILE, encoding="utf-8") as f:
+            token = f.read().strip()
+
+    started = []
+    rows = []
+    try:
+        if not args.no_start:
+            start_services(args.dash, args.mcp, token, started)
+        names = tool_names(args.mcp, token)
+        for s in steps:
+            try:
+                ok, detail = run_step(s, args.mcp, token, names)
+            except Exception as e:  # a transport error is a failed step, not a crash
+                ok, detail = False, f"error: {e}"
+            s["last_run"] = {"date": now(), "ok": ok, "detail": detail}
+            save_step(s)
+            rows.append((s.get("domain", ""), s.get("id", ""), ok, detail))
+    finally:
+        stop_services(started)
+
+    print(f"{'domain':<10} {'step':<28} {'ok':<5} detail")
+    for d, i, ok, detail in rows:
+        print(f"{d:<10} {i:<28} {'PASS' if ok else 'FAIL':<5} {detail}")
+    return 0 if all(r[2] for r in rows) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

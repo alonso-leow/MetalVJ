@@ -1,0 +1,117 @@
+{
+ "id": "oracle-a-call-answer",
+ "name": "Call and Answer",
+ "target": {
+  "model": "oracle"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "eyelid"
+   },
+   "curve": "step",
+   "steps": [
+    0.15,
+    null,
+    0.5,
+    null,
+    0.85,
+    null,
+    0.5,
+    null,
+    0.15,
+    null,
+    0.5,
+    null,
+    0.85,
+    null,
+    0.5,
+    0.15
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "turn"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.9
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "pupil"
+   },
+   "curve": "step",
+   "steps": [
+    0.3,
+    null,
+    null,
+    null,
+    0.3,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "iris",
+    "palette": "metalvj-red"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,94 @@
+{
+ "id": "domain-a-answer",
+ "name": "Answer",
+ "target": {
+  "model": "domain"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "distortion"
+   },
+   "curve": "step",
+   "steps": [
+    0.3,
+    null,
+    null,
+    null,
+    0.5,
+    null,
+    null,
+    null,
+    0.3,
+    null,
+    null,
+    null,
+    0.95,
+    0.2,
+    0.7,
+    0.2
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "rgb_split"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    0.2,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "signal",
+    "palette": "rays"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    {
+     "colour": 0
+    },
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "id": "sandstorm-a-answer",
+ "name": "Answer",
+ "target": {"model": "sandstorm"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "origin_x"}, "curve": "step", "steps": [0.2, null, null, null, 0.8, null, null, null, 0.5, null, null, null, 0.95, null, 0.05, 0.5]},
+  {"target": {"kind": "float", "param": "shine"}, "curve": "step", "steps": [0.2, null, null, null, 0.3, null, null, null, 0.3, null, null, null, 0.9, null, 0.1, null]},
+  {"target": {"kind": "palette", "slot": "sand", "palette": "metalvj-red"}, "steps": [{"colour": 0}, null, null, null, {"colour": 1}, null, null, null, {"colour": 2}, null, null, null, {"colour": 3}, null, {"colour": 0}, null]}
+ ]
+}

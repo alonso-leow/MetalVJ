@@ -1,0 +1,16 @@
+{
+ "id": "fx-kaleido-fold",
+ "name": "Fold",
+ "target": {
+  "effect": "kaleido"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "ramp",
+   "steps": [0.5, 0.331, 0.237, 0.181, 0.5, 0.331, 0.237, 0.181, 0.5, 0.331, 0.237, 0.181, 0.5, 0.331, 0.237, 0.181]
+  }
+ ]
+}

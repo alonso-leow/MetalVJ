@@ -1,0 +1,133 @@
+[
+  {
+    "tag_name": "v2.0.0-rc.1",
+    "target_commitish": "main",
+    "name": "2.0.0-rc.1",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-10-20T10:00:00Z",
+    "html_url": "https://github.com/alonso-leow/metalvj/releases/tag/v2.0.0-rc.1",
+    "body": "Second release candidate.\n\n- fixed the thing",
+    "assets": [
+      {
+        "name": "metalvj-2.0.0-rc.1-windows-x86_64.exe",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v2.0.0-rc.1/metalvj-2.0.0-rc.1-windows-x86_64.exe",
+        "size": 40000000,
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      {
+        "name": "metalvj-2.0.0-rc.1-windows-aarch64.exe",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v2.0.0-rc.1/metalvj-2.0.0-rc.1-windows-aarch64.exe",
+        "size": 39000000,
+        "digest": null
+      },
+      {
+        "name": "metalvj-2.0.0-rc.1-macos-x86_64.AppImage",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v2.0.0-rc.1/metalvj-2.0.0-rc.1-macos-x86_64.AppImage",
+        "size": 42000000,
+        "digest": null
+      }
+    ]
+  },
+  {
+    "tag_name": "v1.4.1",
+    "target_commitish": "main",
+    "name": "1.4.1",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-09-01T08:30:00Z",
+    "html_url": "https://github.com/alonso-leow/metalvj/releases/tag/v1.4.1",
+    "body": "Bug fixes.",
+    "assets": [
+      {
+        "name": "metalvj-1.4.1-windows-x86_64.exe",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v1.4.1/metalvj-1.4.1-windows-x86_64.exe",
+        "size": 38000000,
+        "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      {
+        "name": "metalvj-1.4.1-windows-aarch64.exe",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v1.4.1/metalvj-1.4.1-windows-aarch64.exe",
+        "size": 37000000,
+        "digest": null
+      },
+      {
+        "name": "metalvj-1.4.1-linux-x86_64.AppImage",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v1.4.1/metalvj-1.4.1-linux-x86_64.AppImage",
+        "size": 39000000,
+        "digest": null
+      },
+      {
+        "name": "metalvj-1.4.1-macos-aarch64.AppImage",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v1.4.1/metalvj-1.4.1-macos-aarch64.AppImage",
+        "size": 41000000,
+        "digest": null
+      }
+    ]
+  },
+  {
+    "tag_name": "v1.4.0-ios",
+    "target_commitish": "main",
+    "name": "1.4.0 (iOS)",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-08-01T08:30:00Z",
+    "html_url": "https://github.com/alonso-leow/metalvj/releases/tag/v1.4.0-ios",
+    "body": "An iOS build only.",
+    "assets": [
+      {
+        "name": "metalvj-1.4.0-ios-aarch64.app",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v1.4.0-ios/metalvj-1.4.0-ios-aarch64.app",
+        "size": 20000000,
+        "digest": null
+      }
+    ]
+  },
+  {
+    "tag_name": "dev-v1.5.0",
+    "target_commitish": "dev",
+    "name": "dev 1.5.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-09-15T16:00:00Z",
+    "html_url": "https://github.com/alonso-leow/metalvj/releases/tag/dev-v1.5.0",
+    "body": "The dev line, one release ahead.",
+    "assets": [
+      {
+        "name": "metalvj-1.5.0-windows-x86_64.exe",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/dev-v1.5.0/metalvj-1.5.0-windows-x86_64.exe",
+        "size": 38500000,
+        "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+      }
+    ]
+  },
+  {
+    "tag_name": "v9.9.9",
+    "target_commitish": "main",
+    "name": "9.9.9",
+    "draft": true,
+    "prerelease": false,
+    "published_at": "2026-10-25T00:00:00Z",
+    "html_url": "https://github.com/alonso-leow/metalvj/releases/tag/v9.9.9",
+    "body": "Unpublished draft.",
+    "assets": [
+      {
+        "name": "metalvj-9.9.9-windows-x86_64.exe",
+        "browser_download_url": "https://github.com/alonso-leow/metalvj/releases/download/v9.9.9/metalvj-9.9.9-windows-x86_64.exe",
+        "size": 39000000,
+        "digest": null
+      }
+    ]
+  },
+  {
+    "tag_name": "nightly",
+    "target_commitish": "main",
+    "name": "nightly",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-10-26T00:00:00Z",
+    "html_url": "https://github.com/alonso-leow/metalvj/releases/tag/nightly",
+    "body": "A tag with no version: skipped, not an error.",
+    "assets": []
+  }
+]

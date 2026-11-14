@@ -1,0 +1,8 @@
+{
+  "title": "MetalVJ: two layers, effects, grade",
+  "size": 512,
+  "layers": [
+    { "model": "geoterrain", "fx": ["shake"] },
+    { "model": "cyberspace", "fx": ["crt", "grade"] }
+  ]
+}

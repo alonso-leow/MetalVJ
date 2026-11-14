@@ -1,0 +1,206 @@
+# Few-shot example, invented: no photo behind it. A living room with a couch
+# facing a TV, and a projector on the coffee table throwing a halo onto the
+# wall around the TV.
+#
+# What this example teaches that the bar and the facade do not:
+#
+# - **A screen is an output, not a surface to project on.** The TV's glass is
+#   its own `[[surface]]` (the lit glass only, bezel excluded, 1 mm proud of
+#   the TV's body) and a `[[display]]` makes it the output `tv`. A mask on
+#   that surface lands on the TV's own pixels point for point, with no
+#   projector in between.
+# - **A projector whose frame covers a screen.** The halo projector's frame
+#   holds the whole TV; nothing is masked there, so the device cut keeps it
+#   black and the projector never washes out the picture.
+# - **Shots with no image.** Both shots are designed viewpoints (`image = ""`):
+#   where the people on the couch and at the door stand. They are checked
+#   exactly like photographed shots, so their numbers are exact.
+#
+# Units: metres, +y up, floor y = 0, the couch side of the room at z = 0 and
+# the TV wall at z = -4. yaw 0 looks at the TV wall (-z), +90 looks right
+# (+x); pitch > 0 looks up. A surface is origin + s*u + t*v, (0,0) top-left
+# seen from the lit side. Image points are 0..1, top-left.
+
+[venue]
+id = "living-room"
+name = "Living room, couch and TV"
+setting = "indoor"
+based_on = []
+notes = """
+Invented. A 5 x 4 m living room: a 55-inch TV on a low console against the
+far wall, a three-seat couch facing it, a coffee table between them with a
+short-throw projector on it. The projector lights three panels of wall around
+the TV (left, right, above) with the TV's picture continued outwards; the TV
+shows the picture itself.
+"""
+
+# ---------------------------------------------------------------- shots ---
+
+[[shot]]
+id = "couch-view"
+image = ""
+camera = { eye = [2.5, 1.1, -0.5], yaw = 0.0, pitch = -3.0, roll = 0.0, fov = 50.0, aspect = 1.7778 }
+projection = { projector = "proj-halo", yaw = 0.0, pitch = 24.7, lands_on = "tv-wall" }
+projector_distance = 2.53
+floor_brightness = 0.18
+background_brightness = 0.12
+horizon_path = []
+notes = "Designed: the middle seat of the couch, eyes at 1.1 m. The whole TV wall and the TV's glass are in frame."
+
+[[shot.sees]]
+surface = "tv-wall"
+corners = [[0.059, -0.028], [0.941, -0.028], [0.924, 0.776], [0.076, 0.776]]
+
+[[shot.sees]]
+surface = "tv-screen"
+corners = [[0.387, 0.411], [0.613, 0.411], [0.611, 0.635], [0.389, 0.635]]
+
+[[shot]]
+id = "doorway"
+image = ""
+camera = { eye = [0.45, 1.62, -0.35], yaw = 28.0, pitch = -9.0, roll = 0.0, fov = 50.0, aspect = 1.7778 }
+projection = { projector = "proj-halo", yaw = 0.0, pitch = 24.7, lands_on = "tv-wall" }
+projector_distance = 2.53
+floor_brightness = 0.18
+background_brightness = 0.12
+horizon_path = []
+notes = "Designed: standing in the doorway at the front-left corner, looking across at the TV. The left wall is mostly behind this camera, so it is not listed."
+
+[[shot.sees]]
+surface = "tv-wall"
+corners = [[0.049, -0.047], [0.77, 0.123], [0.751, 0.647], [0.106, 0.875]]
+
+[[shot.sees]]
+surface = "tv-screen"
+corners = [[0.448, 0.454], [0.606, 0.438], [0.603, 0.604], [0.449, 0.644]]
+
+# ------------------------------------------------------------- surfaces ---
+
+[[surface]]
+id = "tv-wall"
+name = "wall behind the TV"
+origin = [0.0, 2.6, -4.0]
+u = [5.0, 0.0, 0.0]
+v = [0.0, -2.6, 0.0]
+material = "matte paint, warm grey"
+
+[[surface]]
+id = "left-wall"
+name = "left wall"
+origin = [0.0, 2.6, 0.0]
+u = [0.0, 0.0, -4.0]
+v = [0.0, -2.6, 0.0]
+material = "matte paint, warm grey"
+
+[[surface]]
+id = "floor"
+name = "floor"
+origin = [0.0, 0.0, -4.0]
+u = [5.0, 0.0, 0.0]
+v = [0.0, 0.0, 4.0]
+material = "oak boards, a wool rug under the table"
+
+# The TV's glass, exactly: 1.210 x 0.681 m (a 55-inch 16:9 panel), its bottom
+# edge 18 mm above the bottom of the TV's body, 1 mm in front of the body's
+# front face so a ray from the room meets the glass before the box.
+[[surface]]
+id = "tv-screen"
+name = "TV glass"
+origin = [1.895, 1.1986, -3.749]
+u = [1.21, 0.0, 0.0]
+v = [0.0, -0.6806, 0.0]
+material = "glossy glass: reflects the projector if the projector is not cut there"
+
+# -------------------------------------------------------------- objects ---
+
+[[object]]
+id = "console"
+name = "TV console"
+kind = "cabinet"
+at = [2.5, 0.0, -3.78]
+size = [1.8, 0.5, 0.42]
+description = "Low walnut media console against the far wall. The TV stands on it."
+
+[[object]]
+id = "tv"
+name = "55-inch TV"
+kind = "tv"
+at = [2.5, 0.5, -3.78]
+size = [1.232, 0.713, 0.06]
+description = "The TV's body standing on the console. Its glass is the surface `tv-screen`, and the glass is the display `tv`."
+
+[[object]]
+id = "table-coffee"
+name = "coffee table"
+kind = "table"
+at = [2.5, 0.0, -1.7]
+size = [1.0, 0.42, 0.55]
+description = "Low oak coffee table between the couch and the TV. The projector stands on it."
+
+[[object]]
+id = "couch"
+name = "three-seat couch"
+kind = "couch"
+at = [2.5, 0.0, -0.45]
+size = [2.2, 0.85, 0.9]
+description = "Grey fabric couch facing the TV, its back to the open side of the room. Behind the projector, so it blocks nothing."
+
+# ----------------------------------------------------------- projectors ---
+
+[[projector]]
+id = "proj-halo"
+name = "short-throw projector"
+output = "proyector-sala"
+on = "table-coffee"
+lens = [0.0, 0.12, 0.0]
+yaw = 0.0
+pitch = 24.7
+throw_ratio = 0.5
+aspect = 1.7778
+lumens = 3500
+
+# ------------------------------------------------------------- displays ---
+
+[[display]]
+id = "tv"
+name = "the TV"
+kind = "tv"
+output = "tv"
+surface = "tv-screen"
+resolution = [3840, 2160]
+link = "local"
+notes = "HDMI from the machine that composes. The halo projector's frame covers it; the cut keeps the projector black there."
+
+# ---------------------------------------------------------------- masks ---
+
+[[mask]]
+id = "halo-left"
+name = "halo, left of the TV"
+on = "tv-wall"
+points = [[0.19, 0.3269], [0.36, 0.3269], [0.36, 0.7885], [0.19, 0.7885]]
+rgb = [40, 90, 255]
+content = "The TV's picture continued to the left: its left edge, blurred and stretched outwards."
+
+[[mask]]
+id = "halo-right"
+name = "halo, right of the TV"
+on = "tv-wall"
+points = [[0.64, 0.3269], [0.81, 0.3269], [0.81, 0.7885], [0.64, 0.7885]]
+rgb = [40, 90, 255]
+content = "The TV's picture continued to the right."
+
+[[mask]]
+id = "halo-top"
+name = "halo, above the TV"
+on = "tv-wall"
+points = [[0.36, 0.25], [0.64, 0.25], [0.64, 0.4808], [0.36, 0.4808]]
+rgb = [120, 200, 255]
+content = "The TV's top edge, rising."
+
+[[mask]]
+id = "tv-picture"
+name = "the TV's picture"
+on = "tv-screen"
+points = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+rgb = [255, 255, 255]
+content = "The show itself, full glass."

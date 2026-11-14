@@ -1,0 +1,17 @@
+[package]
+name = "metal-vfs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+# Forces the in-memory tree on a native host, so the browser's file behaviour
+# can be exercised by `cargo test -p metal-vfs --features mem` and by any crate
+# that enables it. Never on by default: on native the functions are `std::fs`.
+mem = []
+
+[dependencies]
+web-time = "1"

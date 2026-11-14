@@ -1,0 +1,27 @@
+{
+  "id": "device-preview",
+  "name": "preview",
+  "domain": "live",
+  "nodes": [
+    {"id": "gen-0", "kind": "gen.geoterrain", "pos": [0.0, 0.0], "label": "geoterrain", "bypass": false, "solo": false,
+     "config": {"blend": "normal", "mask": null, "opacity": 1.0, "sector": {"h": 1.0, "w": 1.0, "x": 0.0, "y": 0.0}, "z": 0}},
+    {"id": "fx-0", "kind": "fx.shake", "pos": [180.0, 0.0], "label": "", "bypass": false, "solo": false,
+     "config": {"fixed": 0.3}},
+    {"id": "gen-1", "kind": "gen.cyberspace", "pos": [0.0, 200.0], "label": "cyberspace", "bypass": false, "solo": false,
+     "config": {"blend": "normal", "mask": null, "opacity": 1.0, "sector": {"h": 1.0, "w": 1.0, "x": 0.0, "y": 0.0}, "z": 1}},
+    {"id": "fx-1", "kind": "fx.crt", "pos": [180.0, 200.0], "label": "", "bypass": false, "solo": false,
+     "config": {"fixed": 0.25}},
+    {"id": "fx-2", "kind": "fx.grade", "pos": [360.0, 200.0], "label": "", "bypass": false, "solo": false,
+     "config": {"fixed": 0.4}},
+    {"id": "out-0", "kind": "output.device", "pos": [800.0, 100.0], "label": "", "bypass": false, "solo": false,
+     "config": {"mode": {"kind": "own"}}}
+  ],
+  "edges": [
+    {"id": "edge-0", "from": {"node": "gen-0", "port": "image"}, "to": {"node": "fx-0", "port": "image"}},
+    {"id": "edge-1", "from": {"node": "fx-0", "port": "image"}, "to": {"node": "out-0", "port": "image"}},
+    {"id": "edge-2", "from": {"node": "gen-1", "port": "image"}, "to": {"node": "fx-1", "port": "image"}},
+    {"id": "edge-3", "from": {"node": "fx-1", "port": "image"}, "to": {"node": "fx-2", "port": "image"}},
+    {"id": "edge-4", "from": {"node": "fx-2", "port": "image"}, "to": {"node": "out-0", "port": "image"}}
+  ],
+  "ids": {"next": {"comp": 1, "edge": 5, "fx": 3, "gen": 2, "out": 1}}
+}

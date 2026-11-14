@@ -1,0 +1,5 @@
+{"id":"puzzle-a-dembow","name":"Dembow","target":{"model":"puzzle"},"tracks":[
+ {"target":{"kind":"float","param":"slide"},"curve":"step","steps":[0.9,null,null,null,null,null,0.9,null,null,null,0.9,null,null,null,null,null]},
+ {"target":{"kind":"float","param":"overlay"},"curve":"step","steps":[0.2,null,null,null,0.9,null,null,null,0.2,null,null,null,0.9,null,null,null]},
+ {"target":{"kind":"palette","slot":"pieces","palette":"neon"},"steps":[{"colour":0},null,null,null,null,null,{"colour":3},null,null,null,null,null,{"colour":1},null,null,null]}
+]}

@@ -1,0 +1,90 @@
+{
+ "id": "membrane-a-breath",
+ "name": "Breath",
+ "target": {
+  "model": "membrane"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "luminescence"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.1,
+    0.16,
+    0.22,
+    0.28,
+    0.34,
+    0.4,
+    0.46,
+    0.52,
+    0.58,
+    0.64,
+    0.7,
+    0.76,
+    0.82,
+    0.88,
+    0.94,
+    1.0
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "long"
+   },
+   "curve": "step",
+   "steps": [
+    0.1,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.3,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "raiz",
+    "palette": "rays"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

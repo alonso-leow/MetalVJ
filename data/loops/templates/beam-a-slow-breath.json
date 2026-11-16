@@ -1,0 +1,90 @@
+{
+ "id": "beam-a-slow-breath",
+ "name": "Slow Breath",
+ "target": {
+  "model": "beam"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "focus_base"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.2,
+    0.3,
+    0.45,
+    0.6,
+    0.75,
+    0.85,
+    0.85,
+    0.75,
+    0.6,
+    0.45,
+    0.3,
+    0.2,
+    0.2,
+    0.3,
+    0.45,
+    0.6
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "energy"
+   },
+   "curve": "step",
+   "steps": [
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "beam",
+    "palette": "skies"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    }
+   ]
+  }
+ ]
+}

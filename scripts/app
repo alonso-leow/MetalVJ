@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Start, stop and check MetalVJ's server instance.
+#
+# `metal-dash` absorbed `fw-studio` under `/author/*` and the two pages merged
+# (Conjunto C, nodes-metalvj.md §10). Two wrapper scripts for two ports
+# and two pidfiles stopped meaning anything the moment there was one binary —
+# this replaces both `./scripts/dash` and `./scripts/studio`.
+#
+# Since 15-sept-2026 (S.U18) the client is the native egui window and the
+# merged HTML page is gone: what this wrapper starts is the **server for
+# that window** — a headless `metal-dash --no-window` (it can also run on a box
+# with no adapter at all; the CPU stand-in painter answers everything). The
+# operator opens the native window the ordinary way (`metal-dash`, or
+# `./scripts/app`'s binary); a remote window composes into this instance
+# with `--node`.
+#
+#   ./scripts/app start
+#   ./scripts/app start --port 7911
+#   ./scripts/app stop
+#   ./scripts/app status
+#   ./scripts/app restart
+#   ./scripts/app check
+#
+# `restart` is not optional after edits: the running server
+# keeps its old code until it is rebuilt.
+#
+# `--port` is the one number every consumer needs. One flag sets
+# `FW_DASH_PORT` here and `--port` on the binary — the minute-past-midnight
+# bug this wrapper exists to prevent was a process still holding 7878 from a
+# studio nobody remembered starting; one port number for one binary is most
+# of the fix.
+#
+# Verified by `node crates/metal-dash/check-graph.mjs` — the HTTP-side harness
+# that survives (the old page harnesses died with the page).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PIDFILE="$ROOT/.app.pid"
+LOGFILE="$ROOT/.app.log"
+PORTFILE="$ROOT/.app.port"
+
+CMD="${1:-status}"
+[[ $# -gt 0 ]] && shift || true
+
+# `--port N` can come anywhere after the subcommand; everything else is
+# passed straight through unexamined.
+#
+# The default is *not* just `FW_DASH_PORT:-7900` — `start` writes whatever
+# port it actually bound to `$PORTFILE`, and every other subcommand reads it
+# back, so `./scripts/app start --port 7911` followed by a bare
+# `./scripts/app status` (or `stop`, or `check`) finds the right instance
+# instead of quietly asking 7900 whether something is running there.
+PORT="${FW_DASH_PORT:-$([[ -f "$PORTFILE" ]] && cat "$PORTFILE" || echo 7900)}"
+args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --port) PORT="$2"; shift 2 ;;
+    --port=*) PORT="${1#--port=}"; shift ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+export FW_DASH_PORT="$PORT"
+URL="http://127.0.0.1:$PORT/"
+READYURL="$URL"state
+
+alive() { [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
+
+stop() {
+  local stopped=0
+  if alive; then
+    kill "$(cat "$PIDFILE")" 2>/dev/null && stopped=1
+    for _ in {1..20}; do alive || break; sleep 0.1; done
+    alive && kill -9 "$(cat "$PIDFILE")" 2>/dev/null || true
+  fi
+  rm -f "$PIDFILE" "$PORTFILE"
+  # A server left from an earlier session has no pidfile here and is still
+  # holding the port, so the next start would fail with a bind error that says
+  # nothing about why. Found by port rather than by name: matching the binary
+  # name with `pkill -f` also matches the shell running this script.
+  local held
+  held="$(ss -lptn "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1 || true)"
+  if [[ -n "$held" ]]; then kill "$held" 2>/dev/null && stopped=1; fi
+  (( stopped )) && echo "metal-dash stopped" || echo "metal-dash was not running"
+}
+
+start() {
+  alive && { echo "already running — $URL  (stop it first)"; exit 1; }
+  # Built in the foreground so a compile error is a compile error rather than a
+  # server that silently never came up.
+  ( cd "$ROOT" && cargo build --quiet -p metal-dash )
+
+  ( cd "$ROOT" && nohup ./target/debug/metal-dash --port "$PORT" --no-window \
+      >"$LOGFILE" 2>&1 & echo $! >"$PIDFILE" )
+  echo "$PORT" >"$PORTFILE"
+
+  # Generous: this builds the renderers — the live CPU painters and, on a
+  # `gpu` build, the author's own — before it binds, which is the point. A
+  # machine with no usable adapter says so here instead of serving broken
+  # pictures at a venue.
+  for _ in {1..80}; do
+    curl -sf -o /dev/null "$READYURL" && break
+    sleep 0.15
+  done
+  if ! curl -sf -o /dev/null "$READYURL"; then
+    echo "failed to come up — $LOGFILE:" >&2; cat "$LOGFILE" >&2; rm -f "$PIDFILE"; exit 1
+  fi
+
+  echo "metal-dash  $URL   pid $(cat "$PIDFILE")"
+  echo "  log  $LOGFILE"
+}
+
+case "$CMD" in
+  start)   start ;;
+  stop)    stop ;;
+  restart) stop; start ;;
+  check)
+    alive || { echo "not running — start it first" >&2; exit 1; }
+    FW_DASH_PORT="$PORT" node "$ROOT/crates/metal-dash/check-graph.mjs" ;;
+  status)
+    if alive; then
+      echo "running  $URL  pid $(cat "$PIDFILE")"
+      tail -n 6 "$LOGFILE" 2>/dev/null | sed 's/^/  /'
+    else
+      echo "not running"
+    fi ;;
+  *) echo "usage: $0 {start|stop|restart|status|check} [--port N]" >&2; exit 2 ;;
+esac

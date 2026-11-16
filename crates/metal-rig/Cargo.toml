@@ -1,0 +1,17 @@
+[package]
+name = "metal-rig"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The `AuxLogic` contract the rig implements (`logic.rs`). Zero-dependency, so
+# the rig still carries no graphics/app dependencies.
+metal-logic = { path = "../metal-logic" }
+glam.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+toml.workspace = true

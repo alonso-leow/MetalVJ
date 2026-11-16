@@ -1,0 +1,94 @@
+{
+  "id": "device-stroke-material-800647",
+  "name": "stroke-material-800647",
+  "domain": "live",
+  "nodes": [
+    {
+      "id": "gen-0",
+      "kind": "gen.geoterrain",
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": {
+        "source_id": "masked"
+      }
+    },
+    {
+      "id": "mask-0",
+      "kind": "mask",
+      "pos": [
+        200.0,
+        0.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": {
+        "device": "stroke-material-800647",
+        "mask": "side",
+        "stroke_width": 8.0
+      }
+    },
+    {
+      "id": "mat-0",
+      "kind": "gen.domain",
+      "pos": [
+        0.0,
+        200.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    },
+    {
+      "id": "out-0",
+      "kind": "output.device",
+      "pos": [
+        800.0,
+        0.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-0",
+      "from": {
+        "node": "gen-0",
+        "port": "image"
+      },
+      "to": {
+        "node": "mask-0",
+        "port": "image"
+      }
+    },
+    {
+      "id": "edge-1",
+      "from": {
+        "node": "mask-0",
+        "port": "image"
+      },
+      "to": {
+        "node": "out-0",
+        "port": "image"
+      }
+    }
+  ],
+  "ids": {
+    "next": {
+      "edge": 3,
+      "gen": 1,
+      "mask": 1,
+      "mat": 1,
+      "out": 1
+    }
+  }
+}

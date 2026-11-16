@@ -1,0 +1,19 @@
+{
+  "id": "perform-loop-triggers",
+  "domain": "perform",
+  "description": "The looper trigger counts read through MCP, and the sort and selection factor set and read back through the same tool.",
+  "setup_calls": [
+    { "tool": "loop_triggers", "args": { "op": "sort", "device": "step-out", "on": true } }
+  ],
+  "calls": [
+    { "tool": "loop_triggers", "args": { "op": "factor", "value": 0.5 } },
+    { "tool": "loop_triggers", "args": { "op": "get" } }
+  ],
+  "expect": [
+    { "path": "isError", "op": "ne", "value": true, "call": 0 },
+    { "path": "factor", "op": "eq", "value": 0.5, "call": 1 },
+    { "path": "devices.step-out.sorted", "op": "eq", "value": true, "call": 1 },
+    { "path": "devices.step-out.sources.length", "op": "gte", "value": 0, "call": 1 },
+    { "path": "totals", "op": "exists", "call": 1 }
+  ]
+}

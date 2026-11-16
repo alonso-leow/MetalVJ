@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# `config.toml` round-trip check (S.AH point 5): parse → rewrite pretty →
+# compare → idempotent, exit 0.
+#
+# Thin wrapper over the Rust binary that does the actual work
+# (`crates/metal-config/src/bin/check-config.rs`) — same pattern `scripts/app`
+# already uses for `metal-dash` (`cargo build -p ... ` then run the binary),
+# so a compile error here is a compile error, not a script that silently
+# skips the check.
+#
+#   ./scripts/check-config                 # checks ~/.config/metalvj/config.toml
+#   ./scripts/check-config path/to/config.toml
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+( cd "$ROOT" && cargo build --quiet -p metal-config --bin check-config )
+exec "$ROOT/target/debug/check-config" "$@"

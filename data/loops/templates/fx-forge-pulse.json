@@ -1,0 +1,25 @@
+{
+ "id": "fx-forge-pulse",
+ "name": "Pulse",
+ "target": {
+  "effect": "forge"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "onset"
+   },
+   "curve": "ramp",
+   "steps": [1.0, 0.55, 0.3, 0.15, 1.0, 0.55, 0.3, 0.15, 1.0, 0.55, 0.3, 0.15, 1.0, 0.55, 0.3, 0.15]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "rms"
+   },
+   "curve": "ramp",
+   "steps": [0.2, 0.288, 0.5, 0.712, 0.8, 0.712, 0.5, 0.288, 0.2, 0.288, 0.5, 0.712, 0.8, 0.712, 0.5, 0.288]
+  }
+ ]
+}

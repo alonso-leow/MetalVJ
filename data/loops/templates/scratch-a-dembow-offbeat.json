@@ -1,0 +1,119 @@
+{
+ "id": "scratch-a-dembow-offbeat",
+ "name": "Dembow Offbeat",
+ "target": {
+  "model": "scratch"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "dispersion"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    0.9
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "angle"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.6,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "rest"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "develop",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    }
+   ]
+  }
+ ]
+}

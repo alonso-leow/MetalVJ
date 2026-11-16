@@ -1,0 +1,67 @@
+{
+ "id": "moire-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "moire"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "thickness"
+   },
+   "curve": "step",
+   "steps": [
+    0.85,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.15,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "lines",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "id": "warp-zoom-out-snap",
+ "name": "Zoom out, snap",
+ "target": {
+  "effect": "warp"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "mode"
+   },
+   "curve": "step",
+   "steps": [0.083, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "amount"
+   },
+   "curve": "step",
+   "steps": [0.7, 0.615, 0.536, 0.462, 0.393, 0.331, 0.274, 0.221, 0.175, 0.134, 0.099, 0.069, 0.043, 0.025, 0.011, 0.003]
+  }
+ ]
+}

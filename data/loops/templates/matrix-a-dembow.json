@@ -1,0 +1,94 @@
+{
+ "id": "matrix-a-dembow",
+ "name": "Dembow",
+ "target": {
+  "model": "matrix"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "step",
+   "steps": [
+    0.95,
+    0.3,
+    0.3,
+    0.95,
+    0.3,
+    0.3,
+    0.95,
+    0.3,
+    0.3,
+    0.3,
+    0.95,
+    0.3,
+    0.95,
+    0.3,
+    0.3,
+    0.3
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "lamp"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    0.9,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

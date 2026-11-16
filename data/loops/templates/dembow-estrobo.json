@@ -1,0 +1,25 @@
+{
+ "id": "dembow-estrobo",
+ "name": "Dembow",
+ "target": {
+  "model": "strobe"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "glare"
+   },
+   "curve": "step",
+   "steps": [0.1, 0.1, 0.1, 0.95, 0.695, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.95, 0.695, 0.1, 0.1, 0.1]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "duty"
+   },
+   "curve": "step",
+   "steps": [0.3, 0.3, 0.3, 0.8, 0.65, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.8, 0.65, 0.3, 0.3, 0.3]
+  }
+ ]
+}

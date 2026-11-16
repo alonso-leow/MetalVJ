@@ -1,0 +1,15 @@
+# Spanish for the shell module `chat` (the AI chat sidebar): "English source
+# text" = "Spanish text". See ../README.md.
+"send" = "enviar"
+"mention" = "mencionar"
+"mention node" = "nodo"
+"mention property" = "propiedad"
+"mention file" = "archivo"
+"mention overlay" = "superposición"
+"AI settings" = "ajustes de IA"
+"attach files" = "adjuntar archivos"
+"commands" = "comandos"
+"compact" = "compactar"
+"context {p}%" = "contexto {p}%"
+"keep the last prompts whole and summarise the rest" = "conserva los últimos prompts y resume el resto"
+"refresh the model list" = "actualizar la lista de modelos"

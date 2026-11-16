@@ -1,0 +1,26 @@
+# A fixture profile, as data: a 1 m RGB pixel bar driven as one colour. A venue
+# fixture that names it with `pixels = N` also gets per-segment floats in the
+# stage matrix (`metal_stage::common`): up to 8 segments, each a run of pixels.
+#
+# Same conventions as `example-moving-head.toml`: slots are 0-based offsets
+# from `address` (1-based, as a desk numbers them).
+
+label = "Example RGB Pixel Bar"
+universe = 0
+address = 300
+
+[[channel]]
+signal = "level"
+coarse = 0
+
+[[channel]]
+signal = "hue"
+coarse = 1
+
+[[channel]]
+signal = "sat"
+coarse = 2
+
+[[channel]]
+signal = "strobe"
+coarse = 3

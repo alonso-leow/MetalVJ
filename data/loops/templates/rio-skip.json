@@ -1,0 +1,41 @@
+{
+ "id": "rio-skip",
+ "name": "Skip",
+ "target": {
+  "model": "river"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "swell"
+   },
+   "curve": "step",
+   "steps": [0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "pulse"
+   },
+   "curve": "step",
+   "steps": [0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15, 0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "skies"
+   },
+   "steps": [{"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "background",
+    "palette": "backgrounds"
+   },
+   "steps": [{"colour": 0, "group": 0}, null, null, null, {"colour": 0, "group": 1}, null, null, null, {"colour": 0, "group": 2}, null, null, null, {"colour": 0, "group": 3}, null, null, null]
+  }
+ ]
+}

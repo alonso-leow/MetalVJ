@@ -1,0 +1,23 @@
+# Spanish for plan "Audio input is a node": the audio.live page, a source's
+# reaction page and the header's listen dots (properties/listen.rs,
+# header.rs). "English source text" = "Spanish text". See ../README.md.
+
+"default (seed)" = "por defecto (semilla)"
+"probar" = "probar"
+"flux {flux}" = "flujo {flux}"
+"not listening yet — no device draws this graph" = "todavía no escucha: ningún dispositivo dibuja este grafo"
+"stand-in · {what}" = "simulada · {what}"
+"{bpm} BPM · {dropped} dropped" = "{bpm} BPM · {dropped} perdidas"
+"reaction" = "reacción"
+"sin audio" = "sin audio"
+"nothing audio is wired to control: this source is static (its base row)." = "no hay audio cableado a control: esta fuente es estática (su fila base)."
+"depth" = "profundidad"
+"smooth" = "suavizado"
+"colour follows harmony" = "el color sigue la armonía"
+"palette" = "paleta"
+"colour source" = "fuente de color"
+"auto" = "automático"
+"tone" = "tono"
+"chroma" = "croma"
+"● {short}" = "● {short}"
+"● {short} stand-in" = "● {short} simulada"

@@ -1,0 +1,92 @@
+{
+ "id": "parallax-cielo-a-kick-pulse",
+ "name": "Kick Pulse",
+ "target": {
+  "model": "parallax-sky"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "light"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "halo"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "lights",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

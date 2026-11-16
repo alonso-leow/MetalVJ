@@ -1,0 +1,96 @@
+{
+ "id": "ascii-a-dembow",
+ "name": "Dembow",
+ "target": {
+  "model": "ascii"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "length"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.5,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.2,
+    null,
+    0.9,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "amplitude"
+   },
+   "curve": "step",
+   "steps": [
+    0.6,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.6,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.85,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "text",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    {
+     "colour": 3
+    },
+    null
+   ]
+  }
+ ]
+}

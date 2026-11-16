@@ -1,0 +1,13 @@
+{
+ "id": "parallax-ciudad-a-breath",
+ "name": "Breath",
+ "target": {"model": "parallax-city"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "fog"}, "curve": "ramp",
+   "steps": [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]},
+  {"target": {"kind": "float", "param": "light"}, "curve": "step",
+   "steps": [0.3, null, null, null, null, null, null, null, 0.6, null, null, null, null, null, null, null]},
+  {"target": {"kind": "palette", "slot": "fog_c", "palette": "skies"},
+   "steps": [{"colour": 0}, null, null, null, null, null, null, null, {"colour": 2}, null, null, null, null, null, null, null]}
+ ]
+}

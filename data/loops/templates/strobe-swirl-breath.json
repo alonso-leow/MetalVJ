@@ -1,0 +1,25 @@
+{
+ "id": "strobe-swirl-breath",
+ "name": "Strobe: swirl breath",
+ "target": {
+  "effect": "flash"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "opacity"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.85, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "diffuse"
+   },
+   "curve": "step",
+   "steps": [0.7, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+  }
+ ]
+}

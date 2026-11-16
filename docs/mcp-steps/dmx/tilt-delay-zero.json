@@ -1,0 +1,30 @@
+{
+  "domain": "dmx",
+  "step": "tilt-delay-zero",
+  "date": "2026-11-12",
+  "status": "ready",
+  "requires": "same as tilt-delay-wave; run it after the wave step on the same graph",
+  "venue": "bar",
+  "calls": [
+    {
+      "tool": "set_params",
+      "args": {
+        "graph": "{graph}",
+        "id": "{group_node}",
+        "patch": {
+          "tilt_delay": 0.0
+        }
+      }
+    },
+    {
+      "tool": "look_venue",
+      "args": {
+        "id": "bar"
+      },
+      "reads": "dmx_bus"
+    }
+  ],
+  "expect": {
+    "step": "every head's tilt slot equals its own signal again (no wave)"
+  }
+}

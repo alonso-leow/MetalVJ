@@ -1,0 +1,18 @@
+[package]
+name = "metal-router"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Nothing but serde. This crate is the one thing `metal-dash` runs at a venue to
+# decide what goes on air, and it is also what `fw-studio` trains — so it must
+# build on a host with no GPU and it must not drag a runtime behind it. See the
+# crate docs for why the model is in Rust rather than in Python.
+[dependencies]
+# The file door: std::fs natively, the in-memory tree on wasm (see crates/metal-vfs).
+metal-vfs = { path = "../metal-vfs" }
+# The digest's column contract, so `features::COLUMNS` is the one declaration
+# rather than a restated 16. A leaf crate (serde only).
+metal-schema = { path = "../metal-schema" }
+serde = { workspace = true }
+serde_json = { workspace = true }

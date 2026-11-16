@@ -1,0 +1,1 @@
+{ "id": "barrido-izquierda", "name": "Barrido izquierda", "kind": "wipe", "duration": 1, "unit": "beats", "ease": "in_out", "dir": "left" }

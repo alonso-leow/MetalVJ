@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# H0 (rule 11): run the vision bench — fps and end-to-end latency at 640×360.
+#
+# The example lives at `crates/metal-sense/examples/vision_bench.rs`; this wrapper
+# only picks the features and forwards the two knobs the example reads.
+#
+#   scripts/vision-bench                  # the stand-in arm only
+#   scripts/vision-bench mediapipe        # + the ONNX/MediaPipe arm (needs weights)
+#
+# Environment (forwarded by the example itself):
+#   FW_VISION_MODEL   the ONNX model for the mediapipe arm
+#   FW_VISION_FRAMES  how many frames to run (default 120)
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+FEATURES="${1:-}"
+if [ -n "$FEATURES" ]; then
+    exec cargo run -q -p metal-sense --example vision_bench --features "$FEATURES"
+fi
+exec cargo run -q -p metal-sense --example vision_bench

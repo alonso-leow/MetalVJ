@@ -1,0 +1,5 @@
+{"id":"puzzle-a-call-answer","name":"Call Answer","target":{"model":"puzzle"},"tracks":[
+ {"target":{"kind":"float","param":"overlay"},"curve":"step","steps":[0.9,null,null,null,0.3,null,null,null,0.1,null,null,null,0.85,null,null,null]},
+ {"target":{"kind":"float","param":"bevel"},"curve":"step","steps":[0.15,null,null,null,0.5,null,null,null,0.15,null,null,null,0.95,null,null,null]},
+ {"target":{"kind":"palette","slot":"pieces","palette":"rays"},"steps":[{"colour":0},null,null,null,{"colour":2},null,null,null,{"colour":1},null,null,null,{"colour":3},null,null,null]}
+]}

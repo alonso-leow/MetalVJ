@@ -1,0 +1,520 @@
+[
+  {
+    "digested": true,
+    "file": "data/audio/01 - Kybba, Ryan Castro, Sean Paul & Busy Signal - BA BA BAD REMIX (Video Oficial).mp3",
+    "genre": null,
+    "id": "01",
+    "stem": "01 - Kybba, Ryan Castro, Sean Paul & Busy Signal - BA BA BAD REMIX (Video Oficial)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/02 - Sean Paul - I'm Still In Love With You (Official Video).mp3",
+    "genre": null,
+    "id": "02",
+    "stem": "02 - Sean Paul - I'm Still In Love With You (Official Video)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/03 - Jungle - Back On 74 (Official Video).mp3",
+    "genre": null,
+    "id": "03",
+    "stem": "03 - Jungle - Back On 74 (Official Video)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/04 - Pa Curubandé Yo Voy.mp3",
+    "genre": null,
+    "id": "04",
+    "stem": "04 - Pa Curubandé Yo Voy"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/05 - I Am Blessed.mp3",
+    "genre": null,
+    "id": "05",
+    "stem": "05 - I Am Blessed"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/06 - Fever.mp3",
+    "genre": null,
+    "id": "06",
+    "stem": "06 - Fever"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/07 - Who Am I.mp3",
+    "genre": null,
+    "id": "07",
+    "stem": "07 - Who Am I"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/08 - Willie Bounce.mp3",
+    "genre": null,
+    "id": "08",
+    "stem": "08 - Willie Bounce"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/09 - Can I Kick It？.mp3",
+    "genre": null,
+    "id": "09",
+    "stem": "09 - Can I Kick It？"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/10 - Supernature (Edit).mp3",
+    "genre": null,
+    "id": "10",
+    "stem": "10 - Supernature (Edit)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/11 - N95.mp3",
+    "genre": null,
+    "id": "11",
+    "stem": "11 - N95"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/12 - Aguanile.mp3",
+    "genre": null,
+    "id": "12",
+    "stem": "12 - Aguanile"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/13 - Oyelo Que Te Conviene (canta： Lalo Rodriguez).mp3",
+    "genre": null,
+    "id": "13",
+    "stem": "13 - Oyelo Que Te Conviene (canta： Lalo Rodriguez)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/14 - Fuego a la Jicotea.mp3",
+    "genre": null,
+    "id": "14",
+    "stem": "14 - Fuego a la Jicotea"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/15 - Descarga De La Luz.mp3",
+    "genre": null,
+    "id": "15",
+    "stem": "15 - Descarga De La Luz"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/16 - Pa' Que Retozen.mp3",
+    "genre": null,
+    "id": "16",
+    "stem": "16 - Pa' Que Retozen"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/17 - La Cura.mp3",
+    "genre": null,
+    "id": "17",
+    "stem": "17 - La Cura"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/18 - Watch Out!.mp3",
+    "genre": null,
+    "id": "18",
+    "stem": "18 - Watch Out!"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/19 - El Diablo.mp3",
+    "genre": null,
+    "id": "19",
+    "stem": "19 - El Diablo"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/20 - Cuenta Bien - Edwin Bonilla - Jesús “El Niño” Pérez..mp3",
+    "genre": null,
+    "id": "20",
+    "stem": "20 - Cuenta Bien - Edwin Bonilla - Jesús “El Niño” Pérez."
+  },
+  {
+    "digested": true,
+    "file": "data/audio/21 - California Love (Original Version).mp3",
+    "genre": null,
+    "id": "21",
+    "stem": "21 - California Love (Original Version)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/22 - HUMBLE..mp3",
+    "genre": null,
+    "id": "22",
+    "stem": "22 - HUMBLE."
+  },
+  {
+    "digested": true,
+    "file": "data/audio/23 - Not Like Us.mp3",
+    "genre": null,
+    "id": "23",
+    "stem": "23 - Not Like Us"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/24 - Acaríñame.mp3",
+    "genre": null,
+    "id": "24",
+    "stem": "24 - Acaríñame"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/25 - Nunca Es Suficiente.mp3",
+    "genre": null,
+    "id": "25",
+    "stem": "25 - Nunca Es Suficiente"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/26 - Ponte pa lo tuyo.mp3",
+    "genre": null,
+    "id": "26",
+    "stem": "26 - Ponte pa lo tuyo"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/27 - Escucha El Ritmo.mp3",
+    "genre": null,
+    "id": "27",
+    "stem": "27 - Escucha El Ritmo"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/28 - 72 Hacheros Pa' Un Palo.mp3",
+    "genre": null,
+    "id": "28",
+    "stem": "28 - 72 Hacheros Pa' Un Palo"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/29 - Nightcrawlers - Push The Feeling On.mp3",
+    "genre": null,
+    "id": "29",
+    "stem": "29 - Nightcrawlers - Push The Feeling On"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/30 - Daft Punk - Around the World (Official Audio).mp3",
+    "genre": null,
+    "id": "30",
+    "stem": "30 - Daft Punk - Around the World (Official Audio)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/31 - Daft Punk - One More Time (Official Audio).mp3",
+    "genre": null,
+    "id": "31",
+    "stem": "31 - Daft Punk - One More Time (Official Audio)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/32 - Daft Punk - Harder, Better, Faster, Stronger (Official Audio).mp3",
+    "genre": null,
+    "id": "32",
+    "stem": "32 - Daft Punk - Harder, Better, Faster, Stronger (Official Audio)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/33 - Carmesí - Vicente García [Letra].mp3",
+    "genre": null,
+    "id": "33",
+    "stem": "33 - Carmesí - Vicente García [Letra]"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/34 - Daniel Santacruz - Larimar (Bachata).mp3",
+    "genre": null,
+    "id": "34",
+    "stem": "34 - Daniel Santacruz - Larimar (Bachata)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/35 - GRUPO EXTRA -   LA MITAD - VERSION BACHATA - VIDEO OFICIAL.mp3",
+    "genre": null,
+    "id": "35",
+    "stem": "35 - GRUPO EXTRA -   LA MITAD - VERSION BACHATA - VIDEO OFICIAL"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/36 - Kitipun.mp3",
+    "genre": null,
+    "id": "36",
+    "stem": "36 - Kitipun"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/37 - O Tu o Yo (Bachata).mp3",
+    "genre": null,
+    "id": "37",
+    "stem": "37 - O Tu o Yo (Bachata)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/38 - Please Do Not Lean.mp3",
+    "genre": null,
+    "id": "38",
+    "stem": "38 - Please Do Not Lean"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/39 - See You Again.mp3",
+    "genre": null,
+    "id": "39",
+    "stem": "39 - See You Again"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/40 - ARE WE STILL FRIENDS？.mp3",
+    "genre": null,
+    "id": "40",
+    "stem": "40 - ARE WE STILL FRIENDS？"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/41 - Losing My Way.mp3",
+    "genre": null,
+    "id": "41",
+    "stem": "41 - Losing My Way"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/42 - Tadow.mp3",
+    "genre": null,
+    "id": "42",
+    "stem": "42 - Tadow"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/43 - Kool & The Gang - Get Down On It.mp3",
+    "genre": null,
+    "id": "43",
+    "stem": "43 - Kool & The Gang - Get Down On It"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/44 - El General - Boriqua_Anthem(que es lo que quiere esa nena).mp3",
+    "genre": null,
+    "id": "44",
+    "stem": "44 - El General - Boriqua_Anthem(que es lo que quiere esa nena)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/45 - Houdini.mp3",
+    "genre": null,
+    "id": "45",
+    "stem": "45 - Houdini"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/46 - Kiss Me More.mp3",
+    "genre": null,
+    "id": "46",
+    "stem": "46 - Kiss Me More"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/47 - Amor Adolescente.mp3",
+    "genre": null,
+    "id": "47",
+    "stem": "47 - Amor Adolescente"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/48 - La Makina - Nadie Se Muere.mp3",
+    "genre": null,
+    "id": "48",
+    "stem": "48 - La Makina - Nadie Se Muere"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/49 - Los Hermanos Rosario - Rompecintura.mp3",
+    "genre": null,
+    "id": "49",
+    "stem": "49 - Los Hermanos Rosario - Rompecintura"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/50 - Hermanos Rosario - En el fin de semana.mp3",
+    "genre": null,
+    "id": "50",
+    "stem": "50 - Hermanos Rosario - En el fin de semana"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/51 - Elvis Crespo - Nuestra Cancion (Cover Audio).mp3",
+    "genre": null,
+    "id": "51",
+    "stem": "51 - Elvis Crespo - Nuestra Cancion (Cover Audio)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/52 - Elvis Crespo - Tu Sonrisa.mp3",
+    "genre": null,
+    "id": "52",
+    "stem": "52 - Elvis Crespo - Tu Sonrisa"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/53 - Elvis Crespo - Suavemente.mp3",
+    "genre": null,
+    "id": "53",
+    "stem": "53 - Elvis Crespo - Suavemente"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/54 - Shabba Ranks - Ting-A-ling.mp3",
+    "genre": null,
+    "id": "54",
+    "stem": "54 - Shabba Ranks - Ting-A-ling"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/55 - Melody - El Baile del Gorila (Videoclip).mp3",
+    "genre": null,
+    "id": "55",
+    "stem": "55 - Melody - El Baile del Gorila (Videoclip)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/56 - Mayonesa - Chocolate (Video Oficial).mp3",
+    "genre": null,
+    "id": "56",
+    "stem": "56 - Mayonesa - Chocolate (Video Oficial)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/57 - RAYE - WHERE IS MY HUSBAND! (Official Music Video).mp3",
+    "genre": null,
+    "id": "57",
+    "stem": "57 - RAYE - WHERE IS MY HUSBAND! (Official Music Video)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/58 - PinkPantheress - Stateside + Zara Larsson (Official Video).mp3",
+    "genre": null,
+    "id": "58",
+    "stem": "58 - PinkPantheress - Stateside + Zara Larsson (Official Video)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/59 - Beyoncé - Countdown (Official Video).mp3",
+    "genre": null,
+    "id": "59",
+    "stem": "59 - Beyoncé - Countdown (Official Video)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/60 - Fergie - Fergalicious.mp3",
+    "genre": null,
+    "id": "60",
+    "stem": "60 - Fergie - Fergalicious"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/61 - Shakira - Hips Don't Lie (featuring Wyclef Jean) (Official 4K Video) ft. Wyclef Jean.mp3",
+    "genre": null,
+    "id": "61",
+    "stem": "61 - Shakira - Hips Don't Lie (featuring Wyclef Jean) (Official 4K Video) ft. Wyclef Jean"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/62 - I'm Still In Love With You.mp3",
+    "genre": null,
+    "id": "62",
+    "stem": "62 - I'm Still In Love With You"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/63 - Voy Pa Arriba.mp3",
+    "genre": null,
+    "id": "63",
+    "stem": "63 - Voy Pa Arriba"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/64 - Megan Thee Stallion - Cash Shit ft. Da Baby.mp3",
+    "genre": null,
+    "id": "64",
+    "stem": "64 - Megan Thee Stallion - Cash Shit ft. Da Baby"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/65 - Michael Jackson - In the Closet (Official Video - Upscaled).mp3",
+    "genre": null,
+    "id": "65",
+    "stem": "65 - Michael Jackson - In the Closet (Official Video - Upscaled)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/66 - The Pussycat Dolls - Buttons (Official Music Video) ft. Snoop Dogg.mp3",
+    "genre": null,
+    "id": "66",
+    "stem": "66 - The Pussycat Dolls - Buttons (Official Music Video) ft. Snoop Dogg"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/67 - Sergio Mendes - Magalenha (Official Visualizer).mp3",
+    "genre": null,
+    "id": "67",
+    "stem": "67 - Sergio Mendes - Magalenha (Official Visualizer)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/68 - Gypsy Woman (She's Homeless) (La Da Dee La Da Da) (Basement Boy Strip To The Bone Mix).mp3",
+    "genre": null,
+    "id": "68",
+    "stem": "68 - Gypsy Woman (She's Homeless) (La Da Dee La Da Da) (Basement Boy Strip To The Bone Mix)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/69 - Adrian Younge, Ali Shaheed Muhammad - Apocalíptico feat. Azymuth.mp3",
+    "genre": null,
+    "id": "69",
+    "stem": "69 - Adrian Younge, Ali Shaheed Muhammad - Apocalíptico feat. Azymuth"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/70 - Kid Cudi - Pursuit of Happiness [Remix Steve Aoki] (lyrics).mp3",
+    "genre": null,
+    "id": "70",
+    "stem": "70 - Kid Cudi - Pursuit of Happiness [Remix Steve Aoki] (lyrics)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/71 - Riton & Kah-Lo - Fake ID [Official Audio].mp3",
+    "genre": null,
+    "id": "71",
+    "stem": "71 - Riton & Kah-Lo - Fake ID [Official Audio]"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/72 - Daily Twist (Extended Mix).mp3",
+    "genre": null,
+    "id": "72",
+    "stem": "72 - Daily Twist (Extended Mix)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/73 - Undercover - Balikali On Acid (Blazy & Doktor Froid Bootleg).mp3",
+    "genre": null,
+    "id": "73",
+    "stem": "73 - Undercover - Balikali On Acid (Blazy & Doktor Froid Bootleg)"
+  },
+  {
+    "digested": true,
+    "file": "data/audio/74 - Sere (Remix).mp3",
+    "genre": null,
+    "id": "74",
+    "stem": "74 - Sere (Remix)"
+  }
+]

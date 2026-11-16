@@ -1,0 +1,96 @@
+{
+ "id": "oracle-a-dembow-offbeat",
+ "name": "Dembow Offbeat",
+ "target": {
+  "model": "oracle"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "turn"
+   },
+   "curve": "step",
+   "steps": [
+    0,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    0.1,
+    null,
+    null,
+    0.9,
+    null,
+    0.1,
+    null,
+    null,
+    0.9,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "gaze_y"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "iris",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null
+   ]
+  }
+ ]
+}

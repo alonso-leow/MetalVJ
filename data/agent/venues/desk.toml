@@ -1,0 +1,237 @@
+# Few-shot example, invented: no photo behind it. A desk with a laptop, an
+# external monitor, and three phones standing in portrait against the
+# monitor's bottom edge — five screens, five outputs, one picture.
+#
+# What this example teaches:
+#
+# - **A venue with no projector.** Every output is a `[[display]]`, so the
+#   shot's projection fields are absent: no `projection`, and
+#   `projector_distance = 0`. The other four fields still come in order.
+# - **Peers.** The phones are other devices running MetalVJ, paired over
+#   `metal-sync` (`link = "peer"`, `node` = the name each one pairs as); the
+#   laptop is the machine that composes and the monitor is on its HDMI.
+# - **One picture over five screens.** The `[[composition]]` names the five
+#   displays and the viewpoint they line up from. Each display gets the piece
+#   of the picture that sits where its glass sits as seen from the chair
+#   (`Venue::spans`): the laptop the lower left, the monitor the upper right,
+#   each phone a narrow strip of what is behind it on the monitor.
+# - **Screens that tilt.** The laptop's lid and the phones lean back, so their
+#   `v` points down *and* toward the viewer.
+#
+# Units: metres, +y up, floor y = 0, the desk's front edge at z = 0 and the
+# wall behind it at z = -0.8. yaw 0 looks at the wall (-z), +90 looks right
+# (+x); pitch > 0 looks up. A surface is origin + s*u + t*v, (0,0) top-left
+# seen from the lit side. Image points are 0..1, top-left.
+
+[venue]
+id = "desk"
+name = "Desk, laptop, monitor and three phones"
+setting = "indoor"
+based_on = []
+notes = """
+Invented. A 1.4 x 0.7 m desk against a wall. A 15.6-inch laptop on the left,
+lid open about 15 degrees past vertical; a 27-inch monitor on a stand right of
+centre; three phones standing in portrait on the desk, leaning back against
+the monitor's bottom bezel. All five show one composed picture, lined up from
+the chair.
+"""
+
+# ---------------------------------------------------------------- shots ---
+
+# 1. camera  2. projection: none, every output here is a screen
+# 3. projector_distance: 0  4. floor  5. background  6. horizon: indoors, none
+[[shot]]
+id = "chair"
+image = ""
+camera = { eye = [0.0, 1.2, 0.42], yaw = 2.8, pitch = -16.3, roll = 0.0, fov = 55.0, aspect = 1.7778 }
+projector_distance = 0.0
+floor_brightness = 0.2
+background_brightness = 0.25
+horizon_path = []
+notes = "Designed: sitting at the desk, eyes 1.2 m up and 42 cm back from its front edge. All five screens are in frame."
+
+[[shot.sees]]
+surface = "laptop-screen"
+corners = [[0.058, 0.601], [0.365, 0.591], [0.368, 0.884], [0.064, 0.902]]
+
+[[shot.sees]]
+surface = "monitor-screen"
+corners = [[0.422, 0.2], [0.797, 0.201], [0.768, 0.553], [0.43, 0.564]]
+
+[[shot.sees]]
+surface = "phone-1-screen"
+corners = [[0.485, 0.555], [0.524, 0.554], [0.525, 0.702], [0.486, 0.704]]
+
+[[shot.sees]]
+surface = "phone-2-screen"
+corners = [[0.585, 0.552], [0.623, 0.551], [0.624, 0.698], [0.586, 0.7]]
+
+[[shot.sees]]
+surface = "phone-3-screen"
+corners = [[0.683, 0.55], [0.72, 0.548], [0.721, 0.694], [0.683, 0.696]]
+
+# ------------------------------------------------------------- surfaces ---
+
+[[surface]]
+id = "desk-wall"
+name = "wall behind the desk"
+origin = [-1.0, 2.5, -0.8]
+u = [2.0, 0.0, 0.0]
+v = [0.0, -2.5, 0.0]
+material = "white paint"
+
+[[surface]]
+id = "desk-top"
+name = "desk top"
+origin = [-0.7, 0.75, -0.7]
+u = [1.4, 0.0, 0.0]
+v = [0.0, 0.0, 0.7]
+material = "light birch veneer"
+
+# The five glasses, exactly. Laptop: 0.344 x 0.1935 m (15.6-inch 16:9),
+# starting 12 mm up a lid hinged at z = -0.12 and leaning back 15 degrees.
+[[surface]]
+id = "laptop-screen"
+name = "laptop glass"
+origin = [-0.472, 0.9665, -0.1732]
+u = [0.344, 0.0, 0.0]
+v = [0.0, -0.1869, 0.0501]
+material = "matte panel"
+
+# Monitor: 0.5968 x 0.3357 m (27-inch 16:9), vertical, 13 cm above the desk.
+[[surface]]
+id = "monitor-screen"
+name = "monitor glass"
+origin = [-0.0784, 1.2157, -0.46]
+u = [0.5968, 0.0, 0.0]
+v = [0.0, -0.3357, 0.0]
+material = "matte panel"
+
+# Phones: 0.0655 x 0.142 m glass in portrait, standing on the desk and
+# leaning back 16 degrees until their top edge rests on the monitor's bezel.
+[[surface]]
+id = "phone-1-screen"
+name = "phone 1 glass"
+origin = [0.0173, 0.8925, -0.444]
+u = [0.0655, 0.0, 0.0]
+v = [0.0, -0.1365, 0.0391]
+material = "glossy glass"
+
+[[surface]]
+id = "phone-2-screen"
+name = "phone 2 glass"
+origin = [0.1872, 0.8925, -0.444]
+u = [0.0655, 0.0, 0.0]
+v = [0.0, -0.1365, 0.0391]
+material = "glossy glass"
+
+[[surface]]
+id = "phone-3-screen"
+name = "phone 3 glass"
+origin = [0.3573, 0.8925, -0.444]
+u = [0.0655, 0.0, 0.0]
+v = [0.0, -0.1365, 0.0391]
+material = "glossy glass"
+
+# -------------------------------------------------------------- objects ---
+
+[[object]]
+id = "desk"
+name = "desk"
+kind = "table"
+at = [0.0, 0.0, -0.35]
+size = [1.4, 0.75, 0.7]
+description = "Birch desk against the wall. Everything else stands on it."
+
+[[object]]
+id = "laptop"
+name = "laptop base"
+kind = "laptop"
+at = [-0.3, 0.75, -0.235]
+size = [0.36, 0.018, 0.24]
+description = "The laptop's base and keyboard. Its lid is not a box: the lid's glass is `laptop-screen`, the display `laptop`."
+
+[[object]]
+id = "monitor"
+name = "monitor body"
+kind = "monitor"
+at = [0.22, 0.868, -0.486]
+size = [0.614, 0.36, 0.05]
+description = "The 27-inch monitor's body, on its stand. Its glass is `monitor-screen`."
+
+[[object]]
+id = "monitor-stand"
+name = "monitor stand"
+kind = "stand"
+at = [0.22, 0.75, -0.58]
+size = [0.25, 0.118, 0.2]
+description = "Metal foot and neck under the monitor."
+
+# The phones lean, and an object box cannot: they are described by their
+# glass alone.
+
+# ------------------------------------------------------------- displays ---
+
+[[display]]
+id = "laptop"
+name = "laptop screen"
+kind = "laptop"
+output = "laptop"
+surface = "laptop-screen"
+resolution = [1920, 1080]
+link = "local"
+notes = "The machine that composes every frame here."
+
+[[display]]
+id = "monitor"
+name = "external monitor"
+kind = "monitor"
+output = "monitor"
+surface = "monitor-screen"
+resolution = [2560, 1440]
+link = "local"
+notes = "HDMI from the laptop."
+
+[[display]]
+id = "phone-1"
+name = "phone 1"
+kind = "phone"
+output = "phone-1"
+surface = "phone-1-screen"
+resolution = [1080, 2340]
+link = "peer"
+node = "phone-a"
+
+[[display]]
+id = "phone-2"
+name = "phone 2"
+kind = "phone"
+output = "phone-2"
+surface = "phone-2-screen"
+resolution = [1080, 2340]
+link = "peer"
+node = "phone-b"
+
+[[display]]
+id = "phone-3"
+name = "phone 3"
+kind = "phone"
+output = "phone-3"
+surface = "phone-3-screen"
+resolution = [1080, 2340]
+link = "peer"
+node = "phone-c"
+
+# --------------------------------------------------------- compositions ---
+
+[[composition]]
+id = "desk-wave"
+name = "one aurora over five screens"
+model = "aurora"
+displays = ["laptop", "monitor", "phone-1", "phone-2", "phone-3"]
+seen_from = "chair"
+content = "One slow aurora across all five screens: from the chair it reads as a single picture with the screens as windows onto it."
+
+# No [[mask]]: every display shows its whole glass, and the composition is
+# the content. A mask on a display's surface would cut that display's output
+# point for point.

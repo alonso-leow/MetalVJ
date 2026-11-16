@@ -1,0 +1,33 @@
+{
+ "id": "kaleido-skip",
+ "name": "Skip",
+ "target": {
+  "model": "kaleido"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "torsion"
+   },
+   "curve": "step",
+   "steps": [0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "turn"
+   },
+   "curve": "step",
+   "steps": [0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15, 0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "crystal",
+    "palette": "psychedelia"
+   },
+   "steps": [{"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null]
+  }
+ ]
+}

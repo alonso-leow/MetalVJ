@@ -1,0 +1,94 @@
+{
+ "id": "parallax-campos-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "parallax-fields"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "fog"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    0.95,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    0.95,
+    null,
+    null,
+    0.2,
+    null,
+    0.95,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "light"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    0.2,
+    null,
+    0.2,
+    null,
+    0.2,
+    null,
+    0.2,
+    null,
+    0.2,
+    null,
+    0.2,
+    null,
+    0.2,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "fog_c",
+    "palette": "fire"
+   },
+   "steps": [
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    {
+     "colour": 3
+    },
+    null
+   ]
+  }
+ ]
+}

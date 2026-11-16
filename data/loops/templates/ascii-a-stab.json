@@ -1,0 +1,92 @@
+{
+ "id": "ascii-a-stab",
+ "name": "Stab",
+ "target": {
+  "model": "ascii"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "thickness"
+   },
+   "curve": "step",
+   "steps": [
+    0.75,
+    0.1,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.75,
+    0.1,
+    null,
+    null,
+    0.75,
+    0.1,
+    null,
+    null,
+    0.75
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "amplitude"
+   },
+   "curve": "step",
+   "steps": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.7
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "text",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    }
+   ]
+  }
+ ]
+}

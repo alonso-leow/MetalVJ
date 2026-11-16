@@ -1,0 +1,1 @@
+{ "id": "light-leak", "name": "Luz filtrada", "kind": "light_leak", "duration": 2, "unit": "beats", "ease": "in_out" }

@@ -40,7 +40,7 @@ use crate::shared::ColorSlotGpu;
 const MAX_STRINGS: u32 = 24;
 
 const FLOATS: &[FloatSpec] = &[
-    spec("n", 1.0, MAX_STRINGS as f32, 7.0),
+    spec("string_count", 1.0, MAX_STRINGS as f32, 7.0),
     // 1.0 spaces the family evenly across the frame whatever the rotation;
     // above that it spills out of shot, which is a look and not a mistake.
     spec("spread", 0.1, 1.5, 1.0),
@@ -65,7 +65,7 @@ const FLOATS: &[FloatSpec] = &[
 ];
 
 pub static SCHEMA: Schema = Schema {
-    blocks: &[Block::Floats(FLOATS), color("escape"), background(), crate::model::SIGNAL_FLOATS_BLOCK, crate::model::EFFECTS_FLOATS_BLOCK, crate::model::EFFECTS_COLOR_BLOCK],
+    blocks: &[Block::Floats(FLOATS), color("escape_color"), background(), crate::model::SIGNAL_FLOATS_BLOCK, crate::model::EFFECTS_FLOATS_BLOCK, crate::model::EFFECTS_COLOR_BLOCK],
 };
 
 pub struct Escape {

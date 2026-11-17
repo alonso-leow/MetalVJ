@@ -24,7 +24,7 @@ fn id_bayer(c: vec2<i32>, n: i32) -> f32 {
 }
 
 fn id_cell_world(cell: vec2<f32>, cs: f32, shift: vec2<f32>) -> vec2<f32> {
-    return p_rot((cell + 0.5) * cs - shift, -f_turn_mesh());
+    return p_rot((cell + 0.5) * cs - shift, -f_mesh_turn());
 }
 
 // Perceptual luma 0..1 of a linear colour.
@@ -71,12 +71,12 @@ fn id_th(cell: vec2<f32>, kind: i32, seed: f32) -> f32 {
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let t = p_time();
     let kind = clamp(i32(floor(f_type() + 0.5)), 0, 7);
-    let n = max(2.0, floor(f_steps_color() + 0.5));
+    let n = max(2.0, floor(f_color_steps() + 0.5));
     let cs = max(f_size(), 0.3) * 0.012;
     let seed = f_seed() * 1.7;
     let shift = vec2<f32>(f_displace_x(), f_displace_y()) * t * cs * 6.0;
 
-    let gq = p_rot(p, f_turn_mesh()) + shift;
+    let gq = p_rot(p, f_mesh_turn()) + shift;
     let cell = floor(gq / cs);
     let cu = fract(gq / cs);
 

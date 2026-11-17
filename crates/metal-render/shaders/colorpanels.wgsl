@@ -24,7 +24,7 @@ fn panel(p: vec2<f32>, i: i32, count: f32, back: bool, acc: ptr<function, vec4<f
     if ((z < 0.0) != back) { return; }
 
     let persp = 1.0 / max(1.0 - f_perspective() * z, 0.2);
-    let long = f_long() * persp;
+    let long = f_length() * persp;
 
     // Vertical position along the panel, 0 at the top end, 1 at the bottom.
     let t = p.y / long + 0.5;

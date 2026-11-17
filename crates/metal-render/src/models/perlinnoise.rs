@@ -19,8 +19,8 @@ const FLOATS: &[FloatSpec] = &[
     spec("scale", 0.2, 8.0, 1.6),
     spec("speed", -3.0, 3.0, 0.5),
     spec("rotation", 0.0, 1.0, 0.0),
-    spec("off_x", -2.0, 2.0, 0.0),
-    spec("off_y", -2.0, 2.0, 0.0),
+    spec("offset_x", -2.0, 2.0, 0.0),
+    spec("offset_y", -2.0, 2.0, 0.0),
     spec("warp_domain", 0.0, 1.0, 0.0),
     spec("warp_scale", 0.2, 4.0, 1.0),
     spec("flow", 0.0, 1.0, 0.0),
@@ -28,15 +28,15 @@ const FLOATS: &[FloatSpec] = &[
     spec("crest", 0.0, 1.0, 0.0),
     spec("wave", 0.0, 1.0, 0.0),
     spec("anisotropy", -1.0, 1.0, 0.0),
-    spec("contrast_field", 0.5, 4.0, 1.8),
+    spec("field_contrast", 0.5, 4.0, 1.8),
     spec("bands", 0.0, 1.0, 0.0),
-    spec_held("n_bands", 2.0, 16.0, 6.0, 0.2),
+    spec_held("band_count", 2.0, 16.0, 6.0, 0.2),
     spec("outline", 0.0, 1.0, 0.0),
     spec("outline_width", 0.0, 1.0, 0.3),
     spec("relief", 0.0, 1.0, 0.0),
     spec("light_angle", 0.0, 1.0, 0.125),
     spec("ramp", 0.0, 1.0, 0.0),
-    spec("drift_color", -1.0, 1.0, 0.0),
+    spec("color_drift", -1.0, 1.0, 0.0),
     spec("grain", 0.0, 1.0, 0.0),
     spec("hole", 0.0, 1.0, 0.0),
 ];
@@ -49,7 +49,7 @@ const FRENTE: [f32; 12] = [0.97, 0.60, 0.92, 0.70, 0.45, 0.95, 1.00, 0.85, 0.80,
 const ACENTO: [f32; 12] = [1.00, 0.70, 0.10, 1.00, 0.30, 0.03, 1.00, 0.10, 0.30, 1.00, 1.00, 1.00];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "base" => BASE, "frente" => FRENTE, "accent" => ACENTO);
+    "base" => BASE, "front" => FRENTE, "accent" => ACENTO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "perlinnoise",

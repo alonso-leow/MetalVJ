@@ -11,19 +11,19 @@ use crate::model::{spec, spec_held, FloatSpec};
 use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
-    spec_held("steps_color", 1.0, 8.0, 2.0, 0.2),
+    spec_held("color_steps", 1.0, 8.0, 2.0, 0.2),
     spec("softness", 0.0, 1.0, 0.0),
     spec("scale", 0.2, 6.0, 1.4),
     spec("rotation", 0.0, 1.0, 0.0),
-    spec("off_x", -2.0, 2.0, 0.0),
-    spec("off_y", -2.0, 2.0, 0.0),
+    spec("offset_x", -2.0, 2.0, 0.0),
+    spec("offset_y", -2.0, 2.0, 0.0),
     spec("speed", -3.0, 3.0, 0.5),
     spec("phase_z", 0.0, 1.0, 0.0),
     spec("stretch", 0.25, 4.0, 1.0),
     spec_held("octaves", 1.0, 5.0, 2.0, 0.2),
     spec("lacunarity", 1.2, 3.2, 2.0),
     spec("persistence", 0.15, 0.85, 0.5),
-    spec("rot_octave", 0.0, 1.0, 0.35),
+    spec("octave_rotation", 0.0, 1.0, 0.35),
     spec("crests", 0.0, 1.0, 0.0),
     spec("flow", 0.0, 1.0, 0.3),
     spec("flow_scale", 0.3, 4.0, 1.0),
@@ -35,7 +35,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("edges_width", 0.02, 0.4, 0.12),
     spec("palette_mix", 0.0, 1.0, 0.2),
     spec("palette_variation", 0.0, 1.0, 0.3),
-    spec("drift_color", -2.0, 2.0, 0.0),
+    spec("color_drift", -2.0, 2.0, 0.0),
     spec("grain", 0.0, 1.0, 0.0),
     spec("grain_size", 0.2, 4.0, 1.0),
 ];
@@ -48,7 +48,7 @@ const COLORES2: [f32; 12] = [0.10, 0.01, 0.15, 0.55, 0.04, 0.35, 0.90, 0.22, 0.2
 const LINEAS: [f32; 12] = [1.00, 1.00, 1.00, 0.35, 1.00, 0.70, 1.00, 0.95, 0.40, 0.02, 0.02, 0.05];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "colores" => COLORES, "colores2" => COLORES2, "lines" => LINEAS);
+    crate::scaffold_schema!(FLOATS; "colors" => COLORES, "colors_2" => COLORES2, "lines" => LINEAS);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "simplexnoise",
@@ -79,11 +79,11 @@ mod tests {
         ("edges", 0.6),
         ("palette_variation", 0.5),
         ("palette_mix", 0.4),
-        ("drift_color", 0.5),
+        ("color_drift", 0.5),
         ("grain", 0.5),
         ("empty", 0.5),
-        ("rot_octave", 0.4),
-        ("steps_color", 3.0),
+        ("octave_rotation", 0.4),
+        ("color_steps", 3.0),
         ("warp_amount", 0.4),
         ("pulse", 0.0),
     ];

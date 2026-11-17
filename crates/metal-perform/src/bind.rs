@@ -287,7 +287,7 @@ fn apply_held(graph: &Graph, rows: &mut Rows, gen_params: &GenParams) {
         let (Some(row), Some(ps)) = (rows.get_mut(&node.id), gen_params.get(&node.id)) else { continue };
         // A held colour slot or camera is written whole over the driven row.
         for p in ps.iter().filter(|p| p.kind != ParamKind::Float) {
-            if let (Some(v), Some(at)) = (vectors.get(&p.name), p.index) {
+            if let (Some(v), Some(at)) = (metal_schema::param_aliases::slot_alias_keys(&p.name).find_map(|k| vectors.get(k)), p.index) {
                 for (i, x) in v.iter().enumerate() {
                     if let Some(slot) = row.get_mut(at + i) {
                         *slot = *x;
@@ -296,7 +296,7 @@ fn apply_held(graph: &Graph, rows: &mut Rows, gen_params: &GenParams) {
             }
         }
         for p in ps.iter().filter(|p| p.kind == ParamKind::Float) {
-            if let (Some(v), Some(slot)) = (held.get(&p.name), p.index.and_then(|i| row.get_mut(i))) {
+            if let (Some(v), Some(slot)) = (metal_schema::param_aliases::alias_keys(&p.name).find_map(|k| held.get(k)), p.index.and_then(|i| row.get_mut(i))) {
                 *slot = v.clamp(p.min, p.max);
             }
         }

@@ -34,7 +34,7 @@ const FLOATS: &[FloatSpec] = &[
     // source shape
     spec_held("osc_freq", 1.0, 120.0, 14.0, 0.2),
     spec("osc_sync", -2.0, 2.0, 0.3),
-    spec("osc_off", 0.0, 1.0, 0.0),
+    spec("osc_offset", 0.0, 1.0, 0.0),
     spec("noise_scale", 0.5, 20.0, 3.0),
     spec("noise_speed", 0.0, 2.0, 0.3),
     spec("voronoi_scale", 1.0, 30.0, 5.0),
@@ -43,10 +43,10 @@ const FLOATS: &[FloatSpec] = &[
     spec("shape_radius", 0.05, 1.0, 0.35),
     spec("shape_soft", 0.001, 0.5, 0.04),
     // geometry
-    spec("rot", -0.5, 0.5, 0.0),
-    spec("rot_speed", -1.0, 1.0, 0.0),
+    spec("rotation", -0.5, 0.5, 0.0),
+    spec("rotation_speed", -1.0, 1.0, 0.0),
     spec("scale", 0.2, 4.0, 1.0),
-    spec_held("kaleid", 0.0, 12.0, 0.0, 0.2),
+    spec_held("kaleido_segments", 0.0, 12.0, 0.0, 0.2),
     spec("pixel", 0.0, 1.0, 0.0),
     spec("repeat_x", 1.0, 8.0, 1.0),
     spec("repeat_y", 1.0, 8.0, 1.0),
@@ -222,10 +222,10 @@ impl Model for Warping {
             v: [
                 [aspect, ctx.time, if state.fresh() { 1.0 } else { 0.0 }, o("feedback_mode")],
                 [o("osc_mix"), o("noise_mix"), o("voronoi_mix"), o("shape_mix")],
-                [o("gradient_mix"), o("osc_freq"), o("osc_sync"), o("osc_off")],
+                [o("gradient_mix"), o("osc_freq"), o("osc_sync"), o("osc_offset")],
                 [o("noise_scale"), o("noise_speed"), o("voronoi_scale"), o("voronoi_blend")],
-                [o("shape_sides"), o("shape_radius"), o("shape_soft"), o("rot")],
-                [o("rot_speed"), o("scale"), o("kaleid"), o("pixel")],
+                [o("shape_sides"), o("shape_radius"), o("shape_soft"), o("rotation")],
+                [o("rotation_speed"), o("scale"), o("kaleido_segments"), o("pixel")],
                 [o("repeat_x"), o("repeat_y"), o("scroll_x"), o("scroll_y")],
                 [o("scroll_speed"), o("mod_amount"), o("mod_source"), o("mod_scale")],
                 [o("hue"), o("colorful"), o("saturate"), o("contrasting")],
@@ -290,7 +290,7 @@ mod tests {
             ("gradient_mix", 0.4),
             ("mod_amount", 0.4),
             ("feedback_amount", 0.5),
-            ("kaleid", 0.0),
+            ("kaleido_segments", 0.0),
         ] {
             f[o + fi(n)] = v;
         }

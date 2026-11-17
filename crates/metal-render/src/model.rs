@@ -94,14 +94,44 @@ pub fn off_axis(eye: [f32; 3], screen: [f32; 3]) -> [[f32; 4]; 4] {
     off_axis_with(eye, screen, [screen[0], screen[1], screen[2] + 1.0], 1.0, 1.0)
 }
 
-/// The three reserved `cam_x/cam_y/cam_z` floats at the end of a model's own
-/// blocks, just before the shared signal/effects tail (plan rule 2). `[0,0,0]`
-/// for a row too short to carry them (an older build), which is "no track".
+/// The six reserved pose floats of a camera-block model — `cam_x/cam_y/cam_z`
+/// then `cam_yaw/cam_pitch/cam_dolly` ([`metal_schema::POSE_NAMES`]) — at the
+/// end of its own blocks, just before the shared signal/effects tail (plan
+/// rule 2). `None` for a row too short to carry them (an older build).
+fn pose_tail(floats: &[f32]) -> Option<&[f32]> {
+    let at = floats.len().checked_sub(metal_schema::SIGNAL_WIDTH + metal_schema::EFFECTS_WIDTH + 6)?;
+    Some(&floats[at..at + 6])
+}
+
+/// The `cam_x/cam_y/cam_z` eye offset of a camera-block model; `[0,0,0]` for a
+/// row too short to carry it, which is "no track".
 pub fn camera_track_offset(floats: &[f32]) -> [f32; 3] {
-    match floats.len().checked_sub(metal_schema::SIGNAL_WIDTH + metal_schema::EFFECTS_WIDTH + 3) {
-        Some(at) => [floats[at], floats[at + 1], floats[at + 2]],
-        None => [0.0; 3],
+    pose_tail(floats).map_or([0.0; 3], |t| [t[0], t[1], t[2]])
+}
+
+/// The `cam_yaw/cam_pitch/cam_dolly` look of a camera-block model; zero (the
+/// rest view) for a row too short to carry it.
+pub fn camera_look(floats: &[f32]) -> [f32; 3] {
+    pose_tail(floats).map_or([0.0; 3], |t| [t[3], t[4], t[5]])
+}
+
+/// `eye`/`target` turned at the eye by `look = [yaw, pitch, dolly]` and moved
+/// `dolly` back along the turned view (both points, so it travels rather than
+/// zooms). The CAM3D kit's conventions: positive yaw looks left (right-handed
+/// about +Y), positive pitch looks up, positive dolly pulls back (the kit adds
+/// it to the orbit distance). The identity at `[0, 0, 0]`.
+pub fn posed(eye: glam::Vec3, target: glam::Vec3, look: [f32; 3]) -> (glam::Vec3, glam::Vec3) {
+    let [yaw, pitch, dolly] = look;
+    if yaw == 0.0 && pitch == 0.0 && dolly == 0.0 {
+        return (eye, target);
     }
+    let v = target - eye;
+    let d = v.length().max(1e-4);
+    let fwd = v / d;
+    let right = fwd.cross(glam::Vec3::Y).try_normalize().unwrap_or(glam::Vec3::X);
+    let turned = glam::Quat::from_rotation_y(yaw) * (glam::Quat::from_axis_angle(right, pitch.clamp(-1.5, 1.5)) * fwd);
+    let eye = eye - turned * dolly;
+    (eye, eye + turned * d)
 }
 
 /// Largest distance (world units) a `cam.track` offset may move a 3D eye or
@@ -124,6 +154,22 @@ pub fn soft_clamp(v: glam::Vec3, r: f32) -> glam::Vec3 {
 pub fn soft_camera_track_offset(floats: &[f32]) -> [f32; 3] {
     let t = camera_track_offset(floats);
     soft_clamp(glam::Vec3::from(t), CAM_TRACK_RADIUS).to_array()
+}
+
+/// [`tracked_view_proj`] for a camera-block model whose row ends in the six
+/// pose floats: the rest camera is first [`posed`] by the row's look, then
+/// tracked by its eye offset (soft-limited when `soft`).
+pub fn posed_view_proj(
+    rest_eye: glam::Vec3,
+    target: glam::Vec3,
+    fov_degrees: f32,
+    aspect: f32,
+    floats: &[f32],
+    soft: bool,
+) -> [[f32; 4]; 4] {
+    let (eye, target) = posed(rest_eye, target, camera_look(floats));
+    let track = if soft { soft_camera_track_offset(floats) } else { camera_track_offset(floats) };
+    tracked_view_proj(eye, target, fov_degrees, aspect, track)
 }
 
 /// The view-projection a 3D model uses: `view_proj_cols`' symmetric frustum
@@ -507,15 +553,31 @@ mod cam_track_clamp_tests {
 
     #[test]
     fn soft_camera_track_offset_is_bounded_and_keeps_direction() {
-        // width of a row: 3 reserved floats at the very end before the tail.
-        let mut row = vec![0.0f32; SIGNAL_WIDTH + EFFECTS_WIDTH + 3];
+        // width of a row: the 6 pose floats at the very end before the tail,
+        // `cam_x/cam_y/cam_z` first.
+        let mut row = vec![0.0f32; SIGNAL_WIDTH + EFFECTS_WIDTH + 6];
         let n = row.len();
-        row[n - SIGNAL_WIDTH - EFFECTS_WIDTH - 3] = 30.0;
-        row[n - SIGNAL_WIDTH - EFFECTS_WIDTH - 1] = -40.0;
+        row[n - SIGNAL_WIDTH - EFFECTS_WIDTH - 6] = 30.0;
+        row[n - SIGNAL_WIDTH - EFFECTS_WIDTH - 4] = -40.0;
+        row[n - SIGNAL_WIDTH - EFFECTS_WIDTH - 3] = 9.0;
         let out = glam::Vec3::from(soft_camera_track_offset(&row));
         assert!(out.length() <= CAM_TRACK_RADIUS + 1e-5);
         assert!(out.normalize().dot(glam::Vec3::new(30.0, 0.0, -40.0).normalize()) > 0.9999);
         assert_eq!(soft_camera_track_offset(&[]), [0.0; 3]);
+        assert_eq!(camera_look(&row), [9.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn posed_turns_at_the_eye_and_dollies_back() {
+        let (eye, target) = (glam::Vec3::new(0.0, 0.0, 2.0), glam::Vec3::ZERO);
+        assert_eq!(posed(eye, target, [0.0; 3]), (eye, target));
+        // A quarter turn left looks down -x from the same eye.
+        let (e, t) = posed(eye, target, [std::f32::consts::FRAC_PI_2, 0.0, 0.0]);
+        assert!((e - eye).length() < 1e-5);
+        assert!(((t - e).normalize() - glam::Vec3::NEG_X).length() < 1e-5, "{t:?}");
+        // Positive dolly pulls back along the view.
+        let (e, t) = posed(eye, target, [0.0, 0.0, 1.0]);
+        assert!((e - glam::Vec3::new(0.0, 0.0, 3.0)).length() < 1e-5 && (t - glam::Vec3::Z).length() < 1e-5);
     }
 }
 

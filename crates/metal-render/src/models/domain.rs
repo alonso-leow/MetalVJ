@@ -11,7 +11,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("scanline", 0.0, 1.0, 0.55),
     spec("distortion", 0.0, 1.0, 0.35),
     spec("rgb_split", 0.0, 1.0, 0.3),
-    spec("prob", 0.0, 1.0, 0.12),
+    spec("probability", 0.0, 1.0, 0.12),
     spec("duration", 0.05, 3.0, 0.6),
 ];
 

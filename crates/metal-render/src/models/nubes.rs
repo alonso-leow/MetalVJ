@@ -67,7 +67,7 @@ const FLOATS: &[FloatSpec] = &[
     // 0 density, 1 pressure, 2 vorticity, 3 schlieren. Structural.
     spec_held("mode", 0.0, 3.0, 0.0, 0.2),
     // Named `contraste_nube`: `contraste` belongs to the LOOK kit.
-    spec("contrast_cloud", 0.3, 4.0, 1.4),
+    spec("cloud_contrast", 0.3, 4.0, 1.4),
     // Sensitivity of the density-gradient (schlieren) layer.
     spec("schlieren", 0.0, 3.0, 0.3),
     // Light direction on the screen plane (y up).

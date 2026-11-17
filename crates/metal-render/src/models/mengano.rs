@@ -73,12 +73,12 @@ const FLOATS: &[FloatSpec] = &[
     // because a transient flipping the whole frame between the two reads as a
     // fault rather than as an effect.
     spec_held("travelling", 0.0, 1.0, 0.0, 0.3),
-    spec("speed_background", 0.0, 3.0, 0.9),
-    spec("scale_background", 0.4, 8.0, 2.2),
+    spec("background_speed", 0.0, 3.0, 0.9),
+    spec("background_scale", 0.4, 8.0, 2.2),
     // How much the eyes follow where the body is heading, against Oracle's
     // scan of the room.
     spec("gaze", 0.0, 1.0, 0.8),
-    spec("speed_scan", 0.05, 4.0, 0.9),
+    spec("scan_speed", 0.05, 4.0, 0.9),
     spec("blink", 0.0, 1.0, 0.5),
     spec("eyes", 0.1, 1.0, 0.55),
 ];

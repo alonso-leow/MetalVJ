@@ -21,7 +21,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("origin_y", -0.9, 0.9, -0.3),
     spec_held("rays", 2.0, 40.0, 10.0, 0.2),
     spec("width", 0.0, 1.0, 0.3),
-    spec("long", 0.0, 1.0, 0.5),
+    spec("length", 0.0, 1.0, 0.5),
     spec("curvature", -1.5, 1.5, 0.0),
     spec("swing", 0.0, 1.0, 0.0),
     spec("blink", 0.0, 1.0, 0.0),
@@ -33,7 +33,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("halo_pulse", 0.0, 1.0, 0.0),
     spec("aberration", 0.0, 1.0, 0.0),
     spec("dust", 0.0, 1.0, 0.0),
-    spec("mix_color", 0.0, 1.0, 0.3),
+    spec("color_mix", 0.0, 1.0, 0.3),
 ];
 
 /// Linear values: white, warm yellow, orange, pink.
@@ -44,7 +44,7 @@ const BLOOM: [f32; 12] = [0.00, 0.00, 1.00, 0.25, 0.05, 0.80, 0.80, 0.05, 0.50, 
 const NUCLEO: [f32; 12] = [1.00, 1.00, 1.00, 1.00, 0.90, 0.60, 1.00, 0.55, 0.10, 1.00, 0.25, 0.02];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "rays" => RAYOS, "bloom" => BLOOM, "core" => NUCLEO);
+    "rays_color" => RAYOS, "bloom_color" => BLOOM, "core" => NUCLEO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "godrays",

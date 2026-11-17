@@ -51,7 +51,7 @@ fn dot_at(p: vec2<f32>, cell: vec2<f32>, shift: f32, gx: f32, gy: f32, acc: ptr<
     op = op * mix(1.0, tw, f_flash());
 
     // Local frame, rotated per dot.
-    let ang = f_turn_dot() * TAU * (0.5 + h2.x) + f_turn_dot() * t * 0.4 * (h.x - 0.5);
+    let ang = f_dot_turn() * TAU * (0.5 + h2.x) + f_dot_turn() * t * 0.4 * (h.x - 0.5);
     let q = p_rot(p - c, -ang);
 
     let kind = clamp(i32(floor(f_shape() + 0.5)), 0, 4);
@@ -62,8 +62,8 @@ fn dot_at(p: vec2<f32>, cell: vec2<f32>, shift: f32, gx: f32, gy: f32, acc: ptr<
     if (outer <= 0.001) { return; }
     let inner = select(1.0 - smoothstep(-aa, aa, d + f_stroke()), 1.0, f_stroke() < 1e-4);
 
-    let fill = p_pal(0u, clamp(f_mix_color() * h.x, 0.0, 1.0));
-    let line = p_pal(1u, clamp(f_mix_color() * h2.y, 0.0, 1.0));
+    let fill = p_pal(0u, clamp(f_color_mix() * h.x, 0.0, 1.0));
+    let line = p_pal(1u, clamp(f_color_mix() * h2.y, 0.0, 1.0));
     let col = mix(line, fill, inner);
 
     let a = outer * op;

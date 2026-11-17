@@ -84,7 +84,7 @@ pub static SCHEMA: Schema = Schema {
     blocks: &[
         Block::Floats(FLOATS),
         color_at("glass", &GLASS),
-        color_at("lead", &LEAD),
+        color_at("lead_color", &LEAD),
         background(),
     crate::model::SIGNAL_FLOATS_BLOCK, crate::model::EFFECTS_FLOATS_BLOCK,
     crate::model::EFFECTS_COLOR_BLOCK,

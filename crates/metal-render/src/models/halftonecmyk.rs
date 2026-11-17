@@ -19,7 +19,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("noise_grid", 0.0, 1.0, 0.2),
     spec_held("type", 0.0, 4.0, 0.2, 0.2),
     spec("softness", 0.0, 1.0, 0.2),
-    spec("contrast_img", 0.3, 3.0, 1.0),
+    spec("image_contrast", 0.3, 3.0, 1.0),
     spec("flood_c", 0.0, 1.0, 0.15),
     spec("flood_m", 0.0, 1.0, 0.0),
     spec("flood_y", 0.0, 1.0, 0.0),
@@ -43,14 +43,14 @@ const FLOATS: &[FloatSpec] = &[
     spec("density", 0.0, 1.0, 1.0),
     spec("indent", 0.0, 1.0, 0.3),
     spec("ucr", 0.0, 1.0, 0.8),
-    spec("sat_img", 0.0, 2.0, 1.2),
+    spec("image_saturation", 0.0, 2.0, 1.2),
     spec("ripple_size", 0.0, 1.0, 0.0),
     spec("breathe", 0.0, 1.0, 0.0),
     spec("breathe_speed", 0.0, 4.0, 1.0),
     spec("fiber", 0.0, 1.0, 0.4),
     spec("stain", 0.0, 1.0, 0.0),
     spec("seed", 0.0, 50.0, 0.0),
-    spec("shine_img", 0.3, 2.0, 1.0),
+    spec("image_shine", 0.3, 2.0, 1.0),
     spec("posterize", 0.0, 1.0, 0.0),
     spec("paper_opacity", 0.0, 1.0, 1.0),
 ];
@@ -61,7 +61,7 @@ const TINTAS: [f32; 12] = [0.0, 0.45, 1.0, 0.97, 0.08, 0.34, 1.0, 0.69, 0.0, 0.0
 const PAPEL: [f32; 12] = [0.96, 0.955, 0.905, 0.80, 0.78, 0.70, 0.92, 0.86, 0.72, 0.85, 0.9, 0.95];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "tintas" => TINTAS, "paper" => PAPEL);
+    crate::scaffold_schema!(FLOATS; "inks" => TINTAS, "paper" => PAPEL);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     "halftonecmyk",

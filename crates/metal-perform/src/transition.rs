@@ -68,10 +68,13 @@ pub enum Kind {
     Slide,
     Flash,
     LightLeak,
+    /// A camera move between two sources through a framed portal — see
+    /// [`PortalPart`] and `docs/plan-portal.md` §3.
+    Portal,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 12] = [
+    pub const ALL: [Kind; 13] = [
         Kind::Fade,
         Kind::Dissolve,
         Kind::Wipe,
@@ -84,6 +87,7 @@ impl Kind {
         Kind::Slide,
         Kind::Flash,
         Kind::LightLeak,
+        Kind::Portal,
     ];
 
     pub fn id(self) -> &'static str {
@@ -100,6 +104,7 @@ impl Kind {
             Kind::Slide => "slide",
             Kind::Flash => "flash",
             Kind::LightLeak => "light_leak",
+            Kind::Portal => "portal",
         }
     }
 
@@ -159,6 +164,31 @@ pub enum Dir {
     Down,
 }
 
+/// Which side of a portal transition hosts the camera move.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Via {
+    /// `Through` when the outgoing source is 3D, `Reveal` when only the
+    /// incoming one is, `Through` with a flat host for 2D→2D.
+    #[default]
+    Auto,
+    /// The outgoing source pans to the side and dollies through the portal.
+    Through,
+    /// The incoming source is the host and the clip plays backwards: the old
+    /// picture shrinks into a framed portal, then the camera pans back.
+    Reveal,
+}
+
+impl Via {
+    pub fn parse(s: &str) -> Option<Via> {
+        serde_json::from_value(Value::String(s.into())).ok()
+    }
+}
+
+fn default_angle() -> f32 {
+    90.0
+}
+
 /// One `data/transitions/*.json` file.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Preset {
@@ -172,6 +202,12 @@ pub struct Preset {
     pub ease: Ease,
     #[serde(default)]
     pub dir: Dir,
+    /// Portal: how far the camera pans, in degrees (90 or 180).
+    #[serde(default = "default_angle")]
+    pub angle: f32,
+    /// Portal: which side hosts the move.
+    #[serde(default)]
+    pub via: Via,
 }
 
 /// A transition fully resolved from a node's config and the presets.
@@ -182,6 +218,13 @@ pub struct Spec {
     pub unit: Unit,
     pub ease: Ease,
     pub dir: Dir,
+    /// Portal: pan angle in degrees.
+    pub angle: f32,
+    /// Portal: which side hosts the move, as configured.
+    pub via: Via,
+    /// Portal: this node's part, resolved per frame by the engine from the
+    /// pair that is switching ([`portal_parts`]). `None` everywhere else.
+    pub portal: Option<PortalPart>,
 }
 
 impl Spec {
@@ -235,6 +278,8 @@ pub fn default_preset(presets: &[Preset]) -> Preset {
         unit: Unit::Beats,
         ease: Ease::InOut,
         dir: Dir::Left,
+        angle: default_angle(),
+        via: Via::Auto,
     })
 }
 
@@ -261,7 +306,9 @@ pub fn resolve(slot: &Value, presets: &[Preset]) -> Option<Spec> {
         .and_then(|d| serde_json::from_value(Value::String(d.into())).ok())
         .or(preset.as_ref().map(|p| p.dir))
         .unwrap_or_default();
-    (duration > 0.0).then_some(Spec { kind, duration, unit, ease, dir })
+    let angle = slot["angle"].as_f64().map(|a| a as f32).or(preset.as_ref().map(|p| p.angle)).unwrap_or(default_angle());
+    let via = text("via").and_then(Via::parse).or(preset.as_ref().map(|p| p.via)).unwrap_or_default();
+    (duration > 0.0).then_some(Spec { kind, duration, unit, ease, dir, angle, via, portal: None })
 }
 
 /// A node's spec for one side, read off its config.
@@ -714,7 +761,243 @@ pub fn apply(spec: &Spec, v: f32, frame: &mut [u8], w: u32, h: u32, seed: u32) {
                 }
             }
         }
+        Kind::Portal => match spec.portal {
+            Some(part) => apply_portal(spec, &part, frame, w, h),
+            // Unresolved (a bare call with no engine pairing): a plain fade.
+            None => {
+                for p in frame.chunks_exact_mut(4) {
+                    p[3] = lut_v[p[3] as usize];
+                }
+            }
+        },
     }
+}
+
+// ---------------------------------------------------------------------------
+// Portal
+// ---------------------------------------------------------------------------
+
+/// One node's part in a portal transition at one instant, resolved by the
+/// engine from the pair that is switching ([`portal_parts`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PortalPart {
+    /// `true`: the picture the camera moves in (it gets a hole where the
+    /// portal is, and its rim). `false`: the picture seen through the portal.
+    pub host: bool,
+    /// A host with no 3D pose: its picture is re-projected as a flat card the
+    /// virtual camera turns away from. A 3D host turns its own camera
+    /// (`cam_yaw`/`cam_dolly`, written by the engine) and keeps its pixels.
+    pub flat: bool,
+    /// Clip position, `0` = all host at rest, `1` = through the portal.
+    /// `Through` runs it forwards, `Reveal` backwards.
+    pub q: f32,
+}
+
+/// Vertical field of view of the virtual camera, degrees.
+const PORTAL_FOV: f32 = 60.0;
+/// Portal height over the screen height when it sits centred at its own
+/// distance: how much of the frame the doorway takes before the dolly.
+const PORTAL_SIZE: f32 = 0.55;
+/// Rim width, as a fraction of the portal's half size.
+const PORTAL_RIM: f32 = 0.05;
+/// Where the pan ends and the dolly starts.
+const PORTAL_PAN_END: f32 = 0.5;
+/// World units of model dolly per unit of virtual dolly.
+pub const PORTAL_DOLLY_WORLD: f32 = 2.0;
+
+/// The virtual camera at clip position `q`: yaw (radians, positive looks
+/// left) and how far it has dollied toward the portal (`0..1-PORTAL_SIZE`;
+/// at the end the doorway exactly fills the frame, so the hand-off to the
+/// guest alone does not jump). `angle` in degrees, `dir` the side.
+pub fn portal_camera(q: f32, angle: f32, dir: Dir) -> (f32, f32) {
+    let q = q.clamp(0.0, 1.0);
+    let side = if dir == Dir::Right { -1.0 } else { 1.0 };
+    let theta = side * angle.clamp(0.0, 180.0).to_radians();
+    let smooth = |t: f32| t * t * (3.0 - 2.0 * t);
+    let pan = smooth((q / PORTAL_PAN_END).min(1.0));
+    let push = smooth(((q - PORTAL_PAN_END) / (1.0 - PORTAL_PAN_END)).clamp(0.0, 1.0));
+    (theta * pan, push * (1.0 - PORTAL_SIZE))
+}
+
+/// What the virtual camera sees through pixel `(x, y)`: the portal-local
+/// position `(u, v)` (`-1..1` inside the doorway) where its ray meets the
+/// portal plane, if it does, and the same on the host's flat card.
+struct PortalView {
+    eye: [f32; 3],
+    fwd: [f32; 3],
+    right: [f32; 3],
+    tan_v: f32,
+    tan_h: f32,
+    centre: [f32; 3],
+    normal: [f32; 3],
+    axis: [f32; 3],
+    half: [f32; 2],
+}
+
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+/// Forward direction at yaw `a` (positive looks left, right-handed about +Y).
+fn yawed(a: f32) -> [f32; 3] {
+    [-a.sin(), 0.0, -a.cos()]
+}
+
+impl PortalView {
+    fn new(q: f32, angle: f32, dir: Dir, aspect: f32) -> PortalView {
+        let (yaw, dolly) = portal_camera(q, angle, dir);
+        let side = if dir == Dir::Right { -1.0 } else { 1.0 };
+        let theta = side * angle.clamp(0.0, 180.0).to_radians();
+        let at = yawed(theta);
+        let fwd = yawed(yaw);
+        let tan_v = (PORTAL_FOV.to_radians() * 0.5).tan();
+        // The dolly runs along the portal's own axis once the pan is done;
+        // `dolly` is still 0 while panning.
+        PortalView {
+            eye: [at[0] * dolly, 0.0, at[2] * dolly],
+            fwd,
+            right: [-fwd[2], 0.0, fwd[0]],
+            tan_v,
+            tan_h: tan_v * aspect,
+            centre: at,
+            normal: [-at[0], 0.0, -at[2]],
+            axis: [-at[2], 0.0, at[0]],
+            half: [PORTAL_SIZE * tan_v * aspect, PORTAL_SIZE * tan_v],
+        }
+    }
+
+    /// The ray through normalised device coordinates `(nx, ny)` (`-1..1`,
+    /// `y` up) meeting the plane through `centre` with `normal`, in that
+    /// plane's `(axis, up)` coordinates over `half`.
+    fn hit(&self, nx: f32, ny: f32, centre: [f32; 3], normal: [f32; 3], axis: [f32; 3], half: [f32; 2]) -> Option<(f32, f32)> {
+        let r = [
+            self.fwd[0] + self.right[0] * nx * self.tan_h,
+            ny * self.tan_v,
+            self.fwd[2] + self.right[2] * nx * self.tan_h,
+        ];
+        let den = dot(r, normal);
+        if den >= -1e-6 {
+            return None;
+        }
+        let rel = [centre[0] - self.eye[0], centre[1] - self.eye[1], centre[2] - self.eye[2]];
+        let t = dot(rel, normal) / den;
+        if t <= 0.0 {
+            return None;
+        }
+        let p = [self.eye[0] + r[0] * t - centre[0], self.eye[1] + r[1] * t - centre[1], self.eye[2] + r[2] * t - centre[2]];
+        Some((dot(p, axis) / half[0], p[1] / half[1]))
+    }
+
+    fn portal(&self, nx: f32, ny: f32) -> Option<(f32, f32)> {
+        self.hit(nx, ny, self.centre, self.normal, self.axis, self.half)
+    }
+
+    /// The host's flat card: the full frame one unit ahead at rest.
+    fn card(&self, nx: f32, ny: f32) -> Option<(f32, f32)> {
+        self.hit(nx, ny, [0.0, 0.0, -1.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [self.tan_h, self.tan_v])
+    }
+}
+
+/// Samples `src` at portal-local `(u, v)` (`-1..1`, `v` up); nearest pixel.
+fn sample_uv(src: &[u8], w: u32, h: u32, u: f32, v: f32) -> [u8; 4] {
+    let x = (((u + 1.0) * 0.5 * w as f32) as i64).clamp(0, w as i64 - 1) as usize;
+    let y = (((1.0 - v) * 0.5 * h as f32) as i64).clamp(0, h as i64 - 1) as usize;
+    let i = (y * w as usize + x) * 4;
+    [src[i], src[i + 1], src[i + 2], src[i + 3]]
+}
+
+/// The rim colour: a cool white glow, brightest at the doorway's edge.
+fn rim_pixel(edge: f32) -> [u8; 4] {
+    let g = (1.0 - edge).clamp(0.0, 1.0);
+    let c = (180.0 + 75.0 * g) as u8;
+    [c, c, 255, (255.0 * g.sqrt()) as u8]
+}
+
+/// The portal pass for one node. The host keeps (or re-projects) its picture,
+/// is cut out where the doorway is and carries its rim; the guest is drawn
+/// only inside the doorway. The two parts never overlap, so the result does
+/// not depend on which layer is on top.
+pub fn apply_portal(spec: &Spec, part: &PortalPart, frame: &mut [u8], w: u32, h: u32) {
+    let (wu, hu) = (w as usize, h as usize);
+    let view = PortalView::new(part.q, spec.angle, spec.dir, w as f32 / h.max(1) as f32);
+    let src = frame.to_vec();
+    let rim = 1.0 + PORTAL_RIM;
+    for y in 0..hu {
+        let ny = 1.0 - 2.0 * (y as f32 + 0.5) / h as f32;
+        for x in 0..wu {
+            let nx = 2.0 * (x as f32 + 0.5) / w as f32 - 1.0;
+            let door = view.portal(nx, ny);
+            let inside = door.is_some_and(|(u, v)| u.abs() <= 1.0 && v.abs() <= 1.0);
+            let d = &mut frame[(y * wu + x) * 4..(y * wu + x) * 4 + 4];
+            if !part.host {
+                match door {
+                    Some((u, v)) if inside => d.copy_from_slice(&sample_uv(&src, w, h, u, v)),
+                    _ => d.fill(0),
+                }
+                continue;
+            }
+            if inside {
+                d.fill(0);
+                continue;
+            }
+            if part.flat {
+                match view.card(nx, ny) {
+                    Some((u, v)) if u.abs() <= 1.0 && v.abs() <= 1.0 => d.copy_from_slice(&sample_uv(&src, w, h, u, v)),
+                    _ => d.fill(0),
+                }
+            }
+            if let Some((u, v)) = door {
+                let edge = u.abs().max(v.abs());
+                if edge <= rim {
+                    let r = rim_pixel((edge - 1.0) / (rim - 1.0));
+                    let a = r[3] as f32 / 255.0;
+                    for k in 0..3 {
+                        d[k] = (d[k] as f32 * (1.0 - a) + r[k] as f32 * a).round() as u8;
+                    }
+                    d[3] = d[3].max(r[3]);
+                }
+            }
+        }
+    }
+}
+
+/// One node of a portal pair, as the engine sees it this frame.
+#[derive(Clone, Debug)]
+pub struct PortalSide {
+    pub node: String,
+    /// `true` for the incoming source.
+    pub on: bool,
+    /// Raw-eased progress of its own transition, `0..1`.
+    pub progress: f32,
+    /// Whether its model declares the standard 3D pose.
+    pub is_3d: bool,
+    pub via: Via,
+}
+
+/// Each node's [`PortalPart`] for the portal transitions playing this frame.
+/// The first outgoing and the first incoming node form the pair; a node with
+/// no partner plays its half alone. See [`Via`] for how `Auto` resolves.
+pub fn portal_parts(sides: &[PortalSide]) -> Vec<(String, PortalPart)> {
+    let out = sides.iter().find(|s| !s.on);
+    let inn = sides.iter().find(|s| s.on);
+    let via = out.or(inn).map(|s| s.via).unwrap_or_default();
+    let via = match via {
+        Via::Auto => {
+            if out.is_some_and(|s| s.is_3d) || !inn.is_some_and(|s| s.is_3d) {
+                Via::Through
+            } else {
+                Via::Reveal
+            }
+        }
+        v => v,
+    };
+    let mut parts = Vec::new();
+    for s in [out, inn].into_iter().flatten() {
+        let host = (via == Via::Through) != s.on;
+        let q = if via == Via::Through { s.progress } else { 1.0 - s.progress };
+        parts.push((s.node.clone(), PortalPart { host, flat: host && !s.is_3d, q }));
+    }
+    parts
 }
 
 /// The light leak's glow blobs at visibility `v`: centre `(x, y)` in UV,
@@ -762,7 +1045,7 @@ mod tests {
         assert_eq!(progress(10.0, 2.0, 12.0), None, "over at the end");
         assert_eq!(progress(10.0, 2.0, 9.0), None, "a clock before the toggle reads steady");
         assert_eq!(progress(10.0, 0.0, 10.0), None);
-        let spec = Spec { kind: Kind::Fade, duration: 2.0, unit: Unit::Beats, ease: Ease::Linear, dir: Dir::Left };
+        let spec = Spec { kind: Kind::Fade, duration: 2.0, unit: Unit::Beats, ease: Ease::Linear, dir: Dir::Left, angle: 90.0, via: Via::Auto, portal: None };
         assert!((spec.seconds(120.0) - 1.0).abs() < 1e-6, "2 beats at 120 bpm = 1 s");
         assert!((Ease::InOut.apply(0.5) - 0.5).abs() < 1e-6);
         assert_eq!(Ease::In.apply(0.0), 0.0);
@@ -808,7 +1091,7 @@ mod tests {
     #[test]
     fn resolve_defaults_to_the_light_leak() {
         let presets = shipped();
-        let want = Spec { kind: Kind::LightLeak, duration: 2.0, unit: Unit::Beats, ease: Ease::InOut, dir: Dir::Left };
+        let want = Spec { kind: Kind::LightLeak, duration: 2.0, unit: Unit::Beats, ease: Ease::InOut, dir: Dir::Left, angle: 90.0, via: Via::Auto, portal: None };
         assert_eq!(resolve(&Value::Null, &presets), Some(want));
         assert_eq!(resolve(&json!({}), &presets), Some(want), "an empty slot");
         assert_eq!(resolve(&json!({"preset": "no-such-preset"}), &presets), Some(want), "an unknown preset");
@@ -838,7 +1121,7 @@ mod tests {
 
     #[test]
     fn light_leak_warms_the_middle_and_leaves_the_ends_clean() {
-        let spec = Spec { kind: Kind::LightLeak, duration: 2.0, unit: Unit::Beats, ease: Ease::Linear, dir: Dir::Left };
+        let spec = Spec { kind: Kind::LightLeak, duration: 2.0, unit: Unit::Beats, ease: Ease::Linear, dir: Dir::Left, angle: 90.0, via: Via::Auto, portal: None };
         let (w, h) = (64u32, 36u32);
         let src = vec![60u8, 60, 60, 255].repeat((w * h) as usize);
         let mut mid = src.clone();
@@ -892,7 +1175,7 @@ mod tests {
         let (w, h) = (16u32, 16u32);
         let src: Vec<u8> = (0..w * h).flat_map(|i| [(i * 13 % 250) as u8, 40, (i % 200) as u8, 255]).collect();
         for k in Kind::ALL {
-            let spec = Spec { kind: k, duration: 1.0, unit: Unit::Seconds, ease: Ease::Linear, dir: Dir::Left };
+            let spec = Spec { kind: k, duration: 1.0, unit: Unit::Seconds, ease: Ease::Linear, dir: Dir::Left, angle: 90.0, via: Via::Auto, portal: None };
             let mut f = src.clone();
             apply(&spec, 0.5, &mut f, w, h, 3);
             assert_ne!(f, src, "{k:?}");
@@ -907,7 +1190,7 @@ mod tests {
         for (w, h) in [(1920u32, 1080u32), (3840, 2160)] {
             let src: Vec<u8> = (0..w * h).flat_map(|i| [(i % 251) as u8, 40, (i % 199) as u8, 255]).collect();
             for k in Kind::ALL {
-                let spec = Spec { kind: k, duration: 1.0, unit: Unit::Seconds, ease: Ease::Linear, dir: Dir::Left };
+                let spec = Spec { kind: k, duration: 1.0, unit: Unit::Seconds, ease: Ease::Linear, dir: Dir::Left, angle: 90.0, via: Via::Auto, portal: None };
                 let n = 20;
                 let mut f = src.clone();
                 let t0 = std::time::Instant::now();
@@ -918,5 +1201,102 @@ mod tests {
                 println!("MEASURE transition {k:?} {w}x{h}: {ms:.2} ms");
             }
         }
+    }
+
+    fn portal_spec(dir: Dir, angle: f32, part: PortalPart) -> Spec {
+        Spec {
+            kind: Kind::Portal,
+            duration: 4.0,
+            unit: Unit::Beats,
+            ease: Ease::Linear,
+            dir,
+            angle,
+            via: Via::Auto,
+            portal: Some(part),
+        }
+    }
+
+    fn side(node: &str, on: bool, is_3d: bool) -> PortalSide {
+        PortalSide { node: node.into(), on, progress: 0.25, is_3d, via: Via::Auto }
+    }
+
+    #[test]
+    fn auto_goes_through_a_3d_origin_and_reveals_into_a_3d_destination() {
+        // 3D -> 2D: the outgoing 3D source hosts, the clip runs forwards.
+        let parts = portal_parts(&[side("a", false, true), side("b", true, false)]);
+        assert_eq!(parts[0], ("a".into(), PortalPart { host: true, flat: false, q: 0.25 }));
+        assert_eq!(parts[1], ("b".into(), PortalPart { host: false, flat: false, q: 0.25 }));
+        // 2D -> 3D: the incoming 3D source hosts, the clip runs backwards.
+        let parts = portal_parts(&[side("a", false, false), side("b", true, true)]);
+        assert_eq!(parts[0], ("a".into(), PortalPart { host: false, flat: false, q: 0.75 }));
+        assert_eq!(parts[1], ("b".into(), PortalPart { host: true, flat: false, q: 0.75 }));
+        // 2D -> 2D: through, with a flat (re-projected) host.
+        let parts = portal_parts(&[side("a", false, false), side("b", true, false)]);
+        assert!(parts[0].1.host && parts[0].1.flat);
+    }
+
+    #[test]
+    fn the_camera_pans_first_then_dollies_to_exactly_fill_the_frame() {
+        assert_eq!(portal_camera(0.0, 90.0, Dir::Left), (0.0, 0.0));
+        let (yaw, dolly) = portal_camera(PORTAL_PAN_END, 90.0, Dir::Left);
+        assert!((yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-5 && dolly == 0.0);
+        let (yaw, _) = portal_camera(1.0, 180.0, Dir::Right);
+        assert!((yaw + std::f32::consts::PI).abs() < 1e-5, "right turns the other way");
+        let (_, dolly) = portal_camera(1.0, 90.0, Dir::Left);
+        assert!((dolly - (1.0 - PORTAL_SIZE)).abs() < 1e-5);
+    }
+
+    /// At the end of the clip the guest fills the frame with its own pixels
+    /// (no jump at the hand-off) and the host is fully cut away; at the start
+    /// the host is untouched and the guest is nowhere.
+    #[test]
+    fn the_portal_hands_off_without_a_jump() {
+        let (w, h) = (64u32, 36u32);
+        let picture: Vec<u8> = (0..w * h).flat_map(|i| [(i % 251) as u8, (i % 7) as u8 * 30, 9, 255]).collect();
+        let guest = PortalPart { host: false, flat: false, q: 1.0 };
+        let mut px = picture.clone();
+        apply_portal(&portal_spec(Dir::Left, 90.0, guest), &guest, &mut px, w, h);
+        let same = px.chunks_exact(4).zip(picture.chunks_exact(4)).filter(|(a, b)| a == b).count();
+        assert!(same as f32 / (w * h) as f32 > 0.97, "guest at the end is its own frame ({same})");
+        let host = PortalPart { host: true, flat: false, q: 1.0 };
+        let mut px = picture.clone();
+        apply_portal(&portal_spec(Dir::Left, 90.0, host), &host, &mut px, w, h);
+        assert!(px.chunks_exact(4).all(|p| p[3] == 0), "host is gone at the end");
+        let start = PortalPart { host: true, flat: true, q: 0.0 };
+        let mut px = picture.clone();
+        apply_portal(&portal_spec(Dir::Left, 90.0, start), &start, &mut px, w, h);
+        assert_eq!(px, picture, "a flat host at rest is untouched");
+        let guest0 = PortalPart { host: false, flat: false, q: 0.0 };
+        let mut px = picture.clone();
+        apply_portal(&portal_spec(Dir::Left, 90.0, guest0), &guest0, &mut px, w, h);
+        assert!(px.chunks_exact(4).all(|p| p[3] == 0), "the doorway is off screen at rest");
+    }
+
+    /// Mid-clip the two halves tile the frame: where the guest shows, the host
+    /// is cut, so layer order cannot matter.
+    #[test]
+    fn host_and_guest_never_overlap() {
+        let (w, h) = (80u32, 45u32);
+        let full = vec![200u8; (w * h * 4) as usize];
+        for q in [0.3, 0.5, 0.7, 0.9] {
+            let host = PortalPart { host: true, flat: false, q };
+            let guest = PortalPart { host: false, flat: false, q };
+            let (mut a, mut b) = (full.clone(), full.clone());
+            apply_portal(&portal_spec(Dir::Right, 90.0, host), &host, &mut a, w, h);
+            apply_portal(&portal_spec(Dir::Right, 90.0, guest), &guest, &mut b, w, h);
+            let guest_px = b.chunks_exact(4).filter(|p| p[3] > 0).count();
+            assert!(q < 0.5 || guest_px > 0, "the doorway shows at q={q}");
+            for (pa, pb) in a.chunks_exact(4).zip(b.chunks_exact(4)) {
+                assert!(pb[3] == 0 || pa[3] == 0, "overlap at q={q}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_portal_preset_resolves_its_angle_and_via() {
+        let slot = serde_json::json!({ "kind": "portal", "duration": 4, "angle": 180, "via": "reveal", "dir": "right" });
+        let spec = resolve(&slot, &[]).expect("portal resolves");
+        assert_eq!((spec.kind, spec.angle, spec.via, spec.dir), (Kind::Portal, 180.0, Via::Reveal, Dir::Right));
+        assert_eq!(Kind::parse("portal"), Some(Kind::Portal));
     }
 }

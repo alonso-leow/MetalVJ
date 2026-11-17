@@ -35,6 +35,16 @@ pub const CAM3D: &[FloatSpec] = &[
 ];
 pub const CAM3D_BLOCK: Block = Block::Floats(CAM3D);
 
+/// The eye offset that completes [`CAM3D`] into the standard 3D pose
+/// (`metal_schema::POSE_NAMES`): world units added to the orbit eye, the same
+/// floats `cam.track` writes. Appended after the model's other kits.
+pub const CAM_TRACK: &[FloatSpec] = &[
+    spec("cam_x", -3.0, 3.0, 0.0),
+    spec("cam_y", -3.0, 3.0, 0.0),
+    spec("cam_z", -3.0, 3.0, 0.0),
+];
+pub const CAM_TRACK_BLOCK: Block = Block::Floats(CAM_TRACK);
+
 /// Look: what colour slots cannot say. `background_level` is the background level
 /// (0 = transparent when `Ctx::fondo_alpha`), `tono` rotates every slot's hue.
 pub const LOOK: &[FloatSpec] = &[
@@ -76,6 +86,7 @@ macro_rules! kit_struct {
 
 kit_struct!(Cam2d, CAM2D, [zoom, pan_x, pan_y, turn, drift]);
 kit_struct!(Cam3d, CAM3D, [yaw, pitch, roll, distance, fov, orbit, alt, dolly, shake]);
+kit_struct!(CamTrack, CAM_TRACK, [x, y, z]);
 kit_struct!(Look, LOOK, [shine, contrast, opacity, background_level, tone, saturation]);
 kit_struct!(Twist, TWIST, [warp_amount, warp_freq, mirror, pulse]);
 
@@ -137,7 +148,7 @@ mod tests {
     #[test]
     fn no_float_name_repeats_across_the_kits() {
         let mut names: Vec<&str> =
-            [CAM2D, CAM3D, LOOK, TWIST].iter().flat_map(|k| k.iter().map(|s| s.name)).collect();
+            [CAM2D, CAM3D, CAM_TRACK, LOOK, TWIST].iter().flat_map(|k| k.iter().map(|s| s.name)).collect();
         names.sort();
         let n = names.len();
         names.dedup();

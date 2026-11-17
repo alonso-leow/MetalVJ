@@ -52,15 +52,15 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let cone = 1.0 - smoothstep(half_w * 0.75, half_w, abs(d));
 
     // Fall-off along the shafts; also fades right at the source.
-    let reach = 0.08 + f_long() * 1.8;
-    let fall = exp(-r / reach) * smoothstep(0.0, 0.05 + 0.1 * f_mix_color(), r);
+    let reach = 0.08 + f_length() * 1.8;
+    let fall = exp(-r / reach) * smoothstep(0.0, 0.05 + 0.1 * f_color_mix(), r);
 
     // Shafts, three angular taps for the colour split.
     let ab = f_aberration() * 0.08;
     let vr = ray_field(ang, r, t, -ab);
     let vg = ray_field(ang, r, t, 0.0);
     let vb = ray_field(ang, r, t, ab);
-    let tcol = clamp(r * 0.9 * f_mix_color() + vg * (1.0 - 0.6 * f_mix_color()), 0.0, 1.0);
+    let tcol = clamp(r * 0.9 * f_color_mix() + vg * (1.0 - 0.6 * f_color_mix()), 0.0, 1.0);
     let c0 = p_pal(0u, tcol);
     let shafts0 = c0 * vec3<f32>(vr, vg, vb);
     let shafts = shafts0 * fall * cone;

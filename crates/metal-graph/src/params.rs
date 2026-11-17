@@ -710,7 +710,7 @@ pub fn node_params(node: &Node, kind: Option<&NodeKind>) -> Vec<Param> {
         }
         let vectors = gen_held_vecs_of(&config);
         for p in out.iter_mut().filter(|p| p.kind != ParamKind::Float) {
-            p.values = vectors.get(&p.name).cloned();
+            p.values = metal_schema::param_aliases::slot_alias_keys(&p.name).find_map(|k| vectors.get(k)).cloned();
         }
         // Views: one float scales every view's variation (`crate::views`).
         if config.get("views").is_some_and(Value::is_object) {

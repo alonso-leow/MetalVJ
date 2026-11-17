@@ -21,7 +21,7 @@ fn sp_layer(q: vec2<f32>, r: f32, ang: f32, dir: f32, t: f32, n: f32, seed: f32)
     rr = rr + f_breath() * 0.03 * sin(t * 2.2 - r * 9.0);
     var ph = rr * pitch * dir - ang * n / TAU * dir - t * f_speed() * 0.5 * dir;
     // Arms drift against each other.
-    ph = ph + f_turn_arms() * rr * 3.0 * sin(ang * n + t * 0.4) * 0.2;
+    ph = ph + f_arm_turn() * rr * 3.0 * sin(ang * n + t * 0.4) * 0.2;
     // Lobed waves bending the strokes.
     ph = ph + f_waves() * 0.45 * sin(ang * floor(f_waves_lobes() + 0.5) + t * 0.8 + r * 5.0);
     // Domain distortion by fractal noise.

@@ -53,7 +53,7 @@ const FLOATS: &[FloatSpec] = &[
     // Node budget; growth stops here. Held.
     spec_held("nodes_max", 200.0, 20000.0, 5000.0, 0.2),
     // Growth iterations per 1/60 s. Held.
-    spec_held("steps_frame", 1.0, 16.0, 3.0, 0.2),
+    spec_held("steps_per_frame", 1.0, 16.0, 3.0, 0.2),
     // Distance within which non-neighbour nodes push each other, world units
     // (the frame is 2 high). Held.
     spec_held("repeat_radius", 0.03, 0.3, 0.1, 0.2),

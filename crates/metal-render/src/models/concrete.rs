@@ -20,12 +20,12 @@ const FLOATS: &[FloatSpec] = &[
     spec_held("fill", 0.0, 1.0, 1.0, 0.2),
     spec("stroke", 0.005, 0.6, 0.18),
     spec("rotation_speed", 0.0, 3.0, 0.35),
-    spec("block_w", 0.0, 1.0, 0.86),
-    spec("block_h", 0.0, 1.0, 0.72),
+    spec("block_width", 0.0, 1.0, 0.86),
+    spec("block_height", 0.0, 1.0, 0.72),
     spec("slab", 0.0, 1.0, 0.35),
     spec("windows", 0.0, 1.0, 0.75),
-    spec("window_w", 0.0, 1.0, 0.48),
-    spec("window_h", 0.0, 1.0, 0.55),
+    spec("window_width", 0.0, 1.0, 0.48),
+    spec("window_height", 0.0, 1.0, 0.55),
     spec("window_cols", 0.0, 1.0, 0.35),
     spec("window_rows", 0.0, 1.0, 0.50),
     spec("grid", 0.0, 1.0, 0.55),
@@ -54,7 +54,7 @@ const ACENTO: [f32; 12] =
     [0.82, 0.76, 0.62, 0.40, 0.16, 0.06, 0.05, 0.05, 0.045, 0.95, 0.92, 0.82];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "blocks" => BLOQUES, "windows" => VENTANAS, "accent" => ACENTO);
+    "blocks" => BLOQUES, "windows_color" => VENTANAS, "accent_color" => ACENTO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "concrete",
@@ -86,12 +86,12 @@ mod tests {
         ("fill", 1.0),
         ("stroke", 0.2),
         ("rotation_speed", 0.5),
-        ("block_w", 0.8),
-        ("block_h", 0.75),
+        ("block_width", 0.8),
+        ("block_height", 0.75),
         ("slab", 0.4),
         ("windows", 0.8),
-        ("window_w", 0.5),
-        ("window_h", 0.55),
+        ("window_width", 0.5),
+        ("window_height", 0.55),
         ("window_cols", 0.5),
         ("window_rows", 0.55),
         ("grid", 0.6),

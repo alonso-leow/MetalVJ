@@ -41,9 +41,36 @@ const EASES: [(&str, &str); 4] = [
 /// How long the cached preset list is trusted, in seconds.
 const PRESETS_TTL: f64 = 2.0;
 
-/// `(id, name, duration, unit)` per preset, off `GET /transitions`, cached in
+/// The portal's three choices: side, pan angle and which source hosts.
+const PORTAL_SIDES: [(&str, &str); 2] = [("left", tr_key("portal left")), ("right", tr_key("portal right"))];
+const PORTAL_ANGLES: [(&str, &str); 2] = [("90", tr_key("portal 90")), ("180", tr_key("portal 180"))];
+const PORTAL_VIAS: [(&str, &str); 3] = [
+    ("auto", tr_key("portal auto")),
+    ("through", tr_key("portal through")),
+    ("reveal", tr_key("portal reveal")),
+];
+
+/// One portal setting: the slot's own value, else the preset's.
+fn portal_choice(
+    ui: &mut Ui,
+    theme: &Theme,
+    label: &str,
+    current: String,
+    options: &[(&str, &'static str)],
+    post: &dyn Fn(Value),
+    as_number: bool,
+) {
+    let mut value = current;
+    let opts: Vec<(String, &str)> = options.iter().map(|(id, l)| (id.to_string(), tr(l))).collect();
+    if label_row(ui, theme, label, |ui| choice(ui, theme, &mut value, &opts)).changed() {
+        post(if as_number { json!(value.parse::<f64>().unwrap_or(90.0)) } else { json!(value) });
+    }
+}
+
+/// `(id, name, duration, unit, kind, dir, angle, via)` per preset, off `GET /transitions`, cached in
 /// egui's temp memory.
-fn presets(ui: &mut Ui, door: &dyn Call) -> Vec<(String, String, f64, String)> {
+#[allow(clippy::type_complexity)]
+fn presets(ui: &mut Ui, door: &dyn Call) -> Vec<(String, String, f64, String, String, String, f64, String)> {
     let id = egui::Id::new("transition-presets");
     let now = ui.input(|i| i.time);
     let cached: Option<(f64, Value)> = ui.data(|d| d.get_temp(id));
@@ -65,6 +92,10 @@ fn presets(ui: &mut Ui, door: &dyn Call) -> Vec<(String, String, f64, String)> {
                         p["name"].as_str().unwrap_or_default().to_string(),
                         p["duration"].as_f64().unwrap_or(1.0),
                         p["unit"].as_str().unwrap_or("beats").to_string(),
+                        p["kind"].as_str().unwrap_or_default().to_string(),
+                        p["dir"].as_str().unwrap_or("left").to_string(),
+                        p["angle"].as_f64().unwrap_or(90.0),
+                        p["via"].as_str().unwrap_or("auto").to_string(),
                     )
                 })
                 .collect()
@@ -86,7 +117,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
         slot["preset"].as_str().unwrap_or(DEFAULT_PRESET).to_string()
     };
     let mut options: Vec<(String, &str)> = vec![(CUT.to_string(), tr("cut"))];
-    options.extend(list.iter().map(|(id, name, _, _)| (id.clone(), name.as_str())));
+    options.extend(list.iter().map(|(id, name, ..)| (id.clone(), name.as_str())));
     let before = chosen.clone();
     label_row(ui, theme, tr("preset"), |ui| dropdown_fill(ui, theme, ("transition-preset", node_id, on), &mut chosen, &options));
     if chosen != before {
@@ -123,5 +154,16 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
     label_row(ui, theme, tr("ease"), |ui| dropdown_fill(ui, theme, ("transition-ease", node_id, on), &mut ease, &eases));
     if ease != before {
         post("ease", json!(ease));
+    }
+
+    // Portal: side, pan angle and host, each over the preset's own.
+    if slot["kind"].as_str().or(preset.map(|p| p.4.as_str())) == Some("portal") {
+        let dir = slot["dir"].as_str().map(str::to_string).or(preset.map(|p| p.5.clone())).unwrap_or_else(|| "left".into());
+        portal_choice(ui, theme, tr("portal side"), dir, &PORTAL_SIDES, &|v| post("dir", v), false);
+        let angle = slot["angle"].as_f64().or(preset.map(|p| p.6)).unwrap_or(90.0);
+        let angle = if angle > 135.0 { "180" } else { "90" }.to_string();
+        portal_choice(ui, theme, tr("portal angle"), angle, &PORTAL_ANGLES, &|v| post("angle", v), true);
+        let via = slot["via"].as_str().map(str::to_string).or(preset.map(|p| p.7.clone())).unwrap_or_else(|| "auto".into());
+        portal_choice(ui, theme, tr("portal via"), via, &PORTAL_VIAS, &|v| post("via", v), false);
     }
 }

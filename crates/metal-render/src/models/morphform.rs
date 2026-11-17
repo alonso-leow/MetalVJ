@@ -30,7 +30,7 @@ const SHAPE: [f32; 12] = [0.92, 0.88, 0.80, 0.98, 0.74, 0.48, 0.72, 0.30, 0.12, 
 const ACCENT: [f32; 12] = [1.00, 0.32, 0.08, 1.00, 0.52, 0.12, 0.85, 0.16, 0.04, 1.00, 0.72, 0.30];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "shape" => SHAPE, "accent" => ACCENT);
+    crate::scaffold_schema!(FLOATS; "shape_color" => SHAPE, "accent" => ACCENT);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "morphform",

@@ -109,6 +109,10 @@ const CAMERA_TRACK_FLOATS: &[FloatSpec] = &[
     spec("cam_x", -1.5, 1.5, 0.0),
     spec("cam_y", -1.5, 1.5, 0.0),
     spec("cam_z", -1.5, 1.5, 0.0),
+    // The look half of the standard pose (`metal_schema::POSE_NAMES`).
+    metal_schema::POSE_LOOK_FLOATS[0],
+    metal_schema::POSE_LOOK_FLOATS[1],
+    metal_schema::POSE_LOOK_FLOATS[2],
 ];
 
 pub static SCHEMA: Schema = Schema {
@@ -226,7 +230,8 @@ impl Model for Escena3d {
             distance * ELEVATION.sin(),
             distance * ELEVATION.cos() * azimuth.cos(),
         ) + cam_track;
-        let look_at = Vec3::ZERO;
+        // The look half of the standard pose turns and dollies the orbit eye.
+        let (eye, look_at) = crate::model::posed(eye, Vec3::ZERO, [floats[19], floats[20], floats[21]]);
         let fwd = (look_at - eye).normalize_or_zero();
         let world_up = Vec3::Y;
         let right = fwd.cross(world_up).normalize_or_zero();
@@ -259,9 +264,9 @@ mod tests {
 
     #[test]
     fn the_schema_and_the_slices_render_reads_are_the_same_width() {
-        // 16 own floats + 3 cam.track floats. `render` slices `[0..19]`.
-        assert_eq!(SCHEMA.width(), 19 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
-        assert_eq!(row().len(), 19 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        // 16 own floats + the 6 pose floats. `render` reads `[0..22]`.
+        assert_eq!(SCHEMA.width(), 22 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        assert_eq!(row().len(), 22 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
     }
 
     #[test]
@@ -313,7 +318,7 @@ mod tests {
     #[test]
     fn cam_track_floats_are_appended_right_after_the_model_s_own() {
         let names: Vec<&str> = CAMERA_TRACK_FLOATS.iter().map(|f| f.name).collect();
-        assert_eq!(names, vec!["cam_x", "cam_y", "cam_z"]);
+        assert_eq!(names, metal_schema::POSE_NAMES.to_vec());
     }
 
     const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;

@@ -29,7 +29,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("accent", 0.0, 1.0, 0.18),
     spec("motion_bpm", 30.0, 180.0, 76.0),
     spec("speed", -2.0, 2.0, 0.5),
-    spec("drift_v", 0.0, 2.0, 0.5),
+    spec("vertical_drift", 0.0, 2.0, 0.5),
     spec_held("seed", 0.0, 50.0, 3.0, 0.2),
 ];
 
@@ -81,7 +81,7 @@ mod tests {
         ("path_length", 0.7),
         ("spread", 0.65),
         ("accent", 0.45),
-        ("drift_v", 0.7),
+        ("vertical_drift", 0.7),
     ];
 
     #[test]

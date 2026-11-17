@@ -480,6 +480,16 @@
 "ease in" = "acelerar"
 "ease out" = "frenar"
 "ease in-out" = "suave"
+"portal side" = "lado"
+"portal left" = "izquierda"
+"portal right" = "derecha"
+"portal angle" = "giro"
+"portal 90" = "90°"
+"portal 180" = "180°"
+"portal via" = "anfitrión"
+"portal auto" = "automático"
+"portal through" = "atravesar (origen 3D)"
+"portal reveal" = "revelar (destino 3D)"
 
 # --- the node header block (task 4a) ----------------------------------------
 # The title, description and three keypoints the properties panel paints for

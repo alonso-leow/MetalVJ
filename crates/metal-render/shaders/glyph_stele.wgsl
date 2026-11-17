@@ -18,19 +18,19 @@ fn g_box(d: vec2<f32>, b: vec2<f32>) -> f32 {
 fn g_low(c: vec2<f32>, t: f32) -> f32 {
     let h = p_hash(c + vec2<f32>(f_seed() * 13.7, f_seed() * 5.3));
     let h2 = p_hash(c + vec2<f32>(31.0, 17.0));
-    return f_graves() * clamp(0.5 + 0.5 * sin(t * 1.1 + h * TAU + h2 * 2.0), 0.0, 1.0);
+    return f_lows() * clamp(0.5 + 0.5 * sin(t * 1.1 + h * TAU + h2 * 2.0), 0.0, 1.0);
 }
 
 fn g_mid(c: vec2<f32>, t: f32) -> f32 {
     let h = p_hash(c + vec2<f32>(7.0, f_seed() * 9.1));
     let h2 = p_hash(c + vec2<f32>(67.0, 43.0));
-    return f_medios() * clamp(0.5 + 0.5 * sin(t * 0.73 + h * TAU * 1.7 + h2 * 3.0), 0.0, 1.0);
+    return f_mids() * clamp(0.5 + 0.5 * sin(t * 0.73 + h * TAU * 1.7 + h2 * 3.0), 0.0, 1.0);
 }
 
 fn g_high(c: vec2<f32>, t: f32) -> f32 {
     let h = p_hash(c + vec2<f32>(f_seed() * 3.3, 71.0));
     let h2 = p_hash(c + vec2<f32>(5.0, 101.0));
-    return f_agudos() * clamp(0.5 + 0.5 * sin(t * 1.9 + h * TAU * 2.3 + h2 * 5.0), 0.0, 1.0);
+    return f_highs() * clamp(0.5 + 0.5 * sin(t * 1.9 + h * TAU * 2.3 + h2 * 5.0), 0.0, 1.0);
 }
 
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
@@ -82,7 +82,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         if (d_low > u) {
             hole = 1.0;
         }
-        let len = floor(clamp(f_crack_len(), 0.0, 12.0) + 0.5);
+        let len = floor(clamp(f_crack_length(), 0.0, 12.0) + 0.5);
         for (var k = 1; k <= 12; k = k + 1) {
             if (f32(k) > len) { break; }
             let oc = cell + vec2<f32>(0.0, f32(k));
@@ -108,7 +108,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let aa = 0.008 + clamp(f_soft(), 0.0, 1.0) * 0.05;
 
     // Cell-local glyph: size variation, splinter displacement, chip cut.
-    var gl = (g - vec2<f32>(0.5)) / max(1.0 + (h3 - 0.5) * f_size_var() * 0.8, 0.3) + vec2<f32>(0.5);
+    var gl = (g - vec2<f32>(0.5)) / max(1.0 + (h3 - 0.5) * f_size_variation() * 0.8, 0.3) + vec2<f32>(0.5);
     let dsp = clamp(f_displace(), 0.0, 1.0) * hs;
     gl = gl + vec2<f32>((h1 * 2.0 - 1.0) * dsp * 0.9, (h4 * 2.0 - 1.0) * dsp * 0.45);
 

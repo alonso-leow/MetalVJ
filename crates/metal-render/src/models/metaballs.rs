@@ -27,7 +27,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("center_y", -0.9, 0.9, 0.0),
     spec("color_ball", 0.0, 1.0, 0.7),
     spec("color_drift", 0.0, 1.0, 0.0),
-    spec("shine_core", 0.0, 1.0, 0.4),
+    spec("core_shine", 0.0, 1.0, 0.4),
     spec("edge", 0.0, 1.0, 0.3),
     spec("halo", 0.0, 1.0, 0.3),
     spec("shading", 0.0, 1.0, 0.0),
@@ -44,7 +44,7 @@ const NUCLEO: [f32; 12] = [1.00, 0.55, 0.75, 1.00, 0.90, 0.70, 0.60, 0.80, 1.00,
 const HALO: [f32; 12] = [0.35, 0.05, 0.80, 0.05, 0.10, 0.60, 0.60, 0.05, 0.40, 0.02, 0.05, 0.30];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "bolas" => BOLAS, "core" => NUCLEO, "halo" => HALO);
+    "balls" => BOLAS, "core" => NUCLEO, "halo_color" => HALO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "metaballs",

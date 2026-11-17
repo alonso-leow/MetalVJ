@@ -36,7 +36,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("double", 0.0, 1.0, 0.0),
     spec("glow", 0.0, 1.0, 0.0),
     spec("squeeze_swing", 0.0, 1.0, 0.0),
-    spec("turn_arms", -1.0, 1.0, 0.0),
+    spec("arm_turn", -1.0, 1.0, 0.0),
 ];
 
 /// Arms: lime, teal, violet, rose (linear).
@@ -45,7 +45,7 @@ const TRAZO: [f32; 12] = [0.60, 0.90, 0.10, 0.02, 0.60, 0.50, 0.30, 0.10, 0.90, 
 const DOBLE: [f32; 12] = [1.00, 0.30, 0.02, 1.00, 0.95, 0.80, 0.05, 0.25, 1.00, 0.80, 0.05, 0.60];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "stroke" => TRAZO, "double" => DOBLE);
+    "stroke_color" => TRAZO, "double_color" => DOBLE);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "spiral",
@@ -86,7 +86,7 @@ mod tests {
         ("double", 0.5),
         ("glow", 0.5),
         ("squeeze_swing", 0.4),
-        ("turn_arms", 0.3),
+        ("arm_turn", 0.3),
         ("warp_amount", 0.4),
         ("pulse", 0.0),
     ];

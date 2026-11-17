@@ -23,7 +23,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("spike_density", 0.5, 14.0, 5.0),
     spec("sharpness", 0.5, 8.0, 2.6),
     spec("glossiness", 2.0, 96.0, 42.0),
-    spec("cam_dist", 2.8, 10.0, 4.6),
+    spec("cam_distance", 2.8, 10.0, 4.6),
     spec("speed", -2.0, 2.0, 0.55),
     spec("rotation_speed", -1.5, 1.5, 0.28),
     spec_held("direction", 0.0, 3.0, 0.0, 0.2),

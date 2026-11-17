@@ -52,9 +52,9 @@ const FLOATS: &[FloatSpec] = &[
     spec_held("shape_b", 0.0, 4.0, 1.0, 0.25),
     spec("shape_mix", 0.0, 1.0, 0.15),
     spec_held("shape_variety", 0.0, 1.0, 1.0, 0.25),
-    spec_held("n_objects", 1.0, 9.0, 5.0, 0.25),
+    spec_held("object_count", 1.0, 9.0, 5.0, 0.25),
     spec_held("dispersion", 0.0, 1.0, 0.8, 0.25),
-    spec("turn_object", -2.0, 2.0, 0.25),
+    spec("object_turn", -2.0, 2.0, 0.25),
     // Skin.
     spec("hatch_density", 0.0, 1.0, 0.55),
     spec("hatch_angle", 0.0, 3.1416, 0.6),
@@ -113,6 +113,7 @@ pub static SCHEMA: Schema = Schema {
         color_at("background", &FONDO),
         CAM3D_BLOCK,
         LOOK_BLOCK,
+        kit::CAM_TRACK_BLOCK,
         crate::model::SIGNAL_FLOATS_BLOCK,
         crate::model::EFFECTS_FLOATS_BLOCK,
         crate::model::EFFECTS_COLOR_BLOCK,
@@ -124,6 +125,8 @@ const B_TRAZO: usize = 1;
 const B_FONDO: usize = 2;
 const B_CAM: usize = 3;
 const B_LOOK: usize = 4;
+/// `cam_x/cam_y/cam_z`: the eye offset completing the standard 3D pose.
+const B_TRACK: usize = 5;
 
 fn off(block: usize) -> usize {
     kit::offset_of(SCHEMA.blocks, block)
@@ -1429,7 +1432,9 @@ impl Fineline {
     fn inputs(floats: &[f32], time: f32) -> (Params, CamFrame, f32) {
         let own = &floats[off(B_OWN)..off(B_OWN) + FLOATS.len()];
         let time = clean(time, -1e6, 1e6, 0.0);
-        let cam = camera(&kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]), time);
+        let mut cam = camera(&kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]), time);
+        let t = kit::CamTrack::from_floats(&floats[off(B_TRACK)..off(B_TRACK) + kit::CamTrack::N]);
+        cam.eye += Vec3::new(t.x, t.y, t.z);
         (Params::from_floats(own), cam, time)
     }
 
@@ -1496,6 +1501,12 @@ impl Model for Fineline {
 
     fn schema(&self) -> &'static Schema {
         &SCHEMA
+    }
+
+    /// The CAM3D kit plus `kit::CAM_TRACK` is the full standard pose, so a
+    /// `cam.track`, a controller or a portal transition can move this eye.
+    fn camera_track(&self) -> bool {
+        true
     }
 
     fn render(&mut self, ctx: &Ctx, floats: &[f32], target: &wgpu::TextureView, format: wgpu::TextureFormat) {
@@ -1628,13 +1639,13 @@ mod tests {
         assert_eq!(off(B_TRAZO), FLOATS.len());
         assert_eq!(off(B_CAM) + kit::Cam3d::N, off(B_LOOK));
         assert_eq!(off(B_LOOK) + kit::Look::N, off(B_LOOK + 1));
-        assert!(!Fineline::new().camera_track());
+        assert!(Fineline::new().camera_track(), "the CAM3D kit plus CAM_TRACK is the standard pose");
     }
 
     #[test]
     fn indices_match_the_names() {
         let n = |i: usize| FLOATS[i].name;
-        assert_eq!((n(F_A), n(F_B), n(F_MEZCLA), n(F_N), n(F_DISP), n(F_GIRO)), ("shape_a", "shape_b", "shape_mix", "n_objects", "dispersion", "turn_object"));
+        assert_eq!((n(F_A), n(F_B), n(F_MEZCLA), n(F_N), n(F_DISP), n(F_GIRO)), ("shape_a", "shape_b", "shape_mix", "object_count", "dispersion", "object_turn"));
         assert_eq!((n(F_HDENS), n(F_HANG), n(F_HCRUZ), n(F_SIL), n(F_TRAZO), n(F_RUIDO)), ("hatch_density", "hatch_angle", "hatch_cross", "silhouette_thickness", "stroke_thickness", "stroke_noise"));
         assert_eq!((n(F_SIMP), n(F_CORTE), n(F_PUNT), n(F_OCULTAR), n(F_PLANO), n(F_LUZ)), ("simplify", "cut", "dotted", "hide", "plane", "light_turn"));
         for i in [F_A, F_B, F_N, F_DISP, F_VARIEDAD] {

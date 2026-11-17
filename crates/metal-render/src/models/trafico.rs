@@ -37,7 +37,7 @@ const FLOATS: &[FloatSpec] = &[
     // The phase-transition knob: ~0.35 is the jam threshold. Live (no reseed).
     spec("density", 0.02, 0.95, 0.30),
     // Red share of the cars (the rest are blue). Live.
-    spec("p_red", 0.0, 1.0, 0.5),
+    spec("red_probability", 0.0, 1.0, 0.5),
     // Grid cells over the frame height. Structural: changing it rebuilds and
     // reseeds the grid.
     spec_held("resolution", 16.0, 192.0, 64.0, 0.0),
@@ -46,7 +46,7 @@ const FLOATS: &[FloatSpec] = &[
     // Steps per second.
     spec("step_speed", 0.0, 60.0, 10.0),
     // Probability that a car idles on a turn it would have moved (variety).
-    spec("noise_turn", 0.0, 1.0, 0.0),
+    spec("turn_noise", 0.0, 1.0, 0.0),
     // Share of diagonal cars (a third species; adds a third phase). Live.
     spec("third_type", 0.0, 1.0, 0.0),
     // Pinned: a reseed throws the whole grid away.
@@ -57,8 +57,8 @@ const FLOATS: &[FloatSpec] = &[
     spec_held("shape", 0.0, 3.0, 0.0, 0.2),
     spec("cell_gap", 0.0, 0.6, 0.12),
     spec("cell_roundness", 0.0, 1.0, 0.25),
-    spec("shine_red", 0.0, 3.0, 1.0),
-    spec("shine_blue", 0.0, 3.0, 1.0),
+    spec("red_shine", 0.0, 3.0, 1.0),
+    spec("blue_shine", 0.0, 3.0, 1.0),
     spec("glow", 0.0, 1.0, 0.0),
     // Fading trail left behind each car.
     spec("wake", 0.0, 1.0, 0.0),

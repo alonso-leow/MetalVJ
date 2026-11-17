@@ -17,7 +17,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("slices", 2.0, 36.0, 14.0),
     spec("scale", 0.0, 100.0, 46.0),
     spec("warp", 0.0, 100.0, 22.0),
-    spec("drift_v", 0.0, 100.0, 25.0),
+    spec("vertical_drift", 0.0, 100.0, 25.0),
     spec("slice_width", 5.0, 100.0, 62.0),
     spec("accent", 0.0, 100.0, 32.0),
     spec("rotation", 0.0, 360.0, 0.0),
@@ -31,7 +31,7 @@ const SLICE: [f32; 12] = [0.807, 0.723, 0.577, 0.950, 0.880, 0.760, 0.550, 0.470
 const ACCENT: [f32; 12] = [0.144, 0.342, 0.110, 0.300, 0.550, 0.220, 0.070, 0.180, 0.060, 0.500, 0.680, 0.340];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "slice" => SLICE, "accent" => ACCENT);
+    "slice" => SLICE, "accent_color" => ACCENT);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "ringflow",
@@ -61,7 +61,7 @@ mod tests {
         ("slices", 14.0),
         ("scale", 46.0),
         ("warp", 22.0),
-        ("drift_v", 25.0),
+        ("vertical_drift", 25.0),
         ("slice_width", 62.0),
         ("accent", 32.0),
         ("rotation", 0.0),

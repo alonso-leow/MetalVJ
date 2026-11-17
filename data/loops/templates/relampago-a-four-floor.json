@@ -33,7 +33,7 @@
   {
    "target": {
     "kind": "float",
-    "param": "shine_center"
+    "param": "center_shine"
    },
    "curve": "step",
    "steps": [

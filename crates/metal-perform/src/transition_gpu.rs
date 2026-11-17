@@ -181,6 +181,8 @@ fn kind_index(k: Kind) -> i32 {
         Kind::Slide => 9,
         Kind::Flash => 10,
         Kind::LightLeak => 11,
+        // Never reaches the GPU pass: `Paint::transition*` route it to the CPU.
+        Kind::Portal => 0,
     }
 }
 
@@ -384,7 +386,7 @@ mod tests {
     }
 
     fn spec(kind: Kind) -> Spec {
-        Spec { kind, duration: 1.0, unit: Unit::Seconds, ease: Ease::Linear, dir: Dir::Left }
+        Spec { kind, duration: 1.0, unit: Unit::Seconds, ease: Ease::Linear, dir: Dir::Left, angle: 90.0, via: crate::transition::Via::Auto, portal: None }
     }
 
     fn picture(w: u32, h: u32) -> Vec<u8> {

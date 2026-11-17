@@ -42,14 +42,14 @@ const FLOATS: &[FloatSpec] = &[
     spec_held("texture_type", 0.0, 3.0, 0.0, 0.2),
     spec("texture_scale", 0.25, 4.0, 1.0),
     spec("texture_speed", -4.0, 4.0, 0.0),
-    spec("rings_density", 0.2, 4.0, 1.0),
+    spec("ring_density", 0.2, 4.0, 1.0),
     spec("rings_width", 0.05, 0.9, 0.2),
     spec("panel_density", 2.0, 32.0, 12.0),
-    spec("lights_density", 0.2, 4.0, 1.0),
-    spec("lights_pulse", 0.0, 1.0, 0.5),
+    spec("light_density", 0.2, 4.0, 1.0),
+    spec("light_pulse", 0.0, 1.0, 0.5),
     spec("fog", 0.0, 1.0, 0.5),
     spec("fog_color_mix", 0.0, 1.0, 0.3),
-    spec("edges_neon", 0.0, 2.0, 1.0),
+    spec("neon_edges", 0.0, 2.0, 1.0),
 ];
 
 const F_CUELLO: usize = 0;
@@ -83,6 +83,7 @@ pub static SCHEMA: Schema = Schema {
         background(),
         CAM3D_BLOCK,
         LOOK_BLOCK,
+        kit::CAM_TRACK_BLOCK,
         crate::model::SIGNAL_FLOATS_BLOCK,
         crate::model::EFFECTS_FLOATS_BLOCK,
         crate::model::EFFECTS_COLOR_BLOCK,
@@ -95,6 +96,8 @@ const B_NEON: usize = 2;
 const B_FONDO: usize = 3;
 const B_CAM: usize = 4;
 const B_LOOK: usize = 5;
+/// `cam_x/cam_y/cam_z`: the eye offset completing the standard 3D pose.
+const B_TRACK: usize = 6;
 
 fn off(block: usize) -> usize {
     kit::offset_of(SCHEMA.blocks, block)
@@ -242,6 +245,12 @@ impl Model for Catenoide {
         &SCHEMA
     }
 
+    /// The CAM3D kit plus `kit::CAM_TRACK` is the full standard pose, so a
+    /// `cam.track`, a controller or a portal transition can move this eye.
+    fn camera_track(&self) -> bool {
+        true
+    }
+
     fn is_3d(&self) -> bool {
         true
     }
@@ -266,6 +275,8 @@ impl Model for Catenoide {
         let cam = kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]);
         let look = kit::Look::from_floats(&floats[off(B_LOOK)..off(B_LOOK) + kit::Look::N]);
         let (eye, right, up, fwd, tan_half) = camera(&cam, &own, ctx.time);
+        let t = kit::CamTrack::from_floats(&floats[off(B_TRACK)..off(B_TRACK) + kit::CamTrack::N]);
+        let eye = eye + Vec3::new(t.x, t.y, t.z);
         let slot = |blk: usize| ColorSlotGpu::from_floats(&floats[off(blk)..off(blk) + 12]);
         let v4 = |v: Vec3| [v.x, v.y, v.z, 0.0];
         self.surfaces.sync(ctx.device, ctx.queue);
@@ -334,7 +345,7 @@ mod tests {
         assert_eq!(off(B_PARED), FLOATS.len());
         assert_eq!(off(B_CAM) + kit::Cam3d::N, off(B_LOOK));
         assert_eq!(off(B_LOOK) + kit::Look::N, off(B_LOOK + 1));
-        assert!(!Catenoide::new().camera_track());
+        assert!(Catenoide::new().camera_track(), "the CAM3D kit plus CAM_TRACK is the standard pose");
     }
 
     #[test]
@@ -342,8 +353,8 @@ mod tests {
         let n = |i: usize| FLOATS[i].name;
         assert_eq!((n(F_CUELLO), n(F_RADIO), n(F_SECCION), n(F_TORSION), n(F_ESPIRAL)), ("neck", "radius", "section", "torsion", "spiral"));
         assert_eq!((n(F_AVANCE), n(F_RITMO), n(F_RODILLO), n(F_TIPO), n(F_ESCALA), n(F_VEL)), ("advance", "advance_rhythm", "roller", "texture_type", "texture_scale", "texture_speed"));
-        assert_eq!((n(F_ANILLOS), n(F_ANCHO), n(F_PANEL), n(F_LUCES), n(F_PULSO)), ("rings_density", "rings_width", "panel_density", "lights_density", "lights_pulse"));
-        assert_eq!((n(F_NIEBLA), n(F_NMIX), n(F_NEON)), ("fog", "fog_color_mix", "edges_neon"));
+        assert_eq!((n(F_ANILLOS), n(F_ANCHO), n(F_PANEL), n(F_LUCES), n(F_PULSO)), ("ring_density", "rings_width", "panel_density", "light_density", "light_pulse"));
+        assert_eq!((n(F_NIEBLA), n(F_NMIX), n(F_NEON)), ("fog", "fog_color_mix", "neon_edges"));
         assert_eq!(FLOATS.len(), F_NEON + 1);
         assert!(FLOATS[F_SECCION].drive < 1.0 && FLOATS[F_TIPO].drive < 1.0);
     }
@@ -402,7 +413,7 @@ mod tests {
             // Texture-specific floats only show on their own texture type.
             let tipo = match spec.name {
                 "panel_density" => Some(1.0),
-                "lights_density" | "lights_pulse" => Some(2.0),
+                "light_density" | "light_pulse" => Some(2.0),
                 "spiral" => Some(3.0),
                 _ => None,
             };

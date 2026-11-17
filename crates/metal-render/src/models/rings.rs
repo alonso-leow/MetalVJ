@@ -94,7 +94,7 @@ pub static SCHEMA: Schema = Schema {
     blocks: &[
         Block::Floats(FLOATS),
         color_at("rings", &RINGS_COLOR),
-        color_at("ball", &BALL_COLOR),
+        color_at("ball_color", &BALL_COLOR),
         // The model's own field covers every pixel, so it composites the
         // background itself rather than running the shared backdrop pass — the
         // same call Ascii, Cyberspace and Solvent make.

@@ -37,7 +37,7 @@ const FLOATS: &[FloatSpec] = &[
     spec_held("cuts_density", 2.0, 80.0, 24.0, 0.2),
     spec("sparks", 0.0, 1.0, 0.0),
     spec("empty", 0.0, 1.0, 0.0),
-    spec("halo_interior", 0.0, 1.0, 0.3),
+    spec("inner_halo", 0.0, 1.0, 0.3),
     spec("halo_radius", 0.0, 1.0, 0.3),
     spec("aberration", 0.0, 1.0, 0.0),
     spec("cycle", -2.0, 2.0, 0.0),
@@ -53,7 +53,7 @@ const HUMO: [f32; 12] = [0.01, 0.08, 0.50, 0.30, 0.02, 0.45, 0.45, 0.01, 0.25, 0
 const HALO: [f32; 12] = [0.02, 0.35, 1.00, 0.80, 0.05, 0.70, 1.00, 0.15, 0.03, 1.00, 0.90, 0.90];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "edge" => BORDE, "smoke" => HUMO, "halo" => HALO);
+    "edge" => BORDE, "smoke_color" => HUMO, "halo" => HALO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "pulsingborder",

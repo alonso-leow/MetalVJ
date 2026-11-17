@@ -24,8 +24,8 @@ fn nn_layer(q0: vec2<f32>, i: f32, t: f32, speed: f32) -> vec3<f32> {
     let dens = 2.0 + f_density() * 9.0;
     let ax = vec2<f32>(1.0, mix(1.0, 0.15, f_anisotropy()));
     let bend = (p_noise(q * 0.8 * ax + vec2<f32>(0.0, i * 3.7)) - 0.5) * 6.0;
-    let s1 = sin(q.x * dens * ax.x + bend + f_drift_fiber() * w);
-    let s2 = sin(q.y * dens * ax.y * 0.8 - bend * 0.7 - f_drift_fiber() * w * 0.6);
+    let s1 = sin(q.x * dens * ax.x + bend + f_fiber_drift() * w);
+    let s2 = sin(q.y * dens * ax.y * 0.8 - bend * 0.7 - f_fiber_drift() * w * 0.6);
 
     // line = 1 near zero crossings, width from grosor, edge sharpness nitidez.
     let wd = 0.02 + f_thickness() * 0.5;
@@ -34,8 +34,8 @@ fn nn_layer(q0: vec2<f32>, i: f32, t: f32, speed: f32) -> vec3<f32> {
     let l2 = pow(clamp(1.0 - abs(s2) / (wd + 0.02), 0.0, 1.0), sharp);
     let line = max(l1, l2 * 0.8);
 
-    let pulse = 0.6 + 0.4 * sin(t * 2.4 * f_pulse_nodes() * 2.0 + i * 1.9 + bend);
-    let pn = mix(1.0, pulse, clamp(f_pulse_nodes(), 0.0, 1.0));
+    let pulse = 0.6 + 0.4 * sin(t * 2.4 * f_node_pulse() * 2.0 + i * 1.9 + bend);
+    let pn = mix(1.0, pulse, clamp(f_node_pulse(), 0.0, 1.0));
     let node = l1 * l2 * pn;
 
     let bead_p = p_noise(vec2<f32>(q.y * 3.0 + i * 7.0, q.x * 0.5 - w * 2.2));
@@ -58,7 +58,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     for (var k = 0; k < 8; k = k + 1) {
         if (f32(k) >= n) { break; }
         let i = f32(k);
-        q = p_rot(q, f_turn_layers() * 0.9 + 0.35 + 0.1 * i);
+        q = p_rot(q, f_layer_turn() * 0.9 + 0.35 + 0.1 * i);
         q = q * (1.0 + 0.12 * i);
         let r = nn_layer(q, i, t, speed);
         acc = acc + r.x * wgt;
@@ -73,11 +73,11 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let layer_pos = cmix / max(acc, 1e-3) / max(n, 1.0);
 
     // Contrast around mid grey of the line field, then brightness.
-    let c = 0.5 + f_contrast_neural() * 2.5;
+    let c = 0.5 + f_neural_contrast() * 2.5;
     var v = clamp((line - 0.5) * c + 0.5, 0.0, 1.5);
-    v = max(v + f_shine_neural() * 0.5, 0.0);
+    v = max(v + f_neural_shine() * 0.5, 0.0);
 
-    let tc = clamp(v * f_mix_medium() + layer_pos * (1.0 - f_mix_medium()) + f_phase_color() * 0.5 * sin(t * 0.5), 0.0, 1.0);
+    let tc = clamp(v * f_medium_mix() + layer_pos * (1.0 - f_medium_mix()) + f_phase_color() * 0.5 * sin(t * 0.5), 0.0, 1.0);
     var col = mix(p_pal(1u, tc), p_pal(0u, clamp(v, 0.0, 1.0)), clamp(v, 0.0, 1.0));
     col = col * v;
     col = col + p_pal(0u, 0.8) * nodes * inv * f_nodes() * 3.0;

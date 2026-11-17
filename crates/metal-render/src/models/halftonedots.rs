@@ -22,7 +22,7 @@ const FLOATS: &[FloatSpec] = &[
     spec_held("grid", 0.0, 1.0, 0.0, 0.2),
     spec("size", 0.01, 0.2, 0.04),
     spec("radius", 0.2, 1.6, 1.0),
-    spec("contrast_dot", 0.0, 1.0, 0.3),
+    spec("dot_contrast", 0.0, 1.0, 0.3),
     spec("grain_mix", 0.0, 1.0, 0.0),
     spec("grain_surface", 0.0, 1.0, 0.0),
     spec("grain_size", 0.2, 3.0, 1.0),
@@ -48,7 +48,7 @@ const FLOATS: &[FloatSpec] = &[
 const PUNTO: [f32; 12] = [0.90, 0.88, 0.80, 0.10, 0.70, 0.90, 0.90, 0.15, 0.50, 0.95, 0.60, 0.10];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "punto" => PUNTO);
+    crate::scaffold_schema!(FLOATS; "dot" => PUNTO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     "halftonedots",

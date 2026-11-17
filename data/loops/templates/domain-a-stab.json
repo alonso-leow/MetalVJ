@@ -8,7 +8,7 @@
   {
    "target": {
     "kind": "float",
-    "param": "prob"
+    "param": "probability"
    },
    "curve": "step",
    "steps": [

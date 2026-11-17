@@ -33,7 +33,7 @@
   {
    "target": {
     "kind": "float",
-    "param": "variation_palette"
+    "param": "palette_variation"
    },
    "curve": "step",
    "steps": [

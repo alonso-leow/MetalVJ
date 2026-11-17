@@ -46,7 +46,7 @@ const LINEAS: [f32; 12] = [1.00, 1.00, 1.00, 0.05, 0.80, 0.90, 0.90, 0.10, 0.45,
 const BANDA: [f32; 12] = [0.01, 0.02, 0.10, 0.04, 0.02, 0.20, 0.10, 0.03, 0.30, 0.02, 0.05, 0.15];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "lines" => LINEAS, "banda" => BANDA);
+    "lines" => LINEAS, "band" => BANDA);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "ripples",

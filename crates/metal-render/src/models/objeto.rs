@@ -63,7 +63,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("light_hard", 0.0, 1.0, 0.3),
     spec("ambient", 0.0, 1.0, 0.25),
     spec("specular", 0.0, 2.0, 0.5),
-    spec("shine_edge", 0.0, 2.0, 0.4),
+    spec("edge_shine", 0.0, 2.0, 0.4),
     spec("fog", 0.0, 1.0, 0.2),
     // Surface pattern that offsets the colour-slot position.
     spec("texture_scale", 0.5, 24.0, 6.0),
@@ -82,6 +82,7 @@ pub static SCHEMA: Schema = Schema {
         background(),
         CAM3D_BLOCK,
         LOOK_BLOCK,
+        kit::CAM_TRACK_BLOCK,
         crate::model::SIGNAL_FLOATS_BLOCK,
         crate::model::EFFECTS_FLOATS_BLOCK,
         crate::model::EFFECTS_COLOR_BLOCK,
@@ -93,6 +94,8 @@ const B_SUP: usize = 1;
 const B_FONDO: usize = 2;
 const B_CAM: usize = 3;
 const B_LOOK: usize = 4;
+/// `cam_x/cam_y/cam_z`: the eye offset completing the standard 3D pose.
+const B_TRACK: usize = 5;
 
 fn off(block: usize) -> usize {
     kit::offset_of(SCHEMA.blocks, block)
@@ -293,6 +296,12 @@ impl Model for Objeto {
         &SCHEMA
     }
 
+    /// The CAM3D kit plus `kit::CAM_TRACK` is the full standard pose, so a
+    /// `cam.track`, a controller or a portal transition can move this eye.
+    fn camera_track(&self) -> bool {
+        true
+    }
+
     fn is_3d(&self) -> bool {
         true
     }
@@ -321,6 +330,8 @@ impl Model for Objeto {
         let cam = kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]);
         let look = kit::Look::from_floats(&floats[off(B_LOOK)..off(B_LOOK) + kit::Look::N]);
         let (eye, right, up, fwd, tan_half) = camera(&cam, ctx.time);
+        let t = kit::CamTrack::from_floats(&floats[off(B_TRACK)..off(B_TRACK) + kit::CamTrack::N]);
+        let eye = eye + Vec3::new(t.x, t.y, t.z);
         // The camera distance is in object radii: the object is normalised.
         let min_s = d.stretch.min_element().min(1.0);
         let lip = (0.6 * min_s * (1.0 - 0.5 * d.taper.abs()) / (1.0 + 0.6 * d.torsion.abs()))
@@ -396,7 +407,7 @@ mod tests {
         assert_eq!(off(B_SUP), FLOATS.len());
         assert_eq!(off(B_CAM) + kit::Cam3d::N, off(B_LOOK));
         assert_eq!(off(B_LOOK) + kit::Look::N, off(B_LOOK + 1));
-        assert!(!Objeto::new().camera_track());
+        assert!(Objeto::new().camera_track(), "the CAM3D kit plus CAM_TRACK is the standard pose");
     }
 
     #[test]

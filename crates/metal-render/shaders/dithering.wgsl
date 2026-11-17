@@ -53,9 +53,9 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let cs = max(f_size(), 0.2) * 0.012;
 
     // Dither grid, optionally turned against the picture.
-    let gq = p_rot(p, f_turn_mesh());
+    let gq = p_rot(p, f_mesh_turn());
     let cell = floor(gq / cs);
-    let cc = p_rot((cell + 0.5) * cs, -f_turn_mesh());
+    let cc = p_rot((cell + 0.5) * cs, -f_mesh_turn());
 
     // Field sampled at the cell centre so each cell is one flat block.
     var q = (cc - vec2<f32>(f_center_x(), f_center_y())) * f_scale();
@@ -76,7 +76,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let ix = i32(cell.x);
     let iy = i32(cell.y);
     let step_t = floor(p_time() * 8.0);
-    let shift = i32(step_t * f_animation_mesh());
+    let shift = i32(step_t * f_mesh_animation());
     var th: f32;
     let m = i32(round(f_matrix()));
     let sx = ix + shift;

@@ -74,15 +74,15 @@ fn pn_field(q0: vec2<f32>, t: f32) -> f32 {
 
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let t = p_time() * f_speed();
-    let q = p_rot(p, f_rotation() * TAU) * f_scale() + vec2<f32>(f_off_x(), f_off_y()) * 3.0;
+    let q = p_rot(p, f_rotation() * TAU) * f_scale() + vec2<f32>(f_offset_x(), f_offset_y()) * 3.0;
     var v = pn_field(q, t);
 
     // Contrast about the middle so octave sums (which cluster at 0.5) still
     // reach both colours.
-    v = clamp(0.5 + (v - 0.5) * f_contrast_field(), 0.0, 1.0);
+    v = clamp(0.5 + (v - 0.5) * f_field_contrast(), 0.0, 1.0);
 
     // Contour bands on the raw field.
-    let nb = floor(f_n_bands() + 0.5);
+    let nb = floor(f_band_count() + 0.5);
     let bd = floor(v * nb) / nb + 0.5 / nb;
     let vb = mix(v, bd, f_bands());
 
@@ -106,7 +106,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     }
 
     // Colour: flat cut, or the raw field walking each slot gradient.
-    let drift = fract(f_drift_color() * p_time() * 0.1);
+    let drift = fract(f_color_drift() * p_time() * 0.1);
     let lo = p_pal(0u, fract(mix(0.0, v, f_ramp()) + drift));
     let hi = p_pal(1u, fract(mix(1.0, v, f_ramp()) + drift));
     var col = mix(lo, hi, m);

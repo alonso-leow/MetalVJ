@@ -37,7 +37,7 @@ fn smoke_at(x: vec2<f32>, distance: f32) -> f32 {
     s = s + vec2<f32>(t * f_smoke_speed() * 0.6, -t * f_flame());
     let w = vec2<f32>(p_fbm(s + vec2<f32>(0.0, t * 0.1), 3), p_fbm(s + vec2<f32>(5.2, 1.3 - t * 0.1), 3));
     let n = p_fbm(s + (w - 0.5) * 2.5 * distance, 4);
-    return clamp((n - 0.5) * f_contrast_smoke() + 0.5, 0.0, 1.0);
+    return clamp((n - 0.5) * f_smoke_contrast() + 0.5, 0.0, 1.0);
 }
 
 fn tint(ink: f32) -> vec3<f32> {
@@ -69,10 +69,10 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let dd = max(d, 0.0);
     let reach = 0.02 + f_halo_radius() * 0.5;
     let fall = exp(-dd / reach);
-    let ink_o = smoke_at(p + normalize(q + vec2<f32>(1e-4, 0.0)) * dd * 0.5, f_distortion_out());
-    let ho = f_shine_out() * fall * (0.35 + 0.9 * ink_o);
+    let ink_o = smoke_at(p + normalize(q + vec2<f32>(1e-4, 0.0)) * dd * 0.5, f_outer_distortion());
+    let ho = f_outer_shine() * fall * (0.35 + 0.9 * ink_o);
     let halo_a = clamp(ho, 0.0, 1.0);
-    let halo_c = mix(tint(ink_o), glowc, clamp(fall * f_shine_out() * 0.35, 0.0, 1.0));
+    let halo_c = mix(tint(ink_o), glowc, clamp(fall * f_outer_shine() * 0.35, 0.0, 1.0));
     rgb = halo_c;
     cov = halo_a * (1.0 - inside);
 
@@ -85,16 +85,16 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         let fl = fract(ang);
         var qi = q * (1.0 - f_refraction() * (1.0 - nd) * 0.9);
         qi = qi + (fh - 0.5) * f_facet_force() * r * 0.9;
-        let ink_i = smoke_at(qi / max(r, 1e-3) * 0.35, f_distortion_in());
+        let ink_i = smoke_at(qi / max(r, 1e-3) * 0.35, f_inner_distortion());
         var col = tint(ink_i);
         col = mix(col, p_pal(1u, ink_i), f_body());
         // Facet shading and seams.
         col = col * (1.0 - f_facet_force() * 0.35 * (fh.x - 0.5));
         col = col * (1.0 - 0.5 * f_facet_force() * (1.0 - smoothstep(0.0, 0.06, min(fl, 1.0 - fl))));
         // Inner glow toward the edge.
-        let ig = pow(1.0 - nd, 2.5) * f_shine_in();
+        let ig = pow(1.0 - nd, 2.5) * f_inner_shine();
         col = col + glowc * ig * (0.4 + ink_i);
-        col = col * (0.6 + 0.4 * f_shine_in());
+        col = col * (0.6 + 0.4 * f_inner_shine());
         // Rim.
         let rim = 1.0 - smoothstep(0.0, max(f_edge() * r + aa, 1e-4), -d);
         col = col + glowc * rim * f_edge_shine();

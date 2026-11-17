@@ -59,7 +59,7 @@ fn ht_frame(p: vec2<f32>, t: f32) -> HtFrame {
 // Wandering axis of the helix, so the filament is not a rigid sine.
 fn ht_axis(s: f32, t: f32, ring: f32) -> f32 {
     let curl = clamp(f_curl() / 200.0, -1.0, 1.0);
-    let driftn = clamp(f_drift_v() / 200.0, 0.0, 1.0);
+    let driftn = clamp(f_vertical_drift() / 200.0, 0.0, 1.0);
     let fieldn = clamp(f_field() / 200.0, 0.0, 1.0);
     let ph = t * (0.35 + 2.2 * driftn);
     var w = sin(s * (1.8 + 2.4 * fieldn) + ph) * (0.045 + 0.08 * fieldn) * curl;

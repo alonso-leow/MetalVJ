@@ -117,7 +117,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 
     // p is centred with a one-unit height; turn it into a y-up screen plane.
     let ndc = p * 2.0;
-    let local_ro = vec3<f32>(0.0, 0.0, max(f_cam_dist(), 1.0));
+    let local_ro = vec3<f32>(0.0, 0.0, max(f_cam_distance(), 1.0));
     let local_rd = normalize(vec3<f32>(ndc.x, -ndc.y, -2.0));
     let ro = ms_roty(ms_rotx(local_ro, pitch), yaw);
     let rd = ms_roty(ms_rotx(local_rd, pitch), yaw);

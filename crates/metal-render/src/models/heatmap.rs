@@ -29,7 +29,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("noise_scale", 0.5, 8.0, 2.5),
     spec("noise_speed", -3.0, 3.0, 0.5),
     spec("flame", 0.0, 1.5, 0.3),
-    spec("pulse_heat", 0.0, 1.0, 0.0),
+    spec("heat_pulse", 0.0, 1.0, 0.0),
     spec("waves", 0.0, 1.0, 0.0),
     spec("waves_freq", 0.2, 4.0, 1.0),
     spec("scattered", 0.0, 1.0, 0.0),
@@ -50,7 +50,7 @@ const HALO: [f32; 12] = [0.02, 0.0, 0.05, 0.3, 0.0, 0.25, 0.7, 0.05, 0.1, 0.9, 0
 const NUCLEO: [f32; 12] = [0.0, 0.0, 0.0, 0.8, 0.3, 0.05, 1.0, 0.9, 0.5, 1.0, 1.0, 1.0];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "calor" => CALOR, "halo" => HALO, "core" => NUCLEO);
+    crate::scaffold_schema!(FLOATS; "heat" => CALOR, "halo" => HALO, "core" => NUCLEO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     "heatmap",
@@ -76,7 +76,7 @@ mod tests {
     }
 
     const BASE: &[(&str, f32)] = &[
-        ("pulse_heat", 0.4),
+        ("heat_pulse", 0.4),
         ("waves", 0.5),
         ("scattered", 0.4),
         ("bands", 4.0),

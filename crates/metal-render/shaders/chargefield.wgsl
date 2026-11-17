@@ -141,7 +141,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let phase = t * (f_motion_bpm() / 60.0) * PI * 0.44 * f_speed() + f_seed() * 0.37;
 
     // Drift turns the whole system; flow adds a breathing swirl.
-    var q = p_rot(p, t * f_drift_v() * 0.16);
+    var q = p_rot(p, t * f_vertical_drift() * 0.16);
     let swirl = f_flow() * (0.35 + 0.55 * sin(length(q) * 2.3 - t * 0.45));
     q = p_rot(q, swirl);
 

@@ -69,7 +69,7 @@ fn gg_field(q: vec2<f32>, kind: i32, t: f32) -> f32 {
 
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let t = p_time() * f_speed();
-    var q = p_rot(p, f_rotation() * TAU) / max(f_scale(), 0.05) + vec2<f32>(f_off_x(), f_off_y());
+    var q = p_rot(p, f_rotation() * TAU) / max(f_scale(), 0.05) + vec2<f32>(f_offset_x(), f_offset_y());
 
     // Sinusoidal domain distortion (shared by the shape field and the radial).
     let df = f_distance_freq();
@@ -103,12 +103,12 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 
     // Quantise against `mezcla` (stepped across the four slot colours -> smooth).
     let st = (floor(clamp(v, 0.0, 0.999) * 4.0) + 0.5) / 4.0;
-    let u = fract(mix(st, v, f_mix()) + f_drift_color() * p_time() * 0.1);
+    let u = fract(mix(st, v, f_mix()) + f_color_drift() * p_time() * 0.1);
     let uc = clamp(u, 0.0, 1.0);
 
     var col = p_pal2(0u, uc, 1u, uc, f_palette_mix());
     // Sparkle grain tinted by slot 2.
     let sp = step(0.93, p_hash(floor(uv * 500.0 / gs) + vec2<f32>(floor(p_time() * 8.0), 9.0)));
-    col = mix(col, p_pal(2u, uc), clamp(sp * f_shine_grain() * 2.0, 0.0, 1.0));
+    col = mix(col, p_pal(2u, uc), clamp(sp * f_grain_shine() * 2.0, 0.0, 1.0));
     return vec4<f32>(col, clamp(0.3 + 1.1 * uc, 0.0, 1.0));
 }

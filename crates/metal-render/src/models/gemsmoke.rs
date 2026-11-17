@@ -12,10 +12,10 @@ use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
     spec_held("shape", 0.0, 4.0, 0.0, 0.2),
-    spec("distortion_in", 0.0, 2.0, 0.8),
-    spec("distortion_out", 0.0, 2.0, 0.6),
-    spec("shine_out", 0.0, 2.0, 0.55),
-    spec("shine_in", 0.0, 2.0, 1.0),
+    spec("inner_distortion", 0.0, 2.0, 0.8),
+    spec("outer_distortion", 0.0, 2.0, 0.6),
+    spec("outer_shine", 0.0, 2.0, 0.55),
+    spec("inner_shine", 0.0, 2.0, 1.0),
     spec("size", 0.15, 1.4, 0.8),
     spec("angle", 0.0, 1.0, 0.0),
     spec("stretch", 0.4, 2.5, 1.0),
@@ -25,7 +25,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("smoke_speed", -2.0, 2.0, 0.5),
     spec("flame", -1.5, 1.5, 0.3),
     spec("swirl", -2.0, 2.0, 0.3),
-    spec("contrast_smoke", 0.0, 3.0, 1.0),
+    spec("smoke_contrast", 0.0, 3.0, 1.0),
     spec("smoke_color_speed", 0.0, 2.0, 0.2),
     spec_held("facets", 3.0, 16.0, 8.0, 0.1),
     spec("facet_force", 0.0, 1.0, 0.5),
@@ -46,7 +46,7 @@ const CUERPO: [f32; 12] = [0.02, 0.02, 0.06, 0.05, 0.10, 0.45, 0.60, 0.15, 0.40,
 const BRILLO: [f32; 12] = [0.90, 0.85, 0.80, 0.20, 0.80, 0.95, 0.90, 0.30, 0.60, 0.95, 0.60, 0.10];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "smoke" => HUMO, "body" => CUERPO, "shine" => BRILLO);
+    crate::scaffold_schema!(FLOATS; "smoke" => HUMO, "body_color" => CUERPO, "shine_color" => BRILLO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "gemsmoke",

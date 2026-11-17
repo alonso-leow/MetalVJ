@@ -30,7 +30,7 @@ fn pt_drops(q: vec2<f32>) -> vec2<f32> {
 
 fn pt_folds(q: vec2<f32>, t: f32) -> f32 {
     var acc = 0.0;
-    let n = i32(floor(f_n_folds() + 0.5));
+    let n = i32(floor(f_fold_count() + 0.5));
     for (var i = 0; i < 12; i = i + 1) {
         if (i >= n) { break; }
         let fi = f32(i) + f_seed() * 0.37;
@@ -96,7 +96,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let spec = pow(max(dot(nrm, Hv), 0.0), 40.0) * f_satin();
 
     // Contrast stretches the shading around mid-lightness.
-    var lit = 0.72 + diff * (0.6 + f_contrast_paper() * 3.0);
+    var lit = 0.72 + diff * (0.6 + f_paper_contrast() * 3.0);
     lit = clamp(lit, 0.0, 1.0);
 
     // Aged stains from the third slot.

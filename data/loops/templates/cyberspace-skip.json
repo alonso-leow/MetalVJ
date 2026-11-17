@@ -16,7 +16,7 @@
   {
    "target": {
     "kind": "float",
-    "param": "speed_parallax"
+    "param": "parallax_speed"
    },
    "curve": "step",
    "steps": [0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15, 0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15]
@@ -24,7 +24,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "neon",
+    "slot": "neon_color",
     "palette": "neon"
    },
    "steps": [{"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null]

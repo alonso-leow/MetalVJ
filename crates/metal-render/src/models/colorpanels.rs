@@ -12,7 +12,7 @@ use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
     spec("density", 0.4, 9.6, 3.0),
-    spec("long", 0.2, 2.5, 1.1),
+    spec("length", 0.2, 2.5, 1.1),
     spec("edges", 0.0, 1.0, 0.45),
     spec("blur", 0.0, 1.0, 0.0),
     spec("fade_in", 0.0, 1.0, 0.35),
@@ -32,7 +32,7 @@ const FLOATS: &[FloatSpec] = &[
 /// Linear values (targets encode sRGB on write): violet, magenta, amber, cyan.
 const PANELES: [f32; 12] = [0.28, 0.06, 0.75, 0.80, 0.05, 0.30, 0.95, 0.40, 0.04, 0.05, 0.60, 0.80];
 
-pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS; "paneles" => PANELES);
+pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS; "panels" => PANELES);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "colorpanels",

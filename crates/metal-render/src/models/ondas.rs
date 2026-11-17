@@ -38,7 +38,7 @@ const FLOATS: &[FloatSpec] = &[
     // 0 continuous, 1 gaussian, 2 ricker. Structural.
     spec_held("source_type", 0.0, 2.0, 0.0, 0.2),
     // How many sources, in a column about (x, y). Structural.
-    spec_held("n_sources", 1.0, 6.0, 1.0, 0.2),
+    spec_held("source_count", 1.0, 6.0, 1.0, 0.2),
     // Phase between consecutive sources (times pi).
     spec("source_phase", -1.0, 1.0, 0.0),
     // Beat: a rising edge through 0.5 injects a ricker pulse of that strength.
@@ -52,7 +52,7 @@ const FLOATS: &[FloatSpec] = &[
     // Quarter turns: -1..1 is +-90 degrees.
     spec("epsilon_turn", -1.0, 1.0, 0.0),
     // Openings in the slit wall. Structural.
-    spec_held("slit_n", 1.0, 6.0, 2.0, 0.2),
+    spec_held("slit_count", 1.0, 6.0, 2.0, 0.2),
     // Opening width in grid cells.
     spec("slit_width", 1.0, 24.0, 6.0),
     // Border absorber strength (PML-lite). 0 = a mirror box.

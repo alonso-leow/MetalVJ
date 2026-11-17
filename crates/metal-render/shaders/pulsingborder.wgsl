@@ -118,7 +118,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     // Bloom halos.
     let hr = 0.015 + f_halo_radius() * 0.2;
     let outer = exp(-max(distance, 0.0) / hr) * (1.0 - inside);
-    let inner = exp(-max(-distance, 0.0) / (hr * 1.8)) * inside * f_halo_interior();
+    let inner = exp(-max(-distance, 0.0) / (hr * 1.8)) * inside * f_inner_halo();
     let hcol = p_pal(2u, fract(u + f_cycle() * tr * 0.1));
     let glow = hcol * (outer * f_bloom() + inner * f_bloom() * 0.6) * (0.25 + 0.75 * lvl + spots) * (1.0 + 0.3 * f_pulse_b() * ph);
 

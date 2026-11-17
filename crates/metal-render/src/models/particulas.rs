@@ -40,16 +40,16 @@ use crate::shared::{build_shader, ColorSlotGpu};
 
 const FLOATS: &[FloatSpec] = &[
     // Bodies drawn and simulated, in steps of 4096. Structural.
-    spec_held("n_part", 16384.0, 65536.0, 32768.0, 0.25),
+    spec_held("particle_count", 16384.0, 65536.0, 32768.0, 0.25),
     // Central mass and the gravitational constant: GM = masa_central * g.
-    spec("mass_central", 0.1, 4.0, 1.0),
+    spec("central_mass", 0.1, 4.0, 1.0),
     spec("g", 0.1, 4.0, 1.0),
     // Plummer softening of the central force and of the self gravity.
     spec("softening", 0.005, 0.5, 0.04),
     // The fixed step. Structural (capped to the inner dynamical time).
     spec_held("dt", 0.0005, 0.02, 0.006, 0.25),
     // Simulation speed: steps per second are 120 * vel_sim.
-    spec("speed_simulation", 0.0, 6.0, 1.0),
+    spec("simulation_speed", 0.0, 6.0, 1.0),
     // Velocity dispersion of the initial disc. Structural.
     spec_held("chaos", 0.0, 1.0, 0.08, 0.25),
     // Disc radius (the patch half-size is 1.2x it in sheet mode). Structural.
@@ -83,16 +83,16 @@ const FLOATS: &[FloatSpec] = &[
     // Sprite radius, its spread per body, and a kick that swells the fast ones.
     spec("size", 0.2, 4.0, 1.0),
     spec("size_variation", 0.0, 1.0, 0.4),
-    spec("size_audio", 0.0, 2.0, 0.0),
+    spec("audio_size", 0.0, 2.0, 0.0),
     // Spread of the brightness per body.
     spec("shine_variation", 0.0, 1.0, 0.4),
     // Tail brightness and length (along the projected velocity).
     spec("wake", 0.0, 1.0, 0.5),
-    spec("wake_long", 0.0, 2.0, 0.5),
+    spec("wake_length", 0.0, 2.0, 0.5),
     // 0 dot, 1 ring, 2 streak, 3 glow. Structural.
     spec_held("texture", 0.0, 3.0, 0.0, 0.2),
     // Colour by radius (0) or by speed (1).
-    spec("speed_color", 0.0, 1.0, 0.35),
+    spec("color_speed", 0.0, 1.0, 0.35),
     // Per-body twinkle.
     spec("flash", 0.0, 1.0, 0.25),
 ];
@@ -109,6 +109,7 @@ pub static SCHEMA: Schema = Schema {
         color_at("background", &NIGHT),
         CAM3D_BLOCK,
         LOOK_BLOCK,
+        kit::CAM_TRACK_BLOCK,
         crate::model::SIGNAL_FLOATS_BLOCK,
         crate::model::EFFECTS_FLOATS_BLOCK,
         crate::model::EFFECTS_COLOR_BLOCK,
@@ -120,6 +121,8 @@ const B_PARTICLE: usize = 1;
 const B_BG: usize = 2;
 const B_CAM: usize = 3;
 const B_LOOK: usize = 4;
+/// `cam_x/cam_y/cam_z`: the eye offset completing the standard 3D pose.
+const B_TRACK: usize = 5;
 
 fn off(block: usize) -> usize {
     kit::offset_of(SCHEMA.blocks, block)
@@ -382,7 +385,7 @@ struct DrawUniform {
 }
 
 /// Eye and view-projection from the CAM3D kit. Deterministic in `time`.
-fn view_proj(c: &kit::Cam3d, time: f32, aspect: f32) -> (Mat4, Vec3) {
+fn view_proj(c: &kit::Cam3d, track: Vec3, time: f32, aspect: f32) -> (Mat4, Vec3) {
     let az = c.yaw + c.orbit * time;
     let distance = (c.distance + c.dolly).max(0.25);
     let (sp, cp) = c.pitch.clamp(-1.5, 1.5).sin_cos();
@@ -398,6 +401,8 @@ fn view_proj(c: &kit::Cam3d, time: f32, aspect: f32) -> (Mat4, Vec3) {
     let up = right.cross(fwd);
     let (sr, cr) = c.roll.sin_cos();
     let up = up * cr - right * sr;
+    // The standard pose's eye offset translates without re-aiming.
+    let eye = eye + track;
     let view = Mat4::look_at_rh(eye, eye + fwd, up);
     let proj = Mat4::perspective_rh(c.fov.clamp(0.3, 2.2), aspect.max(1.0e-3), 0.05, 100.0);
     (proj * view, eye)
@@ -1029,6 +1034,12 @@ impl Model for Particulas {
         &SCHEMA
     }
 
+    /// The CAM3D kit plus `kit::CAM_TRACK` is the full standard pose, so a
+    /// `cam.track`, a controller or a portal transition can move this eye.
+    fn camera_track(&self) -> bool {
+        true
+    }
+
     fn render(&mut self, ctx: &Ctx, floats: &[f32], target: &wgpu::TextureView, format: wgpu::TextureFormat) {
         let own = &floats[off(B_OWN)..off(B_OWN) + FLOATS.len()];
         let p = Params::from_floats(own);
@@ -1061,7 +1072,8 @@ impl Model for Particulas {
         let draw = self.draw.get(format, || Self::build_draw(ctx.device, format, draw_bgl, pingpong));
         let cam = kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]);
         let look = kit::Look::from_floats(&floats[off(B_LOOK)..off(B_LOOK) + kit::Look::N]);
-        let (vp, eye) = view_proj(&cam, time, ctx.aspect());
+        let t = kit::CamTrack::from_floats(&floats[off(B_TRACK)..off(B_TRACK) + kit::CamTrack::N]);
+        let (vp, eye) = view_proj(&cam, Vec3::new(t.x, t.y, t.z), time, ctx.aspect());
         let slot = |blk: usize| ColorSlotGpu::from_floats(&floats[off(blk)..off(blk) + 12]);
         let c = |i| clean(own, i);
         let extent = if p.sheet { p.half * 1.2 } else { p.radius * 1.15 };
@@ -1177,16 +1189,16 @@ mod tests {
         assert_eq!(off(B_CAM) + kit::Cam3d::N, off(B_LOOK));
         assert_eq!(off(B_LOOK) + kit::Look::N, off(B_LOOK + 1));
         let n = |i: usize| FLOATS[i].name;
-        assert_eq!((n(F_N), n(F_CENTRAL_MASS), n(F_G), n(F_EPS), n(F_DT), n(F_SIM_SPEED), n(F_CHAOS)), ("n_part", "mass_central", "g", "softening", "dt", "speed_simulation", "chaos"));
+        assert_eq!((n(F_N), n(F_CENTRAL_MASS), n(F_G), n(F_EPS), n(F_DT), n(F_SIM_SPEED), n(F_CHAOS)), ("particle_count", "central_mass", "g", "softening", "dt", "simulation_speed", "chaos"));
         assert_eq!((n(F_DISC_RADIUS), n(F_DISC_THICKNESS), n(F_DISC_SPIN), n(F_SHEAR), n(F_BOUNDARY_MODE)), ("disc_radius", "disc_thickness", "disc_turn", "shear", "boundary_mode"));
         assert_eq!((n(F_COLLISION), n(F_RESTITUTION), n(F_AX), n(F_AY), n(F_ATTRACTOR_MASS), n(F_ATTRACTOR_ORBIT), n(F_AUTOGRAV), n(F_SEED)), ("collision", "restitution", "attractor_x", "attractor_y", "attractor_mass", "attractor_orbit", "selfgravity", "seed"));
-        assert_eq!((n(F_SIZE), n(F_SIZE_VAR), n(F_SIZE_AUDIO), n(F_BRIGHT_VAR), n(F_TRAIL), n(F_TRAIL_LEN), n(F_TEXTURE), n(F_SPEED_COLOR), n(F_TWINKLE)), ("size", "size_variation", "size_audio", "shine_variation", "wake", "wake_long", "texture", "speed_color", "flash"));
+        assert_eq!((n(F_SIZE), n(F_SIZE_VAR), n(F_SIZE_AUDIO), n(F_BRIGHT_VAR), n(F_TRAIL), n(F_TRAIL_LEN), n(F_TEXTURE), n(F_SPEED_COLOR), n(F_TWINKLE)), ("size", "size_variation", "audio_size", "shine_variation", "wake", "wake_length", "texture", "color_speed", "flash"));
         assert_eq!(FLOATS.len(), F_TWINKLE + 1);
         for i in [F_N, F_DT, F_CHAOS, F_DISC_RADIUS, F_DISC_THICKNESS, F_DISC_SPIN, F_SHEAR, F_BOUNDARY_MODE, F_SEED, F_TEXTURE] {
             assert!(FLOATS[i].drive < 1.0, "{} should be held", FLOATS[i].name);
         }
         assert!(!Particulas::new().needs_compute(), "it has a fragment ping-pong fallback");
-        assert!(!Particulas::new().camera_track());
+        assert!(Particulas::new().camera_track(), "the CAM3D kit plus CAM_TRACK is the standard pose");
     }
 
     #[test]

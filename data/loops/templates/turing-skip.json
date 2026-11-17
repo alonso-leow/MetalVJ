@@ -24,7 +24,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "patron",
+    "slot": "pattern",
     "palette": "metalvj-red"
    },
    "steps": [{"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null, {"colour": 0}, null, {"colour": 2}, null]

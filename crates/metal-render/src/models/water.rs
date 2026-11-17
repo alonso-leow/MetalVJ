@@ -52,7 +52,7 @@ const AGUA: [f32; 12] = [0.0, 0.02, 0.08, 0.0, 0.12, 0.2, 0.05, 0.4, 0.5, 0.35, 
 const LUZ: [f32; 12] = [1.0, 1.0, 1.0, 0.7, 0.95, 1.0, 1.0, 0.95, 0.8, 0.9, 0.95, 1.0];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "agua" => AGUA, "light" => LUZ);
+    crate::scaffold_schema!(FLOATS; "water" => AGUA, "light" => LUZ);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     "water",

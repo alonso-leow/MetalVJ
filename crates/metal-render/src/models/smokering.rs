@@ -25,15 +25,15 @@ const FLOATS: &[FloatSpec] = &[
     spec("expansion", 0.0, 1.0, 0.0),
     spec("speed", -2.0, 2.0, 0.5),
     spec("swirl", -3.0, 3.0, 0.4),
-    spec("turn_smoke", -2.0, 2.0, 0.2),
+    spec("smoke_turn", -2.0, 2.0, 0.2),
     spec("filaments", 0.0, 1.0, 0.3),
-    spec("contrast_smoke", 0.0, 3.0, 1.0),
+    spec("smoke_contrast", 0.0, 3.0, 1.0),
     spec("lacunarity", 1.5, 3.0, 2.0),
     spec("wear", 0.0, 1.0, 0.2),
     spec("seed", 0.0, 50.0, 0.0),
     spec("thread", 0.0, 1.0, 0.3),
     spec("thread_width", 0.002, 0.1, 0.02),
-    spec("shine_core", 0.0, 2.0, 0.6),
+    spec("core_shine", 0.0, 2.0, 0.6),
     spec("halo", 0.0, 1.0, 0.3),
     spec("halo_radius", 0.05, 1.0, 0.3),
     spec("color_speed", 0.0, 2.0, 0.2),
@@ -48,7 +48,7 @@ const NUCLEO: [f32; 12] = [0.01, 0.02, 0.10, 0.50, 0.05, 0.30, 0.95, 0.35, 0.10,
 const BRILLO: [f32; 12] = [0.95, 0.85, 0.75, 0.30, 0.80, 0.95, 0.90, 0.30, 0.60, 0.95, 0.65, 0.15];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "smoke" => HUMO, "core" => NUCLEO, "shine" => BRILLO);
+    crate::scaffold_schema!(FLOATS; "smoke" => HUMO, "core" => NUCLEO, "shine_color" => BRILLO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "smokering",

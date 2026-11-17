@@ -33,7 +33,7 @@
   {
    "target": {
     "kind": "float",
-    "param": "speed_advance"
+    "param": "advance_speed"
    },
    "curve": "step",
    "steps": [

@@ -24,7 +24,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "escape",
+    "slot": "escape_color",
     "palette": "neon"
    },
    "steps": [{"colour": 0}, null, null, null, {"colour": 1}, null, null, null, {"colour": 2}, null, null, null, {"colour": 3}, null, null, null]

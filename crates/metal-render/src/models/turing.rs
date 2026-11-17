@@ -91,13 +91,17 @@ const CAMERA_TRACK_FLOATS: &[FloatSpec] = &[
     spec("cam_x", -3.0, 3.0, 0.0),
     spec("cam_y", -3.0, 3.0, 0.0),
     spec("cam_z", -3.0, 3.0, 0.0),
+    // The look half of the standard pose (`metal_schema::POSE_NAMES`).
+    metal_schema::POSE_LOOK_FLOATS[0],
+    metal_schema::POSE_LOOK_FLOATS[1],
+    metal_schema::POSE_LOOK_FLOATS[2],
 ];
 
 pub static SCHEMA: Schema = Schema {
     blocks: &[
         Block::Floats(FLOATS),
-        color("patron"),
-        color("pliegue_color"),
+        color("pattern"),
+        color("fold_color"),
         // Looking down at the sheet steeply enough that its far edge is above
         // the top of the frame. A ground plane seen from a low angle always
         // has a horizon, and a horizon in this suite is a band of black sky —
@@ -498,9 +502,18 @@ impl Model for Turing {
         let mut cam = [0.0f32; 7];
         cam.copy_from_slice(&floats[41..48]);
         let track = &floats[48..51];
-        cam[0] += track[0];
-        cam[1] += track[1];
-        cam[2] += track[2];
+        // The look half of the standard pose turns the rest camera first.
+        let (eye, at) = crate::model::posed(
+            glam::Vec3::new(cam[0], cam[1], cam[2]),
+            glam::Vec3::new(cam[3], cam[4], cam[5]),
+            [floats[51], floats[52], floats[53]],
+        );
+        cam[0] = eye.x + track[0];
+        cam[1] = eye.y + track[1];
+        cam[2] = eye.z + track[2];
+        cam[3] = at.x;
+        cam[4] = at.y;
+        cam[5] = at.z;
         let uniform = Uniform {
             pattern_color: ColorSlotGpu::from_floats(&floats[17..29]),
             crease_color: ColorSlotGpu::from_floats(&floats[29..41]),

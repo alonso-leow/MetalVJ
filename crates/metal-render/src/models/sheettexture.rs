@@ -15,14 +15,14 @@ use crate::model::{spec, spec_held, FloatSpec};
 use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
-    spec("contrast_paper", 0.0, 1.0, 0.3),
+    spec("paper_contrast", 0.0, 1.0, 0.3),
     spec("roughness", 0.0, 1.0, 0.4),
     spec("fiber", 0.0, 1.0, 0.3),
     spec("fiber_size", 0.02, 1.0, 0.2),
     spec("wrinkles", 0.0, 1.0, 0.3),
     spec("wrinkles_size", 0.05, 1.0, 0.35),
     spec("folds", 0.0, 1.0, 0.65),
-    spec_held("n_folds", 1.0, 12.0, 5.0, 1.0),
+    spec_held("fold_count", 1.0, 12.0, 5.0, 1.0),
     spec("fade", 0.0, 1.0, 0.0),
     spec("drops", 0.0, 1.0, 0.2),
     spec("seed", 0.0, 50.0, 5.8),
@@ -76,7 +76,7 @@ mod tests {
     }
 
     const BASE: &[(&str, f32)] = &[
-        ("contrast_paper", 0.6),
+        ("paper_contrast", 0.6),
         ("roughness", 0.5),
         ("fiber", 0.5),
         ("wrinkles", 0.5),

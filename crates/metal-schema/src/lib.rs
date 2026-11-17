@@ -203,6 +203,47 @@ pub mod warp;
 /// Spanish parameter names kept as aliases of their English names (see the module).
 pub mod param_aliases;
 
+/// The standard 3D pose every 3D generator declares (`docs/plan-portal.md` §2):
+/// eye offset in world units, then view yaw and pitch in radians (positive yaw
+/// looks left — a right-handed turn about +Y) and a dolly along the view.
+/// A controller, `cam.track` and the portal transition address a 3D model
+/// through these names only; a model is 3D for the engine iff it has all six.
+pub const POSE_NAMES: [&str; 6] = ["cam_x", "cam_y", "cam_z", "cam_yaw", "cam_pitch", "cam_dolly"];
+
+/// The look half of [`POSE_NAMES`] (`cam_yaw`, `cam_pitch`, `cam_dolly`), as a
+/// camera-block model appends it right after its `cam_x/cam_y/cam_z`.
+pub const POSE_LOOK_FLOATS: [FloatSpec; 3] = [
+    spec("cam_yaw", -std::f32::consts::PI, std::f32::consts::PI, 0.0),
+    spec("cam_pitch", -1.5, 1.5, 0.0),
+    spec("cam_dolly", -5.0, 5.0, 0.0),
+];
+
+/// Row positions of the six [`POSE_NAMES`] in a manifest model, by name.
+/// `None` when the model is not 3D (it lacks any of them).
+pub fn pose_indices(model: &ManifestModel) -> Option<[usize; 6]> {
+    let mut found = [None; 6];
+    let mut at = 0usize;
+    for block in &model.blocks {
+        match block {
+            ManifestBlock::Floats { fields } => {
+                for (i, f) in fields.iter().enumerate() {
+                    if let Some(k) = POSE_NAMES.iter().position(|n| *n == f.name) {
+                        found[k].get_or_insert(at + i);
+                    }
+                }
+                at += fields.len();
+            }
+            ManifestBlock::ColorSlot { .. } => at += 12,
+            ManifestBlock::Camera { .. } => at += 7,
+        }
+    }
+    let mut out = [0usize; 6];
+    for (k, f) in found.iter().enumerate() {
+        out[k] = (*f)?;
+    }
+    Some(out)
+}
+
 // ---------------------------------------------------------------------------
 // the types
 // ---------------------------------------------------------------------------

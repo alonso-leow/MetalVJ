@@ -83,10 +83,14 @@ pub const CAMERA_TRACK_FLOATS: &[FloatSpec] = &[
     spec("cam_x", -2.0, 2.0, 0.0),
     spec("cam_y", -2.0, 2.0, 0.0),
     spec("cam_z", -2.0, 2.0, 0.0),
+    // The look half of the standard pose (`metal_schema::POSE_NAMES`).
+    metal_schema::POSE_LOOK_FLOATS[0],
+    metal_schema::POSE_LOOK_FLOATS[1],
+    metal_schema::POSE_LOOK_FLOATS[2],
 ];
 
 /// The colour slots, in schema order, after the camera block.
-pub const SLOTS: [&str; 5] = ["background", "layers", "objects", "lights", "fog_c"];
+pub const SLOTS: [&str; 5] = ["background", "layers", "objects", "lights", "fog_color"];
 
 /// Builds a world's schema with its own colour defaults. A macro rather than
 /// a `const fn` because `Schema` holds a `&'static [Block]`.
@@ -102,7 +106,7 @@ macro_rules! parallax_schema {
                 $crate::model::color_at("layers", $layers),
                 $crate::model::color_at("objects", $objects),
                 $crate::model::color_at("lights", $lights),
-                $crate::model::color_at("fog_c", $fog),
+                $crate::model::color_at("fog_color", $fog),
                 $crate::model::Block::Floats($crate::shared::parallax::CAMERA_TRACK_FLOATS),
                 $crate::model::SIGNAL_FLOATS_BLOCK,
                 $crate::model::EFFECTS_FLOATS_BLOCK,
@@ -176,13 +180,15 @@ impl Parallax {
         // The look direction comes from the camera block alone; head tracking
         // and the bob translate the eye without re-aiming it, which is what
         // makes near layers slide more than far ones.
-        let fwd = (cam.target() - cam.pos()).normalize_or(Vec3::NEG_Z);
+        // The look half of the standard pose turns the rest camera at the eye.
+        let (rest, aim) = crate::model::posed(cam.pos(), cam.target(), [floats[t0 + 3], floats[t0 + 4], floats[t0 + 5]]);
+        let fwd = (aim - rest).normalize_or(Vec3::NEG_Z);
         let right = fwd.cross(Vec3::Y).normalize_or(Vec3::X);
         let up = right.cross(fwd);
         // A head offset of 2 (the float's end) moves the eye half a world unit:
         // the nearest layer (1.6 away) slides about a third of the frame,
         // the far ones barely — enough depth without leaving the strip.
-        let eye = cam.pos() + track * HEAD_SCALE + bob;
+        let eye = rest + track * HEAD_SCALE + bob;
         let tan_half = (cam.fov_radians().clamp(0.1, 3.0) * 0.5).tan();
 
         let pixel = named("pixel");

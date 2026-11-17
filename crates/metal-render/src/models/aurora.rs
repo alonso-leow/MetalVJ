@@ -14,7 +14,7 @@ use crate::shared::ColorSlotGpu;
 const FLOATS: &[FloatSpec] = &[
     spec("speed", 0.3, 2.3, 1.1),
     spec("separation", 0.5, 2.0, 1.25),
-    spec("width_shine", 0.008, 0.048, 0.028),
+    spec("shine_width", 0.008, 0.048, 0.028),
     // The seven bands. Each is what `u.sub_bass`..`u.brilliance` were in
     // fosfora — now an ordinary driven float, so the digest maps its own
     // seven bands onto these seven names instead of the model reading a

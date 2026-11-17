@@ -44,7 +44,7 @@ const TONO_B: [f32; 12] = [0.04, 0.24, 1.00, 0.24, 0.02, 0.84, 0.01, 0.26, 0.38,
 const LINEA: [f32; 12] = [0.01, 0.00, 0.02, 1.00, 0.85, 0.60, 0.40, 0.00, 0.02, 1.00, 1.00, 1.00];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "tono_a" => TONO_A, "tono_b" => TONO_B, "linea" => LINEA);
+    "tone_a" => TONO_A, "tone_b" => TONO_B, "line" => LINEA);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "swirl",

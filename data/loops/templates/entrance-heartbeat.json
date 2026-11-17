@@ -8,7 +8,7 @@
   {
    "target": {
     "kind": "float",
-    "param": "speed_advance"
+    "param": "advance_speed"
    },
    "curve": "ramp",
    "steps": [0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255]

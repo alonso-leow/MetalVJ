@@ -69,7 +69,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
             let breath = 1.0 + f_breath() * 0.16 * sin(t * 2.7 + h0.x * TAU);
             let hx = hs * (1.0 + (h1.y - 0.5) * f_stretch() * 0.6) * breath;
             let hyy = hy * breath;
-            let ang = f_rot_jitter() * (h1.x - 0.5) * 0.9;
+            let ang = f_rotation_jitter() * (h1.x - 0.5) * 0.9;
             let q = p_rot(g - cen, ang);
             let rad = f_corner_radius() * min(hx, hyy) * 0.95;
             let sd = sg_box(q, vec2<f32>(hx, hyy), rad);

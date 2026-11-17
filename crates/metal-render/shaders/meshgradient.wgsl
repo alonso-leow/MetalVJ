@@ -28,7 +28,7 @@ fn mg_point(i: i32, n: i32, t: f32) -> vec2<f32> {
 
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let t = p_time() * f_speed();
-    var q = p_rot(p, f_rotation() * TAU) / max(f_scale(), 0.05) + vec2<f32>(f_off_x(), f_off_y());
+    var q = p_rot(p, f_rotation() * TAU) / max(f_scale(), 0.05) + vec2<f32>(f_offset_x(), f_offset_y());
 
     // Marbling veins: an fbm displacement before everything else.
     if (f_vein() > 0.0) {
@@ -45,7 +45,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     }
     // Swirl: angle falls off with the distance from the centre.
     let r = length(q);
-    let sw = f_turn_swirl() * 4.0 * exp(-r * f_swirl_fall()) + f_fold() * sin(r * 6.0 - t);
+    let sw = f_swirl_turn() * 4.0 * exp(-r * f_swirl_fall()) + f_fold() * sin(r * 6.0 - t);
     q = p_rot(q, sw);
 
     let n = clamp(i32(floor(f_dots() + 0.5)), 2, MG_MAX);
@@ -57,7 +57,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     var acc = vec3<f32>(0.0);
     var wsum = 0.0;
     var wmax = 0.0;
-    let dr = f_drift_color() * p_time() * 0.1;
+    let dr = f_color_drift() * p_time() * 0.1;
     for (var i = 0; i < MG_MAX; i = i + 1) {
         if (i >= n) { break; }
         let c = mg_point(i, n, t);
@@ -91,7 +91,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     // Surface grain overlay: signed film grain, sparkle tinted by slot 2.
     col = col + (gn - 0.5) * f_grain_surface() * 0.6;
     let sp = step(0.95, p_hash(floor(uv * 480.0 / gs) + vec2<f32>(floor(p_time() * 8.0), 9.0)));
-    col = mix(col, p_pal(2u, fract(lum + dr)), clamp(sp * f_shine_grain() * 2.0, 0.0, 1.0));
+    col = mix(col, p_pal(2u, fract(lum + dr)), clamp(sp * f_grain_shine() * 2.0, 0.0, 1.0));
 
     // Soft centre light.
     col = col * (1.0 + f_light() * (0.6 - r * 0.8));

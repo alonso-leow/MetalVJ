@@ -51,7 +51,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let lac = f_lacunarity();
     let sc = f_noise_scale();
     var n = q * sc;
-    n = p_rot(n, f_swirl() * (1.2 - min(rr * 1.8, 1.2)) + t * f_turn_smoke() * 0.3);
+    n = p_rot(n, f_swirl() * (1.2 - min(rr * 1.8, 1.2)) + t * f_smoke_turn() * 0.3);
     // Stretch the noise along the tangent: sample angle stretched.
     let tang = vec2<f32>(-sin(a), cos(a));
     n = n + tang * dot(n, tang) * f_filaments() * 1.2;
@@ -60,7 +60,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let wo = min(oct, 4);
     let wv = vec2<f32>(sr_fbm(n * 0.8 + vec2<f32>(0.0, t * 0.12), wo, lac), sr_fbm(n * 0.8 + vec2<f32>(5.2, 1.3 - t * 0.12), wo, lac));
     let f = sr_fbm(n + (wv - 0.5) * 2.2, oct, lac);
-    let ink = clamp((f - 0.5) * f_contrast_smoke() + 0.5, 0.0, 1.0);
+    let ink = clamp((f - 0.5) * f_smoke_contrast() + 0.5, 0.0, 1.0);
 
     // Band profile with soft inner shape.
     let inner_w = 0.05 + f_shape_in() * 0.95;
@@ -81,7 +81,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         p_pal(0u, clamp(tri - ab, 0.0, 1.0)).b);
     // Core tint hugging the inner edge.
     let core = (1.0 - smoothstep(-1.0, 0.2, s)) * band;
-    col = mix(col, p_pal(1u, ink), clamp(core * f_shine_core(), 0.0, 1.0));
+    col = mix(col, p_pal(1u, ink), clamp(core * f_core_shine(), 0.0, 1.0));
     col = col * (0.55 + 0.9 * ink);
 
     // Thin bright thread on the centre line.

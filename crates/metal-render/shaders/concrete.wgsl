@@ -99,8 +99,8 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let slab_rgb = p_pal(0, clamp(0.10 + 0.62 * hs + 0.30 * f_palette(), 0.0, 1.0));
 
     // Cell block, anchored to the cell floor.
-    let hx = max(mix(0.12, 1.0 - gap * 0.5, clamp(f_block_w(), 0.0, 1.0)) * (0.70 + 0.30 * h2.x), 0.02);
-    let hy = max(mix(0.05, 1.0 - gap * 0.5, clamp(f_block_h(), 0.0, 1.0)) * (0.75 + 0.25 * h2.y), 0.02);
+    let hx = max(mix(0.12, 1.0 - gap * 0.5, clamp(f_block_width(), 0.0, 1.0)) * (0.70 + 0.30 * h2.x), 0.02);
+    let hy = max(mix(0.05, 1.0 - gap * 0.5, clamp(f_block_height(), 0.0, 1.0)) * (0.75 + 0.25 * h2.y), 0.02);
     let bc = local - vec2<f32>(0.0, 1.0 - hy);
     let soft = 0.01 + clamp(f_bevel(), 0.0, 1.0) * 0.06;
     let block_mask = con_box(bc, vec2<f32>(hx, hy), soft);
@@ -140,8 +140,8 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let base_kind = select(floor(f_shape()), floor(h3 * 7.99), mix_kind);
     let wkind = select(base_kind, floor(p_hash(wcell + cell + vec2<f32>(seed)) * 7.99), mix_kind);
     let wext = vec2<f32>(
-        mix(0.14, 0.92, clamp(f_window_w(), 0.0, 1.0)),
-        mix(0.14, 0.92, clamp(f_window_h(), 0.0, 1.0))
+        mix(0.14, 0.92, clamp(f_window_width(), 0.0, 1.0)),
+        mix(0.14, 0.92, clamp(f_window_height(), 0.0, 1.0))
     );
     let win_shape = con_motif(wkind, wf, wext, 0.015);
     let present = step(

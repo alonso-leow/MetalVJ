@@ -22,7 +22,7 @@ fn vor_dist(d: vec2<f32>) -> f32 {
     let e = length(d);
     let m = (a.x + a.y) * 0.72;
     let c = max(a.x, a.y);
-    return mix(mix(e, m, clamp(f_metric(), 0.0, 1.0)), c, clamp(f_cheb(), 0.0, 1.0));
+    return mix(mix(e, m, clamp(f_metric(), 0.0, 1.0)), c, clamp(f_chebyshev(), 0.0, 1.0));
 }
 
 fn vor_site(cell: vec2<f32>, t: f32) -> vec2<f32> {
@@ -67,7 +67,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     // Radial size waves.
     q = q * (1.0 + f_waves() * 0.35 * sin(length(p) * 3.0 - t * 0.8));
     // Anisotropy.
-    let ang = f_angle_cell() * PI;
+    let ang = f_cell_angle() * PI;
     q = p_rot(q, ang);
     q.y = q.y * (1.0 + f_stretch());
     q = p_rot(q, -ang);
@@ -84,7 +84,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let hid2 = p_hash(v.id + vec2<f32>(101.0, 57.0));
 
     // Cell colour: stepped random level, blended with a distance gradient.
-    let steps = max(floor(f_steps_color() + 0.5), 1.0);
+    let steps = max(floor(f_color_steps() + 0.5), 1.0);
     let lvl = floor(hid * steps) / max(steps - 1.0, 1.0);
     let grad = clamp(v.f1 * 0.9, 0.0, 1.0);
     var tc = mix(grad, min(lvl, 1.0), clamp(f_color_cell(), 0.0, 1.0));
@@ -104,7 +104,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     col = col + gcol * f_core() * exp(-v.f1 * v.f1 * 60.0) * 1.5;
 
     // Gap line, slot 1, between cells.
-    let w = f_gap() * 0.8 + f_width_edge() * 0.35;
+    let w = f_gap() * 0.8 + f_edge_width() * 0.35;
     let soft = 0.01 + f_edge_soft() * 0.25;
     let line = 1.0 - smoothstep(w, w + soft, edge);
     col = mix(col, p_pal(1u, clamp(edge * 2.0, 0.0, 1.0)), line * step(0.0005, w));

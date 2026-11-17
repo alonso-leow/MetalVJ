@@ -23,7 +23,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("dispersion", 0.0, 0.8, 0.0),
     spec("roundness", 0.0, 1.0, 0.0),
     spec("softness", 0.0, 1.0, 0.0),
-    spec("turn_dot", 0.0, 1.0, 0.0),
+    spec("dot_turn", 0.0, 1.0, 0.0),
     spec("wave", 0.0, 1.0, 0.0),
     spec("wave_freq", 0.1, 4.0, 1.0),
     spec("wave_speed", -3.0, 3.0, 0.6),
@@ -34,7 +34,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("vignette", 0.0, 1.0, 0.0),
     spec("speed_x", -2.0, 2.0, 0.0),
     spec("speed_y", -2.0, 2.0, 0.0),
-    spec("mix_color", 0.0, 1.0, 0.0),
+    spec("color_mix", 0.0, 1.0, 0.0),
 ];
 
 /// Linear values (targets encode sRGB on write): white, cyan, pink, amber.
@@ -43,7 +43,7 @@ const RELLENO: [f32; 12] = [0.90, 0.90, 0.90, 0.10, 0.70, 0.90, 0.90, 0.15, 0.50
 const TRAZO: [f32; 12] = [1.00, 0.40, 0.00, 0.85, 0.10, 0.55, 0.40, 0.10, 0.85, 0.90, 0.90, 0.90];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "fill" => RELLENO, "stroke" => TRAZO);
+    crate::scaffold_schema!(FLOATS; "fill" => RELLENO, "stroke_color" => TRAZO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "dotgrid",
@@ -74,13 +74,13 @@ mod tests {
         ("shift", 0.3),
         ("dispersion", 0.2),
         ("roundness", 0.2),
-        ("turn_dot", 0.2),
+        ("dot_turn", 0.2),
         ("wave", 0.4),
         ("flash", 0.4),
         ("lens", 0.4),
         ("vignette", 0.3),
         ("speed_x", 0.5),
-        ("mix_color", 0.5),
+        ("color_mix", 0.5),
         ("shape", 2.0),
         ("warp_amount", 0.4),
         ("pulse", 0.0),

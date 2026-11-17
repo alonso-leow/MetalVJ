@@ -87,7 +87,7 @@ const LOOK: &[FloatSpec] = &[
     // out of their sockets is a different creature, not a gesture.
     spec("gaze_x", 0.0, 1.0, 0.5),
     spec("gaze_y", 0.0, 1.0, 0.5),
-    spec("speed_scan", 0.05, 4.0, 0.8),
+    spec("scan_speed", 0.05, 4.0, 0.8),
     // 1 open (the rig's own lids), 0 shut. Multiplies the rig, so a blink or
     // a wink still closes an eye the operator left open. Mostly held: the
     // music swinging every eyelid shut reads as a fault.
@@ -167,8 +167,8 @@ pub static SCHEMA: Schema = Schema {
         // is `oracle`'s `brillo`, renamed because `brillo` is already this
         // model's emission float; `pupila_color` replaces the black of the
         // pupil. `oracle`'s `piel` is this model's existing `piel`.
-        color("iris"),
-        color("ojo_brillo"),
+        color("iris_color"),
+        color("eye_shine"),
         color_at("pupil_color", &PUPIL_BLACK),
         crate::model::SIGNAL_FLOATS_BLOCK,
         crate::model::EFFECTS_FLOATS_BLOCK,
@@ -502,7 +502,7 @@ impl Model for Monstruo {
             neon: slot(1),
             mouth: slot(2),
             background: slot(3),
-            d: [at("gaze_x"), at("gaze_y"), at("speed_scan"), at("eyelid")],
+            d: [at("gaze_x"), at("gaze_y"), at("scan_speed"), at("eyelid")],
             e: [at("pupil"), at("iris"), at("turn"), at("eye_scan")],
             iris: slot(4),
             ojo_brillo: slot(5),
@@ -906,11 +906,11 @@ mod tests {
     #[test]
     fn the_face_has_every_oracle_eye_parameter() {
         use crate::model::Block as B;
-        const NOT_ON_A_FACE: &[&str] = &["n_eyes", "pos_x", "pos_y", "size"];
+        const NOT_ON_A_FACE: &[&str] = &["eye_count", "pos_x", "pos_y", "size"];
         // oracle's `fondo` is its sclera; monstruo's `fondo` is the frame's
         // background and its species have no sclera to colour.
         const COLOUR_RENAMES: &[(&str, Option<&str>)] =
-            &[("shine", Some("ojo_brillo")), ("background", None)];
+            &[("shine", Some("eye_shine")), ("background", None)];
         let floats = |s: &Schema| -> Vec<FloatSpec> {
             s.blocks
                 .iter()
@@ -1063,7 +1063,7 @@ mod tests {
             ("giro+1", &[("turn", 1.0)]),
             ("giro-1", &[("turn", -1.0)]),
             ("tamano-1.3", &[("eye_size", 1.3)]),
-            ("escaneo", &[("eye_scan", 1.0), ("speed_scan", 2.0)]),
+            ("escaneo", &[("eye_scan", 1.0), ("scan_speed", 2.0)]),
         ];
         for (i, (n, l)) in eyes.iter().enumerate() {
             shots.push((format!("30-{i:02}-{n}"), vec![], l.to_vec()));

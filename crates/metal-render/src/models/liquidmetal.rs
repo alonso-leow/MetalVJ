@@ -48,7 +48,7 @@ const METAL: [f32; 12] = [0.02, 0.02, 0.025, 0.25, 0.25, 0.27, 0.55, 0.55, 0.58,
 const TINTE: [f32; 12] = [1.0, 1.0, 1.0, 0.5, 0.75, 1.0, 1.0, 0.7, 0.25, 0.9, 0.3, 0.7];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "metal" => METAL, "tint" => TINTE);
+    crate::scaffold_schema!(FLOATS; "metal" => METAL, "tint_color" => TINTE);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new_with_source(
     "liquidmetal",

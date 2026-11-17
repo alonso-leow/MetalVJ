@@ -20,11 +20,11 @@ const SKIN: [f32; 12] = solid4(0.34, 0.20, 0.19);
 const FLOATS: &[FloatSpec] = &[
     spec("gaze_x", 0.0, 1.0, 0.5),
     spec("gaze_y", 0.0, 1.0, 0.5),
-    spec("speed_scan", 0.05, 4.0, 0.8),
+    spec("scan_speed", 0.05, 4.0, 0.8),
     spec("eyelid", 0.0, 1.0, 1.0),
     spec("pupil", 0.0, 1.0, 0.4),
     spec("iris", 0.0, 1.0, 0.55),
-    spec("n_eyes", 1.0, 8.0, 1.0),
+    spec("eye_count", 1.0, 8.0, 1.0),
     // Where the eye sits and how big it is, independent of the camera.
     //
     // The camera block could do all three, and that is exactly why these
@@ -45,7 +45,7 @@ pub static SCHEMA: Schema = Schema {
         Block::Floats(FLOATS),
         // Head on, close enough that the iris fills the frame.
         camera([0.0, 0.0, 2.4], [0.0, 0.0, 0.0], 40.0),
-        color("iris"),
+        color("iris_color"),
         color("background"),
         color("shine"),
         // The black of the eye, which was literally `vec3(0.01, 0.01, 0.015)`
@@ -71,6 +71,10 @@ const CAMERA_TRACK_FLOATS: &[FloatSpec] = &[
     spec("cam_x", -3.0, 3.0, 0.0),
     spec("cam_y", -3.0, 3.0, 0.0),
     spec("cam_z", -3.0, 3.0, 0.0),
+    // The look half of the standard pose (`metal_schema::POSE_NAMES`).
+    metal_schema::POSE_LOOK_FLOATS[0],
+    metal_schema::POSE_LOOK_FLOATS[1],
+    metal_schema::POSE_LOOK_FLOATS[2],
 ];
 
 /// Where `grad4` is sampled for the flat skin, on both sides. The lid and the
@@ -205,12 +209,13 @@ impl Model for Oracle {
         let gpu = self.gpu.get(format, || Self::build(ctx.device, format));
 
         let cam = &floats[11..18];
-        let view_proj = crate::model::tracked_view_proj(
+        let view_proj = crate::model::posed_view_proj(
             Vec3::new(cam[0], cam[1], cam[2]),
             Vec3::new(cam[3], cam[4], cam[5]),
             cam[6],
             ctx.aspect(),
-            crate::model::camera_track_offset(floats),
+            floats,
+            false,
         );
 
         let n_eyes = (floats[6].round() as u32).max(1);

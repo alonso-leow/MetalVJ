@@ -61,7 +61,7 @@ const WASH: [f32; 12] = [
 ];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "ink" => INK, "paper" => PAPER, "wash" => WASH);
+    "ink" => INK, "paper" => PAPER, "wash_color" => WASH);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "inkline",

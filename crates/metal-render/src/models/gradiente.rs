@@ -9,15 +9,15 @@ use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
     spec("radius", 0.05, 2.5, 0.8),
-    spec("off_x", -1.0, 1.0, 0.0),
-    spec("off_y", -1.0, 1.0, 0.0),
+    spec("offset_x", -1.0, 1.0, 0.0),
+    spec("offset_y", -1.0, 1.0, 0.0),
     spec("blur", 0.0, 1.0, 0.3),
 ];
 
 /// Linear values: blue, green, yellow, pink.
 const COLORES: [f32; 12] = [0.04, 0.24, 1.00, 0.00, 0.64, 0.35, 1.00, 0.60, 0.04, 0.85, 0.15, 0.30];
 
-pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS; "colores" => COLORES);
+pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS; "colors" => COLORES);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "gradient",
@@ -40,7 +40,7 @@ mod tests {
         Box::new(Gradiente::new())
     }
 
-    const BASE: &[(&str, f32)] = &[("blur", 0.5), ("off_x", 0.2), ("off_y", -0.1), ("warp_amount", 0.4), ("background_level", 0.0), ("pulse", 0.0)];
+    const BASE: &[(&str, f32)] = &[("blur", 0.5), ("offset_x", 0.2), ("offset_y", -0.1), ("warp_amount", 0.4), ("background_level", 0.0), ("pulse", 0.0)];
 
     #[test]
     fn standard_checks() {

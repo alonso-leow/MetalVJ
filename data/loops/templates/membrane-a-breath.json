@@ -33,7 +33,7 @@
   {
    "target": {
     "kind": "float",
-    "param": "long"
+    "param": "length"
    },
    "curve": "step",
    "steps": [
@@ -58,7 +58,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "raiz",
+    "slot": "root",
     "palette": "rays"
    },
    "steps": [

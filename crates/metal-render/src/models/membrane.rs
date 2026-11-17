@@ -11,7 +11,7 @@ use crate::shared::mesh::{self as m3, DepthCache};
 use crate::shared::ColorSlotGpu;
 
 const FLOATS: &[FloatSpec] = &[
-    spec("long", 0.02, 0.35, 0.12),
+    spec("length", 0.02, 0.35, 0.12),
     spec("growth", 0.0, 1.0, 0.8),
     spec("density", 32.0, 12000.0, 5200.0),
     spec("wind_direction_x", -1.0, 1.0, 0.6),
@@ -41,7 +41,7 @@ pub static SCHEMA: Schema = Schema {
         // down onto it — the angle a skin texture reads at — and close enough
         // that the field's own edges are outside the frame.
         camera([0.0, -1.35, 0.95], [0.0, 0.25, 0.05], 62.0),
-        color("raiz"),
+        color("root"),
         color("tip"),
         background(),
         Block::Floats(CAMERA_TRACK_FLOATS),
@@ -56,6 +56,10 @@ const CAMERA_TRACK_FLOATS: &[FloatSpec] = &[
     spec("cam_x", -3.0, 3.0, 0.0),
     spec("cam_y", -3.0, 3.0, 0.0),
     spec("cam_z", -3.0, 3.0, 0.0),
+    // The look half of the standard pose (`metal_schema::POSE_NAMES`).
+    metal_schema::POSE_LOOK_FLOATS[0],
+    metal_schema::POSE_LOOK_FLOATS[1],
+    metal_schema::POSE_LOOK_FLOATS[2],
 ];
 
 #[repr(C)]
@@ -155,12 +159,18 @@ impl Model for Membrane {
         let background = ColorSlotGpu::from_floats(&floats[51..63]);
         let cam = &floats[20..27];
         let track = crate::model::camera_track_offset(floats);
-        let view_proj = crate::model::tracked_view_proj(
+        let (posed_eye, _) = crate::model::posed(
+            Vec3::new(cam[0], cam[1], cam[2]),
+            Vec3::new(cam[3], cam[4], cam[5]),
+            crate::model::camera_look(floats),
+        );
+        let view_proj = crate::model::posed_view_proj(
             Vec3::new(cam[0], cam[1], cam[2]),
             Vec3::new(cam[3], cam[4], cam[5]),
             cam[6],
             ctx.aspect(),
-            track,
+            floats,
+            false,
         );
 
         let n_hairs = (floats[2].round() as u32).max(1);
@@ -174,7 +184,7 @@ impl Model for Membrane {
             f4: [floats[11], floats[12], floats[13], floats[14]],
             f5: [floats[15], floats[16], floats[17], floats[18]],
             f6: [floats[19], 0.0, 0.0, 0.0],
-            cam: [cam[0] + track[0], cam[1] + track[1], cam[2] + track[2], 0.0],
+            cam: [posed_eye.x + track[0], posed_eye.y + track[1], posed_eye.z + track[2], 0.0],
         };
         let mk = |mode: f32, label: &str| {
             let mut u = uniform;

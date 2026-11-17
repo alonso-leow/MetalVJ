@@ -41,6 +41,40 @@ fn every_model_with_a_camera_block_declares_camera_track() {
     }
 }
 
+/// The standard 3D pose (`docs/plan-portal.md` §2): every model with a 3D
+/// viewpoint — a camera block, the CAM3D kit, or `camera_track` — declares all
+/// six `metal_schema::POSE_NAMES`, so a controller or the portal transition
+/// reaches any 3D generator by the same names. From the manifest (rule 7).
+#[test]
+fn every_3d_model_declares_the_standard_pose() {
+    let text = std::fs::read_to_string(metal_render::manifest::schema_path()).expect("data/schema.json readable");
+    let manifest = metal_schema::Manifest::parse(&text).expect("schema.json parses");
+    let names = |m: &metal_schema::ManifestModel| -> Vec<String> {
+        m.blocks
+            .iter()
+            .flat_map(|b| match b {
+                metal_schema::ManifestBlock::Floats { fields } => fields.iter().map(|f| f.name.clone()).collect(),
+                _ => Vec::new(),
+            })
+            .collect()
+    };
+    let mut checked = 0;
+    for m in &manifest.models {
+        let has_camera = m.blocks.iter().any(|b| matches!(b, metal_schema::ManifestBlock::Camera { .. }));
+        let n = names(m);
+        let kit3d = n.iter().any(|f| f == "cam_orbit");
+        if !(has_camera || kit3d || m.camera_track) {
+            continue;
+        }
+        checked += 1;
+        for want in metal_schema::POSE_NAMES {
+            assert_eq!(n.iter().filter(|f| *f == want).count(), 1, "{} must declare {want} exactly once", m.id);
+        }
+        assert!(metal_schema::pose_indices(m).is_some(), "{}", m.id);
+    }
+    assert!(checked >= 17, "only {checked} 3D models found; this gate checks too little");
+}
+
 #[test]
 fn every_model_id_is_unique_and_url_safe() {
     let models = metal_render::registry::all_models();

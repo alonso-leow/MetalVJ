@@ -41,7 +41,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("ignition_width", 0.05, 1.0, 0.8),
     spec_held("ignition_shape", 0.0, 3.0, 0.0, 0.1),
     spec_held("source_mode", 0.0, 2.0, 1.0, 0.1),
-    spec("emitters_n", 1.0, 12.0, 4.0),
+    spec("emitter_count", 1.0, 12.0, 4.0),
     spec("flame_height", 0.2, 2.0, 1.0),
     spec("rise", -2.0, 2.0, 1.0),
     spec("pixel", 0.0, 1.0, 0.15),
@@ -50,7 +50,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("palette_gamma", 0.3, 3.0, 1.0),
     spec("embers", 0.0, 1.0, 0.3),
     spec("smoke", 0.0, 1.0, 0.25),
-    spec("distortion_heat", 0.0, 1.0, 0.2),
+    spec("heat_distortion", 0.0, 1.0, 0.2),
 ];
 
 /// Linear values: black, deep red, orange, near-white.
@@ -385,7 +385,7 @@ mod tests {
             // Dependent floats need their mode on.
             let mut base_row = base.clone();
             match name {
-                "emitters_n" => { base_row[offset("source_mode")] = 2.0; row[offset("source_mode")] = 2.0; }
+                "emitter_count" => { base_row[offset("source_mode")] = 2.0; row[offset("source_mode")] = 2.0; }
                 "ignition_shape" | "ignition_width" => { base_row[offset("source_mode")] = 0.0; row[offset("source_mode")] = 0.0; }
                 "background_level" => {
                     // The default background is black, which a level cannot change.

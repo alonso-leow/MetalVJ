@@ -8,7 +8,7 @@
   {
    "target": {
     "kind": "float",
-    "param": "focus_base"
+    "param": "base_focus"
    },
    "curve": "ramp",
    "steps": [

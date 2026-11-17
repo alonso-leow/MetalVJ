@@ -55,10 +55,10 @@ const SURFACES: &[&str] = &["body"];
 
 const FLOATS: &[FloatSpec] = &[
     spec_held("formula", 0.0, 7.0, 0.0, 0.25),
-    spec("mix_f", 0.0, 1.0, 0.0),
+    spec("formula_mix", 0.0, 1.0, 0.0),
     spec_held("power", 2.0, 16.0, 8.0, 0.25),
     spec_held("iterations", 2.0, 16.0, 8.0, 0.25),
-    spec("scale_f", 0.5, 2.0, 1.0),
+    spec("formula_scale", 0.5, 2.0, 1.0),
     spec("fold", 0.2, 2.0, 1.0),
     spec("offset_x", -0.5, 0.5, 0.0),
     spec("offset_y", -0.5, 0.5, 0.0),
@@ -116,6 +116,7 @@ pub static SCHEMA: Schema = Schema {
         background(),
         CAM3D_BLOCK,
         LOOK_BLOCK,
+        kit::CAM_TRACK_BLOCK,
         crate::model::SIGNAL_FLOATS_BLOCK,
         crate::model::EFFECTS_FLOATS_BLOCK,
         crate::model::EFFECTS_COLOR_BLOCK,
@@ -127,6 +128,8 @@ const B_ORB: usize = 1;
 const B_FONDO: usize = 2;
 const B_CAM: usize = 3;
 const B_LOOK: usize = 4;
+/// `cam_x/cam_y/cam_z`: the eye offset completing the standard 3D pose.
+const B_TRACK: usize = 5;
 
 fn off(block: usize) -> usize {
     kit::offset_of(SCHEMA.blocks, block)
@@ -298,6 +301,8 @@ fn uniform(ctx: &Ctx, floats: &[f32]) -> Uniform {
     let cam = kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]);
     let look = kit::Look::from_floats(&floats[off(B_LOOK)..off(B_LOOK) + kit::Look::N]);
     let (eye, right, up, fwd, tan_half) = camera(&cam, ctx.time);
+    let t = kit::CamTrack::from_floats(&floats[off(B_TRACK)..off(B_TRACK) + kit::CamTrack::N]);
+    let eye = eye + Vec3::new(t.x, t.y, t.z);
     let fa = own.formula();
     let fb = (fa + 1) % FORMULAS;
     let rot = rotation(o[F_ROT], o[F_ROT + 1], o[F_ROT + 2]);
@@ -345,6 +350,12 @@ impl Model for Bulbo {
 
     fn schema(&self) -> &'static Schema {
         &SCHEMA
+    }
+
+    /// The CAM3D kit plus `kit::CAM_TRACK` is the full standard pose, so a
+    /// `cam.track`, a controller or a portal transition can move this eye.
+    fn camera_track(&self) -> bool {
+        true
     }
 
     fn is_3d(&self) -> bool {
@@ -416,7 +427,7 @@ mod tests {
         assert_eq!(SCHEMA.defaults().len(), SCHEMA.width());
         assert_eq!(off(B_ORB), FLOATS.len());
         assert_eq!(off(B_CAM) + kit::Cam3d::N, off(B_LOOK));
-        assert!(!Bulbo::new().camera_track());
+        assert!(Bulbo::new().camera_track(), "the CAM3D kit plus CAM_TRACK is the standard pose");
         assert!(FLOATS.len() + kit::Cam3d::N + kit::Look::N <= 44);
         assert_eq!(Own { v: [0.0; 28] }.v.len(), FLOATS.len());
     }
@@ -426,7 +437,7 @@ mod tests {
         let n = |i: usize| FLOATS[i].name;
         assert_eq!(
             (n(F_FORMULA), n(F_MEZCLA), n(F_POT), n(F_ITER), n(F_ESCALA), n(F_PLIEGUE)),
-            ("formula", "mix_f", "power", "iterations", "scale_f", "fold")
+            ("formula", "formula_mix", "power", "iterations", "formula_scale", "fold")
         );
         assert_eq!((n(F_OFFSET), n(F_ROT), n(F_JULIA), n(F_JMIX)), ("offset_x", "rot_x", "julia_x", "julia_mix"));
         assert_eq!((n(F_PASOS), n(F_PREC), n(F_AOC), n(F_SOMBRA), n(F_GLOW), n(F_NIEBLA)), ("steps", "precision", "occlusion", "shadow", "glow", "fog"));

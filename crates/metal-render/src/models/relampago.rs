@@ -100,20 +100,20 @@ const FLOATS: &[FloatSpec] = &[
     // Structural: how many arcs fire is what the discharge *is*, the same way
     // `nivel` and `ramas` below are — a signal swinging it would restructure
     // the coil rather than intensify it.
-    spec_held("num_arcs", 1.0, ARCS_MAX as f32, 3.0, 0.2),
+    spec_held("arc_count", 1.0, ARCS_MAX as f32, 3.0, 0.2),
     spec("dispersion", 0.0, 0.6, 0.17),
     // Structural: the number of subdivisions is what the channel *is*, and a
     // signal swinging it would re-cut the bolt rather than move it.
     spec_held("level", 3.0, LEVELS_MAX as f32, 6.0, 0.15),
     spec_held("branches", 0.0, BRANCHES_MAX as f32, 5.0, 0.2),
-    spec("branch_long", 0.05, 0.8, 0.3),
+    spec("branch_length", 0.05, 0.8, 0.3),
     spec("fork", 0.0, 1.0, 0.6),
     spec("thickness", 0.002, 0.03, 0.009),
     spec("glare", 0.0, 1.0, 0.5),
     // How brightly the electrode hums when nothing is discharging. At 0 the
     // centre is only visible while an arc is lit, which is the point this
     // model moved away from — see the module header.
-    spec("shine_center", 0.0, 1.0, 0.35),
+    spec("center_shine", 0.0, 1.0, 0.35),
 ];
 
 /// Hot core, blue-white, violet, deep blue. Linear values, so they read darker

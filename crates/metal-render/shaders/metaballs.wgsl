@@ -66,7 +66,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     var col = acc / max(field, 1e-4);
 
     // Inner glow toward the core colour.
-    col = mix(col, p_pal(1u, depth), f_shine_core() * depth);
+    col = mix(col, p_pal(1u, depth), f_core_shine() * depth);
     // Bright rim just inside the edge.
     let rim = cov * (1.0 - smoothstep(thr, thr * 1.9, field));
     col = col + p_pal(1u, 1.0) * rim * f_edge() * 0.8;

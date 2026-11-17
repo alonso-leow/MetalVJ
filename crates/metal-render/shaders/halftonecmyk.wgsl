@@ -31,10 +31,10 @@ fn ch_gain(ch: i32) -> f32 {
 
 // Ink amounts (c, m, y, k) of a linear rgb colour.
 fn to_cmyk(rgb_in: vec3<f32>) -> vec4<f32> {
-    var c = rgb_in * f_shine_img();
+    var c = rgb_in * f_image_shine();
     let l = dot(c, vec3<f32>(0.2126, 0.7152, 0.0722));
-    c = mix(vec3<f32>(l), c, f_sat_img());
-    c = clamp((c - vec3<f32>(0.18)) * f_contrast_img() + vec3<f32>(0.18), vec3<f32>(0.0), vec3<f32>(1.0));
+    c = mix(vec3<f32>(l), c, f_image_saturation());
+    c = clamp((c - vec3<f32>(0.18)) * f_image_contrast() + vec3<f32>(0.18), vec3<f32>(0.0), vec3<f32>(1.0));
     // Work in a perceptual-ish space so mid greys print as half-covered dots.
     let g = pow(c, vec3<f32>(0.4545));
     let cmy = vec3<f32>(1.0) - g;

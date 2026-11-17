@@ -27,7 +27,7 @@ fn dot_cell(p: vec2<f32>, cell: vec2<f32>, celda: f32, acc: ptr<function, vec4<f
     let n_a = clamp(i32(floor(f_amount() + 0.5)), 1, 6);
     let n = min(n_a, i32(ceil(f32(n_a) * p_detail())));
     let t = p_time();
-    let steps = max(floor(f_steps_color() + 0.5), 1.0) * 3.0 + 1.0;
+    let steps = max(floor(f_color_steps() + 0.5), 1.0) * 3.0 + 1.0;
     let ntrail = select(0, 4, f_wake() > 0.01);
     for (var k = 0; k < 6; k = k + 1) {
         if (k >= n) { break; }
@@ -39,7 +39,7 @@ fn dot_cell(p: vec2<f32>, cell: vec2<f32>, celda: f32, acc: ptr<function, vec4<f
         let centre = (cell + 0.5) * celda + jit;
 
         var rad = 0.5 * f_size() * celda * (1.0 - f_size_range() * h2.w);
-        rad = rad * (1.0 + f_pulse_dot() * sin(t * f_pulse_speed() * 3.0 + h.x * TAU));
+        rad = rad * (1.0 + f_dot_pulse() * sin(t * f_pulse_speed() * 3.0 + h.x * TAU));
         let tw = 0.5 + 0.5 * sin(t * (1.5 + 3.0 * h.y) + h.z * TAU * 4.0);
         let glint = mix(1.0, tw, f_flash());
 
@@ -66,7 +66,7 @@ fn dot_cell(p: vec2<f32>, cell: vec2<f32>, celda: f32, acc: ptr<function, vec4<f
         for (var s = 0; s <= 4; s = s + 1) {
             if (s > ntrail) { break; }
             let sf = f32(s);
-            let tm = t - sf * f_wake_long() * 0.12;
+            let tm = t - sf * f_wake_length() * 0.12;
             let o = orbit_pos(centre, h, h2, kf, tm, celda);
             let depth = 1.0 + f_depth() * 0.6 * sin(o.z);
             let fade = select(1.0, (1.0 - sf / (f32(ntrail) + 1.0)) * f_wake(), s > 0);

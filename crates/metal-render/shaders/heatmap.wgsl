@@ -64,7 +64,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let hout = (1.0 - s0) * clamp(b * 2.0, 0.0, 1.0) * f_glow_out() * 1.3;
     var h = hin + hout;
     h = h + f_waves() * 0.18 * sin(b * f_waves_freq() * 12.0 - t * f_speed() * 3.0) * smoothstep(0.02, 0.3, b);
-    h = h * (1.0 + f_pulse_heat() * 0.35 * sin(t * 3.0 + b * 4.0));
+    h = h * (1.0 + f_heat_pulse() * 0.35 * sin(t * 3.0 + b * 4.0));
     h = clamp(h, 0.0, 1.0);
     h = pow(h, exp2(f_gamma()));
     let nb = floor(f_bands() + 0.5);

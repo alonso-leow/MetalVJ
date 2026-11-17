@@ -9,10 +9,10 @@ use crate::shared::backdrop::Backdrop;
 use crate::shared::ColorSlotGpu;
 
 const FLOATS: &[FloatSpec] = &[
-    spec("speed_advance", 0.0, 2.0, 0.5),
+    spec("advance_speed", 0.0, 2.0, 0.5),
     spec("density", 8.0, 1500.0, 260.0),
     spec("scale", 0.02, 0.5, 0.10),
-    spec("variation_palette", 0.0, 1.0, 0.6),
+    spec("palette_variation", 0.0, 1.0, 0.6),
 ];
 
 pub static SCHEMA: Schema = Schema {

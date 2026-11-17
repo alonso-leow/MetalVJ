@@ -33,7 +33,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "colores",
+    "slot": "colors",
     "palette": "skies"
    },
    "steps": [

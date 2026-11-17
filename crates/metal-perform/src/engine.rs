@@ -3064,6 +3064,15 @@ pub fn render_device_frame(
     // then the view's own variations and camera (`apply_gen_views`).
     apply_gen_views(&graph, &mut rows, shared_manifest(), &output::data_root(), &state.head, &gen_params);
     state.live.record(&graph, &rows, &script_rows, &scripts.floats, &gen_params, &frame.raw, time);
+    // Portal transitions: each switching node's part, and the 3D host's
+    // camera turned and dollied through its standard pose floats. After the
+    // live record, so the operator's own knob values stay what the panel shows.
+    let portal = if state.transitions.is_empty() {
+        Vec::new()
+    } else {
+        portal_frame(&graph, &state.transitions, &lifted.borrow(), time, bpm, &state.transition_presets, shared_manifest())
+    };
+    apply_portal_pose(&graph, &mut rows, shared_manifest(), &portal);
     apply_script_masks(&graph, &script_rows, &mut device_masks);
 
     // Task #8: the 3D half. A layer bound to a wall is composited through this
@@ -3527,9 +3536,10 @@ pub fn render_device_frame(
             .zip(node_of_layer.iter())
             .zip(crops.iter().zip(tex_crops.iter()))
             .map(|((_, gen_id), (crop, tex_crop))| {
-                let phase = state.transitions.frame_phase(
+                let mut phase = state.transitions.frame_phase(
                     &graph, gen_id, &lifted, time, bpm, &state.transition_presets,
                 )?;
+                phase.spec.portal = portal.iter().find(|(id, _, _)| id == gen_id).map(|(_, part, _)| *part);
                 let (v, seed) = (phase.visibility(), (time * 60.0) as u32);
                 if let Some(t) = tex_crop {
                     if v >= 1.0 {
@@ -4817,6 +4827,72 @@ pub fn apply_camera_track(
                     *v += offset[k];
                 }
             }
+            moved += 1;
+        }
+    }
+    moved
+}
+
+/// The portal transitions playing in `graph` this frame: each node's part
+/// (`transition::portal_parts`) with its resolved spec.
+pub fn portal_frame(
+    graph: &metal_graph::Graph,
+    toggles: &crate::transition::Toggles,
+    lifted: &[String],
+    time: f32,
+    bpm: f32,
+    presets: &[crate::transition::Preset],
+    manifest: &metal_schema::Manifest,
+) -> Vec<(String, crate::transition::PortalPart, crate::transition::Spec)> {
+    use crate::transition::{Kind, PortalSide};
+    let mut sides = Vec::new();
+    let mut specs = HashMap::new();
+    for node in &graph.nodes {
+        let Some(phase) = toggles.frame_phase(graph, &node.id, lifted, time, bpm, presets) else { continue };
+        if phase.spec.kind != Kind::Portal {
+            continue;
+        }
+        let is_3d = node
+            .kind
+            .strip_prefix("gen.")
+            .and_then(|id| manifest.models.iter().find(|m| m.id == id))
+            .is_some_and(|m| metal_schema::pose_indices(m).is_some());
+        sides.push(PortalSide { node: node.id.clone(), on: phase.on, progress: phase.progress, is_3d, via: phase.spec.via });
+        specs.insert(node.id.clone(), phase.spec);
+    }
+    crate::transition::portal_parts(&sides)
+        .into_iter()
+        .filter_map(|(id, part)| specs.get(&id).map(|spec| (id, part, *spec)))
+        .collect()
+}
+
+/// A 3D portal host's camera move: the virtual camera's yaw added to the
+/// row's `cam_yaw` and its dolly (toward the doorway, so negative: positive
+/// `cam_dolly` pulls back) to `cam_dolly`. Returns how many rows moved.
+pub fn apply_portal_pose(
+    graph: &metal_graph::Graph,
+    rows: &mut HashMap<metal_graph::NodeId, Vec<f32>>,
+    manifest: &metal_schema::Manifest,
+    portal: &[(String, crate::transition::PortalPart, crate::transition::Spec)],
+) -> usize {
+    let mut moved = 0;
+    for (id, part, spec) in portal {
+        if !part.host || part.flat {
+            continue;
+        }
+        let Some(at) = graph
+            .node(id)
+            .and_then(|n| n.kind.strip_prefix("gen."))
+            .and_then(|m| manifest.models.iter().find(|x| x.id == m))
+            .and_then(metal_schema::pose_indices)
+        else {
+            continue;
+        };
+        let Some(row) = rows.get_mut(id) else { continue };
+        let (yaw, dolly) = crate::transition::portal_camera(part.q, spec.angle, spec.dir);
+        if let (Some(_), Some(_)) = (row.get(at[3]), row.get(at[5])) {
+            row[at[3]] += yaw;
+            row[at[5]] -= dolly * crate::transition::PORTAL_DOLLY_WORLD;
             moved += 1;
         }
     }

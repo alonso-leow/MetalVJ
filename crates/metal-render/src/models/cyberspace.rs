@@ -8,9 +8,9 @@ use crate::model::{color, background, spec, Block, Built, Ctx, FloatSpec, Model,
 use crate::shared::ColorSlotGpu;
 
 const FLOATS: &[FloatSpec] = &[
-    spec("n_layers", 1.0, 8.0, 4.0),
+    spec("layer_count", 1.0, 8.0, 4.0),
     spec("depth", 0.1, 2.0, 1.0),
-    spec("speed_parallax", -2.0, 2.0, 0.4),
+    spec("parallax_speed", -2.0, 2.0, 0.4),
     spec("neon", 0.0, 2.0, 0.8),
     spec("glass", 0.0, 1.0, 0.4),
 ];
@@ -19,7 +19,7 @@ pub static SCHEMA: Schema = Schema {
     blocks: &[
         Block::Floats(FLOATS),
         color("panel"),
-        color("neon"),
+        color("neon_color"),
         background(),
     crate::model::SIGNAL_FLOATS_BLOCK, crate::model::EFFECTS_FLOATS_BLOCK,
     crate::model::EFFECTS_COLOR_BLOCK,

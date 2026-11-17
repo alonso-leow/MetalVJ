@@ -58,7 +58,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "fog_c",
+    "slot": "fog_color",
     "palette": "backgrounds"
    },
    "steps": [

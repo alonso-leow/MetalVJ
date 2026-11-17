@@ -18,8 +18,8 @@ const FLOATS: &[FloatSpec] = &[
     spec("scale", 0.2, 4.0, 1.0),
     spec("speed", -3.0, 3.0, 0.6),
     spec("rotation", 0.0, 1.0, 0.0),
-    spec("off_x", -1.0, 1.0, 0.0),
-    spec("off_y", -1.0, 1.0, 0.0),
+    spec("offset_x", -1.0, 1.0, 0.0),
+    spec("offset_y", -1.0, 1.0, 0.0),
     spec("radius", 0.1, 2.5, 0.8),
     spec("focus_distance", 0.0, 1.0, 0.0),
     spec("focus_angle", 0.0, 1.0, 0.0),
@@ -32,9 +32,9 @@ const FLOATS: &[FloatSpec] = &[
     spec("bands", 0.0, 1.0, 0.0),
     spec("outline", 0.0, 1.0, 0.0),
     spec("palette_mix", 0.0, 1.0, 0.3),
-    spec("drift_color", -2.0, 2.0, 0.0),
+    spec("color_drift", -2.0, 2.0, 0.0),
     spec("grain_size", 0.2, 4.0, 1.0),
-    spec("shine_grain", 0.0, 1.0, 0.0),
+    spec("grain_shine", 0.0, 1.0, 0.0),
 ];
 
 /// Linear values: blue, green, yellow, pink.
@@ -45,7 +45,7 @@ const COLORES2: [f32; 12] = [0.24, 0.04, 0.80, 0.00, 0.25, 0.30, 0.95, 0.20, 0.0
 const BRILLO: [f32; 12] = [1.00, 1.00, 1.00, 1.00, 0.75, 0.10, 0.10, 0.90, 0.95, 1.00, 0.40, 0.60];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "colores" => COLORES, "colores2" => COLORES2, "shine" => BRILLO);
+    crate::scaffold_schema!(FLOATS; "colors" => COLORES, "colors_2" => COLORES2, "shine_color" => BRILLO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "graingradient",
@@ -77,8 +77,8 @@ mod tests {
         ("bands", 0.4),
         ("outline", 0.5),
         ("palette_mix", 0.5),
-        ("drift_color", 0.5),
-        ("shine_grain", 0.5),
+        ("color_drift", 0.5),
+        ("grain_shine", 0.5),
         ("shape", 3.0),
         ("warp_amount", 0.4),
         ("pulse", 0.0),

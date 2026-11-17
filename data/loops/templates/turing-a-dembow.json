@@ -58,7 +58,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "pliegue_color",
+    "slot": "fold_color",
     "palette": "metalvj-red"
    },
    "steps": [

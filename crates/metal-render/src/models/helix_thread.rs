@@ -20,7 +20,7 @@ const FLOATS: &[FloatSpec] = &[
     spec("twist", -200.0, 200.0, 26.0),
     spec("weave", -200.0, 200.0, 0.0),
     spec("width", 0.5, 20.0, 2.4),
-    spec("drift_v", 0.0, 200.0, 42.0),
+    spec("vertical_drift", 0.0, 200.0, 42.0),
     spec("speed", 0.0, 260.0, 72.0),
     spec_held("rungs", 4.0, 64.0, 18.0, 0.2),
     spec("glow", 0.0, 1.0, 0.55),
@@ -36,7 +36,7 @@ const RUNG: [f32; 12] = [0.10, 0.01, 0.0, 0.95, 0.25, 0.02, 1.0, 0.55, 0.08, 1.0
 const GLOW: [f32; 12] = [0.01, 0.01, 0.03, 0.10, 0.35, 0.55, 0.55, 0.20, 0.65, 1.0, 0.72, 0.42];
 
 pub static SCHEMA: crate::model::Schema = crate::scaffold_schema!(FLOATS;
-    "strand" => STRAND, "rung" => RUNG, "glow" => GLOW);
+    "strand" => STRAND, "rung" => RUNG, "glow_color" => GLOW);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "helix-thread",
@@ -72,7 +72,7 @@ mod tests {
         ("twist", 60.0),
         ("weave", 80.0),
         ("width", 3.5),
-        ("drift_v", 70.0),
+        ("vertical_drift", 70.0),
         ("speed", 90.0),
         ("rungs", 20.0),
         ("glow", 0.6),

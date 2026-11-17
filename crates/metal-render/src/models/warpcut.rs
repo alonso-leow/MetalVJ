@@ -16,25 +16,25 @@ const FLOATS: &[FloatSpec] = &[
     spec("shape_scale", 0.02, 1.0, 0.1),
     spec("distortion", 0.0, 1.0, 0.25),
     spec("swirl", 0.0, 1.5, 0.8),
-    spec_held("iter_swirl", 0.0, 20.0, 10.0, 0.2),
+    spec_held("swirl_iterations", 0.0, 20.0, 10.0, 0.2),
     spec("scale", 0.2, 4.0, 1.0),
     spec("speed", -3.0, 3.0, 0.5),
     spec("rotation", 0.0, 1.0, 0.0),
-    spec("off_x", -1.0, 1.0, 0.0),
-    spec("off_y", -1.0, 1.0, 0.0),
+    spec("offset_x", -1.0, 1.0, 0.0),
+    spec("offset_y", -1.0, 1.0, 0.0),
     spec("distance_freq", 1.0, 20.0, 6.0),
-    spec("speed_swirl", -3.0, 3.0, 0.6),
+    spec("swirl_speed", -3.0, 3.0, 0.6),
     spec("swirl_phase", 0.0, 1.0, 0.0),
     spec("asymmetry", -1.0, 1.0, 0.0),
     spec("fold", 0.0, 1.0, 0.0),
     spec("crossing", 0.0, 1.0, 0.5),
-    spec("angle_shape", 0.0, 1.0, 0.0),
+    spec("shape_angle", 0.0, 1.0, 0.0),
     spec("outline", 0.0, 1.0, 0.0),
     spec("bands", 0.0, 1.0, 0.0),
     spec("grain", 0.0, 1.0, 0.0),
     spec("relief", 0.0, 1.0, 0.0),
     spec("palette_mix", 0.0, 1.0, 0.0),
-    spec("drift_color", -2.0, 2.0, 0.0),
+    spec("color_drift", -2.0, 2.0, 0.0),
     spec("empty", 0.0, 1.0, 0.2),
 ];
 
@@ -46,7 +46,7 @@ const COLORES2: [f32; 12] = [0.24, 0.04, 0.80, 0.00, 0.25, 0.30, 0.95, 0.20, 0.0
 const ACENTO: [f32; 12] = [1.00, 1.00, 1.00, 1.00, 0.75, 0.10, 0.10, 0.90, 0.95, 1.00, 0.40, 0.60];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "colores" => COLORES, "colores2" => COLORES2, "accent" => ACENTO);
+    crate::scaffold_schema!(FLOATS; "colors" => COLORES, "colors_2" => COLORES2, "accent" => ACENTO);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "warpcut",
@@ -77,7 +77,7 @@ mod tests {
         ("grain", 0.4),
         ("relief", 0.5),
         ("palette_mix", 0.5),
-        ("drift_color", 0.5),
+        ("color_drift", 0.5),
         ("asymmetry", 0.2),
         ("shape", 0.0),
         ("warp_amount", 0.4),

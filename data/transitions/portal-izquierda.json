@@ -1,0 +1,1 @@
+{ "id": "portal-izquierda", "name": "Portal izquierda", "kind": "portal", "duration": 4, "unit": "beats", "ease": "linear", "dir": "left", "angle": 90, "via": "auto" }

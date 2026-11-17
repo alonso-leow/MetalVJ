@@ -40,19 +40,19 @@ const FLOATS: &[FloatSpec] = &[
     // Dye fade per second.
     spec("density_dissipation", 0.0, 4.0, 1.3),
     // Velocity fade per second.
-    spec("speed_dissipation", 0.0, 4.0, 0.25),
+    spec("velocity_dissipation", 0.0, 4.0, 0.25),
     // Fraction of the pressure kept from the previous step.
     spec("pressure", 0.0, 1.0, 0.8),
     // Jacobi iterations per step. Structural.
-    spec_held("pressure_iter", 4.0, 40.0, 20.0, 0.2),
+    spec_held("pressure_iterations", 4.0, 40.0, 20.0, 0.2),
     // Vorticity confinement: how hard small eddies are kept alive.
     spec("vorticity", 0.0, 60.0, 28.0),
     // Splat radius, in hundredths of the frame (squared falloff).
-    spec("radius_splat", 0.05, 1.0, 0.22),
+    spec("splat_radius", 0.05, 1.0, 0.22),
     // Force of a splat; the stream is a fraction of it, a kick is all of it.
-    spec("force_splat", 0.0, 20000.0, 6000.0),
+    spec("splat_force", 0.0, 20000.0, 6000.0),
     // Emitters.
-    spec("splat_n", 1.0, 12.0, 4.0),
+    spec("splat_count", 1.0, 12.0, 4.0),
     // Kicks per second (the beat rate).
     spec("splat_rhythm", 0.0, 8.0, 1.5),
     // 0 orbit, 1 sweeping line, 2 random, 3 mirrored. Structural.
@@ -842,7 +842,7 @@ mod tests {
                 "simulation_resolution" => 64.0,
                 "dye_resolution" => 256.0,
                 "pulse" => 1.0,
-                "splat_n" => 9.0,
+                "splat_count" => 9.0,
                 _ => far,
             };
             if frames(&gpu, &base_row, &times) == frames(&gpu, &row, &times) {

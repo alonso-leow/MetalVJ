@@ -83,7 +83,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "iris",
+    "slot": "iris_color",
     "palette": "metalvj-red"
    },
    "steps": [

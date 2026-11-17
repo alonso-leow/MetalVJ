@@ -21,7 +21,7 @@ const FLOATS: &[FloatSpec] = &[
     // Kept in the schema now so wiring persistence later does not move every
     // other float's offset.
     spec("decay", 0.80, 0.99, 0.9),
-    spec("focus_base", 0.0, 1.0, 0.35),
+    spec("base_focus", 0.0, 1.0, 0.35),
     spec("intensity", 0.2, 2.0, 1.0),
     // New: fosfora hardcoded the scope's vertical gain (0.40) and the
     // radial excursion (0.28) as two separate constants. One float, because
@@ -33,16 +33,16 @@ const FLOATS: &[FloatSpec] = &[
     // picture, not its intensity.
     spec_held("symmetry", 1.0, 8.0, 1.0, 0.15),
     // New: fosfora's rms/onset gain terms (1.4, 1.5) as dials.
-    spec("gain_energy", 0.0, 2.5, 1.4),
-    spec("gain_transient", 0.0, 3.0, 1.5),
+    spec("energy_gain", 0.0, 2.5, 1.4),
+    spec("transient_gain", 0.0, 3.0, 1.5),
     // New: fosfora's colour drift was a hardcoded 0.15.
-    spec("drift_color", 0.0, 1.0, 0.15),
+    spec("color_drift", 0.0, 1.0, 0.15),
     // Was u.rms, u.onset, u.zcr, u.beat, u.centroid — fosfora's shared audio
     // globals, now Beam's own driven floats. See aurora.rs for the same move
     // and why: `metal-render` has no equivalent shared uniform to read them off.
     spec("energy", 0.0, 1.0, 0.4),
     spec("transient", 0.0, 1.0, 0.0),
-    spec("focus_audio", 0.0, 1.0, 0.2),
+    spec("audio_focus", 0.0, 1.0, 0.2),
     spec("pulse", 0.0, 1.0, 0.0),
     spec("tone", 0.0, 1.0, 0.5),
 ];

@@ -1687,7 +1687,8 @@ impl Paint for Gpu {
     /// This is the CPU-bytes entry (upload, pass, readback), for a tile that
     /// only exists on the CPU; textures go through [`Paint::transition_texture`].
     fn transition(&mut self, spec: &crate::transition::Spec, v: f32, frame: &mut [u8], w: u32, h: u32, seed: u32) {
-        if self.4 == crate::backend::Backend::Gpu {
+        // The portal is a CPU pass only (`transition::apply_portal`).
+        if self.4 == crate::backend::Backend::Gpu && spec.kind != crate::transition::Kind::Portal {
             let cx = self.5.cx.clone();
             self.3
                 .get_or_insert_with(|| crate::transition_gpu::TransitionGpu::new(&cx))
@@ -1703,7 +1704,7 @@ impl Paint for Gpu {
         input: &crate::gpu_frame::GpuFrame,
         seed: u32,
     ) -> Option<crate::gpu_frame::GpuFrame> {
-        if self.4 != crate::backend::Backend::Gpu {
+        if self.4 != crate::backend::Backend::Gpu || spec.kind == crate::transition::Kind::Portal {
             return None;
         }
         let cx = self.5.cx.clone();

@@ -58,7 +58,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "raiz",
+    "slot": "root",
     "palette": "neon"
    },
    "steps": [

@@ -58,7 +58,7 @@
   {
    "target": {
     "kind": "palette",
-    "slot": "patron",
+    "slot": "pattern",
     "palette": "metalvj-red"
    },
    "steps": [

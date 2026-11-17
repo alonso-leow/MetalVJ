@@ -70,6 +70,10 @@ const CAMERA_TRACK_FLOATS: &[FloatSpec] = &[
     spec("cam_x", -3.0, 3.0, 0.0),
     spec("cam_y", -3.0, 3.0, 0.0),
     spec("cam_z", -3.0, 3.0, 0.0),
+    // The look half of the standard pose (`metal_schema::POSE_NAMES`).
+    metal_schema::POSE_LOOK_FLOATS[0],
+    metal_schema::POSE_LOOK_FLOATS[1],
+    metal_schema::POSE_LOOK_FLOATS[2],
 ];
 
 /// How far the plane reaches sideways, and the two ends of it in depth. Fixed
@@ -278,12 +282,13 @@ impl Model for Vaporgrid {
         let Some((vbuf, vertex_count, _, _)) = &gpu.mesh else { return };
 
         let cam = &floats[7..14];
-        let view_proj = crate::model::tracked_view_proj(
+        let view_proj = crate::model::posed_view_proj(
             Vec3::new(cam[0], cam[1], cam[2]),
             Vec3::new(cam[3], cam[4], cam[5]),
             cam[6],
             ctx.aspect(),
-            crate::model::camera_track_offset(floats),
+            floats,
+            false,
         );
         let spacing = (Z_NEAR - Z_FAR) / nz as f32;
 

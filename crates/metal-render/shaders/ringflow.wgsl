@@ -25,7 +25,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let core = clamp(f_core_separation() / 100.0, 0.0, 1.0);
     let scale = clamp(f_scale() / 100.0, 0.0, 1.0);
     let warp = clamp(f_warp() / 100.0, 0.0, 1.0);
-    let drift = clamp(f_drift_v() / 100.0, 0.0, 1.0);
+    let drift = clamp(f_vertical_drift() / 100.0, 0.0, 1.0);
     let sw = clamp(f_slice_width(), 5.0, 100.0) / 100.0;
     let accent = clamp(f_accent() / 100.0, 0.0, 1.0);
     let seed = f_seed();

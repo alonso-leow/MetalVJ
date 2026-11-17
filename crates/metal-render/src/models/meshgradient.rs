@@ -13,14 +13,14 @@ use crate::shared::scaffold::ScaffoldDef;
 const FLOATS: &[FloatSpec] = &[
     spec_held("dots", 2.0, 10.0, 5.0, 0.2),
     spec("distortion", 0.0, 1.0, 0.8),
-    spec("turn_swirl", 0.0, 1.0, 0.1),
+    spec("swirl_turn", 0.0, 1.0, 0.1),
     spec("grain_mix", 0.0, 1.0, 0.0),
     spec("grain_surface", 0.0, 1.0, 0.0),
     spec("scale", 0.2, 4.0, 1.0),
     spec("speed", -3.0, 3.0, 1.0),
     spec("rotation", 0.0, 1.0, 0.0),
-    spec("off_x", -1.0, 1.0, 0.0),
-    spec("off_y", -1.0, 1.0, 0.0),
+    spec("offset_x", -1.0, 1.0, 0.0),
+    spec("offset_y", -1.0, 1.0, 0.0),
     spec("waves_x", 0.0, 4.0, 1.0),
     spec("waves_y", 0.0, 4.0, 1.0),
     spec("phase_x", 0.0, 1.0, 0.6),
@@ -39,9 +39,9 @@ const FLOATS: &[FloatSpec] = &[
     spec("bands", 0.0, 1.0, 0.0),
     spec("outline", 0.0, 1.0, 0.0),
     spec("palette_mix", 0.0, 1.0, 0.3),
-    spec("drift_color", -2.0, 2.0, 0.0),
+    spec("color_drift", -2.0, 2.0, 0.0),
     spec("grain_size", 0.2, 4.0, 1.0),
-    spec("shine_grain", 0.0, 1.0, 0.0),
+    spec("grain_shine", 0.0, 1.0, 0.0),
     spec("light", 0.0, 1.0, 0.0),
     spec("vignette", 0.0, 1.0, 0.0),
 ];
@@ -54,7 +54,7 @@ const COLORES2: [f32; 12] = [0.21, 0.47, 1.00, 0.38, 0.22, 0.95, 0.90, 0.20, 0.5
 const TINTE: [f32; 12] = [1.00, 1.00, 1.00, 1.00, 0.75, 0.10, 0.10, 0.90, 0.95, 1.00, 0.40, 0.60];
 
 pub static SCHEMA: crate::model::Schema =
-    crate::scaffold_schema!(FLOATS; "colores" => COLORES, "colores2" => COLORES2, "tint" => TINTE);
+    crate::scaffold_schema!(FLOATS; "colors" => COLORES, "colors_2" => COLORES2, "tint" => TINTE);
 
 pub static DEF: ScaffoldDef = ScaffoldDef::new(
     "meshgradient",
@@ -89,8 +89,8 @@ mod tests {
         ("bands", 0.4),
         ("outline", 0.5),
         ("palette_mix", 0.5),
-        ("drift_color", 0.5),
-        ("shine_grain", 0.5),
+        ("color_drift", 0.5),
+        ("grain_shine", 0.5),
         ("light", 0.5),
         ("vignette", 0.5),
         ("warp_amount", 0.4),

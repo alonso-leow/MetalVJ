@@ -34,7 +34,7 @@ fn wp_pattern(q: vec2<f32>, kind: i32, k: f32, ang: f32, t: f32) -> f32 {
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let tt = p_time();
     let t = tt * f_speed();
-    var q = p_rot(p, f_rotation() * TAU) / max(f_scale(), 0.05) + vec2<f32>(f_off_x(), f_off_y());
+    var q = p_rot(p, f_rotation() * TAU) / max(f_scale(), 0.05) + vec2<f32>(f_offset_x(), f_offset_y());
     q = q * vec2<f32>(exp(f_asymmetry()), exp(-f_asymmetry()));
     q = mix(q, vec2<f32>(abs(q.x), q.y), f_fold());
 
@@ -44,9 +44,9 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     q = q + (nz - 0.5) * 0.7 * f_distortion();
 
     // Iterated swirl.
-    let n = clamp(i32(floor(f_iter_swirl() + 0.5)), 0, 20);
+    let n = clamp(i32(floor(f_swirl_iterations() + 0.5)), 0, 20);
     let sw = f_swirl();
-    let st = tt * f_speed_swirl() + f_swirl_phase() * TAU;
+    let st = tt * f_swirl_speed() + f_swirl_phase() * TAU;
     let cx = f_crossing();
     for (var i = 1; i <= 20; i = i + 1) {
         if (i > n) { break; }
@@ -60,7 +60,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 
     let kind = clamp(i32(floor(f_shape() + 0.5)), 0, 4);
     let k = 1.5 / max(f_shape_scale(), 0.01);
-    var v = wp_pattern(q, kind, k, f_angle_shape(), t);
+    var v = wp_pattern(q, kind, k, f_shape_angle(), t);
 
     // Relief shading from the screen-space gradient of the field.
     let gx = dpdx(v);
@@ -78,9 +78,9 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = mix(0.02, 0.5, f_softness());
     let kf = floor(x);
     let ff = smoothstep(0.5 - w, 0.5 + w, x - kf);
-    let pos = clamp((kf + ff) / 3.0 + f_drift_color() * tt * 0.1, -8.0, 8.0);
+    let pos = clamp((kf + ff) / 3.0 + f_color_drift() * tt * 0.1, -8.0, 8.0);
     let u = clamp(abs(fract(pos * 0.5) * 2.0 - 1.0), 0.0, 1.0);
-    let upos = select(clamp(pos, 0.0, 1.0), u, abs(f_drift_color()) > 0.001);
+    let upos = select(clamp(pos, 0.0, 1.0), u, abs(f_color_drift()) > 0.001);
     var col = p_pal2(0u, upos, 1u, upos, f_palette_mix());
 
     // Outline on the colour boundaries, relief highlight, both tinted by slot 2.

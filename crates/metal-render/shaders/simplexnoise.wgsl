@@ -85,7 +85,7 @@ fn sx_field(q: vec2<f32>, z: f32, oct: i32, lac: f32, pers: f32, rot: f32, ridge
 fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let T = p_time();
     let t = T * f_speed();
-    var q = p_rot(p, f_rotation() * TAU) * 2.2 * f_scale() + vec2<f32>(f_off_x(), f_off_y()) * 2.0;
+    var q = p_rot(p, f_rotation() * TAU) * 2.2 * f_scale() + vec2<f32>(f_offset_x(), f_offset_y()) * 2.0;
     q = vec2<f32>(q.x / f_stretch(), q.y * f_stretch());
     let z = t * 0.35 + f_phase_z() * 8.0;
 
@@ -101,7 +101,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     }
 
     let oct = clamp(i32(floor(f_octaves() + 0.5)), 1, 5);
-    var v = sx_field(q, z, oct, f_lacunarity(), f_persistence(), f_rot_octave(), f_crests());
+    var v = sx_field(q, z, oct, f_lacunarity(), f_persistence(), f_octave_rotation(), f_crests());
 
     // Bias and hardness (histogram stretch around the middle).
     v = v + f_bias();
@@ -109,7 +109,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     v = clamp(v, 0.0, 0.9999);
 
     // Steps: `pasos_color` bands per palette colour (4), hard unless softened.
-    let nb = max(floor(f_steps_color() + 0.5), 1.0) * 4.0;
+    let nb = max(floor(f_color_steps() + 0.5), 1.0) * 4.0;
     let x = v * nb;
     let id = floor(x);
     let fr = x - id;
@@ -125,9 +125,9 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let line = (1.0 - smoothstep(0.0, f_edges_width(), min(fr, 1.0 - fr))) * f_edges();
 
     // Colour: two palettes, blended globally and by a slow spatial field.
-    let ph = u + f_drift_color() * T * 0.1;
+    let ph = u + f_color_drift() * T * 0.1;
     let uc = fract(ph + 4.0) ;
-    let uu = select(clamp(u, 0.0, 1.0), uc, abs(f_drift_color()) > 0.001);
+    let uu = select(clamp(u, 0.0, 1.0), uc, abs(f_color_drift()) > 0.001);
     let sv = sx_noise(vec3<f32>(q * 0.25, z * 0.3 + 40.0)) * 0.5 + 0.5;
     let mz = clamp(f_palette_mix() + (sv - 0.5) * f_palette_variation() * 1.6, 0.0, 1.0);
     var col = p_pal2(0u, uu, 1u, uu, mz);

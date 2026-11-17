@@ -60,7 +60,7 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
             let s = p_src(world);
             var lv = hd_lum(s.rgb);
             lv = mix(lv, 1.0 - lv, f_invert());
-            lv = clamp((lv - 0.5) * (1.0 + f_contrast_dot() * 3.0) + 0.5, 0.0, 1.0);
+            lv = clamp((lv - 0.5) * (1.0 + f_dot_contrast() * 3.0) + 0.5, 0.0, 1.0);
             // Travelling size wave along the lattice.
             let wv = 0.5 + 0.5 * sin(dot(ce / c, vec2<f32>(cos(f_wave_direction() * TAU), sin(f_wave_direction() * TAU))) * f_wave_freq() * 0.6 - t * f_wave_speed() * 2.0);
             lv = lv * (1.0 - f_wave() * wv * 0.8);

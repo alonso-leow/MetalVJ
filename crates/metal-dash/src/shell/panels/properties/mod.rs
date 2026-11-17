@@ -2284,12 +2284,19 @@ mod tests {
             assert_eq!(ingest.layer_meta(&ingest.current_page(), 0).blend, "add");
         }
 
-        // The opacity track's right arrow steps it above the seeded 0.0.
+        // The opacity track's right arrow steps it above the seeded 0.0. The
+        // shell's transport scrubber is a slider too, so take the track that
+        // sits on the same row as the "opacity" label.
+        let row = harness.get_by_label("opacity").rect();
         let rect = harness
             .get_all_by_role(egui::accesskit::Role::Slider)
-            .next()
-            .expect("the opacity track registers as a slider")
-            .rect();
+            .map(|n| n.rect())
+            .min_by(|a, b| {
+                (a.center().y - row.center().y)
+                    .abs()
+                    .total_cmp(&(b.center().y - row.center().y).abs())
+            })
+            .expect("the opacity track registers as a slider");
         let right = egui::pos2(rect.right() - rect.height() * 0.5, rect.center().y);
         harness.drag_at(right);
         harness.run_steps(1);

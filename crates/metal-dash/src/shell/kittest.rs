@@ -98,6 +98,7 @@ fn run_real(harness: &mut Harness<'static, Shell>) {
 mod tests {
     use super::*;
     use crate::shell::components;
+    use crate::shell::components::Icon;
     use crate::shell::panels::Selection;
     use egui_kittest::kittest::NodeT as _;
 
@@ -2121,6 +2122,10 @@ mod tests {
         // The driven row offers its node; the other row says nobody does. (The
         // whole shell has no Spanish translations in the harness — it boots
         // English — so the label is the source text.)
+        // The type step's grid sits above the list, so the row is below the
+        // fold; a real gesture scrolls the card band there first, and so does this.
+        harness.get_by_label("show node f-0").scroll_to_me();
+        harness.run();
         harness.get_by_label("show node f-0").click();
         harness.run();
         assert_eq!(
@@ -4140,7 +4145,12 @@ mod tests {
         h.run();
         assert!(h.state().region_rects().contains_key(&Region::Nodes));
 
-        h.get_by_label("Show").click();
+        // The view selector is one dropdown (W2): open it on its shown "Edit",
+        // then pick "Show" from the list.
+        let item = |icon, label: &str| format!("{} {label}", components::glyph(icon));
+        h.get_by_value(&item(Icon::Pointer, "Edit")).click();
+        h.run();
+        h.get_by_label(&item(Icon::Eye, "Show")).click();
         h.run();
         let rects = h.state().region_rects();
         for region in [Region::Nodes, Region::Library, Region::Lanes, Region::Properties] {
@@ -4167,7 +4177,9 @@ mod tests {
             assert!(opened, "entering Show opens the output's monitor");
         }
 
-        h.get_by_label("Edit").click();
+        h.get_by_value(&item(Icon::Eye, "Show")).click();
+        h.run();
+        h.get_by_label(&item(Icon::Pointer, "Edit")).click();
         h.run();
         assert!(h.state().region_rects().contains_key(&Region::Nodes), "edit restores the regions");
     }
@@ -4486,6 +4498,9 @@ mod tests {
         assert!(out.width() > 0.0, "the bar paints the way back");
 
         harness.get_by_label("Back to nodes").click();
+        // The pointer leaves after the click: resting on the graph's margin with
+        // a node focused is the edge pan, which repaints by design.
+        harness.event(egui::Event::PointerGone);
         harness.run();
         assert!(
             !harness.state().nodes_venue_scene_on(),

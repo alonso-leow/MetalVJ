@@ -476,10 +476,7 @@ pub(crate) fn source_section(
             );
             let mut picked: Option<String> = None;
             kv_row(ui, theme, tr("bind to"), |ui| {
-                crate::shell::components::combo_box(theme, Id::new(("bind", &r.bind.2, &r.from)))
-                    .width(ui.available_width())
-                    .selected_text((tr("→ param")).to_string())
-                    .show_ui(ui, |ui| {
+                crate::shell::components::dropdown_menu(ui, theme, Id::new(("bind", &r.bind.2, &r.from)), &((tr("→ param")).to_string()), Some(ui.available_width()), true, |ui| {
                         for p in &params {
                             if ui.selectable_label(false, p).clicked() {
                                 picked = Some(p.clone());

@@ -24,3 +24,6 @@
 "rename group" = "renombrar grupo"
 "delete group" = "borrar grupo"
 "no saved or favourite scenes" = "no hay escenas guardadas ni favoritas"
+
+# A scene write that went through (toast logger, W3).
+"scenes saved" = "escenas guardadas"

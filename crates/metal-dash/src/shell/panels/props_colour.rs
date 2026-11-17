@@ -195,10 +195,7 @@ fn palette_folder(
     let config = config_of(node);
     let id = config.get("palette").and_then(Value::as_str).unwrap_or("").to_string();
     components::kv_row(ui, theme, tr("Palettes"), |ui| {
-        components::combo_box(theme, "palette-node-stored")
-            .width(ui.available_width())
-            .selected_text(if id.is_empty() { tr("(none)").to_string() } else { id.clone() })
-            .show_ui(ui, |ui| {
+        components::dropdown_menu(ui, theme, "palette-node-stored", &(if id.is_empty() { tr("(none)").to_string() } else { id.clone() }), Some(ui.available_width()), true, |ui| {
                 for (name, colors) in &state.palettes {
                     // The combination itself: its slots as chips ahead of the name.
                     let clicked = ui

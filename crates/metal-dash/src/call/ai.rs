@@ -158,7 +158,13 @@ pub fn chat_get(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         return Err(CallError::Bad("expected a chat id after /ai/chats/".into()));
     };
     let since = params.param("since").and_then(|v| v.parse().ok()).unwrap_or(0);
-    Ok(crate::chat::load_chat_since(&crate::output::data_root(), id, since))
+    let root = crate::output::data_root();
+    let mut chat = crate::chat::load_chat_since(&root, id, since);
+    // The model and its window, for the panel's context meter.
+    let (model, window) = crate::chat::model_info(&root);
+    chat["model"] = serde_json::json!(model);
+    chat["window"] = serde_json::json!(window);
+    Ok(chat)
 }
 
 /// `POST /ai/chat/cancel {id}` — the stop button: flips the chat's cancel

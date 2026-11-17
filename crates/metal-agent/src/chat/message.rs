@@ -145,6 +145,16 @@ impl Ref {
     }
 }
 
+/// What the provider reported for one assistant step: the input and output
+/// tokens of the request that produced it, and the model that ran it. Never
+/// persisted on the row; the session runner turns it into an [`crate::chat::Event::Usage`].
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Usage {
+    pub input: u64,
+    pub output: u64,
+    pub model: String,
+}
+
 /// One row of a conversation. `role` is one of `system`/`user`/`assistant`/
 /// `tool`/`notice`; `notice` rows (retry banners) never ride the wire.
 #[derive(Debug, Clone)]
@@ -163,6 +173,8 @@ pub struct ChatMessage {
     pub kind: Option<String>,
     /// Focusable elements the assistant sent with this row (see [`Ref`]).
     pub refs: Vec<Ref>,
+    /// Token usage the provider reported for this step, if it reported any.
+    pub usage: Option<Usage>,
 }
 
 impl Default for ChatMessage {
@@ -177,6 +189,7 @@ impl Default for ChatMessage {
             at: 0,
             kind: None,
             refs: Vec::new(),
+            usage: None,
         }
     }
 }
@@ -235,6 +248,7 @@ impl ChatMessage {
             images: Vec::new(),
             at: v["at"].as_u64().unwrap_or(0),
             kind: v["kind"].as_str().map(str::to_string),
+            usage: None,
             refs: v
                 .get("refs")
                 .and_then(Value::as_array)
@@ -260,6 +274,7 @@ impl From<crate::agent_loop::Message> for ChatMessage {
             at: 0,
             kind: None,
             refs: Vec::new(),
+            usage: None,
         }
     }
 }

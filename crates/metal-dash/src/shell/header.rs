@@ -16,6 +16,7 @@ use crate::call::Call;
 use super::classes::{Arrangement, Placement, Theme};
 use super::classes::glyph_font;
 use super::components::{divider, glyph, wordmark, Icon};
+use super::toasts;
 use super::i18n::{tr, trf};
 use super::panels::Region;
 use super::ShellView;
@@ -76,6 +77,8 @@ pub(super) struct HeaderEvents {
     /// The Edit|Show toggle picked a view other than the current one. The
     /// caller persists it and, entering Show, asks for the monitors.
     pub view_selected: Option<ShellView>,
+    /// The `log` button was clicked: `Shell::ui` opens or closes the toast log.
+    pub log_toggled: bool,
 }
 
 /// Paint the header bar's contents (the caller wraps this in the
@@ -114,11 +117,14 @@ pub(super) fn paint(
             divider(ui, theme);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 // Right-to-left: the first item added is the rightmost.
-                if view == ShellView::Edit {
+                // `IA` stays wherever the chrome does (Edit, Monitor).
+                if matches!(view, ShellView::Edit | ShellView::Monitor) {
                     ia_button(ui, theme, harness_open, &mut events);
                     divider(ui, theme);
                 }
-                view_toggle(ui, theme, view, &mut events);
+                view_dropdown(ui, theme, view, &mut events);
+                divider(ui, theme);
+                log_button(ui, theme, &mut events);
                 divider(ui, theme);
                 // The frame-rate readout lives here, left of the panel toggles,
                 // so it is on screen without covering the AI chat sidebar.
@@ -163,7 +169,7 @@ pub(super) fn paint(
                         // it is on screen at phone width.
                         pairing_chip(ui, theme, pairing, &mut events);
                         // Show paints none of the buttons that open a panel.
-                        if view == ShellView::Edit {
+                        if !view.is_show() {
                             if arrangement.library == Placement::Delegated {
                                 sidebar_toggle(ui, theme, sidebar_open, &mut events);
                             }
@@ -172,11 +178,12 @@ pub(super) fn paint(
                             }
                         }
                         // Before `IA`, so the toggle sits just left of it.
-                        view_toggle(ui, theme, view, &mut events);
-                        if view == ShellView::Edit {
+                        view_dropdown(ui, theme, view, &mut events);
+                        if !view.is_show() {
                             ia_button(ui, theme, harness_open, &mut events);
                         }
                         settings_button(ui, theme, &mut events);
+                        log_button(ui, theme, &mut events);
                         super::perf_hud::badge(ui, theme);
                     });
                 });
@@ -212,7 +219,10 @@ pub(super) fn paint(
                                 Some(json!({ "op": "rename", "id": id, "name": next })),
                             ) {
                                 Ok(_) => state.note = None,
-                                Err((_, msg)) => state.note = Some(msg),
+                                Err((_, msg)) => {
+                                    toasts::error(msg.clone());
+                                    state.note = Some(msg);
+                                }
                             }
                             close = true;
                         }
@@ -383,7 +393,10 @@ fn collections_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pan
                                             })),
                                         ) {
                                             Ok(_) => state.note = None,
-                                            Err((_, msg)) => state.note = Some(msg),
+                                            Err((_, msg)) => {
+                                    toasts::error(msg.clone());
+                                    state.note = Some(msg);
+                                }
                                         }
                                         ui.close();
                                     }
@@ -410,7 +423,10 @@ fn collections_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pan
                                 Some(json!({ "op": "remove", "id": id })),
                             ) {
                                 Ok(_) => state.note = None,
-                                Err((_, msg)) => state.note = Some(msg),
+                                Err((_, msg)) => {
+                                    toasts::error(msg.clone());
+                                    state.note = Some(msg);
+                                }
                             }
                             ui.close();
                         }
@@ -456,10 +472,14 @@ fn collections_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pan
                                 Some(json!({ "op": "save", "device": device, "name": name })),
                             ) {
                                 Ok(_) => {
+                                    toasts::success(tr("collection saved"));
                                     state.note = None;
                                     state.save_name.clear();
                                 }
-                                Err((_, msg)) => state.note = Some(msg),
+                                Err((_, msg)) => {
+                                    toasts::error(msg.clone());
+                                    state.note = Some(msg);
+                                }
                             }
                         }
                     });
@@ -474,6 +494,15 @@ fn collections_menu(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pan
                 );
             }
         });
+    });
+}
+
+/// `log`: opens the toast logger window (`shell::toasts`).
+fn log_button(ui: &mut Ui, theme: &Theme, events: &mut HeaderEvents) {
+    ui.push_id(Id::new("shell/header/log"), |ui| {
+        if ui.button(RichText::new(tr("log")).font(theme.font_body.clone())).clicked() {
+            events.log_toggled = true;
+        }
     });
 }
 
@@ -577,23 +606,20 @@ fn sidebar_toggle(ui: &mut Ui, theme: &Theme, sidebar_open: bool, events: &mut H
     });
 }
 
-/// The Edit/Show mode toggle: one button, aware of the current view, whose
-/// label names the view it switches to (`Show` while editing, `Edit` while
-/// showing).
-fn view_toggle(ui: &mut Ui, theme: &Theme, view: ShellView, events: &mut HeaderEvents) {
+/// The view dropdown (W2): one shared `components::dropdown` listing the five
+/// [`ShellView`]s. Picking another one reports it through `view_selected`.
+fn view_dropdown(ui: &mut Ui, theme: &Theme, view: ShellView, events: &mut HeaderEvents) {
     ui.push_id(Id::new("shell/header/view"), |ui| {
-        // Right-to-left: the first added is the rightmost.
-        for (target, label) in [
-            (ShellView::Timeline, tr("Timeline")),
-            (ShellView::Show, tr("Show")),
-            (ShellView::Edit, tr("Edit")),
-        ] {
-            if target == view {
-                continue;
-            }
-            if ui.button(RichText::new(label).font(theme.font_body.clone())).clicked() {
-                events.view_selected = Some(target);
-            }
+        let mut current = view;
+        let options = [
+            (ShellView::Edit, tr("Edit"), Some(Icon::Pointer)),
+            (ShellView::Show, tr("Show"), Some(Icon::Eye)),
+            (ShellView::Timeline, tr("Timeline"), Some(Icon::Sequence)),
+            (ShellView::Monitor, tr("Monitor"), Some(Icon::Output)),
+            (ShellView::ShowMonitor, tr("Show + monitor"), Some(Icon::Devices)),
+        ];
+        if super::components::dropdown_icons(ui, theme, "view", &mut current, &options).changed() {
+            events.view_selected = Some(current);
         }
     });
 }

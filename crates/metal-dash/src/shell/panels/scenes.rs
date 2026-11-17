@@ -80,7 +80,16 @@ fn listing(ui: &Ui, door: &dyn Call, clip: Option<&str>) -> Value {
 fn post(ui: &Ui, door: &dyn Call, body: Value) -> Option<String> {
     let gen = generation(ui) + 1;
     ui.ctx().data_mut(|d| d.insert_temp(Id::new("shell/scenes/generation"), gen));
-    door.json("POST", "/author/scenes", Some(body)).err().map(|(_, msg)| msg)
+    match door.json("POST", "/author/scenes", Some(body)) {
+        Ok(_) => {
+            crate::shell::toasts::success(tr("scenes saved"));
+            None
+        }
+        Err((_, msg)) => {
+            crate::shell::toasts::error(msg.clone());
+            Some(msg)
+        }
+    }
 }
 
 /// A scene row's own fields, as a body's base.

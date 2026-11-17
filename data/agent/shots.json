@@ -8932,6 +8932,51 @@
           "tool_calls": []
         }
       ]
+    },
+    {
+      "id": "venue-import-splat",
+      "tags": [
+        "import_splat"
+      ],
+      "user": "Traé el escaneo scans/escenario.ply a la sala como objeto.",
+      "steps": [
+        {
+          "assistant": "Importo el splat en la sala; toma el nombre del archivo.",
+          "tool_calls": [
+            {
+              "name": "import_splat",
+              "arguments": {
+                "venue": "sala-principal",
+                "file": "scans/escenario.ply"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "venue-import-splat-oriented",
+      "tags": [
+        "import_splat"
+      ],
+      "user": "Importá scans/fachada.spz girado 90 grados, con z hacia arriba y como mucho 300 mil gaussianas.",
+      "steps": [
+        {
+          "assistant": "Lo importo girado 90°, eje z arriba y con un presupuesto de 300 000 gaussianas.",
+          "tool_calls": [
+            {
+              "name": "import_splat",
+              "arguments": {
+                "venue": "sala-principal",
+                "file": "scans/fachada.spz",
+                "yaw": 90,
+                "up": "z",
+                "budget": 300000
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

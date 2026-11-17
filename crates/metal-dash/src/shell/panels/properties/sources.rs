@@ -60,10 +60,7 @@ pub(crate) fn pick_row(
         });
     let mut picked = None;
     kv_row(ui, theme, label, |ui| {
-        crate::shell::components::combo_box(theme, Id::new(("shell/region/properties", salt)))
-            .width(ui.available_width())
-            .selected_text((shown).to_string())
-            .show_ui(ui, |ui| {
+        crate::shell::components::dropdown_menu(ui, theme, Id::new(("shell/region/properties", salt)), &((shown).to_string()), Some(ui.available_width()), true, |ui| {
                 for (id, l) in choices {
                     if ui.selectable_label(id == current, l).clicked() && id != current {
                         picked = Some(id.clone());

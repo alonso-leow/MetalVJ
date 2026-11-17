@@ -28,6 +28,8 @@ pub enum Event {
     Retrying { attempt: usize, wait_ms: u64, reason: String },
     /// A `focus` call completed: the elements to attach to the live assistant row.
     Refs { refs: Vec<crate::chat::message::Ref> },
+    /// The provider's token usage for the step that just finished.
+    Usage { input: u64, output: u64, model: String },
     /// The turn's final assistant text.
     Final { content: String },
     /// The turn ended in a non-retryable error.

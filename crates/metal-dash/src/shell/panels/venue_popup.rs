@@ -29,10 +29,12 @@
 //!   a truss when the room has none) aimed at the new glass. The light source
 //!   stays separate from the screen box in the 3D view, which is exactly the
 //!   difference the operator asked for.
-//! - *Fixtures* — the room's own patch, grouped by universe and read off
-//!   `GET /venue`'s `patch` (never recomputed here), then a card that adds one
-//!   with the kind, universe and address the operator picked. Nothing invents
-//!   a universe: it is the one written into the room.
+//! - *Fixtures* — two steps. **Type**: one card per `metal_stage` fixture
+//!   type. **Position**: the stage's hitbox grid, drawn inside the gallery; a
+//!   click on a point places an *empty* fixture of that type there (no DMX
+//!   universe or address: it is patched later). Under the type cards, the
+//!   room's own registered patch, grouped by universe and read off `GET
+//!   /venue`'s `patch` (never recomputed here).
 //!
 //! **The gallery, not the room.** The columns *add* things to the room; the
 //! room itself is the 3D scene the nodes canvas paints (its bar's room state),
@@ -66,6 +68,8 @@ use serde_json::{json, Value};
 
 use glam::Vec3;
 use metal_perform::venue::Venue;
+use metal_stage::names::Kind as StageKind;
+use metal_stage::Point;
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
@@ -74,6 +78,7 @@ use crate::shell::components::{
 };
 use crate::shell::i18n::{tr, tr_key, trf};
 
+use super::stage_view::{self, kind_name, Board, Pointer};
 use super::venue_canvas::BACK_WALL_Z;
 use super::viewport;
 use super::venue_map;
@@ -371,6 +376,8 @@ pub struct State {
     /// The popup's outer rect on the last frame it painted: the size
     /// [`paint`] computes once, never grown by the content it lays out.
     rect: Option<Rect>,
+    /// The type the fixtures tab's position step places (`None`: the type step).
+    stage_kind: Option<StageKind>,
 }
 
 impl State {
@@ -381,6 +388,7 @@ impl State {
             self.note = None;
             self.throw = 0.0;
             self.width_m = DEFAULT_WIDTH_M;
+            self.stage_kind = None;
         }
         self.graph = graph.to_string();
         self.node = node.to_string();
@@ -472,8 +480,12 @@ pub fn paint(
             ui.set_width(size.x);
             let inner = panel_frame(theme)
                 .show(ui, |ui| {
-                    ui.set_min_size(size);
-                    ui.set_max_size(size);
+                    // The frame adds its margin around the body: the body is
+                    // the popup's size less that margin, so the outer box is
+                    // the size `popup_size` computed and no larger.
+                    let body = size - theme.panel_margin().sum();
+                    ui.set_min_size(body);
+                    ui.set_max_size(body);
                     let node = state.node.clone();
                     let node_value = graph["graph"]["nodes"]
                         .as_array()
@@ -629,7 +641,7 @@ fn columns(
                     Tab::Screens => screens_tab(ui, theme, door, state, venue_id, detail),
                     Tab::Projections => projections_tab(ui, theme, door, state, venue_id, detail),
                     Tab::Objects => objects_tab(ui, theme, door, state, venue_id, detail),
-                    Tab::Fixtures => fixtures_tab(ui, theme, door, state, detail, graph),
+                    Tab::Fixtures => fixtures_tab(ui, theme, door, state, venue_id, detail, graph),
                 });
         });
     });
@@ -703,13 +715,22 @@ fn screens_of_projectors(venue: Option<&Value>) -> usize {
 /// is: the drawing, the two text lines and a margin each way.
 fn card_size(ui: &Ui, theme: &Theme, width: f32) -> Vec2 {
     let w = ((width - theme.item_gap.x * (COLUMNS as f32 - 1.0)) / COLUMNS as f32).max(1.0);
-    let preview = w * 9.0 / 16.0;
+    let preview = preview_size(theme, w).y;
     let lines = ui.text_style_height(&egui::TextStyle::Body)
         + ui.text_style_height(&egui::TextStyle::Small);
     Vec2::new(
         w,
         preview + lines + theme.card_margin().sum().y as f32 + theme.item_gap.y,
     )
+}
+
+/// The drawing's size in a card `w` points wide: the card less its own margin
+/// on each side, at 16:9. [`card_size`] (the row's height) and [`card`] (the
+/// drawing's rect) both read it, so the drawing fills the card's width and the
+/// two lines under it sit where the height reserved them.
+fn preview_size(theme: &Theme, w: f32) -> Vec2 {
+    let inner = (w - theme.card_margin().sum().x as f32).max(1.0);
+    Vec2::new(inner, inner * 9.0 / 16.0)
 }
 
 /// One card: painted into `rect` — the preview drawing, its label and its
@@ -738,28 +759,19 @@ fn card(
         rect.min + Vec2::new(f32::from(pad.left), f32::from(pad.top)),
         rect.max - Vec2::new(f32::from(pad.right), f32::from(pad.bottom)),
     );
-    let preview = Rect::from_min_size(
-        inner.min,
-        Vec2::new(inner.width(), inner.width() * 9.0 / 16.0),
-    );
+    let preview = Rect::from_min_size(inner.min, preview_size(theme, rect.width()));
     paint(&painter, preview);
-    painter.text(
-        egui::Pos2::new(inner.left(), preview.bottom() + theme.item_gap.y),
-        Align2::LEFT_TOP,
-        label,
-        theme.font_body.clone(),
-        theme.ink,
+    // The two lines are one line each, cut with an ellipsis at the card's edge:
+    // a long label reads as cut short, not as a glyph sliced by the clip.
+    let label_at = egui::Pos2::new(inner.left(), preview.bottom() + theme.item_gap.y);
+    let label_galley = ellipsised(ui, label, theme.font_body.clone(), theme.ink, inner.width());
+    painter.galley(label_at, label_galley, theme.ink);
+    let sub_at = egui::Pos2::new(
+        inner.left(),
+        preview.bottom() + theme.item_gap.y + ui.text_style_height(&egui::TextStyle::Body),
     );
-    painter.text(
-        egui::Pos2::new(
-            inner.left(),
-            preview.bottom() + theme.item_gap.y + ui.text_style_height(&egui::TextStyle::Body),
-        ),
-        Align2::LEFT_TOP,
-        sub,
-        theme.font_small.clone(),
-        theme.ink_weak,
-    );
+    let sub_galley = ellipsised(ui, sub, theme.font_small.clone(), theme.ink_weak, inner.width());
+    painter.galley(sub_at, sub_galley, theme.ink_weak);
     let stroke = if hovered {
         theme.accent()
     } else {
@@ -771,6 +783,19 @@ fn card(
         stroke,
         egui::StrokeKind::Inside,
     );
+}
+
+/// `text` on one line, cut with an ellipsis where it would pass `width`.
+fn ellipsised(
+    ui: &Ui,
+    text: &str,
+    font: egui::FontId,
+    color: egui::Color32,
+    width: f32,
+) -> std::sync::Arc<egui::Galley> {
+    let mut job = egui::text::LayoutJob::simple_singleline(text.to_string(), font, color);
+    job.wrap.max_width = width;
+    ui.fonts_mut(|fonts| fonts.layout_job(job))
 }
 
 /// A row of the preset grid: the cards side by side, and the preset the
@@ -1603,10 +1628,17 @@ fn add_object(
     };
     door.json("POST", "/venue", Some(body))
         .map_err(|(status, _)| {
-            let status = status.to_string();
-            trf("venue write failed: {status}", &[("status", &status)])
+            venue_failed(status)
         })?;
     Ok(id)
+}
+
+/// The room write's refusal, pushed to the toast log and returned for the note.
+fn venue_failed(status: u16) -> String {
+    let status = status.to_string();
+    let msg = trf("venue write failed: {status}", &[("status", &status)]);
+    crate::shell::toasts::error(msg.clone());
+    msg
 }
 
 /// Removes one object from the room.
@@ -1614,8 +1646,7 @@ fn delete_object(door: &dyn Call, venue_id: &str, id: &str) -> Result<(), String
     let body = json!({ "op": "object", "id": venue_id, "object": id, "delete": true });
     door.json("POST", "/venue", Some(body))
         .map_err(|(status, _)| {
-            let status = status.to_string();
-            trf("venue write failed: {status}", &[("status", &status)])
+            venue_failed(status)
         })?;
     Ok(())
 }
@@ -1635,21 +1666,173 @@ fn next_object_id(detail: &Option<Value>, preset: &ObjectPreset) -> String {
         .unwrap_or_else(|| format!("{}-1", preset.id))
 }
 
-/// The fixtures list and the patch card. The list is the room's own patch
-/// (`GET /venue`'s `patch`, computed from each profile's channels), grouped by
-/// universe, so what the popup shows and what the room holds cannot disagree.
-/// The room's **registered** fixtures, by universe: what is already on the
-/// bus and wired into the scene. Adding one is a room setting, not a scene
-/// edit, so the form lives in Settings; this tab only reads `GET /venue`.
+/// The fixtures tab, in two steps. The type step lists the nine fixture types;
+/// the position step places one empty fixture of the chosen type on the stage
+/// grid. The room's registered patch sits under the type step (read off
+/// `GET /venue`, see `registered_fixtures`).
 fn fixtures_tab(
     ui: &mut Ui,
     theme: &Theme,
     door: &dyn Call,
     state: &mut State,
+    venue_id: &str,
     detail: &Option<Value>,
     graph: &Value,
 ) {
-    let _ = door;
+    match state.stage_kind {
+        None => {
+            fixture_types(ui, theme, state);
+            registered_fixtures(ui, theme, state, detail, graph);
+        }
+        Some(kind) => fixture_position(ui, theme, door, state, venue_id, detail, kind),
+    }
+}
+
+/// Step one, the type: one card per `metal_stage` fixture type, its drawing the
+/// type's chip letter. A click moves on to the position step. No DMX patch is
+/// asked for here.
+fn fixture_types(ui: &mut Ui, theme: &Theme, state: &mut State) {
+    section_heading(ui, theme, tr("type"));
+    ui.label(
+        RichText::new(tr("pick what the fixture is, then where it stands"))
+            .font(theme.font_small.clone())
+            .color(theme.ink_weak),
+    );
+    let mut picked: Option<StageKind> = None;
+    for row in StageKind::ALL.chunks(COLUMNS) {
+        let width = ui.available_width();
+        let size = card_size(ui, theme, width);
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(width, size.y), Sense::hover());
+        for (i, kind) in row.iter().enumerate() {
+            let kind = *kind;
+            let cell = Rect::from_min_size(
+                egui::Pos2::new(rect.left() + i as f32 * (size.x + theme.item_gap.x), rect.top()),
+                size,
+            );
+            let name = kind_name(kind.word());
+            let response = ui.interact(
+                cell,
+                Id::new(("shell/venue-popup/fixture-type", kind.word())),
+                Sense::click(),
+            );
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, name));
+            card(
+                ui,
+                theme,
+                cell,
+                response.hovered(),
+                name,
+                kind.word(),
+                |painter, preview| paint_kind(theme, painter, preview, kind),
+            );
+            if response.clicked() {
+                picked = Some(kind);
+            }
+        }
+    }
+    if picked.is_some() {
+        state.stage_kind = picked;
+    }
+    ui.add_space(theme.item_gap.y);
+}
+
+/// A type card's drawing: the type's chip letter in a disc, the same mark the
+/// hitbox grid puts on a fixture.
+fn paint_kind(theme: &Theme, painter: &egui::Painter, rect: Rect, kind: StageKind) {
+    painter.rect(
+        rect,
+        theme.corner_radius(),
+        theme.mask_outside,
+        theme.rule_stroke(),
+        egui::StrokeKind::Inside,
+    );
+    let centre = rect.center();
+    let radius = rect.height() * 0.3;
+    painter.circle_filled(centre, radius, theme.node_header);
+    painter.circle_stroke(centre, radius, theme.line_stroke(theme.phosphor));
+    painter.text(
+        centre,
+        Align2::CENTER_CENTER,
+        stage_view::letter(kind.word()),
+        theme.font_body.clone(),
+        theme.ink,
+    );
+}
+
+/// Step two, the position: the hitbox grid inside the gallery. The points a
+/// type may stand on are lit, the room's fixtures are chips in their cells, and
+/// a click on a point places an empty fixture of `kind` there. The back control
+/// returns to the type step.
+fn fixture_position(
+    ui: &mut Ui,
+    theme: &Theme,
+    door: &dyn Call,
+    state: &mut State,
+    venue_id: &str,
+    detail: &Option<Value>,
+    kind: StageKind,
+) {
+    section_heading(ui, theme, tr("position"));
+    ui.horizontal(|ui| {
+        if icon_button(ui, theme, Icon::Back, false, tr("back to the types")).clicked() {
+            state.stage_kind = None;
+        }
+        ui.label(
+            RichText::new(kind_name(kind.word()))
+                .font(theme.font_body.clone())
+                .color(theme.ink),
+        );
+    });
+    ui.label(
+        RichText::new(tr("click a point to place an empty fixture there; it is patched later"))
+            .font(theme.font_small.clone())
+            .color(theme.ink_weak),
+    );
+    let board = detail
+        .as_ref()
+        .map(|d| Board::from_stage(&d["stage"]))
+        .unwrap_or_default();
+    // The grid is wider than a narrow gallery: it scrolls sideways in its band.
+    let painted = egui::ScrollArea::horizontal()
+        .id_salt("shell/venue-popup/stage")
+        .auto_shrink([false, true])
+        .show(ui, |ui| stage_view::paint_grid(ui, theme, &board, Pointer::Place(kind)))
+        .inner;
+    if let Some(point) = painted.place {
+        match place_fixture(door, venue_id, kind, point) {
+            Ok(()) => state.note(trf("placed at {point}", &[("point", &point.word())])),
+            Err(e) => state.note(e),
+        }
+    }
+}
+
+/// Places one empty fixture of `kind` at `point`: the fixture route the
+/// Settings page posts, with no universe or address, so the fixture is patched
+/// later.
+fn place_fixture(door: &dyn Call, venue_id: &str, kind: StageKind, point: Point) -> Result<(), String> {
+    let body = json!({
+        "op": "fixture", "venue": venue_id,
+        "kind": kind.word(), "stage_point": point.word(),
+    });
+    door.json("POST", "/venue", Some(body))
+        .map(|_| ())
+        .map_err(|(status, _)| {
+            venue_failed(status)
+        })
+}
+
+/// The room's **registered** fixtures, by universe: what is already on the bus
+/// and wired into the scene. The list is the room's own patch (`GET /venue`'s
+/// `patch`, computed from each profile's channels), grouped by universe, so the
+/// popup and the room cannot disagree. Adding a patch is a room setting, so the
+/// form lives in Settings; this list only reads.
+fn registered_fixtures(
+    ui: &mut Ui,
+    theme: &Theme,
+    state: &mut State,
+    detail: &Option<Value>,
+    graph: &Value,
+) {
     let patch = detail
         .as_ref()
         .and_then(|d| d["patch"].as_array().cloned())
@@ -1786,8 +1969,7 @@ fn add_screen(
     });
     door.json("POST", "/venue", Some(body))
         .map_err(|(status, _)| {
-            let status = status.to_string();
-            trf("venue write failed: {status}", &[("status", &status)])
+            venue_failed(status)
         })?;
     if !projector {
         return Ok(id);
@@ -1884,8 +2066,7 @@ fn add_structure(
         });
         door.json("POST", "/venue", Some(body))
             .map_err(|(status, _)| {
-                let status = status.to_string();
-                trf("venue write failed: {status}", &[("status", &status)])
+                venue_failed(status)
             })?;
         ids.push(id);
     }
@@ -1933,6 +2114,17 @@ mod tests {
                 aspect_of(p)
             );
         }
+    }
+
+    /// A card's drawing fills its column less the card's own margins, at 16:9,
+    /// so the height a row reserves is the drawing's plus the two lines under it.
+    #[test]
+    fn a_card_drawing_fills_its_column() {
+        let theme = Theme::phosphor();
+        let w = 300.0;
+        let p = preview_size(&theme, w);
+        assert!((p.x + theme.card_margin().sum().x as f32 - w).abs() < 1e-3);
+        assert!((p.y * 16.0 - p.x * 9.0).abs() < 1e-3);
     }
 
     /// The lists are the ones the operator asked for: five televisions, then
@@ -2012,6 +2204,83 @@ mod tests {
         s.open("col", "v-2", 3);
         assert_eq!(s.tab, Tab::Screens, "another node starts on screens");
         assert!(s.name.is_empty());
+    }
+
+    /// The fixtures tab is two steps: the type cards first (nine, one per
+    /// `metal_stage` kind, no door call), then the position step, where a click
+    /// on a grid point posts one empty fixture of that kind at that point and
+    /// nothing else (no universe, no address). The back control returns to the
+    /// types.
+    #[test]
+    fn a_fixture_is_placed_in_two_steps() {
+        use egui_kittest::{kittest::{NodeT, Queryable}, Harness};
+        let door = std::rc::Rc::new(crate::shell::FakeDoor::new());
+        let theme = Theme::phosphor();
+        let mut state = State::default();
+        state.open("g", "v-1", 0);
+        state.set_tab(Tab::Fixtures);
+        let d = door.clone();
+        let th = theme.clone();
+        let mut h = Harness::builder()
+            .with_size(Vec2::new(1280.0, 800.0))
+            .build_ui_state(
+                move |ui, st: &mut State| {
+                    gallery(ui, &th, &d, st, "bar", &None, &json!({}));
+                },
+                state,
+            );
+        theme.apply(&h.ctx);
+        h.ctx.memory_mut(|m| m.options.input_options.max_click_duration = 3600.0);
+        h.run_steps(3);
+
+        let types: Vec<&str> = StageKind::ALL.iter().map(|k| kind_name(k.word())).collect();
+        for name in &types {
+            assert!(
+                h.get_all_by_role(egui::accesskit::Role::Button)
+                    .any(|n| n.accesskit_node().label().is_some_and(|l| l == *name)),
+                "no type card {name}"
+            );
+        }
+        assert!(door.calls.borrow().is_empty(), "the type step writes nothing");
+
+        let wash = kind_name("wash");
+        let at = h
+            .get_all_by_role(egui::accesskit::Role::Button)
+            .find(|n| n.accesskit_node().label().is_some_and(|l| l == wash))
+            .expect("the wash card")
+            .rect()
+            .center();
+        h.drag_at(at);
+        h.run();
+        h.drop_at(at);
+        h.run_steps(4);
+        assert!(door.calls.borrow().is_empty(), "choosing a type writes nothing");
+
+        let back = tr("back to the types");
+        assert!(
+            h.get_all_by_role(egui::accesskit::Role::Button)
+                .any(|n| n.accesskit_node().label().is_some_and(|l| l == back)),
+            "the position step has its back control"
+        );
+        let point = h.get_by_label("l2.back.l").rect().center();
+        h.drag_at(point);
+        h.run();
+        h.drop_at(point);
+        h.run_steps(4);
+
+        let posts: Vec<Value> = door
+            .calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/venue")
+            .map(|(_, _, params)| serde_json::from_slice(&params.body).unwrap())
+            .collect();
+        assert_eq!(posts.len(), 1, "one click, one fixture: {posts:?}");
+        assert_eq!(posts[0]["op"], "fixture");
+        assert_eq!(posts[0]["kind"], "wash");
+        assert_eq!(posts[0]["stage_point"], "l2.back.l");
+        assert!(posts[0].get("universe").is_none(), "no DMX universe: {}", posts[0]);
+        assert!(posts[0].get("address").is_none(), "no DMX address: {}", posts[0]);
     }
 
     /// Clicking a gallery card posts the screen(s) to the door.

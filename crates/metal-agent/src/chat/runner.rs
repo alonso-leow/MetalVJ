@@ -78,6 +78,9 @@ pub fn run_session_turn(
             &Request { system: None, messages, tools: &tools },
             &mut on_delta,
         )?;
+        if let Some(u) = step.usage.clone() {
+            sink(Event::Usage { input: u.input, output: u.output, model: u.model });
+        }
 
         // The call-free case: ask the gate before closing, exactly as the old
         // loop did (§I.4 "not done without looking").

@@ -194,6 +194,15 @@ pub struct Theme {
     /// Reserved for meaning, never decoration (`--warn` — the amber the era
     /// wants next to the red).
     pub warn: Color32,
+    /// The program (live) tally border on a monitor cell (`panels::monitor`).
+    /// Reserved for meaning, like `ok`.
+    pub tally: Color32,
+    /// The preview candidate's tally (the hovered monitor cell). Green, as the
+    /// program tally is red.
+    pub tally_preview: Color32,
+    /// The thickness of the Show split's drag bar, the room its orientation
+    /// toggle sits in (`panels::monitor::split_rects`).
+    pub split_handle: f32,
     /// The phosphor's glow, as a shadow colour: the accent at a whisper of
     /// alpha, per style, so a raised card lit itself in red rather than in
     /// generic grey haze.
@@ -211,6 +220,9 @@ pub struct Theme {
     pub packed_gap: f32,
     /// Width of an accent stroke (a focused edge), in points.
     pub accent_stroke: f32,
+    /// Width of the primary exit's outline ("Back to nodes"), in points: a
+    /// stroke heavier than an accent so the one way out reads first.
+    pub stroke_strong: f32,
     /// Corner radius of frames and widgets (`--radius`).
     pub radius: u8,
     /// Corner radius of inputs and buttons (inactive, hovered, active, open):
@@ -248,8 +260,22 @@ pub struct Theme {
     pub field_pad: Vec2,
     /// Height of the header bar, in points.
     pub header_height: f32,
+    /// Height of the persistent transport bar (W6), in points.
+    pub transport_height: f32,
+    /// Diameter of the transport bar's big play/pause disc, in points.
+    pub transport_play_size: f32,
+    /// Size of one square transport cell (prev / next / stop / loop).
+    pub transport_cell_size: Vec2,
+    /// The gap between the transport's cells: none, so the groups stay tight.
+    pub transport_cell_gap: Vec2,
     /// Minimum size of an interactive widget.
     pub interact_size: Vec2,
+    /// The prompt drawer's grab handle: its width and height, in points.
+    pub drawer_grip: Vec2,
+    /// How long the prompt drawer takes to settle on a snap point, in seconds.
+    pub drawer_settle: f32,
+    /// The context meter's bar height, in points.
+    pub meter_h: f32,
 
     // --- type -----------------------------------------------------------
     /// The wordmark and panel kickers.
@@ -461,6 +487,18 @@ pub struct Theme {
     /// is a duration and not a frame count: a kittest test drives it by
     /// advancing that same clock (`kittest.rs`'s `press_and_hold`).
     pub long_press: f32,
+    /// Width of one toast card (`toasts.rs`): the logger's stack and log.
+    pub toast_width: f32,
+    /// Height of one toast card; its text is cut to fit.
+    pub toast_height: f32,
+    /// Vertical offset of each older toast peeking behind the newest.
+    pub toast_peek: f32,
+    /// Scale lost per card behind the newest (`toasts.rs` stack).
+    pub toast_shrink: f32,
+    /// Gap between the toast stack and the window's bottom-right corner.
+    pub toast_inset: f32,
+    /// Seconds a toast takes to slide in, fan out, or collapse.
+    pub toast_anim_secs: f32,
     /// Height of the nodes canvas's own control bar — the strip just above
     /// the canvas surface that carries play/pause, zoom, `+ node`, undo.
     /// The selected node's own verbs (bypass/solo/duplicar/quitar) sit on
@@ -801,12 +839,16 @@ impl Theme {
             soft_dim: Color32::from_rgb(0x6a, 0x70, 0x79),
             ok: Color32::from_rgb(0x6f, 0xbf, 0x8f),
             warn: Color32::from_rgb(0xd9, 0xa4, 0x41),
+            tally: Color32::from_rgb(0xe0, 0x4b, 0x4b),
+            tally_preview: Color32::from_rgb(0x4b, 0xd0, 0x6a),
+            split_handle: 18.0,
             glow: Color32::from_rgba_unmultiplied(0xff, 0x2e, 0x2e, 0x24),
             rule: Color32::from_rgb(0x1c, 0x1c, 0x20),
             rule_bright: Color32::from_rgb(0x2c, 0x2c, 0x33),
             hairline: 1.0,
             packed_gap: 0.0,
             accent_stroke: 1.0,
+            stroke_strong: 2.0,
             radius: 0,
             field_radius: 0,
             menu_radius: 0,
@@ -820,7 +862,14 @@ impl Theme {
             wordmark_gap: Vec2::ZERO,
             field_pad: Vec2::new(10.0, 6.0),
             header_height: 40.0,
+            transport_height: 64.0,
+            transport_play_size: 44.0,
+            transport_cell_size: Vec2::new(36.0, 36.0),
+            transport_cell_gap: Vec2::ZERO,
             interact_size: Vec2::new(40.0, 30.0),
+            drawer_grip: Vec2::new(36.0, 4.0),
+            drawer_settle: 0.28,
+            meter_h: 4.0,
             font_heading: FontId::new(13.0, FontFamily::Monospace),
             font_body: FontId::new(12.0, FontFamily::Monospace),
             font_small: FontId::new(10.0, FontFamily::Monospace),
@@ -888,6 +937,12 @@ impl Theme {
             sidebar_min_width: 220.0,
             sidebar_max_share: 0.5,
             long_press: 0.35,
+            toast_width: 300.0,
+            toast_height: 52.0,
+            toast_peek: 8.0,
+            toast_shrink: 0.05,
+            toast_inset: 12.0,
+            toast_anim_secs: 0.2,
             canvas_bar_height: 26.0,
             panel_head_height: 26.0,
             compact_row_height: 22.0,
@@ -1048,12 +1103,16 @@ impl Theme {
             soft_dim: Color32::from_rgb(0x9a, 0xa0, 0xa8),
             ok: Color32::from_rgb(0x2f, 0x8f, 0x5b),
             warn: Color32::from_rgb(0xb5, 0x7a, 0x1e),
+            tally: Color32::from_rgb(0xe0, 0x4b, 0x4b),
+            tally_preview: Color32::from_rgb(0x4b, 0xd0, 0x6a),
+            split_handle: 18.0,
             glow: Color32::from_rgba_unmultiplied(0x4a, 0x0f, 0x0f, 0x20),
             rule: Color32::from_rgb(0xdd, 0xd0, 0xca),
             rule_bright: Color32::from_rgb(0xc2, 0xad, 0xa6),
             hairline: 1.0,
             packed_gap: 0.0,
             accent_stroke: 1.0,
+            stroke_strong: 2.0,
             radius: 0,
             field_radius: 0,
             menu_radius: 0,
@@ -1067,7 +1126,14 @@ impl Theme {
             wordmark_gap: Vec2::ZERO,
             field_pad: Vec2::new(10.0, 6.0),
             header_height: 40.0,
+            transport_height: 64.0,
+            transport_play_size: 44.0,
+            transport_cell_size: Vec2::new(36.0, 36.0),
+            transport_cell_gap: Vec2::ZERO,
             interact_size: Vec2::new(40.0, 30.0),
+            drawer_grip: Vec2::new(36.0, 4.0),
+            drawer_settle: 0.28,
+            meter_h: 4.0,
             font_heading: FontId::new(13.0, FontFamily::Monospace),
             font_body: FontId::new(12.0, FontFamily::Monospace),
             font_small: FontId::new(10.0, FontFamily::Monospace),
@@ -1135,6 +1201,12 @@ impl Theme {
             sidebar_min_width: 220.0,
             sidebar_max_share: 0.5,
             long_press: 0.35,
+            toast_width: 300.0,
+            toast_height: 52.0,
+            toast_peek: 8.0,
+            toast_shrink: 0.05,
+            toast_inset: 12.0,
+            toast_anim_secs: 0.2,
             canvas_bar_height: 26.0,
             panel_head_height: 26.0,
             compact_row_height: 22.0,
@@ -1371,12 +1443,16 @@ impl Theme {
             soft_dim: Color32::from_rgb(0x9a, 0x5b, 0x4a),
             ok: Color32::from_rgb(0x2f, 0x8f, 0x5b),
             warn: Color32::from_rgb(0xa3, 0x6a, 0x12),
+            tally: Color32::from_rgb(0xe0, 0x4b, 0x4b),
+            tally_preview: Color32::from_rgb(0x4b, 0xd0, 0x6a),
+            split_handle: 18.0,
             glow: Color32::from_rgba_unmultiplied(0x1f, 0x5f, 0xd6, 0x20),
             rule: Color32::from_rgb(0xc8, 0xc8, 0xc0),
             rule_bright: Color32::from_rgb(0x9a, 0x9a, 0x90),
             hairline: 2.0,
             packed_gap: 0.0,
             accent_stroke: 3.0,
+            stroke_strong: 4.0,
             radius: 8,
             field_radius: 8,
             menu_radius: 10,
@@ -1390,7 +1466,14 @@ impl Theme {
             wordmark_gap: Vec2::new(2.0, 0.0),
             field_pad: Vec2::new(10.0, 6.0),
             header_height: 56.0,
+            transport_height: 72.0,
+            transport_play_size: 52.0,
+            transport_cell_size: Vec2::new(44.0, 44.0),
+            transport_cell_gap: Vec2::ZERO,
             interact_size: Vec2::new(56.0, 30.0),
+            drawer_grip: Vec2::new(36.0, 4.0),
+            drawer_settle: 0.28,
+            meter_h: 4.0,
             font_heading: FontId::new(18.0, FontFamily::Proportional),
             font_body: FontId::new(15.0, FontFamily::Proportional),
             font_small: FontId::new(12.0, FontFamily::Proportional),
@@ -1458,6 +1541,12 @@ impl Theme {
             sidebar_min_width: 220.0,
             sidebar_max_share: 0.5,
             long_press: 0.5,
+            toast_width: 300.0,
+            toast_height: 52.0,
+            toast_peek: 8.0,
+            toast_shrink: 0.05,
+            toast_inset: 12.0,
+            toast_anim_secs: 0.2,
             canvas_bar_height: 34.0,
             panel_head_height: 26.0,
             compact_row_height: 22.0,
@@ -1640,9 +1729,36 @@ impl Theme {
         Stroke::new(self.hairline, self.rule_bright)
     }
 
+    /// A stroke of the strong width in `color`: the primary exit's outline.
+    pub fn strong_stroke(&self, color: Color32) -> Stroke {
+        Stroke::new(self.stroke_strong, color)
+    }
+
     /// The phosphor as a stroke.
     pub fn accent(&self) -> Stroke {
         Stroke::new(self.accent_stroke, self.phosphor)
+    }
+
+    /// A multiview cell's tally edge: `color` at three accent widths.
+    pub fn tally_stroke(&self, color: Color32) -> Stroke {
+        Stroke::new(self.accent_stroke * 3.0, color)
+    }
+
+    /// `color` at a computed `width` (fixture glyph segments whose width is
+    /// derived from the fixture's own geometry, not a theme constant).
+    pub fn sized_stroke(width: f32, color: Color32) -> Stroke {
+        Stroke::new(width, color)
+    }
+
+    /// `color` at the hairline width (toast cards' level edge).
+    pub fn hairline_stroke(&self, color: Color32) -> Stroke {
+        Stroke::new(self.hairline, color)
+    }
+
+    /// The inset of a caption drawn at a cell's bottom-left corner: one item
+    /// gap in, one up.
+    pub fn caption_inset(&self) -> egui::Vec2 {
+        egui::vec2(self.item_gap.x, -self.item_gap.y)
     }
 
     /// `color` at a hairline width — the ingest lane's line plot
@@ -2445,6 +2561,10 @@ fn theme_slot() -> egui::Id {
 /// pixels — every consumer (`kittest.rs`'s five-viewport suite, this file's
 /// own `arrangement` unit test) iterates this array rather than writing the
 /// count down a second time (regla 7).
+/// The small harness the Monitor panel's tests lay out in.
+#[cfg(test)]
+pub const SMALL_HARNESS: (f32, f32) = (800.0, 600.0);
+
 pub const VIEWPORTS: [(&str, f32, f32); 5] = [
     ("desktop", 1600.0, 950.0),
     ("laptop", 1180.0, 800.0),
@@ -3058,4 +3178,14 @@ pub fn glyph_font(size: f32) -> egui::FontId {
 pub fn rgb_color(c: [f32; 3]) -> Color32 {
     let byte = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
     Color32::from_rgb(byte(c[0]), byte(c[1]), byte(c[2]))
+}
+
+/// Pack a row's widgets edge to edge (no horizontal item gap).
+pub fn pack_row(ui: &mut egui::Ui) {
+    ui.spacing_mut().item_spacing.x = 0.0;
+}
+
+/// Pack a column's widgets edge to edge (no vertical item gap).
+pub fn pack_column(ui: &mut egui::Ui) {
+    ui.spacing_mut().item_spacing.y = 0.0;
 }

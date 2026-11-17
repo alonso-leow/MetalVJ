@@ -8,7 +8,7 @@
 
 use serde_json::{json, Value};
 
-use crate::chat::message::{ChatMessage, ToolCallState};
+use crate::chat::message::{ChatMessage, ToolCallState, Usage};
 use crate::chat::provider::{Delta, Provider, Request};
 use crate::chat::retry::{ErrorKind, ProviderError};
 
@@ -79,10 +79,24 @@ impl Provider for Anthropic {
 
         let mut text = String::new();
         let mut calls: Vec<PartialCall> = Vec::new();
+        // Anthropic reports input tokens on `message_start` and the running
+        // output count on `message_delta`.
+        let mut seen = Usage { model: self.model.clone(), ..Usage::default() };
         let outcome = crate::http::post_stream(&self.url, &headers, &body, |data| {
             let Ok(event) = serde_json::from_str::<Value>(data) else { return };
             let Some(kind) = event["type"].as_str() else { return };
             match kind {
+                "message_start" => {
+                    if let Some(u) = usage_json(&event["message"]["usage"], &self.model) {
+                        seen.input = u.input;
+                        seen.output = u.output;
+                    }
+                }
+                "message_delta" => {
+                    if let Some(o) = event["usage"]["output_tokens"].as_u64() {
+                        seen.output = o;
+                    }
+                }
                 "content_block_start" => {
                     let block = &event["content_block"];
                     if block["type"] == "tool_use" {
@@ -132,8 +146,14 @@ impl Provider for Anthropic {
         });
 
         match outcome {
-            Ok(crate::http::StreamOrJson::Sse(_)) => Ok(assemble(&text, calls)),
-            Ok(crate::http::StreamOrJson::Json(response)) => handle_response(response),
+            Ok(crate::http::StreamOrJson::Sse(_)) => {
+                let mut message = assemble(&text, calls);
+                message.usage = (seen.input + seen.output > 0).then_some(seen);
+                Ok(message)
+            }
+            Ok(crate::http::StreamOrJson::Json(response)) => {
+                handle_response(response, &self.model)
+            }
             Err(e) => Err(ProviderError::new(classify_transport(&e), e)),
         }
     }
@@ -151,11 +171,14 @@ impl Anthropic {
     ) -> Result<ChatMessage, ProviderError> {
         let response = crate::http::post_json(&self.url, headers, body)
             .map_err(|e| ProviderError::new(ErrorKind::Network, e))?;
-        handle_response(response)
+        handle_response(response, &self.model)
     }
 }
 
-fn handle_response(response: crate::http::HttpResponse) -> Result<ChatMessage, ProviderError> {
+fn handle_response(
+    response: crate::http::HttpResponse,
+    model: &str,
+) -> Result<ChatMessage, ProviderError> {
     if !(200..300).contains(&response.status) {
         let mut err = ProviderError::status(response.status, body_message(&response.body));
         err.retry_after = response
@@ -167,7 +190,20 @@ fn handle_response(response: crate::http::HttpResponse) -> Result<ChatMessage, P
     let value = response
         .json()
         .ok_or_else(|| ProviderError::new(ErrorKind::Other, "provider response was not JSON"))?;
-    parse_step(&value)
+    let mut message = parse_step(&value)?;
+    message.usage = usage_json(&value["usage"], model);
+    Ok(message)
+}
+
+/// The token usage of an Anthropic `usage` object: input (fresh + cache
+/// writes + cache reads) and output. `None` when the object reports nothing.
+fn usage_json(u: &Value, model: &str) -> Option<Usage> {
+    let input = ["input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"]
+        .iter()
+        .map(|k| u[*k].as_u64().unwrap_or(0))
+        .sum();
+    let output = u["output_tokens"].as_u64().unwrap_or(0);
+    (input + output > 0).then(|| Usage { input, output, model: model.to_string() })
 }
 
 struct PartialCall {

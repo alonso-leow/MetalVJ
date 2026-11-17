@@ -61,12 +61,14 @@ pub mod panels;
 pub mod present;
 pub mod preview;
 mod perf_hud;
+pub mod toasts;
 mod graph_writer;
 mod lane_worker;
 mod reads;
 pub mod restricted;
 pub mod song_pull;
 pub mod timeline;
+mod transport;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod window;
 
@@ -107,9 +109,12 @@ use panels::{chat, library, nodes, properties, settings, Region, Selection};
 /// comment on the matter), so it does not belong in `classes.rs`'s `Theme`.
 pub(crate) const DESKTOP_VIEWPORT: (f64, f64) = (1600.0, 950.0);
 
-/// The header's Edit|Show toggle (`header.rs`). `Edit` is the whole shell;
+/// The header's view dropdown (`header.rs`). `Edit` is the whole shell;
 /// `Show` paints only the header and the overlays grid over the full area,
 /// for playing a show (no sidebars, no graph canvas, no region ceding).
+/// `Timeline` is the edit shell with the lanes timeline as its main area.
+/// `Monitor` replaces the main area with the multiview grid (`panels::monitor`);
+/// `ShowMonitor` splits the Show grid and the multiview with a draggable bar.
 /// Persisted through `call::settings` as `"shell_view"`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ShellView {
@@ -118,24 +123,42 @@ pub enum ShellView {
     Show,
     /// The sequence (lanes) component over the whole area.
     Timeline,
+    /// The multiview grid (cameras, nodes, outputs) as the main area.
+    Monitor,
+    /// The Show grid and the multiview, split.
+    ShowMonitor,
 }
 
 impl ShellView {
-    /// The wire strings `call::settings` accepts, in toggle order — one
+    /// The wire strings `call::settings` accepts, in dropdown order — one
     /// vocabulary spelled once here, checked against the route by a test.
-    pub const CODES: [&'static str; 3] = ["edit", "show", "timeline"];
+    pub const CODES: [&'static str; 5] = ["edit", "show", "timeline", "monitor", "show_monitor"];
+
+    /// Every view, in the same order as [`Self::CODES`].
+    pub const ALL: [ShellView; 5] = [
+        ShellView::Edit,
+        ShellView::Show,
+        ShellView::Timeline,
+        ShellView::Monitor,
+        ShellView::ShowMonitor,
+    ];
 
     pub fn code(self) -> &'static str {
         Self::CODES[self as usize]
     }
 
     pub fn parse(s: &str) -> Option<Self> {
-        match s {
-            "edit" => Some(ShellView::Edit),
-            "show" => Some(ShellView::Show),
-            "timeline" => Some(ShellView::Timeline),
-            _ => None,
-        }
+        Self::ALL.into_iter().find(|v| v.code() == s)
+    }
+
+    /// The Show grid is the main area (`Show`, `ShowMonitor`).
+    pub fn is_show(self) -> bool {
+        matches!(self, ShellView::Show | ShellView::ShowMonitor)
+    }
+
+    /// The multiview grid is on screen (`Monitor`, `ShowMonitor`).
+    pub fn has_monitor(self) -> bool {
+        matches!(self, ShellView::Monitor | ShellView::ShowMonitor)
     }
 }
 
@@ -301,6 +324,9 @@ pub struct Shell {
     /// cache, refreshed once a second through the door.
     pairing: panels::pairing::PanelState,
     pairing_open: bool,
+    /// The toast logger (W3): live toasts and the log ring buffer. Filled
+    /// from [`toasts::notify`] once per frame.
+    pub(crate) toasts: toasts::Toasts,
     /// The header's own state (`P4`): the `colecciones` menu's inline rename
     /// and "save current to" form, moved out of the library panel.
     header: header::PanelState,
@@ -322,6 +348,9 @@ pub struct Shell {
     /// (`enter_show`). `POST /monitor` spawns a process and does not dedupe,
     /// so this set is what keeps a second entry from opening a second window.
     opened_monitors: HashSet<String>,
+    /// The multiview grid and the Show split's ratio and orientation
+    /// (`panels::monitor`).
+    monitor: panels::monitor::PanelState,
     /// The config file the layout is remembered in, once the app has set one
     /// (`remember_layout`). `None` in tests: nothing is ever written then.
     layout_file: Option<std::path::PathBuf>,
@@ -374,6 +403,7 @@ impl Shell {
             favorites: favorites::Store::load(&favorites::path()),
             pairing: panels::pairing::PanelState::default(),
             pairing_open: false,
+            toasts: toasts::Toasts::default(),
             header: header::PanelState::default(),
             keybinds: keybinds::Keybinds::load(),
             grid_triggers: Vec::new(),
@@ -384,6 +414,7 @@ impl Shell {
             layout_seed: None,
             layout_settle: None,
             opened_monitors: HashSet::new(),
+            monitor: panels::monitor::PanelState::default(),
         }
     }
 
@@ -1038,21 +1069,22 @@ impl Shell {
         // first frame that paints — never before (`enter_show`).
         if !self.view_synced {
             self.view_synced = true;
-            match self.settings.shell_view() {
-                ShellView::Show => {
-                    self.view = ShellView::Show;
-                    self.enter_show();
-                }
-                ShellView::Timeline => {
-                    self.view = ShellView::Timeline;
-                    self.lanes.force_mode(lanes::Mode::Lanes);
-                }
-                ShellView::Edit => {}
+            let saved = self.settings.shell_view();
+            self.view = saved;
+            if saved == ShellView::Timeline {
+                self.lanes.force_mode(lanes::Mode::Lanes);
+            }
+            if saved.is_show() {
+                self.enter_show();
             }
         }
         if let Some(error) = self.graph_writes.as_ref().and_then(|w| w.take_errors().pop()) {
+            toasts::error(error.clone());
             self.properties.set_write_note(error);
         }
+        let now = ui.input(|i| i.time);
+        self.toasts.drain(now);
+        self.toasts.tick(ui.input(|i| i.stable_dt));
         self.sync_layout(ui.ctx());
         self.pairing.refresh_due(self.door.as_ref(), std::time::Instant::now());
         if self.pairing.busy() {
@@ -1118,6 +1150,24 @@ impl Shell {
             })
             .inner;
 
+        // The spacebar (W6): one key in every view. It plays or pauses the
+        // sequence (`lanes::tick`) and toggles the transport freeze, exactly
+        // as before, unless a text field has the keyboard.
+        let space_pressed = ui.input(|i| i.key_pressed(egui::Key::Space));
+        let text_field_focused = ui.memory(|m| m.focused().is_some());
+        let toggled_by_space = space_pressed && !text_field_focused;
+        // The playback tick (W6): once per frame, in every view.
+        lanes_panel::tick(ui.ctx(), header_door, &mut self.ingest, &mut self.lanes, toggled_by_space);
+
+        // W6: the transport bar, under every view. Declared before the central
+        // area (egui needs the bottom panels first); the phone gets the compact form.
+        Panel::bottom(Id::new("shell/transport"))
+            .exact_size(theme.transport_height)
+            .frame(header_frame(&theme))
+            .show(ui, |ui| {
+                transport::paint(ui, &theme, header_door, &mut self.ingest, !arrangement.is_full_grid());
+            });
+
         if events.sidebar_toggled {
             self.library_sidebar_open = !self.library_sidebar_open;
         }
@@ -1155,7 +1205,7 @@ impl Shell {
             if view != self.view {
                 self.view = view;
                 self.settings.set_shell_view(self.door.as_ref(), view);
-                if view == ShellView::Show {
+                if view.is_show() {
                     self.enter_show();
                 }
                 if view == ShellView::Timeline {
@@ -1164,7 +1214,18 @@ impl Shell {
             }
         }
         let timeline = self.view == ShellView::Timeline;
-        let show = self.view != ShellView::Edit;
+        let show = self.view.is_show();
+        // Show and Timeline paint their component alone: no harness, no
+        // properties overlay. Edit and Monitor keep the chrome.
+        let bare = !matches!(self.view, ShellView::Edit | ShellView::Monitor);
+        if events.log_toggled {
+            self.toasts.log_open = !self.toasts.log_open;
+        }
+        if let Some(node) = toasts::log_window(ui.ctx(), &theme, &mut self.toasts) {
+            self.nodes.open_graph(&*self.door, &node.graph);
+            self.selection = Selection::Node(node.node);
+        }
+        toasts::paint(ui.ctx(), &theme, &mut self.toasts);
         if events.pairing_toggled {
             self.pairing_open = !self.pairing_open;
         }
@@ -1183,7 +1244,7 @@ impl Shell {
         // `classes::Arrangement::harness`'s own doc comment). Its overlay
         // form (`Placement::Delegated`, phone-sized) paints later instead,
         // after the grid, the same way properties' overlay does below.
-        if self.harness_open && !show {
+        if self.harness_open && !bare {
             let chat_selection = self.chat_selection();
             let width = theme.sidebar_width(viewport.x);
             let (min, max) = theme.sidebar_bounds(viewport.x);
@@ -1273,7 +1334,7 @@ impl Shell {
         // The release of the hold that opened the overlay is a click outside
         // it; that one click must not close what it just opened.
         let hold_releasing = released && self.properties_hold_opened_overlay;
-        if content_held && !show && arrangement.properties == Placement::Delegated && !self.properties_hold_opened_overlay {
+        if content_held && !bare && arrangement.properties == Placement::Delegated && !self.properties_hold_opened_overlay {
             self.properties_overlay_open = true;
             self.properties_hold_opened_overlay = true;
         }
@@ -1306,10 +1367,6 @@ impl Shell {
         // registers itself under when clicked, which is what
         // `debug_text_focus_probe` exercises for real in `kittest.rs`
         // rather than standing in for it.
-        let space_pressed = ui.input(|i| i.key_pressed(egui::Key::Space));
-        let text_field_focused = ui.memory(|m| m.focused().is_some());
-        let toggled_by_space = space_pressed && !text_field_focused;
-
         if self.debug_text_focus_probe {
             let id = Id::new("shell/debug/text-probe");
             let mut buf = String::new();
@@ -1358,17 +1415,37 @@ impl Shell {
             // `Show`: the overlays grid alone, over the whole central area.
             // Regions, sidebars and the properties overlay are not painted, so
             // no region has a rect this frame (`region_rects` reads these).
+            // `ShowMonitor` splits that area with the multiview (W2).
+            self.rects.clear();
+            let split = self.view.has_monitor();
+            CentralPanel::default_margins()
+                .frame(ground_frame(&theme))
+                .show(ui, |ui| {
+                    if split {
+                        let (show_rect, monitor_rect) = panels::monitor::split_rects(ui, &theme, door, &mut self.monitor, self.nodes.selected_graph());
+                        ui.scope_builder(egui::UiBuilder::new().max_rect(show_rect), |ui| {
+                            lanes_panel::paint_show_grid(ui, &theme, door, &mut self.lanes, self.nodes.selected_graph());
+                        });
+                        ui.scope_builder(egui::UiBuilder::new().max_rect(monitor_rect), |ui| {
+                            panels::monitor::paint_grid(ui, &theme, door, &mut self.monitor, self.nodes.selected_graph());
+                        });
+                    } else {
+                        lanes_panel::paint_show_grid(
+                            ui,
+                            &theme,
+                            door,
+                            &mut self.lanes,
+                            self.nodes.selected_graph(),
+                        );
+                    }
+                });
+        } else if self.view == ShellView::Monitor {
+            // `Monitor`: the multiview is the main area; the chrome stays.
             self.rects.clear();
             CentralPanel::default_margins()
                 .frame(ground_frame(&theme))
                 .show(ui, |ui| {
-                    lanes_panel::paint_show_grid(
-                        ui,
-                        &theme,
-                        door,
-                        &mut self.lanes,
-                        self.nodes.selected_graph(),
-                    );
+                    panels::monitor::paint_grid(ui, &theme, door, &mut self.monitor, self.nodes.selected_graph());
                 });
         } else {
             CentralPanel::default_margins()
@@ -1448,7 +1525,7 @@ impl Shell {
         // outside it (`Response::clicked_elsewhere`) — never by letting go
         // of the long-press button, so a still-held press does not fight a
         // user who has started reading the panel.
-        if arrangement.properties == Placement::Delegated && self.properties_overlay_open && !show {
+        if arrangement.properties == Placement::Delegated && self.properties_overlay_open && !bare {
             let escape = ui.input(|i| i.key_pressed(egui::Key::Escape));
             let overlay_focus = self.lanes.focused_overlay_name().map(str::to_string);
             let lanes_focused = self.focus == Some(Region::Lanes);

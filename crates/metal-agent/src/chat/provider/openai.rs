@@ -6,7 +6,7 @@
 
 use serde_json::{json, Value};
 
-use crate::chat::message::{ChatMessage, ToolCallState};
+use crate::chat::message::{ChatMessage, ToolCallState, Usage};
 use crate::chat::provider::{Delta, Provider, Request};
 use crate::chat::retry::{ErrorKind, ProviderError};
 
@@ -42,6 +42,8 @@ impl OpenAiCompat {
         });
         if self.stream {
             body["stream"] = json!(true);
+            // Without this the final SSE chunk carries no `usage` object.
+            body["stream_options"] = json!({ "include_usage": true });
         }
         if !req.tools.is_empty() {
             body["tools"] = Value::Array(req.tools.to_vec());
@@ -67,11 +69,16 @@ impl Provider for OpenAiCompat {
 
         let mut text = String::new();
         let mut calls: Vec<PartialCall> = Vec::new();
+        let mut seen = Usage { model: self.model.clone(), ..Usage::default() };
         let outcome = crate::http::post_stream(&self.url, &headers, &body, |data| {
             if data == "[DONE]" {
                 return;
             }
             let Ok(chunk) = serde_json::from_str::<Value>(data) else { return };
+            // The usage chunk arrives last, with an empty `choices` array.
+            if let Some(u) = usage_openai(&chunk["usage"], &self.model) {
+                seen = u;
+            }
             let Some(delta) = chunk["choices"].get(0).and_then(|c| c.get("delta")) else {
                 return;
             };
@@ -105,8 +112,14 @@ impl Provider for OpenAiCompat {
         });
 
         match outcome {
-            Ok(crate::http::StreamOrJson::Sse(_)) => Ok(assemble(&text, calls)),
-            Ok(crate::http::StreamOrJson::Json(response)) => handle_response(response),
+            Ok(crate::http::StreamOrJson::Sse(_)) => {
+                let mut message = assemble(&text, calls);
+                message.usage = (seen.input + seen.output > 0).then_some(seen);
+                Ok(message)
+            }
+            Ok(crate::http::StreamOrJson::Json(response)) => {
+                handle_response(response, &self.model)
+            }
             Err(e) => Err(ProviderError::new(classify_transport(&e), e)),
         }
     }
@@ -124,7 +137,7 @@ impl OpenAiCompat {
     ) -> Result<ChatMessage, ProviderError> {
         let response = crate::http::post_json(&self.url, headers, body)
             .map_err(|e| ProviderError::new(ErrorKind::Network, e))?;
-        handle_response(response)
+        handle_response(response, &self.model)
     }
 }
 
@@ -132,6 +145,7 @@ impl OpenAiCompat {
 /// `Retry-After` when the provider sent one).
 fn handle_response(
     response: crate::http::HttpResponse,
+    model: &str,
 ) -> Result<ChatMessage, ProviderError> {
     if !(200..300).contains(&response.status) {
         let mut err = ProviderError::status(response.status, body_message(&response.body));
@@ -144,7 +158,17 @@ fn handle_response(
     let value = response
         .json()
         .ok_or_else(|| ProviderError::new(ErrorKind::Other, "provider response was not JSON"))?;
-    parse_step(&value)
+    let mut message = parse_step(&value)?;
+    message.usage = usage_openai(&value["usage"], model);
+    Ok(message)
+}
+
+/// The token usage of a chat-completions `usage` object (`prompt_tokens` in,
+/// `completion_tokens` out). `None` when the object is absent or empty.
+fn usage_openai(u: &Value, model: &str) -> Option<Usage> {
+    let input = u["prompt_tokens"].as_u64()?;
+    let output = u["completion_tokens"].as_u64().unwrap_or(0);
+    Some(Usage { input, output, model: model.to_string() })
 }
 
 struct PartialCall {

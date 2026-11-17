@@ -13,13 +13,15 @@
 //! which asks `metal_perform::stage::patch_of`): the panel never re-derives a
 //! placement from the venue file (rule 9).
 //!
-//! It is shown in two places, one body: the `hitbox` folder of a `venue.fixtures`
-//! node's properties page ([`section`]) and the venue canvas's `stage hitbox`
-//! toggle ([`super::venue_canvas`]).
+//! It is drawn by one grid, [`paint_grid`], in two places: the `hitbox` folder
+//! of a `venue.fixtures` node's properties page ([`section`], which pins chips by
+//! drag) and the fixtures tab's position step in the gallery ([`super::venue_popup`],
+//! which places a new fixture by click). The venue canvas never draws it.
 
 use std::collections::BTreeMap;
 
 use egui::{Align2, Id, Pos2, Rect, RichText, Sense, Ui, UiBuilder};
+use metal_stage::names::Kind as StageKind;
 use metal_stage::{Col, Level, Point, Row};
 use serde_json::{json, Value};
 
@@ -140,6 +142,32 @@ fn level_name(level: Level) -> &'static str {
     }
 }
 
+/// What a paint of the grid does with the pointer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Pointer {
+    /// The hitbox view: a chip dragged onto another cell pins its fixture there.
+    Pin,
+    /// The gallery's position step: the points a type may stand on are lit,
+    /// and a click on one places a fixture of that type there.
+    Place(StageKind),
+}
+
+/// What one paint of the grid asked for this frame.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Painted {
+    /// `(fixture, point)`: a chip dropped on another cell ([`Pointer::Pin`]).
+    pub pin: Option<(String, Point)>,
+    /// The point a click landed on ([`Pointer::Place`]).
+    pub place: Option<Point>,
+}
+
+/// Whether a fixture of `kind` may stand at `point`. The grid says which points
+/// exist; no type is refused one yet, so every point of the grid is valid for
+/// every type until `metal_stage` records a rule that narrows it.
+pub(crate) fn valid_for(_kind: StageKind, point: Point) -> bool {
+    point.valid()
+}
+
 /// The point a drop at `pos` lands on: the cell that holds it, if any.
 pub(crate) fn pin_target(cells: &[(Point, Rect)], pos: Pos2) -> Option<Point> {
     cells.iter().find(|(_, rect)| rect.contains(pos)).map(|(point, _)| *point)
@@ -180,7 +208,7 @@ pub(crate) fn show(ui: &mut Ui, theme: &Theme, door: &dyn Call, venue_id: &str) 
         note(ui, theme, &trf("could not pin the fixture: {error}", &[("error", &error)]));
     }
 
-    if let Some((fixture, point)) = paint_grid(ui, theme, &board) {
+    if let Some((fixture, point)) = paint_grid(ui, theme, &board, Pointer::Pin).pin {
         let body = json!({
             "op": "fixture", "venue": venue_id,
             "id": fixture, "stage_point": point.word(),
@@ -197,12 +225,15 @@ pub(crate) fn show(ui: &mut Ui, theme: &Theme, door: &dyn Call, venue_id: &str) 
     }
 }
 
-/// Paints the levels side by side and returns the pin a finished drag asks
-/// for, if the chip was dropped on a different cell of the grid.
-fn paint_grid(ui: &mut Ui, theme: &Theme, board: &Board) -> Option<(String, Point)> {
+/// Paints the three levels side by side, every point a cell, the chips in their
+/// cells. The pointer does what `pointer` says: a finished chip drag names the
+/// pin the gallery and the hitbox view post, or a click names the point a type
+/// is placed at.
+pub(crate) fn paint_grid(ui: &mut Ui, theme: &Theme, board: &Board, pointer: Pointer) -> Painted {
     let mut cells: Vec<(Point, Rect)> = Vec::new();
     // (fixture id, pointer position) of a chip whose drag ended this frame.
     let mut dropped: Option<(String, Pos2)> = None;
+    let mut clicked: Option<Point> = None;
     ui.horizontal_top(|ui| {
         for level in Level::ALL {
             ui.vertical(|ui| {
@@ -222,7 +253,7 @@ fn paint_grid(ui: &mut Ui, theme: &Theme, board: &Board) -> Option<(String, Poin
                     }
                     ui.horizontal(|ui| {
                         for point in points {
-                            let rect = cell(ui, theme, point, board, &mut dropped);
+                            let rect = cell(ui, theme, point, board, pointer, &mut dropped, &mut clicked);
                             cells.push((point, rect));
                         }
                     });
@@ -231,33 +262,58 @@ fn paint_grid(ui: &mut Ui, theme: &Theme, board: &Board) -> Option<(String, Poin
         }
     });
 
-    let (fixture, pos) = dropped?;
-    let target = pin_target(&cells, pos)?;
-    let from = board
-        .cells
-        .iter()
-        .find(|(_, chips)| chips.iter().any(|c| c.fixture == fixture))
-        .map(|(point, _)| *point);
-    (from != Some(target)).then_some((fixture, target))
+    let place = clicked;
+    let Some((fixture, pos)) = dropped else {
+        return Painted { pin: None, place };
+    };
+    let pin = pin_target(&cells, pos).and_then(|target| {
+        let from = board
+            .cells
+            .iter()
+            .find(|(_, chips)| chips.iter().any(|c| c.fixture == fixture))
+            .map(|(point, _)| *point);
+        (from != Some(target)).then_some((fixture, target))
+    });
+    Painted { pin, place }
 }
 
 /// One grid cell: its count, its chips, the point on hover. A cell lit while
-/// a chip is dragged over it.
+/// a chip is dragged over it, and, while a type is being placed, a valid point
+/// for that type is lit and a click on it is recorded in `clicked`.
 fn cell(
     ui: &mut Ui,
     theme: &Theme,
     point: Point,
     board: &Board,
+    pointer: Pointer,
     dropped: &mut Option<(String, Pos2)>,
+    clicked: &mut Option<Point>,
 ) -> Rect {
-    let (rect, response) = ui.allocate_exact_size(theme.stage_cell, Sense::hover());
+    let sense = match pointer {
+        Pointer::Pin => Sense::hover(),
+        Pointer::Place(_) => Sense::click(),
+    };
+    let (rect, response) = ui.allocate_exact_size(theme.stage_cell, sense);
     // Named by its point word, so an accessibility tree (and a kittest) finds it.
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Other, true, point.word())
     });
     let hot = ui.ctx().dragged_id().is_some() && ui.rect_contains_pointer(rect);
-    let fill = if hot { theme.phosphor_dim } else { theme.inset };
+    let valid = match pointer {
+        Pointer::Pin => false,
+        Pointer::Place(kind) => valid_for(kind, point),
+    };
+    let fill = if hot || (valid && response.hovered()) {
+        theme.phosphor_dim
+    } else if valid {
+        theme.faded(theme.phosphor, theme.hover_alpha)
+    } else {
+        theme.inset
+    };
     ui.painter().rect_filled(rect, theme.corner_radius(), fill);
+    if valid && response.clicked() {
+        *clicked = Some(point);
+    }
     response.on_hover_text(trf(
         "{point} · {row}, {col}",
         &[
@@ -279,16 +335,27 @@ fn cell(
             );
         }
         for chip in chips {
-            chip_button(ui, theme, chip, dropped);
+            chip_button(ui, theme, chip, pointer, dropped);
         }
     });
     rect
 }
 
-/// One fixture: a letter, `*` when hand-tuned, its id and type on hover. A drag
-/// that ends records the fixture and where the pointer let go.
-fn chip_button(ui: &mut Ui, theme: &Theme, chip: &Chip, dropped: &mut Option<(String, Pos2)>) {
-    let (rect, response) = ui.allocate_exact_size(theme.stage_chip, Sense::drag());
+/// One fixture: a letter, `*` when hand-tuned, its id and type on hover. Under
+/// [`Pointer::Pin`] a drag that ends records the fixture and where the pointer
+/// let go; a chip is only a mark under [`Pointer::Place`].
+fn chip_button(
+    ui: &mut Ui,
+    theme: &Theme,
+    chip: &Chip,
+    pointer: Pointer,
+    dropped: &mut Option<(String, Pos2)>,
+) {
+    let sense = match pointer {
+        Pointer::Pin => Sense::drag(),
+        Pointer::Place(_) => Sense::hover(),
+    };
+    let (rect, response) = ui.allocate_exact_size(theme.stage_chip, sense);
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, true, chip.fixture.clone())
     });
@@ -315,7 +382,7 @@ fn chip_button(ui: &mut Ui, theme: &Theme, chip: &Chip, dropped: &mut Option<(St
         tip.push('\n');
         tip.push_str(tr("pinned to this point"));
     }
-    let ended = response.drag_stopped();
+    let ended = response.drag_stopped() && pointer == Pointer::Pin;
     response.on_hover_text(tip);
     if ended {
         if let Some(pos) = ui.ctx().input(|i| i.pointer.latest_pos()) {

@@ -95,6 +95,7 @@ const ES_FILES: &[(&str, &str)] = &[
     ("shell", include_str!("../locales/es/shell.toml")),
     ("settings", include_str!("../locales/es/settings.toml")),
     ("pairing", include_str!("../locales/es/pairing.toml")),
+    ("monitor", include_str!("../locales/es/monitor.toml")),
     ("properties", include_str!("../locales/es/properties.toml")),
     ("describe", include_str!("../locales/es/describe.toml")),
     ("nodes", include_str!("../locales/es/nodes.toml")),

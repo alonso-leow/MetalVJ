@@ -64,7 +64,7 @@ use crate::shell::components::{
     icon_toggle, paint_icon_stroked, square_icon_button_inked, panel_frame, header_edit, header_forms, panel_head, search_field, section_heading, subheader,
     Icon,
 };
-use crate::shell::i18n::tr;
+use crate::shell::i18n::{tr, trf};
 use crate::shell::media;
 use crate::shell::preview::PreviewSubject;
 use crate::shell::preview_cache::{PreviewCache, Space};
@@ -1189,7 +1189,10 @@ fn files_column(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSt
                             state.song_note = Some(format!("opened {name}"));
                             state.last_opened_song = Some(name.clone());
                         }
-                        Err((_, msg)) => state.song_note = Some(msg),
+                        Err((_, msg)) => {
+            crate::shell::toasts::error(msg.clone());
+            state.song_note = Some(msg);
+        }
                     }
                     state.confirm_open = None;
                 }
@@ -1619,7 +1622,10 @@ fn play_song(
         .unwrap_or("undigested");
     if song.is_none() {
         match add_song(door, path) {
-            Ok(_) => state.add_note = Some(format!("added {file} — digesting")),
+            Ok(_) => {
+                crate::shell::toasts::success(trf("added {file}", &[("file", &file)]));
+                state.add_note = Some(format!("added {file} — digesting"));
+            }
             Err((_, msg)) => {
                 state.add_note = Some(msg);
                 return;
@@ -1652,7 +1658,10 @@ fn play_song(
             state.song_note = Some(format!("opened {file}"));
             state.last_opened_song = Some(stem);
         }
-        Err((_, msg)) => state.song_note = Some(msg),
+        Err((_, msg)) => {
+            crate::shell::toasts::error(msg.clone());
+            state.song_note = Some(msg);
+        }
     }
 }
 
@@ -2082,9 +2091,12 @@ mod tests {
         );
         harness.run();
         harness.get_by_label("a.mp3");
-        assert!(
-            harness.query_by_label("play").is_none(),
-            "the card is the button; no `play` label should paint"
+        // The shell's transport bar owns the one `play` button (W6); the card
+        // itself must not add a second.
+        assert_eq!(
+            harness.get_all_by_label("play").count(),
+            1,
+            "the card is the button; only the transport bar's `play` should paint"
         );
     }
 

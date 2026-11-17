@@ -249,7 +249,7 @@ fn layout(ingest: &IngestLane, fields: &dyn Fn(&str) -> Vec<Field>) -> Vec<(Row,
 }
 
 /// The song's length in ticks, else the furthest clip end plus a screen.
-fn total_ticks(ingest: &IngestLane) -> usize {
+pub(super) fn total_ticks(ingest: &IngestLane) -> usize {
     if let Some(n) = ingest.loop_ticks {
         return n.max(1);
     }

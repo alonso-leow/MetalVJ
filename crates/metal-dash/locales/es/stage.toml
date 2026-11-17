@@ -2,8 +2,6 @@
 # points the fixture AI speaks in). See ../README.md.
 
 "hitbox" = "hitbox"
-"stage hitbox" = "hitbox del escenario"
-"the stage's grid of points, with this room's fixtures in them" = "la grilla de puntos del escenario, con los fixtures de este venue en sus celdas"
 
 "floor level" = "nivel piso"
 "rig level" = "nivel rig"

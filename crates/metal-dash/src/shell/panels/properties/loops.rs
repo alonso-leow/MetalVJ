@@ -159,10 +159,7 @@ pub(crate) fn section(ui: &mut Ui, theme: &Theme, door: &dyn Call, gid: &str, no
         }
         let shown = options.iter().find(|(v, _)| *v == choice).map(|(_, t)| t.clone()).unwrap_or_default();
         kv_row(ui, theme, tr("template"), |ui| {
-            crate::shell::components::combo_box(theme, ("loops/template", node_id))
-                .width(ui.available_width())
-                .selected_text((shown).to_string())
-                .show_ui(ui, |ui| {
+            crate::shell::components::dropdown_menu(ui, theme, ("loops/template", node_id), &((shown).to_string()), Some(ui.available_width()), true, |ui| {
                     for (value, text) in &options {
                         if ui.selectable_label(*value == choice, small_text(theme, text)).clicked()
                             && *value != choice

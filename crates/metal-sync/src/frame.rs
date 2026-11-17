@@ -461,17 +461,21 @@ fn loopback_call(port: u16, method: &str, path: &str, body: Option<&[u8]>) -> st
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2))?;
     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
-    match body {
-        None => write!(stream, "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n")?,
-        Some(b) => {
-            write!(
-                stream,
-                "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                b.len()
-            )?;
-            stream.write_all(b)?;
-        }
+    // One write for the whole request: `write!` on a bare stream is several
+    // small writes, and a server that answers after its first read and closes
+    // with the rest unread resets the connection under our read.
+    let mut request = match body {
+        None => format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n").into_bytes(),
+        Some(b) => format!(
+            "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            b.len()
+        )
+        .into_bytes(),
+    };
+    if let Some(b) = body {
+        request.extend_from_slice(b);
     }
+    stream.write_all(&request)?;
     stream.flush()?;
     let mut reader = BufReader::new(stream);
     let mut status_line = String::new();

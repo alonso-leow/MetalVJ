@@ -408,8 +408,6 @@ pub(crate) struct VenueScene {
     pub note: Option<String>,
     /// Whether the camera already took the room's own default framing.
     pub(crate) fitted: bool,
-    /// The scene shows the stage hitbox (`stage_view`) instead of the room.
-    pub(crate) stage: bool,
 }
 
 impl Default for PanelState {
@@ -522,7 +520,6 @@ impl PanelState {
             selected: None,
             note: None,
             fitted: false,
-            stage: false,
         });
     }
 
@@ -4360,11 +4357,14 @@ fn finish_cable(door: &dyn Call, state: &mut PanelState, theme: &Theme) {
             }
             // Refused — a lint error the edge itself introduced (not just
             // one already standing elsewhere in the graph, since
-            // `add_edge_checked` only rejects a *new* one). Silently
-            // dropping the cable here left the operator with no idea why
-            // nothing happened; the route's own message says exactly what
-            // is wrong (`call::graph::edge_add`'s refusal text).
-            Err(_) => {}
+            // `add_edge_checked` only rejects a *new* one). The route's own
+            // message says exactly what is wrong (`call::graph::edge_add`'s
+            // refusal text); it goes to the toast log, naming the source node.
+            Err((_, msg)) => crate::shell::toasts::notify(
+                crate::shell::toasts::Level::Error,
+                msg,
+                Some(crate::shell::toasts::NodeRef { graph: gid.clone(), node: from.0.clone() }),
+            ),
         }
     }
 }
@@ -4829,14 +4829,16 @@ pub(crate) fn undo_last(door: &dyn Call, state: &mut PanelState) {
                 "from": { "node": from.0, "port": from.1 },
                 "to": { "node": to.0, "port": to.1 },
             });
-            if let Ok(reply) = door.json("POST", "/graph/edge", Some(body)) {
-                state.graph = Some(reply);
+            match door.json("POST", "/graph/edge", Some(body)) {
+                Ok(reply) => state.graph = Some(reply),
+                Err((_, msg)) => crate::shell::toasts::error(msg),
             }
         }
         Undo::Unedge { edge } => {
             let body = json!({ "op": "remove", "graph": gid, "edge": edge });
-            if let Ok(reply) = door.json("POST", "/graph/edge", Some(body)) {
-                state.graph = Some(reply);
+            match door.json("POST", "/graph/edge", Some(body)) {
+                Ok(reply) => state.graph = Some(reply),
+                Err((_, msg)) => crate::shell::toasts::error(msg),
             }
         }
         Undo::Flag { node, field, was } => {
@@ -5072,8 +5074,9 @@ fn remove_edge(
         push_undo(state, inverse, theme);
     }
     let body = json!({ "op": "remove", "graph": gid, "edge": id });
-    if let Ok(reply) = door.json("POST", "/graph/edge", Some(body)) {
-        state.graph = Some(reply);
+    match door.json("POST", "/graph/edge", Some(body)) {
+        Ok(reply) => state.graph = Some(reply),
+        Err((_, msg)) => crate::shell::toasts::error(msg),
     }
     *selection = Selection::None;
 }

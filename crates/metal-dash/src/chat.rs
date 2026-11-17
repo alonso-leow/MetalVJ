@@ -587,6 +587,11 @@ impl<'a> Store<'a> {
                 // Refs annotate the live row; they do not close the step, so
                 // following deltas keep appending to the same bubble.
             }
+            Event::Usage { input, output, model } => {
+                // The last step's usage replaces the previous one: its input
+                // already holds the whole conversation sent to the model.
+                self.chat["usage"] = json!({ "input": input, "output": output, "model": model });
+            }
             Event::Error { message } => {
                 self.close_open_calls(message);
                 self.push_row(json!({ "role": "notice", "kind": "error", "content": message }));
@@ -936,6 +941,69 @@ fn last_user_refs(chat: &Value) -> Option<Vec<Value>> {
     (!refs.is_empty()).then(|| refs.clone())
 }
 
+/// Replaces a conversation's history with one `summary` row (`POST
+/// /ai/chat/compact`). The usage is dropped: the next reply reports a fresh
+/// count, and until then the panel estimates from the summary alone.
+pub fn compact_at(root: &std::path::Path, id: &str, summary: &str) -> Result<Value, String> {
+    let summary = summary.trim();
+    if summary.is_empty() {
+        return Err("expected a non-empty `summary`".to_string());
+    }
+    let mut chat = load_chat_at(root, id).ok_or_else(|| format!("chat {id} no longer exists"))?;
+    if chat["status"] == "busy" || chat["status"] == "awaiting" {
+        return Err("the chat is busy; compact after the turn ends".to_string());
+    }
+    let seq = chat["seq"].as_u64().unwrap_or(0) + 1;
+    chat["seq"] = json!(seq);
+    chat["messages"] = json!([{
+        "seq": seq, "role": "user", "kind": "summary", "content": summary, "at": now_secs(),
+    }]);
+    if let Some(obj) = chat.as_object_mut() {
+        obj.remove("usage");
+    }
+    chat["updated"] = json!(now_secs());
+    save_chat_at(root, &chat)?;
+    Ok(json!({ "compacted": true, "id": id }))
+}
+
+/// The context window, in tokens, of a model id, matched by family prefix (the
+/// first row that fits wins, so the specific ids sit above the general ones).
+/// An id no row matches gets [`DEFAULT_WINDOW`].
+pub fn context_window(model: &str) -> u64 {
+    const TABLE: &[(&str, u64)] = &[
+        ("claude-", 200_000),
+        ("gpt-4.1", 1_047_576),
+        ("gpt-4o", 128_000),
+        ("gpt-4-turbo", 128_000),
+        ("gpt-4", 8_192),
+        ("gpt-5", 400_000),
+        ("o1", 200_000),
+        ("o3", 200_000),
+        ("o4", 200_000),
+        ("deepseek", 128_000),
+        ("llama", 128_000),
+        ("qwen", 128_000),
+        ("mistral", 128_000),
+    ];
+    let model = model.trim().to_ascii_lowercase();
+    TABLE
+        .iter()
+        .find(|(prefix, _)| model.starts_with(prefix))
+        .map(|(_, window)| *window)
+        .unwrap_or(DEFAULT_WINDOW)
+}
+
+/// The window of a model nobody's table row names: a common 128k.
+pub const DEFAULT_WINDOW: u64 = 128_000;
+
+/// The configured model id and its context window, for the panel's meter.
+/// With no provider configured the id is empty and the default window applies.
+pub fn model_info(root: &std::path::Path) -> (String, u64) {
+    let model = loaded_provider(root).map(|c| c.model).unwrap_or_default();
+    let window = context_window(&model);
+    (model, window)
+}
+
 /// The provider-facing history of one chat: the structured rows (user /
 /// assistant with its `tool_calls` / tool) rebuilt from the file. `notice`
 /// rows and our own system row are excluded.
@@ -1010,6 +1078,30 @@ pub fn compact_chat_at(root: &std::path::Path, id: &str) -> Result<Value, String
     chat["updated"] = json!(now_secs());
     save_chat_at(root, &chat)?;
     Ok(json!({ "id": id, "compacted": n }))
+}
+
+#[cfg(test)]
+mod usage_tests {
+    use super::{context_window, DEFAULT_WINDOW};
+
+    #[test]
+    fn known_families_have_their_window() {
+        assert_eq!(context_window("claude-haiku-5-5"), 200_000);
+        assert_eq!(context_window("gpt-4o-mini"), 128_000);
+        assert_eq!(context_window("gpt-4.1"), 1_047_576);
+        assert_eq!(context_window("gpt-4"), 8_192);
+    }
+
+    #[test]
+    fn matching_ignores_case_and_surrounding_space() {
+        assert_eq!(context_window("  Claude-Sonnet-4 "), 200_000);
+    }
+
+    #[test]
+    fn an_unknown_or_empty_model_gets_the_default() {
+        assert_eq!(context_window(""), DEFAULT_WINDOW);
+        assert_eq!(context_window("some-local-model"), DEFAULT_WINDOW);
+    }
 }
 
 #[cfg(test)]

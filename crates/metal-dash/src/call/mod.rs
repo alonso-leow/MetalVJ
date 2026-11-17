@@ -917,6 +917,8 @@ pub static ROUTES: &[Route] = &[
         prefix: false,
         handler: Handler::Json(ai::chat_delete),
     },
+    // S.X: replace a conversation's history with the model's summary (the
+    // panel's Compact button sends it once the summarising turn is done).
     // S.X: stop a running turn and answer an `ask`-policy tool call.
     Route { method: "POST", path: "/ai/chat/compact", prefix: false, handler: Handler::Json(ai::chat_compact) },
     Route { method: "GET", path: "/ai/models", prefix: false, handler: Handler::Json(ai::chat_models) },

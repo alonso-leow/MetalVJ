@@ -24,6 +24,18 @@ pub enum Kind {
     Matrix,
 }
 impl Kind {
+    /// Every fixture type, in the order the authoring matrix lists them.
+    pub const ALL: [Kind; 9] = [
+        Kind::Wash,
+        Kind::Spot,
+        Kind::Moving,
+        Kind::Backlight,
+        Kind::Panel,
+        Kind::Continuous,
+        Kind::LedBar,
+        Kind::LedStrip,
+        Kind::Matrix,
+    ];
     pub fn word(self) -> &'static str {
         match self {
             Kind::Wash => "wash",
@@ -41,10 +53,6 @@ impl Kind {
         use Kind::*;
         [Wash, Spot, Moving, Backlight, Panel, Continuous, LedBar, LedStrip, Matrix].into_iter().find(|k| k.word() == s)
     }
-    pub const ALL: [Kind; 9] = [
-        Kind::Wash, Kind::Spot, Kind::Moving, Kind::Backlight, Kind::Panel, Kind::Continuous,
-        Kind::LedBar, Kind::LedStrip, Kind::Matrix,
-    ];
     /// Types whose fixtures carry pixels: their cells get per-segment floats.
     pub fn pixelled(self) -> bool {
         matches!(self, Kind::LedBar | Kind::LedStrip | Kind::Matrix)

@@ -1280,6 +1280,15 @@ pub fn card_section<R>(
             (*open).then(|| add(ui))
         });
     ui.painter().set(slot, egui::Shape::Vec(theme.group_shapes(framed.response.rect)));
+    // A closed card is only its header: the whole card rect, padding
+    // included, opens it. Added after the content, so it is the top hit.
+    if !*open {
+        let whole = ui.interact(framed.response.rect, Id::new(("card-section", label)), egui::Sense::click());
+        if whole.clicked() {
+            *open = true;
+        }
+        whole.on_hover_cursor(egui::CursorIcon::PointingHand);
+    }
     ui.add_space(theme.card_gap);
     framed.inner
     })
@@ -1413,7 +1422,8 @@ pub fn value_label(ui: &mut Ui, text: RichText) -> egui::Response {
 }
 
 /// A collapsible section header: a chevron and the section name, in the
-/// heading face and the weak ink. Toggling `open` on click; the caller wraps
+/// heading face and the weak ink. The whole header row (full width, text
+/// height) is the click target. Toggling `open` on click; the caller wraps
 /// the section body in `if *open { … }`. `section_gap` above separates the
 /// block from the previous one. Returns the header's own response.
 pub fn section(ui: &mut Ui, theme: &Theme, label: &str, open: &mut bool) -> egui::Response {
@@ -1443,7 +1453,28 @@ pub fn section(ui: &mut Ui, theme: &Theme, label: &str, open: &mut bool) -> egui
     response
 }
 
-/// Builder for the one dropdown shell; see [`combo_box`].
+/// The clickable header of a section or card: the full available width and
+/// the text's height, so the whole row senses clicks and shows a pointing
+/// hand. The text is wrapped to the row, never cut.
+pub fn header_row(ui: &mut Ui, theme: &Theme, text: &str) -> egui::Response {
+    let galley = ui.painter().layout(
+        text.to_string(),
+        theme.font_heading.clone(),
+        theme.ink_weak,
+        ui.available_width(),
+    );
+    let (rect, response) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width(), galley.size().y),
+        egui::Sense::click(),
+    );
+    ui.painter().galley(rect.left_top(), galley, theme.ink_weak);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, text));
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// Builder for the one dropdown, chained by the galleries and settings:
+/// `.selected_text()` then `.show_ui()`. `show_ui` delegates to
+/// [`dropdown_menu`], so it is the same single-column control.
 pub struct Combo<'a> {
     theme: &'a Theme,
     id: Id,
@@ -1453,8 +1484,7 @@ pub struct Combo<'a> {
     enabled: bool,
 }
 
-/// Starts a dropdown: the shell's only way to spell an egui combo. Chain
-/// `.width()`, `.selected_text()`, `.enabled()`, then `.show_ui()`.
+/// Starts a dropdown builder. Chain `.selected_text()`, then `.show_ui()`.
 pub fn combo_box<'a>(theme: &'a Theme, id: impl std::hash::Hash + std::fmt::Debug) -> Combo<'a> {
     Combo { theme, id: Id::new(id), width: None, fill: false, text: String::new(), enabled: true }
 }
@@ -1470,12 +1500,12 @@ impl Combo<'_> {
         self.fill = true;
         self
     }
-    pub fn selected_text(mut self, text: impl Into<String>) -> Self {
-        self.text = text.into();
-        self
-    }
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
+        self
+    }
+    pub fn selected_text(mut self, text: impl Into<String>) -> Self {
+        self.text = text.into();
         self
     }
     pub fn show_ui<R>(self, ui: &mut Ui, items: impl FnOnce(&mut Ui) -> R) -> egui::InnerResponse<Option<R>> {
@@ -1506,25 +1536,26 @@ impl Combo<'_> {
     }
 }
 
-/// A [`combo_box`] on the kit's control column with a ready body.
-pub fn combo(
+/// [`combo_box`] in one call: a closed control showing `shown`, opening a
+/// single-column list drawn by `items` (rows are usually [`menu_item`]).
+/// `width` `None` keeps the kit's width; `enabled` false greys it out.
+pub fn dropdown_menu<R>(
     ui: &mut Ui,
     theme: &Theme,
     id: impl std::hash::Hash + std::fmt::Debug,
     shown: &str,
     width: Option<f32>,
     enabled: bool,
-    items: impl FnOnce(&mut Ui),
-) -> egui::Response {
-    combo_box(theme, id)
-        .width(width.unwrap_or(theme.control_width))
-        .selected_text(shown)
-        .enabled(enabled)
-        .show_ui(ui, items)
-        .response
+    items: impl FnOnce(&mut Ui) -> R,
+) -> egui::InnerResponse<Option<R>> {
+    let mut combo = combo_box(theme, id).selected_text(shown).enabled(enabled);
+    if let Some(w) = width {
+        combo = combo.width(w);
+    }
+    combo.show_ui(ui, items)
 }
 
-/// One row of a [`combo`] body.
+/// One row of a [`dropdown_menu`] body.
 pub fn menu_item(ui: &mut Ui, theme: &Theme, selected: bool, label: &str) -> egui::Response {
     ui.selectable_label(selected, RichText::new(label).font(theme.font_small.clone()))
 }
@@ -1565,6 +1596,55 @@ pub fn choice<T: PartialEq + Clone>(ui: &mut Ui, theme: &Theme, current: &mut T,
     dropdown_fill(ui, theme, id, current, options)
 }
 
+/// [`dropdown`] whose options may carry an icon: the icon's glyph is written
+/// before the label, in the shown text and in every menu row. `None` is a
+/// plain label, so a list can mix the two.
+pub fn dropdown_icons<T: PartialEq + Clone>(
+    ui: &mut Ui,
+    theme: &Theme,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    current: &mut T,
+    options: &[(T, &str, Option<Icon>)],
+) -> egui::Response {
+    dropdown_icons_enabled(ui, theme, id, current, options, true)
+}
+
+/// [`dropdown_icons`] with an explicit `enabled`.
+pub fn dropdown_icons_enabled<T: PartialEq + Clone>(
+    ui: &mut Ui,
+    theme: &Theme,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    current: &mut T,
+    options: &[(T, &str, Option<Icon>)],
+    enabled: bool,
+) -> egui::Response {
+    let text = |label: &str, icon: Option<Icon>| match icon {
+        Some(icon) => format!("{} {label}", glyph(icon)),
+        None => label.to_string(),
+    };
+    let shown = options
+        .iter()
+        .find(|(value, _, _)| value == current)
+        .map(|(_, label, icon)| text(label, *icon))
+        .unwrap_or_default();
+    let mut picked = None;
+    let mut response = dropdown_menu(ui, theme, id, &shown, Some(theme.control_width), enabled, |ui| {
+        for (value, label, icon) in options {
+            if menu_item(ui, theme, value == &*current, &text(label, *icon)).clicked() {
+                picked = Some(value.clone());
+            }
+        }
+    })
+    .response;
+    if let Some(v) = picked {
+        if v != *current {
+            *current = v;
+            response.mark_changed();
+        }
+    }
+    response
+}
+
 /// [`dropdown`] with an explicit `enabled`.
 pub fn dropdown_enabled<T: PartialEq + Clone>(
     ui: &mut Ui,
@@ -1592,13 +1672,14 @@ fn dropdown_at<T: PartialEq + Clone>(
         .map(|(_, label)| *label)
         .unwrap_or("");
     let mut picked = None;
-    let mut response = combo(ui, theme, id, shown, width, enabled, |ui| {
+    let mut response = dropdown_menu(ui, theme, id, shown, width, enabled, |ui| {
         for (value, label) in options {
             if menu_item(ui, theme, value == &*current, label).clicked() {
                 picked = Some(value.clone());
             }
         }
-    });
+    })
+    .response;
     if let Some(v) = picked {
         if v != *current {
             *current = v;
@@ -2620,7 +2701,7 @@ pub fn hue_band_selector(ui: &mut Ui, theme: &Theme, selected: usize) -> Option<
 #[cfg(all(test, any(feature = "gpu", feature = "glow")))]
 mod tests {
     use super::*;
-    use egui_kittest::kittest::Queryable;
+    use egui_kittest::kittest::{NodeT, Queryable};
     use egui_kittest::Harness;
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -2704,6 +2785,33 @@ mod tests {
         assert!(h.iter().all(|v| *v <= cell + 0.5), "controls fit the cell: {h:?}");
     }
 
+    /// W9: "Back to nodes" is one labelled control with its vector arrow, and a
+    /// click on it answers once.
+    #[test]
+    fn icon_text_button_answers_a_click_once() {
+        let theme = Theme::phosphor();
+        let clicks = Rc::new(RefCell::new(0_usize));
+        let c = clicks.clone();
+        let mut harness = Harness::builder().build_ui(move |ui| {
+            theme.apply(ui.ctx());
+            if icon_text_button(ui, &theme, Icon::Back, "Back to nodes", "back").clicked() {
+                *c.borrow_mut() += 1;
+            }
+        });
+        harness.run();
+        let at = harness
+            .get_all_by_role(egui::accesskit::Role::Button)
+            .find(|n| n.accesskit_node().label().is_some_and(|l| l == "Back to nodes"))
+            .expect("the back button is named by its label")
+            .rect()
+            .center();
+        harness.drag_at(at);
+        harness.run();
+        harness.drop_at(at);
+        harness.run();
+        assert_eq!(*clicks.borrow(), 1);
+    }
+
     #[test]
     fn dropdown_picks_a_different_option() {
         let theme = Theme::phosphor();
@@ -2725,6 +2833,41 @@ mod tests {
         harness.get_by_label("Beta").click();
         harness.run();
         assert_eq!(*current.borrow(), "b");
+    }
+
+    #[test]
+    fn disabled_dropdown_does_not_open() {
+        let theme = Theme::phosphor();
+        let current = Rc::new(RefCell::new("a".to_string()));
+        let state = current.clone();
+        let options = [("a".to_string(), "Alpha"), ("b".to_string(), "Beta")];
+        let mut harness = Harness::new_ui(move |ui| {
+            dropdown_enabled(ui, &theme, "kit/dropdown-off", &mut *state.borrow_mut(), &options, false);
+        });
+        harness.run();
+        harness.get_by_value("Alpha").click();
+        harness.run();
+        assert!(harness.query_by_label("Beta").is_none());
+        assert_eq!(*current.borrow(), "a");
+    }
+
+    #[test]
+    fn card_section_opens_from_its_header() {
+        let theme = Theme::phosphor();
+        let open = Rc::new(RefCell::new(false));
+        let state = open.clone();
+        let mut harness = Harness::new_ui(move |ui| {
+            card_section(ui, &theme, "Map", &mut *state.borrow_mut(), |ui| {
+                ui.label("body");
+            });
+        });
+        harness.run();
+        harness.get_by_label("\u{25b8} Map").click();
+        harness.run();
+        assert!(*open.borrow());
+        harness.get_by_label("\u{25be} Map").click();
+        harness.run();
+        assert!(!*open.borrow());
     }
 
     #[test]
@@ -3159,6 +3302,10 @@ pub enum Icon {
     SkipBack,
     StepBack,
     StepForward,
+    /// The transport's stop: a square (lucide `square`).
+    Stop,
+    /// The transport's loop toggle (lucide `repeat`).
+    Loop,
     Keypoint,
     Copy,
     Paste,
@@ -3181,6 +3328,9 @@ pub enum Icon {
     ArrowDown,
     // The AI sidebar's header and history view.
     ArrowLeft,
+    /// The way out of a scene ("Back to nodes"): an arrow-left drawn as
+    /// vectors, so it reads at the bar's size without the font.
+    Back,
     History,
     // The node bar's splice verbs: a new node upstream / downstream.
     InsertBefore,
@@ -3253,6 +3403,8 @@ pub fn glyph(icon: Icon) -> char {
         Icon::SkipBack => 0xe163,               // skip-back
         Icon::StepBack => 0xe3ed,               // step-back
         Icon::StepForward => 0xe3ee,            // step-forward
+        Icon::Stop => 0xe16b,                   // square
+        Icon::Loop => 0xe14a,                   // repeat
         Icon::Keypoint => 0xe2d2,               // diamond
         Icon::Copy => 0xe0a2,                   // copy
         Icon::Paste => 0xe3ec,                  // clipboard-paste
@@ -3273,6 +3425,7 @@ pub fn glyph(icon: Icon) -> char {
         Icon::ArrowUp => 0xe04e,                // arrow-up
         Icon::ArrowDown => 0xe046,              // arrow-down
         Icon::ArrowLeft => 0xe04c,               // arrow-left
+        Icon::Back => 0xe04c,                    // arrow-left (painted as vectors)
         Icon::History => 0xe1f5,                // history
         Icon::InsertBefore => 0xe45c,           // arrow-left-to-line
         Icon::InsertAfter => 0xe45e,            // arrow-right-to-line
@@ -3369,6 +3522,15 @@ pub fn paint_icon_stroked(painter: &egui::Painter, rect: Rect, icon: Icon, _them
         painter.line_segment([Pos2::new(c.x, c.y - radius * 1.15), Pos2::new(c.x, c.y - radius * 0.1)], stroke);
         return;
     }
+    if icon == Icon::Back {
+        // An arrow-left as vectors: a shaft to the left edge and a chevron head.
+        let (y, left) = (r.center().y, r.left());
+        let head = r.width() * 0.45;
+        painter.line_segment([Pos2::new(r.right(), y), Pos2::new(left, y)], stroke);
+        painter.line_segment([Pos2::new(left, y), Pos2::new(left + head, y - head)], stroke);
+        painter.line_segment([Pos2::new(left, y), Pos2::new(left + head, y + head)], stroke);
+        return;
+    }
     painter.text(
         r.center(),
         egui::Align2::CENTER_CENTER,
@@ -3376,6 +3538,37 @@ pub fn paint_icon_stroked(painter: &egui::Painter, rect: Rect, icon: Icon, _them
         glyph_font(r.height() * 1.2),
         stroke.color,
     );
+}
+
+/// A labelled control with a leading vector icon and a strong outline: the
+/// primary exit of a scene ("Back to nodes"). The outline is the theme's
+/// strong stroke, heavier than the hairline every other bar control draws.
+pub fn icon_text_button(ui: &mut Ui, theme: &Theme, icon: Icon, text: &str, tip: &str) -> Response {
+    let font = theme.font_small.clone();
+    let text_w = ui.painter().layout_no_wrap(text.to_string(), font.clone(), theme.ink).size().x;
+    let size = Vec2::new(
+        theme.icon_button_size.x + theme.item_gap.x + text_w + theme.item_gap.x * 2.0,
+        theme.icon_button_size.y,
+    );
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let response = response.on_hover_text(tip);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, text));
+    if ui.is_rect_visible(rect) {
+        let ink = if response.hovered() { theme.ink } else { theme.phosphor };
+        let painter = ui.painter();
+        painter.rect_filled(rect, theme.field_corner(), theme.library_card_hover);
+        painter.rect_stroke(rect, theme.field_corner(), theme.strong_stroke(ink), egui::StrokeKind::Inside);
+        let icon_rect = Rect::from_min_size(rect.min, theme.icon_button_size);
+        paint_icon_stroked(painter, icon_rect, icon, theme, theme.strong_stroke(ink));
+        painter.text(
+            egui::Pos2::new(icon_rect.right() + theme.item_gap.x, rect.center().y),
+            egui::Align2::LEFT_CENTER,
+            text,
+            font,
+            ink,
+        );
+    }
+    response
 }
 
 /// A minimal navigation list: one row per entry — its icon, its label and an

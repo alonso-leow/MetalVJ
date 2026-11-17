@@ -16,3 +16,6 @@
 
 # --- touch: a video card's long-press menu (2026-10-09) -------------------
 "add as layer" = "añadir como capa"
+
+# An import pushed to the toast logger (W3).
+"added {file}" = "añadido {file}"

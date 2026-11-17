@@ -32,12 +32,12 @@ pub const THEME_STYLES: [&str; 2] = ["phosphor", "daylight"];
 pub const BORDER_SURFACES: [&str; 4] = ["panel", "header", "card", "control"];
 pub const BORDER_WEIGHTS: [&str; 3] = ["none", "hairline", "bold"];
 
-const KEYS: [&str; 22] = [
+const KEYS: [&str; 24] = [
     "shell_mode", "language", "tick_level", "grid_spans", "grid_page", "grid_controllers",
     "shell_view", "colour_rule", "export_dir", "fps_cap", "file_tags", "ingest_proxy",
     "ui_scale", "theme", "grid_surface", "grid_layouts", "tone_mode", "tone_sample_s",
     "page_by_device",
-    "theme_style", "borders", "grid_layer",
+    "theme_style", "borders", "grid_layer", "monitor_split", "monitor_orientation",
 ];
 
 pub use crate::frame_cap::{DEFAULT_FPS_CAP, FPS_CAPS};
@@ -93,7 +93,15 @@ pub const TONE_SAMPLE_RANGE: std::ops::RangeInclusive<f64> = 1.0..=60.0;
 /// The two views the header toggles between (`Edit` builds, `Show` plays):
 /// spelled here so the route validates on every build, the same trade
 /// [`LANGUAGES`] makes. A test ties it to `shell::ShellView`.
-pub const SHELL_VIEWS: [&str; 3] = ["edit", "show", "timeline"];
+pub const SHELL_VIEWS: [&str; 5] = ["edit", "show", "timeline", "monitor", "show_monitor"];
+
+/// The two orientations the Show split takes (`panels::monitor`): `horizontal`
+/// sets the Show grid and the multiview side by side, `vertical` stacks them.
+pub const MONITOR_ORIENTATIONS: [&str; 2] = ["horizontal", "vertical"];
+
+/// The Show split's ratio bounds (the Show grid's share of the split) and its
+/// default. A stored value outside the bounds is clamped by the panel, not refused.
+pub const MONITOR_SPLIT: (f64, f64, f64) = (0.2, 0.8, 0.5);
 
 /// The UI languages the shell can paint in (`shell::i18n::Lang`'s codes),
 /// spelled here so the route validates on every build, window or no window.
@@ -226,6 +234,10 @@ fn defaults() -> Map<String, Value> {
     m.insert("grid_layouts".into(), crate::surface::Layouts::default().to_value());
     // The header's Edit|Show toggle; a fresh install opens on the editor.
     m.insert("shell_view".into(), json!("edit"));
+    // The Show split with the multiview (`panels::monitor`): the Show grid's
+    // share of the split, and which way the split runs.
+    m.insert("monitor_split".into(), json!(MONITOR_SPLIT.2));
+    m.insert("monitor_orientation".into(), json!(MONITOR_ORIENTATIONS[0]));
     // Where the overlays grid's colour built-ins paint: a group name
     // (`all`, `models`, `effects`, `text`) or an array of node ids.
     m.insert("colour_rule".into(), json!("all"));
@@ -502,6 +514,32 @@ fn post_at(path: impl AsRef<std::path::Path>, body: &Value) -> Result<Value, Str
             return Err(format!("unknown shell_view: {s} (one of {})", SHELL_VIEWS.join(", ")));
         }
         next.insert("shell_view".into(), json!(s));
+        changed = true;
+    }
+    if let Some(split) = body.get("monitor_split") {
+        let n = split
+            .as_f64()
+            .ok_or_else(|| "monitor_split must be a number".to_string())?;
+        if !(MONITOR_SPLIT.0..=MONITOR_SPLIT.1).contains(&n) {
+            return Err(format!(
+                "monitor_split must be between {} and {}, got {n}",
+                MONITOR_SPLIT.0, MONITOR_SPLIT.1
+            ));
+        }
+        next.insert("monitor_split".into(), json!(n));
+        changed = true;
+    }
+    if let Some(orientation) = body.get("monitor_orientation") {
+        let s = orientation
+            .as_str()
+            .ok_or_else(|| "monitor_orientation must be a string".to_string())?;
+        if !MONITOR_ORIENTATIONS.contains(&s) {
+            return Err(format!(
+                "unknown monitor_orientation: {s} (one of {})",
+                MONITOR_ORIENTATIONS.join(", ")
+            ));
+        }
+        next.insert("monitor_orientation".into(), json!(s));
         changed = true;
     }
     if let Some(rule) = body.get("colour_rule") {
@@ -910,6 +948,34 @@ mod tests {
             json!("show"),
             "a refused view must leave the stored one alone"
         );
+        let _ = std::fs::remove_file(&p);
+    }
+
+    /// The five views round-trip; the two old values (`edit`, `show`) still read
+    /// and write; an absent monitor pair answers its defaults; a bad ratio or
+    /// orientation is refused with nothing written.
+    #[test]
+    fn the_monitor_views_and_split_round_trip_and_tolerate_absence() {
+        let p = tmp_named("monitor-views");
+        let fresh = reply_at(&p).expect("fresh install answers");
+        assert_eq!(fresh["monitor_split"], json!(0.5));
+        assert_eq!(fresh["monitor_orientation"], json!("horizontal"));
+        for view in ["timeline", "monitor", "show_monitor", "show", "edit"] {
+            assert_eq!(post_at(&p, &json!({ "shell_view": view })).expect("save")["shell_view"], json!(view));
+        }
+        let saved = post_at(&p, &json!({ "monitor_split": 0.35, "monitor_orientation": "vertical" })).expect("save");
+        assert_eq!(saved["monitor_split"], json!(0.35));
+        assert_eq!(saved["monitor_orientation"], json!("vertical"));
+        assert_eq!(saved["shell_view"], json!("edit"), "the view keeps its value");
+        for bad in [
+            json!({ "monitor_split": 0.95 }),
+            json!({ "monitor_split": "half" }),
+            json!({ "monitor_orientation": "diagonal" }),
+            json!({ "shell_view": "kiosk" }),
+        ] {
+            assert!(post_at(&p, &bad).is_err(), "must refuse {bad}");
+        }
+        assert_eq!(reply_at(&p).expect("re-read")["monitor_split"], json!(0.35));
         let _ = std::fs::remove_file(&p);
     }
 

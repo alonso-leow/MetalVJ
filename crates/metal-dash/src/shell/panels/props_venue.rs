@@ -84,10 +84,7 @@ fn pick_row(ui: &mut Ui, theme: &Theme, salt: &str, label: &str, current: &str, 
         .unwrap_or_else(|| if current.is_empty() { tr("— none —").to_string() } else { current.to_string() });
     let mut picked = None;
     kv_row(ui, theme, label, |ui| {
-        crate::shell::components::combo_box(theme, Id::new(("shell/venue/sensor", salt)))
-            .width(ui.available_width())
-            .selected_text(shown)
-            .show_ui(ui, |ui| {
+        crate::shell::components::dropdown_menu(ui, theme, Id::new(("shell/venue/sensor", salt)), &(shown), Some(ui.available_width()), true, |ui| {
                 for (id, l) in choices {
                     if ui.selectable_label(id == current, l).clicked() && id != current {
                         picked = Some(id.clone());
@@ -459,10 +456,7 @@ fn fixture_node_folder(
         } else {
             kv_row(ui, theme, tr("model"), |ui| {
                 let shown = current.clone().unwrap_or_else(|| tr("— none —").to_string());
-                crate::shell::components::combo_box(theme, Id::new(("shell/venue/fixture-node-model", node_id)))
-                    .width(ui.available_width())
-                    .selected_text(shown)
-                    .show_ui(ui, |ui| {
+                crate::shell::components::dropdown_menu(ui, theme, Id::new(("shell/venue/fixture-node-model", node_id)), &(shown), Some(ui.available_width()), true, |ui| {
                         for (id, kind) in &models {
                             let label = format!("{id} · {kind}");
                             if ui.selectable_label(current.as_deref() == Some(id.as_str()), label).clicked() {

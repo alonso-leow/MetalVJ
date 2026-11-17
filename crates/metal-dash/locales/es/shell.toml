@@ -25,6 +25,10 @@
 "Timeline" = "Cronología"
 "About" = "Acerca de"
 "AI Assistant" = "Asistente IA"
+"Monitor" = "Monitor"
+"Show + monitor" = "Mostrar + monitor"
+"flip" = "girar"
+"no outputs" = "sin salidas"
 
 # The gallery sections for the global favourites and recent picks (shell/favorites.rs).
 "favorites" = "favoritos"
@@ -57,3 +61,15 @@
 "remove" = "quitar"
 "import scene" = "importar escena"
 "loading splat" = "cargando splat"
+
+# The toast logger (W3, shell/toasts.rs) and its header button.
+"log" = "registro"
+"nothing logged yet" = "nada registrado todavía"
+"collection saved" = "colección guardada"
+
+# The persistent transport bar (shell/transport.rs, plan W6). `play`, `stop`
+# and `loop` are shared with properties.toml.
+"pause" = "pausar"
+"previous frame (shift: keypoint)" = "cuadro anterior (shift: punto clave)"
+"next frame (shift: keypoint)" = "cuadro siguiente (shift: punto clave)"
+"no sequence loaded" = "ninguna secuencia cargada"

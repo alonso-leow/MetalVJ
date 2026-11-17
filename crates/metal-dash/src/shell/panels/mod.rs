@@ -14,6 +14,7 @@ pub mod chat;
 pub mod dials;
 pub mod lanes;
 pub mod library;
+pub mod monitor;
 pub mod nodes;
 pub mod nodes_flow;
 pub mod pads;

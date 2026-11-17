@@ -206,6 +206,15 @@
 "Back to nodes" = "volver a nodos"
 "back to the node graph" = "volver al grafo de nodos"
 "add to the room" = "agregar a la sala"
+
+# The fixtures tab, two steps (W8, 16-nov-2026): the type, then the position on
+# the stage's grid, where a click places an empty fixture (no DMX patch yet).
+"type" = "tipo"
+"position" = "posición"
+"pick what the fixture is, then where it stands" = "elegí qué es el fixture y después dónde está"
+"back to the types" = "volver a los tipos"
+"click a point to place an empty fixture there; it is patched later" = "hacé clic en un punto para colocar un fixture vacío ahí; se patchea después"
+"placed at {point}" = "colocado en {point}"
 "floor" = "piso"
 "screen 1" = "pantalla 1"
 "wash 1" = "wash 1"

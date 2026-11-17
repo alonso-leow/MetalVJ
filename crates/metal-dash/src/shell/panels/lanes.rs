@@ -1247,24 +1247,10 @@ fn sequence_editor(
             // and the `value` toggle (keyframes or a held constant).
             fixture_row(ui, theme, door, ingest, open_graph);
 
-            // 2026-10-01: playback — the preview's play control (or the
-            // toolbar's) walks the playhead at the digest's own rate, so the
-            // picture plays the authored row tick by tick.
-            let now = ui.input(|i| i.time);
-            if crate::shell::preview::take_play_toggle(ui.ctx()) {
-                ingest.toggle_play(now);
-            }
-            // Space plays and pauses the sequence, unless a text field is
-            // typing (a focused button doesn't count: ⏵ keeps focus after a
-            // click).
             let typing = ui
                 .ctx()
                 .memory(|m| m.focused())
                 .is_some_and(|id| egui::TextEdit::load_state(ui.ctx(), id).is_some());
-            if !typing && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Space))
-            {
-                ingest.toggle_play(now);
-            }
             // Delete / Backspace run the 🗑 delete — the marked range
             // cleared and the active track removed, as one undoable op —
             // but only while this region holds the focus and no text field
@@ -1294,39 +1280,6 @@ fn sequence_editor(
                     ingest.note = Some(tr("clip pasted").to_string());
                 }
             }
-            push_scenes(door, state, ingest, now);
-            let mut audible = audible_clock(door, ingest);
-            // P-D: a locked `clock.timecode` drives the playhead (chase) —
-            // over the audio clock — and starts/stops playback with the
-            // timecode.
-            match timecode_clock(door) {
-                Some(at) => {
-                    if ingest.playing.is_none() {
-                        let tick = (at.max(0.0) * f64::from(crate::shell::lanes::EDITOR_RATE)) as usize;
-                        ingest.playing = Some((now, tick));
-                        state.tc_driving = true;
-                    }
-                    audible = Some((at, true));
-                }
-                None if state.tc_driving => {
-                    ingest.playing = None;
-                    state.tc_driving = false;
-                }
-                None => {}
-            }
-            // An undigested song has no length but its audio: when the native
-            // audio that was started for it has ended, the playback ends too.
-            if let Some((_, sounding)) = audible {
-                state.audio_native |= sounding;
-            }
-            if ingest.end_tick() == 0 && state.audio_native && audible.is_none_or(|(_, s)| !s) {
-                ingest.playing = None;
-                state.audio_native = false;
-            }
-            if ingest.advance_to(now, audible.map(|(at, _)| at)) {
-                crate::shell::frames::animate(ui.ctx());
-            }
-            crate::playhead::publish(ingest.playhead, ingest.playing.is_some());
 
             // The timeline takes what is left once the rows above it and the
             // bar under it are counted, so the panel never outgrows its
@@ -1680,10 +1633,7 @@ fn combo(
         .and_then(|c| choices.iter().find(|(id, _)| id == c).map(|(_, l)| l.clone()).or(Some(c.to_string())))
         .unwrap_or_else(|| none.unwrap_or("—").to_string());
     let mut picked = None;
-    let combo = crate::shell::components::combo_box(theme, Id::new("shell/region/lanes").with(salt))
-        .width(theme.control_width)
-        .selected_text(shown)
-        .show_ui(ui, |ui| {
+    let combo = crate::shell::components::dropdown_menu(ui, theme, Id::new("shell/region/lanes").with(salt), &(shown), Some(theme.control_width), true, |ui| {
             if let Some(n) = none {
                 if ui.selectable_label(current.is_none(), n).clicked() {
                     picked = Some(None);
@@ -2766,6 +2716,51 @@ fn os_drops_on_sequence(ui: &Ui, rect: Rect, door: &dyn Call, ingest: &mut crate
 /// `None` when nothing is playing, and the playhead keeps to the wall clock.
 /// P-D: the sequence position a locked `clock.timecode` asks for, off `GET
 /// /timecode` (the route the AI's `timecode_status` reads too).
+/// The sequence's playback, once per frame, called by the shell (plan W6) so
+/// every view plays, not only the one that paints the lanes panel. Covers the
+/// preview's play control, the spacebar (`space`, routed by the shell), the
+/// locked timecode chase and the audio clock. The lanes panel no longer
+/// advances the playhead itself, so it cannot tick twice in a frame.
+pub(crate) fn tick(ctx: &egui::Context, door: &dyn Call, ingest: &mut crate::shell::lanes::IngestLane, state: &mut PanelState, space: bool) {
+    let now = ctx.input(|i| i.time);
+    if crate::shell::preview::take_play_toggle(ctx) || space {
+        ingest.toggle_play(now);
+    }
+    push_scenes(door, state, ingest, now);
+            let mut audible = audible_clock(door, ingest);
+            // P-D: a locked `clock.timecode` drives the playhead (chase) —
+            // over the audio clock — and starts/stops playback with the
+            // timecode.
+            match timecode_clock(door) {
+                Some(at) => {
+                    if ingest.playing.is_none() {
+                        let tick = (at.max(0.0) * f64::from(crate::shell::lanes::EDITOR_RATE)) as usize;
+                        ingest.playing = Some((now, tick));
+                        state.tc_driving = true;
+                    }
+                    audible = Some((at, true));
+                }
+                None if state.tc_driving => {
+                    ingest.playing = None;
+                    state.tc_driving = false;
+                }
+                None => {}
+            }
+            // An undigested song has no length but its audio: when the native
+            // audio that was started for it has ended, the playback ends too.
+            if let Some((_, sounding)) = audible {
+                state.audio_native |= sounding;
+            }
+            if ingest.end_tick() == 0 && state.audio_native && audible.is_none_or(|(_, s)| !s) {
+                ingest.playing = None;
+                state.audio_native = false;
+            }
+            if ingest.advance_to(now, audible.map(|(at, _)| at)) {
+                crate::shell::frames::animate(ctx);
+            }
+            crate::playhead::publish(ingest.playhead, ingest.playing.is_some());
+}
+
 fn timecode_clock(door: &dyn Call) -> Option<f64> {
     let v = door.json("GET", "/timecode", None).ok()?;
     v["at"].as_f64()
@@ -11225,9 +11220,6 @@ fn without_an_open_graph_create_button_says_so() {
         let undo = harness.get_by_label(&glyph(Icon::Undo).to_string()).rect();
         let save = harness.get_by_label(&glyph(Icon::Save).to_string()).rect();
 
-        // The transport: the four playback controllers and the clock.
-        let first = harness.get_by_label(&glyph(Icon::SkipBack).to_string()).rect();
-
         // The icon column stacks in order…
         assert!(
             keypoint.top() < copiar.top()
@@ -11251,7 +11243,6 @@ fn without_an_open_graph_create_button_says_so() {
             (glyph(Icon::Trash).to_string(), eliminar),
             (glyph(Icon::Undo).to_string(), undo),
             (glyph(Icon::Save).to_string(), save),
-            (glyph(Icon::SkipBack).to_string(), first),
         ] {
             assert!(
                 r.left() >= 0.0 && r.right() <= width,

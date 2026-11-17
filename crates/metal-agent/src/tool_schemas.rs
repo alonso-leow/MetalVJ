@@ -208,6 +208,7 @@ fn tool_keys(name: &str) -> Option<Vec<&'static str>> {
         "venue_asset_import" => vec![
             "venue", "object", "path", "licence", "author", "url", "scale", "at", "name",
         ],
+        "import_splat" => vec!["venue", "file", "at", "yaw", "size", "up", "budget"],
         // D1: the venue's fixtures — `venue` names the venue, `id` (absent
         // adds) the fixture, and every mapping field is optional.
         "set_fixture" => vec![
@@ -341,6 +342,7 @@ pub fn parameters(name: &str) -> Option<Value> {
         "stage_grid" | "stage_view" => Vec::new(),
         "stage_place" => vec!["venue", "id"],
         "venue_asset_import" => vec!["object", "path", "licence"],
+        "import_splat" => vec!["venue", "file"],
         _ => crate::shots::tool_args(name)
             .map(|s| s.to_vec())
             .unwrap_or_default(),
@@ -372,7 +374,8 @@ pub fn parameters(name: &str) -> Option<Value> {
             | ("venue_view", "width")
             | ("venue_view", "height")
             | ("venue_assets_search", "limit")
-            | ("venue_asset_import", "scale") => "number",
+            | ("venue_asset_import", "scale")
+            | ("import_splat", "budget") => "number",
             ("venue_spline", "caps") | ("venue_spline", "closed") => "boolean",
             _ => type_for_key(key),
         };

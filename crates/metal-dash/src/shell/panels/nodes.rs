@@ -6575,7 +6575,10 @@ mod tests {
         harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
 
-        harness.get_by_label("new").click();
+        // The selection's properties panel floats over the bar's right end at
+        // this window size, so the press goes through accessibility, not a
+        // pointer at the button's centre.
+        harness.get_by_label("new").click_accesskit();
         harness.run();
 
         let calls = recorder.calls.borrow();

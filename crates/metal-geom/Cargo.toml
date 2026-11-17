@@ -8,6 +8,9 @@ license.workspace = true
 [dependencies]
 glam.workspace = true
 serde.workspace = true
+# Gzip for `.spz` (Niantic's compressed splat format). Already in the tree
+# through metal-perform, so this adds no new licence.
+flate2 = "1"
 # 2D Bezier/spline evaluation and flattening. Already in the lockfile via
 # `peniko` (egui), so this adds no new licence to the tree.
 kurbo = "0.13"

@@ -625,10 +625,21 @@ impl App {
             None,
             None,
         );
-        let renderer = egui_wgpu::Renderer::new(
+        let mut renderer = egui_wgpu::Renderer::new(
             &gpu.device,
             config.format,
             egui_wgpu::RendererOptions::default(),
+        );
+        // The splat GPU layer draws into an offscreen target and blits it into
+        // this pass, so it needs the surface format. Only this painter sets
+        // the flag; the glow path keeps the CPU layer.
+        // A device without compute or vertex-stage storage keeps the CPU layer.
+        renderer
+            .callback_resources
+            .insert(crate::splat_gpu::SplatTargetFormat(config.format));
+        super::panels::viewport_splats::GPU_LAYER.store(
+            crate::splat_gpu::supported(&gpu.device),
+            std::sync::atomic::Ordering::Relaxed,
         );
 
         // The histogram runs on whatever device the pictures are on: the

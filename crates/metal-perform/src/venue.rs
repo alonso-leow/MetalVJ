@@ -620,10 +620,29 @@ pub enum ObjectForm {
         #[serde(default = "default_capsule_height")]
         height: f32,
     },
+    /// A Gaussian splat cloud read from `file` (relative to the data root,
+    /// e.g. `splats/hall.ply`). Not solid: it has no mesh and blocks no ray.
+    Splat {
+        #[serde(default)]
+        file: String,
+        /// The file's up axis: `-y` (COLMAP/INRIA captures), `y` or `z`.
+        #[serde(default = "default_splat_up")]
+        up: String,
+        /// Splat count the viewer decimates to; `0` picks automatically.
+        #[serde(default)]
+        budget: u32,
+        /// An optional crop box in the file's own frame, `[min, max]`.
+        #[serde(default)]
+        crop: Option<[[f32; 3]; 2]>,
+    },
 }
 
 fn default_capsule_radius() -> f32 {
     0.22
+}
+
+fn default_splat_up() -> String {
+    "-y".into()
 }
 
 fn default_capsule_height() -> f32 {
@@ -1868,6 +1887,50 @@ fn concat_meshes(a: &Mesh, b: &Mesh) -> Mesh {
     out
 }
 
+/// The model matrix that places a splat file in the venue. `bounds` is the
+/// file's `(min, max)` in its own frame. The file's `up` axis is turned to
+/// +Y, the rotated bounds are uniformly scaled so their largest extent fits
+/// `max(o.size)` (a zero size keeps scale 1), the bottom-centre of the result
+/// goes to the origin, and then the object's `yaw` and `at` apply as for every
+/// other object.
+pub fn splat_transform(o: &Object, bounds: ([f32; 3], [f32; 3])) -> glam::Mat4 {
+    use glam::Mat4;
+    let up = match o.form {
+        ObjectForm::Splat { ref up, .. } => up.as_str(),
+        _ => "-y",
+    };
+    let turn = match up {
+        "y" => Quat::IDENTITY,
+        "z" => Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
+        _ => Quat::from_rotation_x(std::f32::consts::PI),
+    };
+    let (lo, hi) = (Vec3::from(bounds.0), Vec3::from(bounds.1));
+    let (mut rmin, mut rmax) = (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY));
+    for i in 0..8 {
+        let c = Vec3::new(
+            if i & 1 == 0 { lo.x } else { hi.x },
+            if i & 2 == 0 { lo.y } else { hi.y },
+            if i & 4 == 0 { lo.z } else { hi.z },
+        );
+        let r = turn * c;
+        rmin = rmin.min(r);
+        rmax = rmax.max(r);
+    }
+    let extent = (rmax - rmin).max_element();
+    let want = o.size.iter().copied().fold(0.0_f32, f32::max);
+    let scale = if want > 0.0 && extent > 0.0 {
+        want / extent
+    } else {
+        1.0
+    };
+    let bottom = Vec3::new((rmin.x + rmax.x) / 2.0, rmin.y, (rmin.z + rmax.z) / 2.0);
+    Mat4::from_translation(Vec3::from(o.at))
+        * Mat4::from_quat(Quat::from_rotation_y(-o.yaw.to_radians()))
+        * Mat4::from_scale(Vec3::splat(scale))
+        * Mat4::from_translation(-bottom)
+        * Mat4::from_quat(turn)
+}
+
 impl Object {
     fn rotation(&self) -> Quat {
         Quat::from_rotation_y(-self.yaw.to_radians())
@@ -1952,6 +2015,9 @@ impl Object {
                 let local = concat_meshes(&lower, &top);
                 place_mesh(&local, self.at, self.yaw)
             }
+            // A splat is not solid: no triangles, so it renders as a box
+            // outline in the viewport and casts nothing.
+            ObjectForm::Splat { .. } => Mesh::default(),
         };
         if let Some(c) = &self.crown {
             let mut crown = metal_geom::solid::sphere(c.radius, 16);
@@ -1968,6 +2034,11 @@ impl Object {
     /// The world-space bounds of [`Object::mesh`]; `None` for an empty form.
     pub fn bbox(&self) -> Option<([f32; 3], [f32; 3])> {
         self.mesh().bbox()
+    }
+
+    /// Whether this object is a Gaussian splat (never solid, never hit).
+    pub fn is_splat(&self) -> bool {
+        matches!(self.form, ObjectForm::Splat { .. })
     }
 
     /// Centre of the top face — where a projector stands.
@@ -2003,6 +2074,9 @@ impl Object {
     /// a footprint) blocks nothing.
     pub fn hit(&self, from: Vec3, dir: Vec3) -> Option<f32> {
         let mut best: Option<f32> = None;
+        if self.is_splat() {
+            return None;
+        }
         if self.size.iter().all(|s| *s > 0.0) {
             let inv = self.rotation().inverse();
             let o = inv * (from - Vec3::from(self.at));
@@ -3375,7 +3449,7 @@ impl Venue {
             }
         }
         // Object faces: ray/triangle against the two triangles of the rectangle.
-        for o in &self.objects {
+        for o in self.objects.iter().filter(|o| !o.is_splat()) {
             for name in &o.faces {
                 let Some(w) = o.face(name) else { continue };
                 if let Some(d) = face_hit(from, dir, &w) {
@@ -6368,5 +6442,121 @@ throw_ratio = 0.0
             .surface_camera("wall", [0.0, 1.0, -1.0], anchor, 2.0)
             .unwrap();
         assert!(near3([wall[0], wall[1], wall[2]], [-2.0, -2.0, -8.0]), "{wall:?}");
+    }
+}
+
+#[cfg(test)]
+mod splat_form_tests {
+    use super::*;
+
+    fn splat_object(up: &str, at: [f32; 3], size: [f32; 3], yaw: f32) -> Object {
+        Object {
+            id: "hall".into(),
+            name: "hall".into(),
+            kind: "splat".into(),
+            at,
+            size,
+            yaw,
+            crown: None,
+            occludes: false,
+            emits: 0.0,
+            faces: Vec::new(),
+            description: String::new(),
+            form: ObjectForm::Splat {
+                file: "splats/hall.ply".into(),
+                up: up.into(),
+                budget: 0,
+                crop: None,
+            },
+            parent: None,
+            attribution: String::new(),
+            source: String::new(),
+        }
+    }
+
+    fn close(a: Vec3, b: Vec3) -> bool {
+        (a - b).length() < 1e-4
+    }
+
+    #[test]
+    fn a_splat_form_round_trips_through_toml_and_json() {
+        let o = splat_object("z", [1.0, 0.0, 2.0], [4.0, 3.0, 4.0], 15.0);
+        let text = toml::to_string(&o).expect("toml");
+        assert_eq!(toml::from_str::<Object>(&text).expect("toml back"), o);
+        let json = serde_json::to_string(&o).expect("json");
+        assert_eq!(serde_json::from_str::<Object>(&json).expect("json back"), o);
+
+        // A minimal form takes the defaults: up `-y`, budget auto, no crop.
+        let bare: Object = serde_json::from_str(
+            r#"{"id":"s","name":"s","kind":"splat","at":[0,0,0],"size":[1,1,1],
+                "form":{"form":"splat","file":"splats/s.ply"}}"#,
+        )
+        .expect("bare");
+        assert_eq!(
+            bare.form,
+            ObjectForm::Splat {
+                file: "splats/s.ply".into(),
+                up: "-y".into(),
+                budget: 0,
+                crop: None,
+            }
+        );
+    }
+
+    #[test]
+    fn a_splat_is_not_solid_and_is_never_hit() {
+        let o = splat_object("-y", [0.0; 3], [4.0, 4.0, 4.0], 0.0);
+        assert!(o.is_splat());
+        assert!(o.mesh().triangles().is_empty());
+        assert!(o.bbox().is_none());
+        assert!(o.hit(Vec3::new(0.0, 2.0, -10.0), Vec3::Z).is_none());
+
+        let mut v = Venue::parse("[venue]\nid = \"splat-test\"\nname = \"splat test\"\nsetting = \"indoor\"\n").expect("minimal venue");
+        v.objects.push(o);
+        assert!(v.hit(Vec3::new(0.0, 2.0, -10.0), Vec3::Z).is_none());
+    }
+
+    #[test]
+    fn each_up_axis_turns_into_y_up() {
+        // Bounds with the file's up axis along the named axis, 2 units tall.
+        let y = ([-1.0, 0.0, -1.0], [1.0, 2.0, 1.0]);
+        let sized = [4.0, 4.0, 4.0];
+        // `y`: identity, so the file's top stays on top.
+        let t = splat_transform(&splat_object("y", [0.0; 3], sized, 0.0), y);
+        assert!(close(t.transform_point3(Vec3::new(0.0, 2.0, 0.0)), Vec3::new(0.0, 4.0, 0.0)));
+
+        // `-y`: 180 degrees about X, so the file's top points down. The
+        // bottom-centre lands on `at`, and the file's top (y = 2) sits at the
+        // bottom of the rotated bounds.
+        let t = splat_transform(&splat_object("-y", [0.0; 3], sized, 0.0), y);
+        assert!(close(t.transform_point3(Vec3::new(0.0, 2.0, 0.0)), Vec3::ZERO));
+        assert!(close(t.transform_point3(Vec3::new(0.0, 0.0, 0.0)), Vec3::new(0.0, 4.0, 0.0)));
+
+        // `z`: -90 degrees about X, so the file's +Z becomes +Y.
+        let zb = ([-1.0, -1.0, 0.0], [1.0, 1.0, 4.0]);
+        let t = splat_transform(&splat_object("z", [0.0; 3], sized, 0.0), zb);
+        assert!(close(t.transform_point3(Vec3::new(0.0, 0.0, 4.0)), Vec3::new(0.0, 4.0, 0.0)));
+        assert!(close(t.transform_point3(Vec3::new(0.0, 0.0, 0.0)), Vec3::ZERO));
+    }
+
+    #[test]
+    fn the_largest_extent_fits_the_size_and_zero_size_keeps_scale_one() {
+        let b = ([-1.0, 0.0, -1.0], [1.0, 2.0, 1.0]);
+        // Largest extent is 2; the size's largest is 4, so scale is 2.
+        let t = splat_transform(&splat_object("y", [0.0; 3], [4.0, 3.0, 4.0], 0.0), b);
+        assert!(close(t.transform_point3(Vec3::new(1.0, 2.0, 1.0)), Vec3::new(2.0, 4.0, 2.0)));
+
+        let t = splat_transform(&splat_object("y", [0.0; 3], [0.0; 3], 0.0), b);
+        assert!(close(t.transform_point3(Vec3::new(1.0, 2.0, 1.0)), Vec3::new(1.0, 2.0, 1.0)));
+    }
+
+    #[test]
+    fn at_and_yaw_place_the_fitted_splat_like_a_box() {
+        let b = ([-1.0, 0.0, -1.0], [1.0, 2.0, 1.0]);
+        // Yaw 90 turns +X into +Z under the box convention (`rotate_y(-yaw)`).
+        let t = splat_transform(&splat_object("y", [5.0, 0.0, -3.0], [4.0; 3], 90.0), b);
+        assert!(close(t.transform_point3(Vec3::new(1.0, 0.0, 0.0)), Vec3::new(5.0, 0.0, -1.0)));
+        // The bottom-centre sits at `at`.
+        assert!(close(t.transform_point3(Vec3::new(0.0, 0.0, 0.0)), Vec3::new(5.0, 0.0, -3.0)));
     }
 }

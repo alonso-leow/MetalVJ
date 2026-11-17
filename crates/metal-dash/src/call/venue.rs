@@ -1,6 +1,10 @@
 //! 3D venues (`metal_perform::venue`): list, check and test-project an
 //! AI-authored venue.
 //!
+//! `POST /venue { op: "splat", id, object?, file, name?, at?, size?, yaw?, up? }`
+//! imports a `.ply`/`.splat`/`.spz` file under `<data>/splats/` as a Gaussian splat
+//! object. It is the one op that copies a file.
+//!
 //! `POST /venue { op: "project" }` is the only write, and it writes nothing
 //! new: it compiles the venue to an `Escena`, projects it through the chosen
 //! projector, and puts the result into `Output.masks`, the same list
@@ -17,6 +21,7 @@ use glam::Vec3;
 use crate::call::{CallError, Ctx, Params};
 use crate::output::Outputs;
 use crate::venue::{self, Venue};
+use metal_perform::fixture_live;
 
 /// `GET /venue`: every venue on disk with its check counts, or with `?id=`
 /// one venue, its full report and the masks each of its projectors would get.
@@ -321,10 +326,16 @@ fn decode_base64(s: &str) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
+/// Per-venue slew state for `GET /venue/state`, kept between polls so each
+/// head's `actual` pose moves toward what the show commands.
+static TRACKERS: std::sync::Mutex<Option<std::collections::HashMap<String, fixture_live::Tracker>>> =
+    std::sync::Mutex::new(None);
+
 /// `GET /venue/state`: every fixture's live state — what the show commanded
 /// and what the head has actually reached (M2). With no `id`, the venue
-/// projected last. A state is initialised from the authored pose; the slew
-/// model (`FixtureState::step`) is what a running show moves it with.
+/// projected last. A fixture the show is driving reports its live `Signal`
+/// (`fixture_live`); one it is not driving sits at its authored pose with
+/// `live: false`. `actual` slews toward `commanded` between polls.
 pub fn state(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
     let root = crate::output::data_root();
     let id = match params.param("id") {
@@ -334,8 +345,12 @@ pub fn state(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         Some(other) => other.to_string(),
     };
     let v = venue::load(&root, &id).map_err(CallError::Bad)?;
-    let states = v.states();
-    Ok(json!({ "venue": id, "fixtures": states }))
+    let fixtures = {
+        let mut guard = TRACKERS.lock().unwrap_or_else(|e| e.into_inner());
+        let trackers = guard.get_or_insert_with(Default::default);
+        trackers.entry(id.clone()).or_default().update(&v, &root)
+    };
+    Ok(json!({ "venue": id, "fixtures": fixtures }))
 }
 
 /// `POST /venue { op: "check", id }` or
@@ -369,7 +384,8 @@ pub fn venue(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
         Some(other) => other.to_string(),
     };
     let mut v = room_for(&root, &id, op).map_err(CallError::Bad)?;
-    let report = v.check();
+    let mut report = v.check();
+    splat_warnings(&mut report, &root, &v);
     match op {
         "check" => Ok(json!({ "id": id, "report": report })),
         // H5.3: place or update a capture camera (`Venue.sensors`). The
@@ -619,6 +635,7 @@ pub fn venue(ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             Ok(json!({ "ok": true, "id": id, "object": object }))
         }
         "boolean" => boolean_op(&mut v, &root, &body),
+        "splat" => splat_op(&mut v, &root, &body),
         "hit" => {
             let origin = parse_target(&body["origin"])
                 .ok_or_else(|| CallError::Bad("`origin` is [x, y, z]".into()))?;
@@ -790,6 +807,7 @@ fn creates_room(op: &str) -> bool {
     matches!(
         op,
         "surface" | "screen" | "object" | "stage" | "truss" | "dummy" | "projector" | "place" | "fixture"
+            | "splat"
     )
 }
 
@@ -1577,6 +1595,7 @@ pub fn scene(_ctx: &mut Ctx, params: &Params) -> Result<Value, CallError> {
             venue::ObjectForm::Swept { .. } => "swept",
             venue::ObjectForm::Mesh { .. } => "mesh",
             venue::ObjectForm::Capsule { .. } => "capsule",
+            venue::ObjectForm::Splat { .. } => "splat",
         };
         items.push(json!({
             "kind": "object", "id": o.id, "name": o.name, "at": o.at,
@@ -1748,8 +1767,14 @@ fn parse_object_form(v: &Value) -> Result<venue::ObjectForm, String> {
                 radius: 0.22,
                 height: 1.8,
             }),
+            "splat" => Ok(venue::ObjectForm::Splat {
+                file: String::new(),
+                up: "-y".into(),
+                budget: 0,
+                crop: None,
+            }),
             other => Err(format!(
-                "unknown form {other:?} (box, swept, mesh, capsule)"
+                "unknown form {other:?} (box, swept, mesh, capsule, splat)"
             )),
         },
         Value::Object(map) => {
@@ -1780,8 +1805,15 @@ fn parse_object_form(v: &Value) -> Result<venue::ObjectForm, String> {
                     radius: finite_or(map.get("radius"), 0.22, "radius")?,
                     height: finite_or(map.get("height"), 1.8, "height")?,
                 }),
+                "splat" => Ok(venue::ObjectForm::Splat {
+                    file: map.get("file").and_then(Value::as_str).unwrap_or_default().to_string(),
+                    up: map.get("up").and_then(Value::as_str).unwrap_or("-y").to_string(),
+                    budget: map.get("budget").and_then(Value::as_u64).unwrap_or(0).min(u32::MAX as u64)
+                        as u32,
+                    crop: None,
+                }),
                 other => Err(format!(
-                    "unknown form {other:?} (box, swept, mesh, capsule)"
+                    "unknown form {other:?} (box, swept, mesh, capsule, splat)"
                 )),
             }
         }
@@ -1885,6 +1917,160 @@ fn object_op_body(body: &Value, op: &str) -> Value {
         }
     }
     body
+}
+
+/// Largest splat file the import op will copy.
+const SPLAT_MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+/// `op: "splat"`: copy a `.ply`, `.splat` or `.spz` file to `<root>/splats/<stem>.<ext>`
+/// (skipped when the file already sits in `splats/`), then add or update the
+/// object that shows it. The object is a `Splat` form, not solid, and it
+/// occludes nothing. The default size is `[4, 3, 4]`.
+fn splat_op(v: &mut Venue, root: &std::path::Path, body: &Value) -> Result<Value, CallError> {
+    let bad = |m: String| CallError::Bad(m);
+    let file = body["file"]
+        .as_str()
+        .filter(|f| !f.is_empty())
+        .ok_or_else(|| bad("splat needs `file`".into()))?;
+    let given = std::path::PathBuf::from(file);
+    let src = if given.is_absolute() {
+        given
+    } else {
+        root.join(&given)
+    };
+    let ext = src
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default();
+    if !matches!(ext.as_str(), "ply" | "splat" | "spz") {
+        return Err(bad("a splat is a .ply, .splat or .spz file".into()));
+    }
+    if !metal_vfs::is_file(&src) {
+        return Err(bad(format!("no file at {}", src.display())));
+    }
+    let len = metal_vfs::metadata(&src)
+        .map_err(|e| bad(e.to_string()))?
+        .len();
+    if len > SPLAT_MAX_BYTES {
+        return Err(bad("a splat file is at most 2 GB".into()));
+    }
+    let stem: String = src
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+    let stem = if stem.is_empty() { "splat".to_string() } else { stem };
+
+    let splats = root.join("splats");
+    let inside = match (metal_vfs::canonicalize(&src), metal_vfs::canonicalize(&splats)) {
+        (Ok(s), Ok(d)) => s.starts_with(d),
+        _ => false,
+    };
+    let file_name = if inside {
+        src.file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| bad("bad file name".into()))?
+            .to_string()
+    } else {
+        let name = format!("{stem}.{ext}");
+        metal_vfs::create_dir_all(&splats).map_err(|e| bad(e.to_string()))?;
+        metal_vfs::copy(&src, splats.join(&name)).map_err(|e| bad(e.to_string()))?;
+        name
+    };
+    let form_file = format!("splats/{file_name}");
+
+    let up = body["up"].as_str().unwrap_or("-y");
+    if !matches!(up, "-y" | "y" | "z") {
+        return Err(bad("`up` is -y, y or z".into()));
+    }
+    let id = body["object"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| stem.clone());
+    let at = match body.get("at") {
+        None | Some(Value::Null) => None,
+        Some(a) => Some(vec3(a).ok_or_else(|| bad("`at` is [x, y, z]".into()))?),
+    };
+    let size = match body.get("size") {
+        None | Some(Value::Null) => None,
+        Some(s) => Some(vec3(s).ok_or_else(|| bad("`size` is [x, y, z]".into()))?),
+    };
+    let yaw = match body.get("yaw") {
+        None | Some(Value::Null) => None,
+        Some(y) => Some(
+            y.as_f64()
+                .ok_or_else(|| bad("`yaw` is a number".into()))? as f32,
+        ),
+    };
+    let name = body["name"].as_str().map(str::to_string);
+    let form = venue::ObjectForm::Splat {
+        file: form_file.clone(),
+        up: up.to_string(),
+        budget: body["budget"].as_u64().unwrap_or(0).min(u32::MAX as u64) as u32,
+        crop: None,
+    };
+    let source = src.display().to_string();
+    match v.objects.iter_mut().find(|o| o.id == id) {
+        Some(o) => {
+            o.kind = "splat".into();
+            o.occludes = false;
+            o.form = form;
+            o.crown = None;
+            o.source = source;
+            if let Some(n) = name {
+                o.name = n;
+            }
+            if let Some(a) = at {
+                o.at = a;
+            }
+            if let Some(s) = size {
+                o.size = s;
+            }
+            if let Some(y) = yaw {
+                o.yaw = y;
+            }
+        }
+        None => v.objects.push(venue::Object {
+            id: id.clone(),
+            name: name.unwrap_or_else(|| id.clone()),
+            kind: "splat".into(),
+            at: at.unwrap_or([0.0; 3]),
+            size: size.unwrap_or([4.0, 3.0, 4.0]),
+            yaw: yaw.unwrap_or(0.0),
+            crown: None,
+            occludes: false,
+            emits: 0.0,
+            faces: Vec::new(),
+            description: String::new(),
+            form,
+            parent: None,
+            attribution: String::new(),
+            source,
+        }),
+    }
+    v.save(root).map_err(CallError::Bad)?;
+    let object = v.objects.iter().find(|o| o.id == id).cloned();
+    Ok(json!({ "ok": true, "id": v.venue.id, "object": object, "file": form_file }))
+}
+
+/// Warns, never errors, about a splat object whose file is not under the
+/// data root. Only the check reads the root, so the warning is added here.
+fn splat_warnings(report: &mut venue::Report, root: &std::path::Path, v: &Venue) {
+    for o in &v.objects {
+        if let venue::ObjectForm::Splat { file, .. } = &o.form {
+            if !metal_vfs::is_file(root.join(file)) {
+                report.problems.push(venue::Problem {
+                    level: venue::Level::Warning,
+                    at: format!("object {}", o.id),
+                    what: format!("splat file {file} is not under the data root"),
+                });
+            }
+        }
+    }
 }
 
 /// `op: "boolean"`: CSG between two objects' world-space meshes. The result
@@ -4443,5 +4629,91 @@ mod tests {
     /// A profile from `data/fixtures/`, for the packet test's channel address.
     fn mkfixture(model: &str) -> crate::fixture::Fixture {
         crate::fixture::get(&crate::output::data_root(), model).expect("the profile")
+    }
+}
+
+#[cfg(test)]
+mod splat_op_tests {
+    use super::*;
+
+    /// The import op copies a `.ply` into a temp data root under a sanitised
+    /// name, writes the object and saves the venue; a missing file under the
+    /// root is only a warning; a `.obj` is refused.
+    #[test]
+    fn the_splat_op_copies_a_ply_and_writes_the_object() {
+        let root = std::env::temp_dir().join(format!("fw-dash-splat-{}", std::process::id()));
+        let _ = metal_vfs::remove_dir_all(&root);
+        metal_vfs::create_dir_all(&root).unwrap();
+        let src = root.join("scan capture.ply");
+        metal_vfs::write(&src, b"ply\nformat binary_little_endian 1.0\nend_header\n").unwrap();
+
+        let mut v = blank_room("hall-test");
+        let reply = splat_op(
+            &mut v,
+            &root,
+            &json!({
+                "op": "splat", "id": "hall-test", "object": "hall",
+                "file": src.to_str().unwrap(), "at": [1.0, 0.0, 2.0], "yaw": 30.0,
+            }),
+        )
+        .expect("splat import");
+        assert_eq!(reply["ok"], json!(true));
+        assert_eq!(reply["file"], json!("splats/scan_capture.ply"));
+        assert!(root.join("splats/scan_capture.ply").exists());
+        let o = v.objects.iter().find(|o| o.id == "hall").expect("object");
+        assert_eq!(o.kind, "splat");
+        assert!(!o.occludes);
+        assert_eq!(o.size, [4.0, 3.0, 4.0]);
+        assert_eq!(o.at, [1.0, 0.0, 2.0]);
+        assert_eq!(o.yaw, 30.0);
+        assert_eq!(o.source, src.display().to_string());
+        assert_eq!(
+            o.form,
+            venue::ObjectForm::Splat {
+                file: "splats/scan_capture.ply".into(),
+                up: "-y".into(),
+                budget: 0,
+                crop: None,
+            }
+        );
+        let back = venue::load(&root, "hall-test").expect("saved venue loads");
+        assert!(back.objects.iter().any(|o| o.id == "hall" && o.is_splat()));
+
+        // A file already under splats/ is not copied again, and an update keeps
+        // the one object.
+        let under = root.join("splats/scan_capture.ply");
+        splat_op(
+            &mut v,
+            &root,
+            &json!({ "object": "hall", "file": under.to_str().unwrap(), "up": "z" }),
+        )
+        .expect("re-import");
+        assert_eq!(v.objects.iter().filter(|o| o.id == "hall").count(), 1);
+        assert!(matches!(
+            &v.objects.iter().find(|o| o.id == "hall").unwrap().form,
+            venue::ObjectForm::Splat { up, .. } if up == "z"
+        ));
+
+        // Only .ply and .splat are accepted; a missing file is refused.
+        let obj = root.join("hall.obj");
+        metal_vfs::write(&obj, b"v 0 0 0").unwrap();
+        assert!(splat_op(&mut v, &root, &json!({ "file": obj.to_str().unwrap() })).is_err());
+        assert!(splat_op(&mut v, &root, &json!({ "file": "nope.ply" })).is_err());
+
+        // A splat whose file is missing warns in the report, and only then.
+        let mut report = venue::Report::default();
+        splat_warnings(&mut report, &root, &v);
+        assert!(report.problems.is_empty(), "the imported file is under the root");
+        v.objects[0].form = venue::ObjectForm::Splat {
+            file: "splats/gone.ply".into(),
+            up: "-y".into(),
+            budget: 0,
+            crop: None,
+        };
+        splat_warnings(&mut report, &root, &v);
+        assert_eq!(report.problems.len(), 1);
+        assert_eq!(report.problems[0].level, venue::Level::Warning);
+
+        metal_vfs::remove_dir_all(&root).ok();
     }
 }

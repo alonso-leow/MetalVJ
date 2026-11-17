@@ -483,3 +483,247 @@ fn shots_controller_faces() {
     }
     shot(&mut hs, &dir, "controller-flkey-mini-assigned");
 }
+
+/// A synthetic splat sculpture in file space, `-y` up the way INRIA captures
+/// are: a twisted column of coloured gaussians over a mossy disc.
+fn sculpture_splats() -> metal_geom::splat::Splats {
+    use std::f32::consts::TAU;
+    let mut s = metal_geom::splat::Splats {
+        pos: Vec::new(),
+        scale: Vec::new(),
+        rot: Vec::new(),
+        opacity: Vec::new(),
+        rgb: Vec::new(),
+        ..Default::default()
+    };
+    let mut push = |p: [f32; 3], sc: f32, rgb: [f32; 3], a: f32| {
+        s.pos.push(p);
+        s.scale.push([sc, sc * 0.6, sc]);
+        s.rot.push([0.0, 0.0, 0.0, 1.0]);
+        s.opacity.push(a);
+        s.rgb.push(rgb);
+    };
+    // The column: three intertwined ribbons climbing 3 m (towards -y).
+    for i in 0..18_000 {
+        let t = i as f32 / 18_000.0;
+        let strand = (i % 3) as f32;
+        let ang = t * TAU * 4.0 + strand * TAU / 3.0;
+        let r = 0.55 - 0.3 * t + 0.05 * ((i * 7919) % 97) as f32 / 97.0;
+        let hue = (t + strand / 3.0).fract();
+        let rgb = [
+            0.5 + 0.5 * (TAU * hue).cos(),
+            0.5 + 0.5 * (TAU * (hue - 1.0 / 3.0)).cos(),
+            0.5 + 0.5 * (TAU * (hue - 2.0 / 3.0)).cos(),
+        ];
+        push([r * ang.cos(), -3.0 * t, r * ang.sin()], 0.045, rgb, 0.85);
+    }
+    // The disc: soft greens at the base.
+    for i in 0..9_000 {
+        let a = i as f32 * 2.399_963;
+        let r = 1.4 * ((i as f32 + 0.5) / 9_000.0).sqrt();
+        let k = ((i * 31) % 17) as f32 / 17.0;
+        push([r * a.cos(), 0.02 * k, r * a.sin()], 0.06, [0.12 + 0.1 * k, 0.35 + 0.25 * k, 0.15], 0.7);
+    }
+    s
+}
+
+/// The room the splat shot paints: a projection screen, a side wall, a stage
+/// box with a projector on it, two moving heads and a wash on a truss line,
+/// and the splat sculpture standing on the stage.
+fn splat_room() -> metal_perform::venue::Venue {
+    use metal_perform::venue::{Object, ObjectForm, Venue};
+    let toml = r#"
+[venue]
+id = "splat-shot"
+name = "Splat shot"
+setting = "indoor"
+
+[[surface]]
+id = "screen"
+name = "Screen"
+origin = [-4.0, 5.0, -6.0]
+u = [8.0, 0.0, 0.0]
+v = [0.0, -4.5, 0.0]
+material = "projection"
+
+[[surface]]
+id = "side"
+name = "Side wall"
+origin = [-6.0, 5.0, 2.0]
+u = [0.0, 0.0, -8.0]
+v = [0.0, -5.0, 0.0]
+
+[[object]]
+id = "stage"
+name = "Stage"
+kind = "stage"
+at = [0.0, 0.0, -3.0]
+size = [8.0, 0.6, 4.0]
+
+[[object]]
+id = "booth"
+name = "Booth"
+kind = "table"
+at = [0.0, 0.0, 6.0]
+size = [1.6, 1.1, 0.8]
+
+[[projector]]
+id = "proj"
+name = "Projector"
+output = "screen-1"
+on = "booth"
+yaw = 0.0
+pitch = 4.0
+throw_ratio = 1.4
+
+[[fixture]]
+id = "head-l"
+name = "Head L"
+kind = "moving"
+at = [-3.0, 5.5, -1.0]
+yaw = 0.0
+pitch = -70.0
+beam = 12.0
+
+[[fixture]]
+id = "head-r"
+name = "Head R"
+kind = "moving"
+at = [3.0, 5.5, -1.0]
+yaw = 0.0
+pitch = -70.0
+beam = 12.0
+
+[[fixture]]
+id = "wash"
+name = "Wash"
+kind = "wash"
+at = [0.0, 5.5, 1.5]
+yaw = 0.0
+pitch = -60.0
+beam = 40.0
+"#;
+    let mut v = Venue::parse(toml).expect("shot venue parses");
+    v.objects.push(Object {
+        id: "sculpture".into(),
+        name: "Sculpture".into(),
+        kind: "splat".into(),
+        at: [0.6, 0.6, -3.2],
+        size: [2.0, 3.0, 2.0],
+        yaw: 20.0,
+        crown: None,
+        occludes: false,
+        emits: 0.0,
+        faces: Vec::new(),
+        description: String::new(),
+        form: ObjectForm::Splat {
+            file: "splats/shot-sculpture.splat".into(),
+            up: "-y".into(),
+            budget: 0,
+            crop: None,
+        },
+        parent: None,
+        attribution: String::new(),
+        source: String::new(),
+    });
+    v
+}
+
+/// The live state a running show would report: the two heads crossing on
+/// the sculpture in magenta and cyan, the wash a dim amber.
+fn splat_room_live() -> crate::shell::panels::viewport_fixtures::LiveState {
+    use crate::shell::panels::viewport_fixtures::{parse_state, LiveState};
+    let reply = json!({ "venue": "splat-shot", "fixtures": [
+        { "fixture": "head-l", "live": true, "strobe": 0.0,
+          "commanded": { "pan": 58.6, "tilt": -39.7, "rotation": 0.0, "zoom": 10.0, "dimmer": 1.0, "rgb": [1.0, 0.1, 0.8] },
+          "actual":    { "pan": 58.6, "tilt": -39.7, "rotation": 0.0, "zoom": 10.0, "dimmer": 1.0, "rgb": [1.0, 0.1, 0.8] } },
+        { "fixture": "head-r", "live": true, "strobe": 0.0,
+          "commanded": { "pan": -47.5, "tilt": -47.0, "rotation": 0.0, "zoom": 14.0, "dimmer": 0.9, "rgb": [0.1, 0.9, 1.0] },
+          "actual":    { "pan": -47.5, "tilt": -47.0, "rotation": 0.0, "zoom": 14.0, "dimmer": 0.9, "rgb": [0.1, 0.9, 1.0] } },
+        { "fixture": "wash", "live": true, "strobe": 0.0,
+          "commanded": { "pan": 0.0, "tilt": -60.0, "rotation": 0.0, "zoom": 40.0, "dimmer": 0.5, "rgb": [1.0, 0.6, 0.2] },
+          "actual":    { "pan": 0.0, "tilt": -60.0, "rotation": 0.0, "zoom": 40.0, "dimmer": 0.5, "rgb": [1.0, 0.6, 0.2] } }
+    ]});
+    let state: LiveState = parse_state(&reply);
+    assert_eq!(state.fixtures.len(), 3, "the shot's live reply parses");
+    state
+}
+
+/// Paints the splat room from two cameras into `dir`, with the CPU splat
+/// layer or (`gpu`) the wgpu paint-callback layer the desktop window uses.
+fn venue_splat_shots(dir: &std::path::Path, gpu: bool) {
+    use crate::shell::panels::viewport::{paint_room, OrbitCamera, RoomView};
+    use crate::shell::panels::viewport_splats::GPU_LAYER;
+    use std::sync::atomic::Ordering;
+    crate::shell::panels::viewport_splats::preload(
+        "splats/shot-sculpture.splat",
+        0,
+        None,
+        sculpture_splats(),
+    );
+    let venue = splat_room();
+    let live = splat_room_live();
+    let theme = Theme::phosphor();
+    let tag = if gpu { "gpu" } else { "cpu" };
+    for (name, yaw, pitch, distance) in [
+        ("front", 0.35_f32, 0.32_f32, 15.0_f32),
+        ("side", 1.25, 0.22, 13.0),
+    ] {
+        let camera = OrbitCamera {
+            target: [0.0, 2.0, -2.5],
+            distance,
+            yaw,
+            pitch,
+            fov: 55.0_f32.to_radians(),
+            ortho: false,
+        };
+        let (venue, live, theme2) = (venue.clone(), live.clone(), theme.clone());
+        let builder = egui_kittest::Harness::builder().with_size(egui::Vec2::new(1280.0, 800.0));
+        let builder = if gpu {
+            let rs = egui_kittest::wgpu::create_render_state(
+                egui_kittest::wgpu::default_wgpu_setup(),
+                egui_wgpu::RendererOptions::PREDICTABLE,
+            );
+            rs.renderer.write().callback_resources.insert(
+                crate::splat_gpu::SplatTargetFormat(rs.target_format),
+            );
+            builder.renderer(egui_kittest::wgpu::WgpuTestRenderer::from_render_state(rs))
+        } else {
+            builder.wgpu()
+        };
+        GPU_LAYER.store(gpu, Ordering::Relaxed);
+        let mut h = builder.build_ui(move |ui| {
+            let rect = ui.max_rect();
+            ui.painter().rect_filled(rect, 0.0, theme2.mask_outside);
+            let view = RoomView {
+                camera: &camera,
+                masks: &[],
+                mask_surface: None,
+                live: Some(&live),
+            };
+            paint_room(&ui.painter_at(rect), &theme2, rect, &view, &venue);
+        });
+        theme.apply(&h.ctx);
+        h.run_steps(4);
+        let img = h.render().expect("wgpu render");
+        GPU_LAYER.store(false, Ordering::Relaxed);
+        img.save(dir.join(format!("venue_splat_{tag}_{name}.png"))).expect("write png");
+    }
+}
+
+/// The 3D venue with a gaussian splat, live moving heads, a projector and a
+/// screen, painted by the CPU splat layer (`viewport_splats`), the way the
+/// browser and the glow painter draw it.
+#[test]
+fn shots_venue_splat() {
+    let Some(dir) = out_dir() else { return };
+    venue_splat_shots(&dir, false);
+}
+
+/// The same room through the desktop wgpu splat layer
+/// (`splat_gpu`): offscreen depth prepass, instanced splats, blit.
+#[test]
+fn shots_venue_splat_gpu() {
+    let Some(dir) = out_dir() else { return };
+    venue_splat_shots(&dir, true);
+}

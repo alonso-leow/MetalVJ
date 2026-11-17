@@ -33,6 +33,8 @@ pub mod venue_editor;
 pub mod venue_map;
 pub mod venue_popup;
 pub mod viewport;
+pub mod viewport_fixtures;
+pub mod viewport_splats;
 
 /// Releases the drag payload only when it is a `T`. egui's
 /// `dnd_release_payload` takes the stored payload before checking its type,

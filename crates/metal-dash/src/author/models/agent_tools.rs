@@ -792,6 +792,23 @@ impl AgentHarness {
         self.add_venue_kind(args, "dummy", "dummy")
     }
 
+    /// `import_splat(venue, file, at?, yaw?, size?, up?, budget?)` — `POST /venue
+    /// { op: "splat", id: venue, file, … }`, the body the Venue import sends.
+    /// The object takes the file's name, as the import does.
+    fn import_splat(&self, args: &Value) -> Result<Value, String> {
+        let venue = Self::require_str(args, "venue")?;
+        let file = Self::require_str(args, "file")?;
+        let mut body = json!({ "op": "splat", "id": venue, "file": file });
+        for key in ["at", "yaw", "size", "up", "budget"] {
+            if let Some(v) = args.get(key) {
+                body[key] = v.clone();
+            }
+        }
+        let door = self.door()?;
+        door.json("POST", "/venue", Some(body))
+            .map_err(|(status, msg)| format!("/venue answered {status}: {msg}"))
+    }
+
     fn add_venue_kind(&self, args: &Value, op: &str, key: &str) -> Result<Value, String> {
         let object = Self::require_str(args, key)?;
         let mut body = json!({ "op": op, "object": object });
@@ -2913,6 +2930,7 @@ impl ToolExecutor for AgentHarness {
             "venue_view" => self.venue_view(&call.arguments),
             "venue_assets_search" => self.venue_assets_search(&call.arguments),
             "venue_asset_import" => self.venue_asset_import(&call.arguments),
+            "import_splat" => self.import_splat(&call.arguments),
             "set_fixture" => self.set_fixture(&call.arguments),
             "stage_grid" => self.stage_grid(&call.arguments),
             "stage_place" => self.stage_place(&call.arguments),
@@ -4103,6 +4121,24 @@ mod tests {
         assert_eq!(body, Some(json!({ "op": "resolution", "id": "screen-2", "width": 800 })));
         assert!(run(json!({ "op": "resolution", "id": "screen-2" })).0.is_err());
         assert!(run(json!({ "op": "rename", "id": "screen-2" })).0.is_err());
+    }
+
+    /// `import_splat` posts the splat op with the venue as `id`, the file and the
+    /// placement; a call without `file` is refused before any request.
+    #[test]
+    fn import_splat_posts_the_splat_op() {
+        let door = std::sync::Arc::new(ScriptedDoor::new().json("POST", "/venue", json!({ "ok": true })));
+        let mut h = with_door(&door);
+        h.execute(&call(
+            "import_splat",
+            json!({ "venue": "bar", "file": "hall.ply", "at": [0, 0, 0], "yaw": 90, "size": [4, 3, 4], "up": "z", "budget": 50000 }),
+        ))
+        .expect("import_splat");
+        assert_eq!(
+            posted(&door, "POST", "/venue"),
+            Some(json!({ "op": "splat", "id": "bar", "file": "hall.ply", "at": [0, 0, 0], "yaw": 90, "size": [4, 3, 4], "up": "z", "budget": 50000 }))
+        );
+        assert!(h.execute(&call("import_splat", json!({ "venue": "bar" }))).is_err());
     }
 
     /// G1: `resolve_draft` posts `POST /venue { op: accept | reject, id }`,

@@ -60,6 +60,7 @@ mod g3_tests;
 pub mod layers;
 pub mod listeners;
 pub mod live;
+pub mod fixture_live;
 pub mod looper;
 pub mod loop_triggers;
 pub mod motion;

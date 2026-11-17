@@ -793,7 +793,8 @@ pub fn frame_signal(rgb: [f32; 3]) -> Signal {
 /// ([`crate::venue::sample_rgb`]), turned into a signal, packed through its
 /// profile ([`fixture::Fixture::frame`]), with the graph's `forced` colour
 /// (blackout) over the frame's. A head whose profile is not under
-/// `data/fixtures/` is skipped, never a crash.
+/// `data/fixtures/` is skipped, never a crash. A head whose id `is_venue` names
+/// a venue fixture reports the signal it was driven with to the live store.
 fn head_slots(
     heads: &[SampledHead],
     profiles: &[fixture::Fixture],
@@ -801,6 +802,7 @@ fn head_slots(
     frame: &[u8],
     w: u32,
     h: u32,
+    is_venue: &dyn Fn(&str) -> bool,
 ) -> Vec<(u16, u8)> {
     let force = FixtureConfig { forced, patch: PatchMode::Colour };
     let mut slots: Vec<(u16, u8)> = Vec::new();
@@ -813,6 +815,9 @@ fn head_slots(
         // a dimmer cap, a refused strobe, a pan/tilt no-go zone.
         let mut signal = force.drive(&signal);
         profile.limits.clamp_signal(&mut signal);
+        if !head.id.is_empty() && is_venue(&head.id) {
+            crate::fixture_live::record(&head.id, &signal);
+        }
         slots.extend(profile.frame(&head.head(), &signal));
     }
     slots.sort_by_key(|(address, _)| *address);
@@ -1214,7 +1219,7 @@ fn packets_of(
     for universe in universes {
         let mut slots = matrix_slots.remove(&universe).unwrap_or_default();
         if let Some(heads) = sacn.get(&universe) {
-            slots.extend(head_slots(heads, &profiles, force, frame, w, h));
+            slots.extend(head_slots(heads, &profiles, force, frame, w, h, &|id| v.fixtures.iter().any(|f| f.id == id)));
         }
         slots.sort_by_key(|(address, _)| *address);
         out.push(VenuePacket {
@@ -1514,6 +1519,8 @@ fn fixture_signal_packet(
     patch: PatchMode,
 ) -> Option<VenuePacket> {
     let (universe, head) = signal_heads(v, root).into_iter().find(|(_, h)| h.id == fixture_id)?;
+    // The live store (`GET /venue/state`) reads back what each venue fixture was driven with.
+    crate::fixture_live::record(fixture_id, wire);
     let slots = fixture::drive_head_mode(root, &head.head(), Some(graph), None, wire, patch)?;
     Some(VenuePacket { wire: "sacn".into(), key: universe.to_string(), universe, slots, state: None, pixels: 0 })
 }
@@ -2003,12 +2010,14 @@ pub fn drive_sampled_bus_with(
             let cfg = SacnConfig::from_node(node);
             let heads = SampledSacn::from_node(node).heads;
             let profiles = profiles.get_or_insert_with(|| fixture::load_with(root, &fixture::extra_dirs(root)));
-            (format!("sacn {cfg:?}"), cfg.universe, head_slots(&heads, profiles, forced, frame, w, h))
+            // Recorded by id: `GET /venue/state` only reads venue fixture ids, so
+            // a head that names none is never shown (no venue scan per frame).
+            (format!("sacn {cfg:?}"), cfg.universe, head_slots(&heads, profiles, forced, frame, w, h, &|_| true))
         } else if node.kind == crate::artnet::ARTNET_KIND {
             let cfg = crate::artnet::ArtNetConfig::from_node(node);
             let heads = SampledSacn::from_node(node).heads;
             let profiles = profiles.get_or_insert_with(|| fixture::load_with(root, &fixture::extra_dirs(root)));
-            (format!("artnet {cfg:?}"), cfg.port_address(), head_slots(&heads, profiles, forced, frame, w, h))
+            (format!("artnet {cfg:?}"), cfg.port_address(), head_slots(&heads, profiles, forced, frame, w, h, &|_| true))
         } else if node.kind == DDP_KIND {
             let cfg = DdpConfig::from_node(node);
             if cfg.dest().is_none() || cfg.count() == 0 {
@@ -4041,6 +4050,27 @@ mod venue_tests {
         let bytes2 = bus2.resolve(0, now).expect("the same-hue universe");
         let hues2: Vec<u8> = (0..4).map(|i| bytes2[20 + i * 4]).collect();
         assert_eq!(hues2, vec![hues[2]; 4], "spread=same takes one slot for all");
+    }
+
+    /// The live store: a group node's sampled heads are recorded under their
+    /// venue fixture ids, so `GET /venue/state` reports them.
+    #[test]
+    fn a_group_node_records_its_sampled_heads_as_live() {
+        let root = data_root();
+        let mut v = bar();
+        let mut ids = Vec::new();
+        for (i, f) in v.fixtures.iter_mut().filter(|f| f.wire == "dmx").enumerate() {
+            f.id = format!("live-group-test-{i}");
+            f.group = Some("live-group-test".to_string());
+            ids.push(f.id.clone());
+        }
+        assert!(!ids.is_empty(), "the bar has DMX washes");
+        let (f, w, h) = frame();
+        assert!(!venue_packets(&v, Some("live-group-test"), &f, w, h, &root).is_empty());
+        let live = crate::fixture_live::snapshot();
+        for id in &ids {
+            assert!(live.contains_key(id), "{id} is in the live store");
+        }
     }
 
     #[test]

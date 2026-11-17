@@ -374,6 +374,7 @@ const SKIP: &[(&str, &str)] = &[
     ("venue_view", "needs a live session state; covered by route tests"),
     ("venue_assets_search", "needs a live session state; covered by route tests"),
     ("venue_asset_import", "needs a live session state; covered by route tests"),
+    ("import_splat", "needs a live session state; covered by route tests"),
     ("play_sequence", "needs a live session state; covered by route tests"),
     ("edit_loops", "needs a live session state; covered by route tests"),
     ("transport", "needs a live session state; covered by route tests"),

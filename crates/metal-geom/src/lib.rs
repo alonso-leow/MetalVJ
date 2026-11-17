@@ -14,6 +14,7 @@ pub mod curve;
 pub mod gltf;
 pub mod mesh;
 pub mod query;
+pub mod splat;
 pub mod solid;
 pub mod sweep;
 

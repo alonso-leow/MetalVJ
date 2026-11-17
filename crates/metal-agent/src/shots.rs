@@ -159,6 +159,7 @@ fn tool_schema(name: &str) -> Option<&'static [&'static str]> {
         "venue_report" | "venue_view" => Some(&[]),
         "venue_assets_search" => Some(&[]),
         "venue_asset_import" => Some(&["object", "path", "licence"]),
+        "import_splat" => Some(&["venue", "file"]),
         // D1: a fixture is named by its venue; `id` (absent adds) and every
         // mapping field are optional — the same "which venue" shape the
         // surface tool has.

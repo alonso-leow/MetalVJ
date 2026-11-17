@@ -148,6 +148,10 @@ pub mod surface;
 // and serves exactly as it always did.
 #[cfg(any(feature = "gpu", feature = "glow", target_arch = "wasm32"))]
 mod shell;
+// The splat GPU layer for the venue viewport: wgpu lives outside `shell/`
+// (gate 4), the viewport reaches it through `viewport_splats::gpu_paint`.
+#[cfg(feature = "gpu")]
+mod splat_gpu;
 #[cfg(test)]
 mod gallery_gen;
 // Screenshots of the shell's states — outside `shell/` because it names
@@ -1062,6 +1066,7 @@ fn tool_route(name: &str) -> Option<(&'static str, &'static str)> {
         "venue_view" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         "venue_assets_search" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         "venue_asset_import" => Some(("POST", call::AGENT_TOOL_ROUTE)),
+        "import_splat" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         "play_sequence" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         "edit_loops" => Some(("POST", call::AGENT_TOOL_ROUTE)),
         "transport" => Some(("POST", call::AGENT_TOOL_ROUTE)),

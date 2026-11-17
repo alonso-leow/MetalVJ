@@ -159,6 +159,7 @@ pub const TOOL_CATALOG: &[(&str, &str, bool)] = &[
     ("venue_report", "Checks a venue (POST /venue {op: \"report\"}): returns its geometry report and aspect warnings.", true),
     ("venue_view", "Renders an ASCII view of a venue (POST /venue {op: \"view\"}): optional `shot`, `width`, `height`; returns `rows`, `ramp` and `legend` for the model to read.", true),
     ("venue_assets_search", "Searches the local `data/assets/manifest.json` by `query` (name/id/tags) and `licence`, capped at 32 results (default 12). No remote fetch.", true),
+    ("import_splat", "Imports a .ply, .splat or .spz Gaussian splat as a venue object (POST /venue {op: \"splat\"}): `venue`, `file` (under the data root, or absolute), `at`, `yaw`, `size`, `up` (-y, y or z), `budget`. The object takes the file's name.", true),
     ("venue_asset_import", "Imports a local glTF as a venue object (POST /venue {op: \"object\"} with a mesh form): `object`, `path`, `licence` (CC0, Public Domain, CC-BY, CC-BY-3.0, CC-BY-4.0, CC-BY-SA, CC-BY-SA-4.0), `author`, `url`, `scale` (default 1 m), `at`, `name`. Records attribution and source.", true),
     // D1: the venue's fixtures — add, edit or remove one (POST /venue {op:
     // "fixture"}), the same body the Settings "Fixtures" page posts (rule 6).
@@ -1884,7 +1885,7 @@ impl ToolExecutor for Harness {
             | "edit_venue_surface" | "edit_layer" | "listen_status"
             | "add_stage" | "add_truss" | "add_dummy" | "venue_spline"
             | "place_mask_in_space" | "venue_boolean" | "venue_hit" | "venue_report"
-            | "venue_view" | "venue_assets_search" | "venue_asset_import"
+            | "venue_view" | "venue_assets_search" | "venue_asset_import" | "import_splat"
             | "stage_grid" | "stage_place" | "stage_view"
             | "list_video_io" | "set_output_sink" | "dmx_bus" | "import_gdtf" | "capture_output"
             | "play_sequence" | "edit_loops" | "transport" | "fire_trigger" | "overlay_control"
@@ -3380,6 +3381,7 @@ mod capability_tests {
         "stage_view",
         "venue_assets_search",
         "venue_asset_import",
+        "import_splat",
         "list_switches",
         "set_switch",
         "get_tick_level",

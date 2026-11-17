@@ -4111,6 +4111,7 @@ dependencies = [
 name = "metal-geom"
 version = "0.0.1"
 dependencies = [
+ "flate2",
  "glam",
  "gltf",
  "kurbo",

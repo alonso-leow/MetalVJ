@@ -214,10 +214,12 @@ pub(crate) fn paint(
 
     // The room, by the viewport's own painter (the same code the properties
     // 3D view runs).
+    let live = super::viewport_fixtures::poll(ui, door, &scene.room);
     let view = RoomView {
         camera: &scene.camera,
         masks: &[],
         mask_surface: None,
+        live: Some(&live),
     };
     viewport::paint_room(&ui.painter_at(rect), theme, rect, &view, &venue);
     // The bar rides over the painted room, not under it: the room's ground
@@ -399,6 +401,7 @@ fn paint_empty_room(ui: &Ui, theme: &Theme, rect: Rect, scene: &mut VenueScene) 
         camera: &scene.camera,
         masks: &[],
         mask_surface: None,
+        live: None,
     };
     viewport::paint_room(&ui.painter_at(rect), theme, rect, &view, &empty);
 }

@@ -45,3 +45,13 @@ panels/library.rs:Vec2::new(200.0, 100.0),
 panels/library.rs:assert_eq!(fit_within(Vec2::new(24.0, 24.0), Vec2::ZERO), Vec2::ZERO);
 # 2026-11-12: the share of the canvas the floating bar covers (no pan there) — a ratio, not a size.
 panels/nodes.rs:if EguiRect::from_min_size(rect.min, rect.size() * Vec2::new(0.3, 0.14)).contains(p) {
+# 16-nov-2026 (splat venue): a splat object's box is not filled — the splat
+# layer is what shows, so its face fill is "none", not a theme colour.
+panels/viewport.rs:Color32::TRANSPARENT
+# A live fixture's beam is the show's own colour (`GET /venue/state` rgb ×
+# dimmer), and a splat's colour is the capture's radiance: data, not theme.
+panels/viewport_fixtures.rs:Color32::from_rgba_unmultiplied(
+panels/viewport_splats.rs:let color = Color32::from_rgba_unmultiplied(
+# Test geometry for the viewport camera and splat projection tests.
+panels/viewport.rs:let rect = Rect::from_min_size(Pos2::new(10.0, 20.0), Vec2::new(640.0, 360.0));
+panels/viewport_splats.rs:let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0));

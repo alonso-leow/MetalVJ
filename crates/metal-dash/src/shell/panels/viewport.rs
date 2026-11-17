@@ -12,13 +12,16 @@ use std::collections::BTreeSet;
 use egui::{
     Align2, Color32, Id, Key, PointerButton, Pos2, Rect, RichText, Sense, Shape, Stroke, Ui, Vec2,
 };
-use glam::Vec3;
+use glam::{Mat4, Vec3};
 use serde_json::{json, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
 use crate::shell::components::{self, icon_button, Icon};
 use crate::shell::i18n::{tr, trf};
+use super::viewport_fixtures::{self, LiveState};
+use super::viewport_splats::{self, Layer, SplatSet};
+use metal_geom::splat::Ellipse;
 use metal_perform::venue::{
     direction, Camera, Fixture, Object, ObjectForm, Projector, Surface, SurfaceForm, Venue,
     VenueMask,
@@ -219,6 +222,23 @@ impl OrbitCamera {
             centre.x + nx * rect.width() * 0.5,
             centre.y - ny * rect.height() * 0.5,
         ))
+    }
+
+    /// The view and projection matrices `project` uses for `rect`: a point
+    /// projects to `rect.min + ((ndc.x + 1) / 2 · w, (1 - ndc.y) / 2 · h)`.
+    pub(crate) fn view_proj(&self, rect: Rect) -> (Mat4, Mat4) {
+        let (forward, _, up) = self.basis();
+        let eye = self.eye();
+        let view = Mat4::look_at_rh(eye, eye + forward, up);
+        let aspect = rect.width() / rect.height().max(1.0e-6);
+        let proj = if self.ortho {
+            let half_h = (self.distance * (self.fov * 0.5).tan()).max(1.0e-6);
+            let half_w = half_h * aspect;
+            Mat4::orthographic_rh(-half_w, half_w, -half_h, half_h, 0.05, 500.0)
+        } else {
+            Mat4::perspective_rh(self.fov, aspect, 0.05, 500.0)
+        };
+        (view, proj)
     }
 
     /// The perspective ray under a screen point: `(origin, unit direction)`.
@@ -733,6 +753,9 @@ pub(crate) struct RoomView<'a> {
     pub camera: &'a OrbitCamera,
     pub masks: &'a [[f32; 2]],
     pub mask_surface: Option<&'a str>,
+    /// The fixtures' live state (`GET /venue/state`, polled by the caller);
+    /// `None` paints every fixture at its authored pose.
+    pub live: Option<&'a LiveState>,
 }
 
 /// Paints the room (surfaces, objects, fixtures, projectors, displays, masks
@@ -750,7 +773,18 @@ pub(crate) fn paint_room(
     state.camera = view.camera.clone();
     state.mask_surface = view.mask_surface.map(str::to_string);
     state.mask_points = view.masks.to_vec();
-    draw_scene(painter, theme, rect, &state, &scene, None);
+    let splats = viewport_splats::splat_sets(painter.ctx(), venue);
+    draw_scene(
+        painter,
+        theme,
+        rect,
+        &state,
+        &scene,
+        None,
+        view.live.unwrap_or(&LiveState::default()),
+        painter.ctx().input(|i| i.time),
+        &splats,
+    );
 }
 
 /// Draw the viewport and run its interactions.
@@ -1018,6 +1052,9 @@ fn paint_interactive(ui: &mut Ui, theme: &Theme, door: &dyn Call, venue_id: &str
         }
     }
 
+    let live = viewport_fixtures::poll(ui, door, venue_id);
+    let now = ui.input(|i| i.time);
+    let splats = viewport_splats::splat_sets(ui.ctx(), venue);
     draw_scene(
         &painter,
         theme,
@@ -1025,6 +1062,9 @@ fn paint_interactive(ui: &mut Ui, theme: &Theme, door: &dyn Call, venue_id: &str
         &state,
         &scene,
         selected_surface.as_deref(),
+        &live,
+        now,
+        &splats,
     );
 
     if let Some(note) = &state.note {
@@ -1133,6 +1173,9 @@ fn draw_scene(
     state: &ViewState,
     scene: &Scene,
     selected_surface: Option<&str>,
+    live: &LiveState,
+    now: f64,
+    splats: &[SplatSet],
 ) {
     let cam = &state.camera;
     let eye = cam.eye();
@@ -1229,12 +1272,21 @@ fn draw_scene(
             .selected
             .as_ref()
             .is_some_and(|s| s.kind == SelectKind::Object && s.id == o.id);
-        let fill = if sel {
+        // A splat is drawn as its box outline only: no fill, no solid faces.
+        // Once its cloud is loaded the box stays only while selected, so the
+        // lines do not sit over the splats.
+        let splat = matches!(o.form, ObjectForm::Splat { .. });
+        if splat && !sel && splats.iter().any(|s| s.object == o.id) {
+            continue;
+        }
+        let fill = if splat {
+            Color32::TRANSPARENT
+        } else if sel {
             theme.phosphor_deep
         } else {
             theme.tube_raised
         };
-        if matches!(o.form, ObjectForm::Box) {
+        if matches!(o.form, ObjectForm::Box | ObjectForm::Splat { .. }) {
             let corner = box_corners(o);
             let quads = [
                 [0usize, 1, 2, 3],
@@ -1357,40 +1409,69 @@ fn draw_scene(
     }
 
     faces.sort_by(|a, b| b.depth.total_cmp(&a.depth));
-    for face in faces {
-        if face.pts.len() >= 3 {
-            painter.add(Shape::convex_polygon(face.pts, face.fill, face.stroke));
+    // The fixtures' beams light the splats they pass through.
+    let lights = if splats.is_empty() {
+        Vec::new()
+    } else {
+        viewport_fixtures::beam_lights(scene.venue, live, now)
+    };
+    // The GPU layer projects, sorts and draws the splats itself, over the
+    // faces; only when it declines are they projected here.
+    let gpu = viewport_splats::gpu_layer_active();
+    let mut faces = Some(faces);
+    if gpu {
+        for face in faces.take().into_iter().flatten() {
+            paint_face(painter, face);
+        }
+    }
+    if !(gpu && viewport_splats::gpu_paint(painter, rect, cam, splats, scene.venue, &lights)) {
+        let projected = viewport_splats::project_cached(
+            painter.ctx(),
+            &scene.venue.venue.id,
+            splats,
+            cam,
+            rect,
+        );
+        let lit = projected.lit(&lights);
+        let ellipses: &[Ellipse] = &lit;
+        let tex = (!ellipses.is_empty()).then(|| viewport_splats::gaussian_texture(painter.ctx()));
+        if gpu {
+            if let Some(tex) = tex {
+                viewport_splats::paint_batch(painter, tex, rect.min, ellipses);
+            }
+        } else {
+            // One far-to-near sequence: faces, and runs of splats between them.
+            let faces = faces.take().unwrap_or_default();
+            let face_depths: Vec<f32> = faces.iter().map(|f| f.depth).collect();
+            let splat_depths: Vec<f32> = ellipses.iter().map(|e| e.depth).collect();
+            let mut batch: Vec<Ellipse> = Vec::new();
+            let mut faces = faces.into_iter();
+            for step in viewport_splats::interleave(&face_depths, &splat_depths) {
+                match step {
+                    Layer::Splat(i) => batch.push(ellipses[i]),
+                    Layer::Face(_) => {
+                        flush_splats(painter, tex, rect.min, &mut batch);
+                        if let Some(face) = faces.next() {
+                            paint_face(painter, face);
+                        }
+                    }
+                }
+            }
+            flush_splats(painter, tex, rect.min, &mut batch);
         }
     }
 
-    // Fixtures: a dot and a beam line.
+    // Fixtures: beams and hit spots over the faces, then the bodies, then the
+    // selected fixture's label.
+    let selected_fixture = match &state.selected {
+        Some(s) if s.kind == SelectKind::Fixture => Some(s.id.as_str()),
+        _ => None,
+    };
+    viewport_fixtures::draw_beams(painter, theme, rect, cam, scene.venue, live, now);
+    viewport_fixtures::draw_bodies(painter, theme, rect, cam, scene.venue, live, selected_fixture);
     for f in &scene.venue.fixtures {
-        if let Some(at) = f.at {
-            let sel = state
-                .selected
-                .as_ref()
-                .is_some_and(|s| s.kind == SelectKind::Fixture && s.id == f.id);
-            if let Some(p) = cam.project(at, rect) {
-                painter.circle_filled(
-                    p,
-                    if sel {
-                        theme.hairline * 4.0
-                    } else {
-                        theme.hairline * 2.5
-                    },
-                    if sel {
-                        theme.phosphor_lit
-                    } else {
-                        theme.accent().color
-                    },
-                );
-            }
-            let dir = fixture_direction(f);
-            let end = (Vec3::from(at) + dir * 3.0).to_array();
-            if let (Some(a), Some(b)) = (cam.project(at, rect), cam.project(end, rect)) {
-                painter.line_segment([a, b], theme.line_stroke(theme.warn));
-            }
-            if sel {
+        if let (Some(at), Some(id)) = (f.at, selected_fixture) {
+            if f.id == id {
                 labels(painter, theme, rect, cam, &f.id, at);
             }
         }
@@ -1418,7 +1499,14 @@ fn draw_scene(
         }
         let dir = fixture_dir(pr.yaw, pr.pitch);
         let (_, right, up) = cam.basis();
-        let far = Vec3::from(at) + dir * 6.0;
+        // The frustum runs to the first surface it lands on, else 6 m.
+        let length = scene
+            .venue
+            .hit(Vec3::from(at), dir)
+            .map(|h| h.distance)
+            .filter(|d| *d > 0.05)
+            .unwrap_or(6.0);
+        let far = Vec3::from(at) + dir * length;
         let spread = 1.0;
         for (a, b) in [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)] {
             let end = (far + right * (a * spread) + up * (b * spread)).to_array();
@@ -1500,6 +1588,40 @@ fn draw_scene(
             labels(painter, theme, rect, cam, &sel.id, at);
         }
     }
+
+    // Splat objects still loading or failed, bottom left.
+    let mut y = rect.bottom() - theme.item_gap.y;
+    for (_, text) in viewport_splats::status(scene.venue) {
+        painter.text(
+            Pos2::new(rect.left() + theme.item_gap.x, y),
+            Align2::LEFT_BOTTOM,
+            text,
+            theme.font_small.clone(),
+            theme.ink_weak,
+        );
+        y -= 16.0;
+    }
+}
+
+fn paint_face(painter: &egui::Painter, face: Face) {
+    if face.pts.len() >= 3 {
+        painter.add(Shape::convex_polygon(face.pts, face.fill, face.stroke));
+    }
+}
+
+/// Paints the pending run of splats and empties it.
+fn flush_splats(
+    painter: &egui::Painter,
+    tex: Option<egui::TextureId>,
+    offset: Pos2,
+    batch: &mut Vec<Ellipse>,
+) {
+    if let Some(tex) = tex {
+        if !batch.is_empty() {
+            viewport_splats::paint_batch(painter, tex, offset, batch);
+        }
+    }
+    batch.clear();
 }
 
 fn labels(
@@ -1580,7 +1702,7 @@ fn fixture_direction(f: &Fixture) -> Vec3 {
     fixture_dir(f.yaw, f.pitch)
 }
 
-fn fixture_dir(yaw: f32, pitch: f32) -> Vec3 {
+pub(super) fn fixture_dir(yaw: f32, pitch: f32) -> Vec3 {
     let y = yaw.to_radians();
     let p = pitch.to_radians();
     Vec3::new(y.sin() * p.cos(), p.sin(), -y.cos() * p.cos()).normalize_or_zero()
@@ -1742,6 +1864,29 @@ mod tests {
             let got = plane_st(p, origin, u, v).expect("invertible");
             assert!((got[0] - s).abs() < 1.0e-4, "{got:?}");
             assert!((got[1] - t).abs() < 1.0e-4, "{got:?}");
+        }
+    }
+
+    #[test]
+    fn view_proj_maps_points_where_project_puts_them() {
+        let rect = Rect::from_min_size(Pos2::new(10.0, 20.0), Vec2::new(640.0, 360.0));
+        let points = [[0.0, 2.0, 0.0], [3.0, 1.0, -2.0], [-4.0, 2.5, 5.0], [1.0, -0.5, 1.0]];
+        for ortho in [false, true] {
+            let cam = OrbitCamera {
+                ortho,
+                ..OrbitCamera::default()
+            };
+            let (view, proj) = cam.view_proj(rect);
+            for p in points {
+                let want = cam.project(p, rect).expect("in front of the camera");
+                let c = proj * view * glam::Vec4::new(p[0], p[1], p[2], 1.0);
+                let ndc = c.truncate() / c.w;
+                let got = Pos2::new(
+                    rect.min.x + (ndc.x * 0.5 + 0.5) * rect.width(),
+                    rect.min.y + (1.0 - (ndc.y * 0.5 + 0.5)) * rect.height(),
+                );
+                assert!((got - want).length() < 0.01, "ortho={ortho} {p:?}: {got:?} vs {want:?}");
+            }
         }
     }
 }

@@ -116,6 +116,25 @@ pub fn take(graphs_dir: &Path, id: &str, me: &str) -> Result<Owner, Refusal> {
     Ok(o)
 }
 
+/// Hand `id` over to `to`, another machine's name. Only the current owner
+/// may (a free graph may be handed by anyone, which is `take` by proxy).
+pub fn hand_to(graphs_dir: &Path, id: &str, me: &str, to: &str) -> Result<Owner, Refusal> {
+    check_write(graphs_dir, id, me)?;
+    let taken_at = web_time::SystemTime::now()
+        .duration_since(web_time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let o = Owner { owner: to.to_string(), taken_at };
+    let _ = metal_vfs::create_dir_all(graphs_dir);
+    let path = owner_path(graphs_dir, id);
+    let tmp = path.with_extension("owner.tmp");
+    let body = serde_json::to_string(&o).expect("owner serializes");
+    if metal_vfs::write(&tmp, body).and_then(|_| metal_vfs::rename(&tmp, &path)).is_err() {
+        let _ = metal_vfs::remove_file(&tmp);
+    }
+    Ok(o)
+}
+
 /// Release `id`. Only the owner may; releasing a free graph is a no-op.
 pub fn release(graphs_dir: &Path, id: &str, me: &str) -> Result<(), Refusal> {
     check_write(graphs_dir, id, me)?;
@@ -182,5 +201,22 @@ mod tests {
         assert!(release(&d, "g", "b").is_err());
         release(&d, "g", "a").unwrap();
         assert!(check_write(&d, "g", "b").is_ok());
+    }
+}
+
+#[cfg(test)]
+mod hand_over_tests {
+    use super::*;
+
+    /// Only the owner hands a graph over; the record then names the new owner.
+    #[test]
+    fn the_owner_hands_a_graph_to_a_peer_and_nobody_else_can() {
+        let dir = std::env::temp_dir().join(format!("fw-hand-over-{}", std::process::id()));
+        let graphs = dir.join("graphs");
+        take(&graphs, "g", "sala").unwrap();
+        assert!(hand_to(&graphs, "g", "cocina", "cocina").is_err(), "a non-owner cannot hand it over");
+        assert_eq!(hand_to(&graphs, "g", "sala", "cocina").unwrap().owner, "cocina");
+        assert_eq!(status(&graphs, "g").unwrap().owner, "cocina");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

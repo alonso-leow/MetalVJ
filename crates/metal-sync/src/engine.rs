@@ -365,6 +365,23 @@ impl SyncEngine {
     async fn apply(&mut self, cmd: EngineCmd) -> Result<()> {
         let api = self.docs.api();
         let doc = match cmd {
+            EngineCmd::Unpair(node_id) => {
+                // Restart the session with only the members still in the
+                // table: the forgotten one is no longer dialled. The document
+                // and its entries stay as they are.
+                self.doc.leave().await.context("stopping the sync session")?;
+                let remaining: Vec<iroh::EndpointAddr> = {
+                    let book = self.club.book.lock().expect("pair book poisoned");
+                    book.peers()
+                        .values()
+                        .filter_map(|id| id.parse::<iroh::EndpointId>().ok())
+                        .map(|id| crate::pair::addr_for(&self.club, id))
+                        .collect()
+                };
+                self.doc.start_sync(remaining).await.context("resuming sync with the club")?;
+                tracing::info!(peer = %node_id, "forgotten: no longer syncing with it");
+                return Ok(());
+            }
             EngineCmd::Join(ticket) => {
                 api.import(ticket).await.context("joining the document from a ticket")?
             }

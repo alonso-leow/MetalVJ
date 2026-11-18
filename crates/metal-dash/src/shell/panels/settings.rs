@@ -493,6 +493,7 @@ pub fn paint(
     open_graph: Option<&str>,
 ) -> Response {
     state.refresh_provider(door);
+    pairing.set_graph(open_graph);
     ui.push_id(Id::new(ID), |ui| {
         panel_frame(theme)
             .show(ui, |ui| {

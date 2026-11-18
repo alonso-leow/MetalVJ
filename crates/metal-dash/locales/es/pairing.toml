@@ -33,3 +33,8 @@
 "{name} (this machine)" = "{name} (esta máquina)"
 "— no paired devices yet —" = "— todavía no hay dispositivos emparejados —"
 "report" = "reporte"
+"owner" = "dueño"
+"re-pair" = "volver a emparejar"
+"set as owner" = "hacer dueño"
+"open a graph first: ownership is handed over per graph" = "abre un grafo primero: el dueño se cambia por grafo"
+"owner handed over" = "dueño cambiado"

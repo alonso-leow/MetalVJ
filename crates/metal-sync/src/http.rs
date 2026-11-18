@@ -135,7 +135,7 @@ fn network_route(ctl: &Control, method: &str, path: &str, query: &str, body: &Va
         | ("GET", "/song/pull") | ("POST", "/song/pull")
         | ("POST", "/pair/request")
         | ("POST", "/pair/confirm") | ("POST", "/pair/reject") | ("POST", "/leave")
-        | ("POST", "/peer/forget") | ("POST", "/peer/rename") => {
+        | ("POST", "/peer/forget") | ("POST", "/peer/rename") | ("POST", "/peer/owner") => {
             let Some((net, rt)) = &ctl.net else {
                 return Some(Reply::Json(503, json!({ "error": "the sync engine is not up" })));
             };
@@ -176,6 +176,10 @@ fn networked(
             (200, json!({ "nearby": list }))
         }
         ("GET", "/peers") => {
+            // `?graph=` names the graph whose owner is shown as `role: owner`.
+            let owner = param(query, "graph")
+                .and_then(|g| metal_graph::owner::status(&club.data_root.join("graphs"), &g))
+                .map(|o| o.owner);
             let peers: Vec<(String, String)> = club
                 .book
                 .lock()
@@ -201,10 +205,12 @@ fn networked(
                         "online": online,
                         "last_seen": if last_seen == 0 { Value::Null } else { json!(last_seen) },
                         "via": if online { via.map_or(Value::Null, |v| json!(v)) } else { Value::Null },
+                        "role": if owner.as_deref() == Some(name.as_str()) { "owner" } else { "member" },
                     })
                 })
                 .collect();
-            (200, json!({ "peers": list }))
+            let me = metal_graph::owner::local_identity();
+            (200, json!({ "peers": list, "owner": owner, "me": me }))
         }
         ("GET", "/pair/pending") => {
             (200, json!({ "pending": club.book.lock().expect("pair book poisoned").pending(now) }))
@@ -220,8 +226,10 @@ fn networked(
                 if had {
                     let _ = club.save();
                     club.log("forgot", json!({ "node_id": id }));
+                    rt.block_on(net.unpair(&id))
+                } else {
+                    (404, json!({ "forgot": false }))
                 }
-                (if had { 200 } else { 404 }, json!({ "forgot": had }))
             }
             None => (400, json!({ "error": "missing node_id" })),
         },
@@ -237,6 +245,36 @@ fn networked(
                 }
             }
             _ => (400, json!({ "error": "missing node_id or name" })),
+        },
+        ("POST", "/peer/owner") => match (arg(body, query, "node_id"), arg(body, query, "graph")) {
+            (None, _) => (400, json!({ "error": "missing node_id" })),
+            (_, None) => (400, json!({ "error": "missing graph: ownership is handed over per graph" })),
+            (_, Some(g)) if g.is_empty() || !g.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') => {
+                (400, json!({ "error": "not a graph id" }))
+            }
+            (Some(id), Some(graph)) => {
+                let to = club
+                    .book
+                    .lock()
+                    .expect("pair book poisoned")
+                    .peers()
+                    .iter()
+                    .find(|(_, v)| **v == id)
+                    .map(|(name, _)| name.clone());
+                match to {
+                    None => (404, json!({ "error": "not a member of the club" })),
+                    Some(to) => {
+                        let me = metal_graph::owner::local_identity();
+                        match metal_graph::owner::hand_to(&club.data_root.join("graphs"), &graph, &me, &to) {
+                            Ok(o) => {
+                                club.log("owner", json!({ "graph": graph, "owner": o.owner }));
+                                (200, json!({ "graph": graph, "owner": o.owner }))
+                            }
+                            Err(refusal) => (409, json!({ "error": refusal.to_string() })),
+                        }
+                    }
+                }
+            }
         },
         ("POST", "/pair/reject") => match arg(body, query, "node_id") {
             Some(id) => {
@@ -525,6 +563,9 @@ mod tests {
             ("POST", "/pair/confirm"),
             ("POST", "/pair/reject"),
             ("POST", "/leave"),
+            ("POST", "/peer/forget"),
+            ("POST", "/peer/rename"),
+            ("POST", "/peer/owner"),
             ("GET", "/song/pull?song=x"),
             ("POST", "/song/pull"),
             ("GET", "/frame?device=x"),

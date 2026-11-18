@@ -389,6 +389,8 @@ impl Club {
 pub enum EngineCmd {
     Join(DocTicket),
     Leave,
+    /// Stop syncing with one member: the session restarts with the rest.
+    Unpair(String),
 }
 
 /// A's half: the `fw/pair/1` handler on the router.
@@ -521,6 +523,14 @@ impl Net {
         } else {
             self.club.book.lock().expect("pair book poisoned").end_outgoing();
             (409, json!({ "error": reply["refused"].as_str().unwrap_or("refused") }))
+        }
+    }
+
+    /// After `POST /peer/forget`: the forgotten member is no longer dialled.
+    pub async fn unpair(&self, node_id: &str) -> Answer {
+        match self.cmds.send(EngineCmd::Unpair(node_id.to_string())).await {
+            Ok(()) => (200, json!({ "forgot": true })),
+            Err(_) => (503, json!({ "error": "the engine is not running" })),
         }
     }
 

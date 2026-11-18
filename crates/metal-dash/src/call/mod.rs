@@ -1070,6 +1070,7 @@ pub static ROUTES: &[Route] = &[
     },
     Route { method: "POST", path: "/sync/peer/forget", prefix: false, handler: Handler::Free(sync::peer_forget_post) },
     Route { method: "POST", path: "/sync/peer/rename", prefix: false, handler: Handler::Free(sync::peer_rename_post) },
+    Route { method: "POST", path: "/sync/peer/owner", prefix: false, handler: Handler::Free(sync::peer_owner_post) },
     Route { method: "POST", path: "/sync/leave", prefix: false, handler: Handler::Free(sync::leave_post) },
     Route {
         method: "POST",

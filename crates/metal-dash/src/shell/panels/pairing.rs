@@ -49,6 +49,8 @@ enum Action {
     Request(String),
     Confirm,
     Reject,
+    /// "set as owner": the open graph handed to a member.
+    Owner,
 }
 
 /// The pairing POSTs' thread (2026-10-09). A `metal-sync` dial can wait the
@@ -60,7 +62,7 @@ pub struct PairWorker {
     tx: Sender<Job>,
     /// The sync reads (`status`, `peers`, `discover`, `pair`), one poll per
     /// message, each answered on the channel it carries.
-    polls: Sender<Sender<[Value; 5]>>,
+    polls: Sender<(String, Sender<[Value; 5]>)>,
 }
 
 /// One POST: the route, its body, and the channel its answer goes back on.
@@ -81,13 +83,13 @@ impl PairWorker {
         });
         // The reads have their own thread: `metal-sync` can take seconds to
         // refuse, and the frame must not wait for it.
-        let (polls, poll_rx) = mpsc::channel::<Sender<[Value; 5]>>();
+        let (polls, poll_rx) = mpsc::channel::<(String, Sender<[Value; 5]>)>();
         let _ = thread::Builder::new().name("metal-dash sync poll".into()).spawn(move || {
-            while let Ok(back) = poll_rx.recv() {
+            while let Ok((peers_path, back)) = poll_rx.recv() {
                 let read = |path: &str| poll_door.json("GET", path, None).unwrap_or_else(|_| json!({}));
                 let reads = [
                     read("/sync/status"),
-                    read("/sync/peers"),
+                    read(&peers_path),
                     read("/sync/discover"),
                     read("/sync/pair"),
                     read("/sync/stats"),
@@ -139,6 +141,9 @@ pub struct PanelState {
     poll_in_flight: Option<Receiver<[Value; 5]>>,
     /// `GET /sync/stats`' peers' self-reports, as `metal-sync` keeps them.
     stats: Vec<Value>,
+    /// The graph open in the shell: "set as owner" hands it over, and the
+    /// peers read asks for each member's role in it.
+    graph: Option<String>,
 }
 
 impl PanelState {
@@ -150,6 +155,19 @@ impl PanelState {
             Summary::Unpaired
         } else {
             Summary::Paired(self.peers.len())
+        }
+    }
+
+    /// The graph open in the shell (settings sets it every frame).
+    pub fn set_graph(&mut self, graph: Option<&str>) {
+        self.graph = graph.map(str::to_string);
+    }
+
+    /// `GET /sync/peers`, with the open graph so each member carries its role.
+    fn peers_path(&self) -> String {
+        match &self.graph {
+            Some(g) => format!("/sync/peers?graph={g}"),
+            None => "/sync/peers".to_string(),
         }
     }
 
@@ -182,7 +200,7 @@ impl PanelState {
         let sent = match (&self.worker, &self.poll_in_flight) {
             (Some(worker), None) => {
                 let (back, answer) = mpsc::channel();
-                worker.polls.send(back).ok().map(|_| answer)
+                worker.polls.send((self.peers_path(), back)).ok().map(|_| answer)
             }
             _ => None,
         };
@@ -216,7 +234,7 @@ impl PanelState {
         self.last_poll = Some(now);
         let read = |path: &str| door.json("GET", path, None).unwrap_or_else(|_| json!({}));
         let status = read("/sync/status");
-        let peers = read("/sync/peers");
+        let peers = read(&self.peers_path());
         let nearby = read("/sync/discover");
         let pair = read("/sync/pair");
         let stats = read("/sync/stats");
@@ -287,6 +305,7 @@ impl PanelState {
                         self.outgoing = None;
                     }
                     Action::Reject => {}
+                    Action::Owner => crate::shell::toasts::notify(crate::shell::toasts::Level::Success, tr("owner handed over"), None),
                 }
             }
             Err(msg) => self.error = Some(error_text(&msg)),
@@ -307,6 +326,16 @@ impl PanelState {
         }
         let code = self.code.clone();
         self.act(door, Action::Confirm, "/sync/pair/confirm", json!({ "code": code }));
+    }
+
+    /// Hand the open graph to the member `node_id`. With no graph open there
+    /// is nothing to hand over, and the table says so.
+    fn make_owner(&mut self, door: &dyn Call, node_id: &str) {
+        let Some(graph) = self.graph.clone() else {
+            self.error = Some(tr("open a graph first: ownership is handed over per graph").to_string());
+            return;
+        };
+        self.act(door, Action::Owner, "/sync/peer/owner", json!({ "node_id": node_id, "graph": graph }));
     }
 
     /// Refuse a request shown on this machine.
@@ -496,6 +525,8 @@ pub fn paint_devices(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
     let mut forget = None;
     let mut rename = None;
     let mut leave = false;
+    let mut repair = None;
+    let mut owner = None;
     let rows: Vec<(String, String, bool, bool)> = std::iter::once((state.name.clone(), String::new(), true, true))
         .chain(state.peers.iter().map(|p| {
             (
@@ -517,7 +548,10 @@ pub fn paint_devices(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
                     }
                 }
                 None => {
-                    let shown = if *own { trf("{name} (this machine)", &[("name", name)]) } else { name.clone() };
+                    let mut shown = if *own { trf("{name} (this machine)", &[("name", name)]) } else { name.clone() };
+                    if !own && state.peers.get(r - 1).is_some_and(|p| p["role"].as_str() == Some("owner")) {
+                        shown = format!("{shown} · {}", tr("owner"));
+                    }
                     ui.label(text(&shown, theme.ink, theme));
                 }
             },
@@ -556,6 +590,12 @@ pub fn paint_devices(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
                         if icon_button(ui, theme, Icon::Settings, false, tr("rename")).clicked() {
                             editing = Some((node.clone(), name.clone()));
                         }
+                        if ui.add_enabled_ui(!busy && state.graph.is_some(), |ui| icon_button(ui, theme, Icon::Star, false, tr("set as owner"))).inner.clicked() {
+                            owner = Some(node.clone());
+                        }
+                        if !online && ui.add_enabled_ui(!busy, |ui| icon_button(ui, theme, Icon::Revert, false, tr("re-pair"))).inner.clicked() {
+                            repair = Some(node.clone());
+                        }
                         if ui.add_enabled_ui(!busy, |ui| icon_button(ui, theme, Icon::Trash, false, tr("forget this device"))).inner.clicked() {
                             forget = Some(node.clone());
                         }
@@ -576,6 +616,12 @@ pub fn paint_devices(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut Pa
     }
     if leave {
         state.act(door, Action::Reject, "/sync/leave", json!({}));
+    }
+    if let Some(node) = repair {
+        state.request(door, &node);
+    }
+    if let Some(node) = owner {
+        state.make_owner(door, &node);
     }
     ui.data_mut(|d| match &editing {
         Some(e) => {
@@ -838,5 +884,30 @@ mod tests {
         assert!(line.contains("7%"), "{line}");
         assert!(!line.contains(" 0"), "an unknown value is never zero: {line}");
         assert_eq!(stat_for(&[stat], "nobody"), None);
+    }
+
+    /// "set as owner" posts the open graph to the owner route; with none
+    /// open it posts nothing and says why.
+    #[test]
+    fn set_as_owner_posts_the_open_graph_or_says_why_not() {
+        struct Door(std::sync::Mutex<Vec<(String, Value)>>);
+        impl Call for Door {
+            fn call(&self, _method: &str, path: &str, params: crate::call::Params) -> Option<crate::call::Reply> {
+                self.0.lock().unwrap().push((path.to_string(), params.json().unwrap_or(Value::Null)));
+                Some(crate::call::Reply { status: 200, kind: "application/json", body: b"{}".to_vec() })
+            }
+        }
+        let door = Door(Default::default());
+        let mut s = PanelState::default();
+        s.make_owner(&door, "n9");
+        assert!(door.0.lock().unwrap().is_empty());
+        assert!(s.error.is_some());
+        s.set_graph(Some("sala-main"));
+        s.make_owner(&door, "n9");
+        assert_eq!(
+            door.0.lock().unwrap().last().cloned(),
+            Some(("/sync/peer/owner".to_string(), json!({ "node_id": "n9", "graph": "sala-main" })))
+        );
+        assert_eq!(s.peers_path(), "/sync/peers?graph=sala-main");
     }
 }

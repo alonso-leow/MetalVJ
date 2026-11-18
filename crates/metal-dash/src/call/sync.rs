@@ -48,9 +48,15 @@ pub fn status_get(_params: &Params) -> Result<Value, CallError> {
     Ok(read_at(SYNC_PORT, "/status", json!({})))
 }
 
-/// `GET /sync/peers`: the club as this machine knows it, with liveness.
-pub fn peers_get(_params: &Params) -> Result<Value, CallError> {
-    Ok(read_at(SYNC_PORT, "/peers", json!({ "peers": [] })))
+/// `GET /sync/peers[?graph=]`: the club as this machine knows it, with
+/// liveness; with `graph`, each member's `role` (`owner` of that graph or
+/// `member`).
+pub fn peers_get(params: &Params) -> Result<Value, CallError> {
+    let path = match params.param("graph").filter(|g| !g.is_empty() && g.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')) {
+        Some(g) => format!("/peers?graph={g}"),
+        None => "/peers".to_string(),
+    };
+    Ok(read_at(SYNC_PORT, &path, json!({ "peers": [] })))
 }
 
 /// `GET /sync/stats`: each peer's last self-report, as `metal-sync` keeps it
@@ -120,6 +126,15 @@ pub fn peer_rename_post(params: &Params) -> Result<Value, CallError> {
     let node_id = body["node_id"].as_str().filter(|s| !s.is_empty()).ok_or_else(|| CallError::Bad("expected `node_id`".into()))?;
     let name = body["name"].as_str().map(str::trim).filter(|s| !s.is_empty()).ok_or_else(|| CallError::Bad("expected `name`".into()))?;
     pair_post_at(SYNC_PORT, "/peer/rename", json!({ "node_id": node_id, "name": name }))
+}
+
+/// `POST /sync/peer/owner {node_id, graph}` — the devices table's "set as
+/// owner": hands the open graph to that member (only its owner may).
+pub fn peer_owner_post(params: &Params) -> Result<Value, CallError> {
+    let body = params.json().unwrap_or(Value::Null);
+    let node_id = body["node_id"].as_str().filter(|s| !s.is_empty()).ok_or_else(|| CallError::Bad("expected `node_id`".into()))?;
+    let graph = body["graph"].as_str().filter(|s| !s.is_empty()).ok_or_else(|| CallError::Bad("expected `graph`".into()))?;
+    pair_post_at(SYNC_PORT, "/peer/owner", json!({ "node_id": node_id, "graph": graph }))
 }
 
 /// `POST /sync/leave` — this machine leaves the club (its own row's remove).

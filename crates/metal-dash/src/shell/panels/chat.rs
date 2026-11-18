@@ -22,8 +22,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use egui::text::LayoutJob;
 use egui::{
-    Align, Color32, Frame, Id, Label, Layout, Response, RichText, ScrollArea, Sense, Stroke,
-    StrokeKind, TextEdit, TextFormat, Ui,
+    Align, Color32, CursorIcon, Frame, Id, Label, Layout, Rect, Response, RichText, ScrollArea,
+    Sense, Stroke, StrokeKind, TextEdit, TextFormat, Ui, vec2,
 };
 use serde_json::{Value, json};
 
@@ -64,6 +64,11 @@ pub struct PanelState {
     chat: Option<String>,
     view: View,
     composer_h: f32,
+    /// The prompt drawer: its snap point and any drag in progress.
+    drawer: Drawer,
+    /// The text field's height last frame, so the drawer knows how much of the
+    /// footer is chrome around it.
+    field_h: f32,
     /// The ref a chip click parked, for the focus task to consume.
     pub(crate) pending_focus: Option<Value>,
     /// The context chips above the composer: `{kind, id, graph, label}` each,
@@ -137,6 +142,8 @@ impl Default for PanelState {
             chat: None,
             view: View::Conversation,
             composer_h: 0.0,
+            drawer: Drawer::default(),
+            field_h: 0.0,
             pending_focus: None,
             context: Vec::new(),
             sources: Vec::new(),
@@ -158,6 +165,27 @@ impl Default for PanelState {
         }
     }
 }
+
+/// Where the prompt drawer rests: the composer's own height, half the
+/// sidebar, or the full height of the sidebar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Snap {
+    #[default]
+    Collapsed,
+    Half,
+    Full,
+}
+
+/// The drawer's state between frames: the snap it last settled on, and the
+/// field height of a drag in progress (which overrides the snap while held).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Drawer {
+    pub snap: Snap,
+    pub drag: Option<f32>,
+}
+
+/// The animation id of the drawer's field height (`animate_value_with_time`).
+const DRAWER_ANIM: &str = "shell/panel/chat/drawer-h";
 
 impl PanelState {
     /// Test-only writer — the seam a shell test preloads the field through.
@@ -391,8 +419,13 @@ fn conversation_view(
         None => {}
     });
     let mut used = 0.0;
+    let base = base_field_h(ui, theme);
+    let chrome = (state.composer_h - state.field_h).max(0.0);
+    let sheet = (area.height() - chrome).max(base);
+    let field_h = drawer_height(ui, theme, state, base, sheet);
     ui.scope_builder(egui::UiBuilder::new().max_rect(footer), |ui| {
         let top = ui.cursor().top();
+        grip(ui, theme, state, base, sheet);
         if let Some((question, options)) = chat.and_then(pending_question) {
             if let Some(answer) = crate::shell::sheet::question_form(ui, theme, Id::new("shell/panel/chat/question"), &question, &options, &mut state.own_answer) {
                 state.prompt = match answer {
@@ -404,11 +437,82 @@ fn conversation_view(
             ui.add_space(theme.item_gap.y);
         }
         context_bar(ui, theme, door, state, chat);
-        prompt_box(ui, theme, door, state, chat, selection);
+        prompt_box(ui, theme, door, state, chat, selection, field_h);
         used = ui.cursor().top() - top;
     });
     state.composer_h = used;
+    state.field_h = field_h;
     commands_sheet(ui, theme, door, state, area, chat, selection);
+}
+
+/// The text field's height with the drawer collapsed: [`COMPOSER_MAX_ROWS`]
+/// lines and the field's padding.
+fn base_field_h(ui: &Ui, theme: &Theme) -> f32 {
+    ui.text_style_height(&egui::TextStyle::Body) * COMPOSER_MAX_ROWS as f32 + theme.field_pad.y * 2.0
+}
+
+/// The field height the drawer is drawn at this frame. While a drag is held
+/// it follows the pointer with no easing; otherwise it eases toward the snap
+/// point over `drawer_settle` seconds.
+fn drawer_height(ui: &Ui, theme: &Theme, state: &PanelState, base: f32, sheet: f32) -> f32 {
+    let target = state.drawer.drag.unwrap_or_else(|| snap_height(state.drawer.snap, base, sheet));
+    let settle = if state.drawer.drag.is_some() { 0.0 } else { theme.drawer_settle };
+    ui.ctx().animate_value_with_time(Id::new(DRAWER_ANIM), target, settle)
+}
+
+/// The grab handle above the composer: a short bar. Dragging it resizes the
+/// drawer (released, it snaps to the nearest point); a click toggles between
+/// collapsed and half.
+fn grip(ui: &mut Ui, theme: &Theme, state: &mut PanelState, base: f32, sheet: f32) {
+    let h = theme.drawer_grip.y + ui.spacing().item_spacing.y * 2.0;
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), h), Sense::click_and_drag());
+    let bar = Rect::from_center_size(rect.center(), theme.drawer_grip);
+    ui.painter().rect_filled(bar, theme.corner_radius(), theme.ink_faint);
+    let tip = if state.drawer.snap == Snap::Collapsed { tr("expand the prompt") } else { tr("collapse the prompt") };
+    let resp = resp.on_hover_cursor(CursorIcon::ResizeVertical).on_hover_text(tip.clone());
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tip.clone()));
+    if resp.dragged() {
+        let current = state.drawer.drag.unwrap_or_else(|| snap_height(state.drawer.snap, base, sheet));
+        state.drawer.drag = Some(clamp_height(current - resp.drag_delta().y, base, sheet));
+    }
+    if resp.drag_stopped() {
+        if let Some(h) = state.drawer.drag.take() {
+            state.drawer.snap = nearest_snap(h, base, sheet);
+        }
+    }
+    if resp.clicked() {
+        state.drawer.snap = match state.drawer.snap {
+            Snap::Collapsed => Snap::Half,
+            _ => Snap::Collapsed,
+        };
+    }
+}
+
+/// The height a snap point stands for, given the collapsed height and the
+/// sidebar's (`sheet`) height. Half is half the sheet; full is the sheet.
+pub fn snap_height(snap: Snap, collapsed: f32, sheet: f32) -> f32 {
+    match snap {
+        Snap::Collapsed => collapsed,
+        Snap::Half => (sheet * 0.5).max(collapsed),
+        Snap::Full => sheet.max(collapsed),
+    }
+}
+
+/// The snap point nearest a height (ties go to the smaller snap).
+pub fn nearest_snap(height: f32, collapsed: f32, sheet: f32) -> Snap {
+    [Snap::Collapsed, Snap::Half, Snap::Full]
+        .into_iter()
+        .min_by(|a, b| {
+            let da = (snap_height(*a, collapsed, sheet) - height).abs();
+            let db = (snap_height(*b, collapsed, sheet) - height).abs();
+            da.total_cmp(&db)
+        })
+        .unwrap_or_default()
+}
+
+/// A dragged height kept between the collapsed height and the sheet.
+pub fn clamp_height(height: f32, collapsed: f32, sheet: f32) -> f32 {
+    height.clamp(collapsed, sheet.max(collapsed))
 }
 
 /// The agent's open `question` (its tool call on the last assistant row, with
@@ -454,6 +558,17 @@ pub fn usage_of(chat: &Value, tools: usize, instructions: usize) -> [(&'static s
     [("system and tools", system / 4), ("prompts", prompts / 4), ("answers", answers / 4), ("tool calls", tool_io / 4)]
 }
 
+/// Tokens the conversation takes up now: the last step the provider reported
+/// (input + output) when there is one, else the per-category estimate. The
+/// prompt still being typed is added on top at four characters a token.
+pub fn used_tokens(chat: &Value, parts: &[(&'static str, u64)], pending_chars: usize) -> u64 {
+    let pending = (pending_chars as u64).div_ceil(4);
+    match (chat["usage"]["input"].as_u64(), chat["usage"]["output"].as_u64()) {
+        (Some(input), Some(output)) => input + output + pending,
+        _ => parts.iter().map(|p| p.1).sum::<u64>() + pending,
+    }
+}
+
 /// The system prompt's size before the operator's instructions (estimate).
 const SYSTEM_PROMPT_CHARS: usize = 12_000;
 /// One tool's schema, on average, in characters (estimate).
@@ -465,11 +580,11 @@ fn context_bar(ui: &mut Ui, theme: &Theme, door: &dyn Call, state: &mut PanelSta
     let Some(chat) = chat else { return };
     let config = door.json("GET", "/ai-config", None).unwrap_or_default();
     let model = config["model"].as_str().unwrap_or_default();
-    let window = if model.contains("claude") { 200_000u64 } else { 128_000 };
+    let window = chat["window"].as_u64().filter(|w| *w > 0).unwrap_or(if model.contains("claude") { 200_000u64 } else { 128_000 });
     let tools = config["tools"].as_array().map_or(0, |t| t.iter().filter(|x| x["on"].as_bool().unwrap_or(true)).count());
     let instructions = config["instructions"].as_str().map_or(0, str::len);
     let parts = usage_of(chat, tools, instructions);
-    let total: u64 = parts.iter().map(|p| p.1).sum();
+    let total = used_tokens(chat, &parts, state.prompt.len());
     let share = (total as f32 / window as f32).clamp(0.0, 1.0);
     let colours = [theme.ink_weak, theme.phosphor, theme.accent_vivid, theme.warn];
     let (rect, response) = ui.allocate_exact_size(egui::vec2(ui.available_width(), theme.context_bar_h + theme.font_small.size + theme.item_gap.y), Sense::click());
@@ -1269,8 +1384,9 @@ const COMPOSER_MIN_ROWS: usize = 2;
 /// (attach files, sets `attach_requested`), the gear (AI settings, sets
 /// `open_ai_settings`) and the send button, which turns into `stop` while the
 /// chat is busy or awaiting. A library file dragged onto the box is added to
-/// `attachments`. The field grows with its lines (1 to [`COMPOSER_MAX_ROWS`])
-/// and scrolls past that. Enter sends (the same path as the button,
+/// `attachments`. The field is `field_h` tall (the prompt drawer's height: the
+/// collapsed [`COMPOSER_MAX_ROWS`], half or the whole sidebar) and scrolls past
+/// that. Esc folds an open drawer. Enter sends (the same path as the button,
 /// [`send_prompt`]); Shift+Enter falls through to the editor as a newline. The
 /// Enter key is consumed *before* the editor is added, so the newline it would
 /// otherwise insert never lands.
@@ -1281,9 +1397,17 @@ fn prompt_box(
     state: &mut PanelState,
     chat: Option<&Value>,
     _selection: Option<&Value>,
+    field_h: f32,
 ) {
     let prompt_id = Id::new(PROMPT_ID);
     let focused = ui.memory(|m| m.has_focus(prompt_id));
+    // Esc, while the field has focus, folds an open drawer back down.
+    if focused
+        && state.drawer.snap != Snap::Collapsed
+        && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+    {
+        state.drawer.snap = Snap::Collapsed;
+    }
     // A `/` typed into an empty field opens the command sheet (commands,
     // models, the agent's open question).
     if state.prompt == "/" {
@@ -1328,9 +1452,10 @@ fn prompt_box(
 
     let busy = chat.is_some_and(|c| matches!(c["status"].as_str(), Some("busy" | "awaiting")));
     let chat_id = chat.and_then(|c| c["id"].as_str()).map(str::to_string);
-    let rows = state.prompt.split('\n').count().clamp(COMPOSER_MIN_ROWS, COMPOSER_MAX_ROWS);
-    let max_h = ui.text_style_height(&egui::TextStyle::Body) * COMPOSER_MAX_ROWS as f32
-        + theme.field_pad.y * 2.0;
+    let line = ui.text_style_height(&egui::TextStyle::Body);
+    let fit = ((field_h - theme.field_pad.y * 2.0) / line).floor().max(1.0) as usize;
+    let rows = state.prompt.split('\n').count().clamp(COMPOSER_MIN_ROWS, fit.max(COMPOSER_MIN_ROWS));
+    let max_h = field_h;
 
     let stroke_frame = Frame::new()
         .fill(theme.inset)
@@ -1726,6 +1851,41 @@ fn ago_text(ago: &Ago) -> String {
         Ago::Yesterday => tr("yesterday").to_string(),
         Ago::Days(n) => trf("{n} days ago", &[("n", &n)]),
         Ago::Weeks(n) => trf("{n} weeks ago", &[("n", &n)]),
+    }
+}
+
+#[cfg(test)]
+mod drawer_tests {
+    use super::{Snap, clamp_height, nearest_snap, snap_height, used_tokens};
+    use serde_json::json;
+
+    const COLLAPSED: f32 = 40.0;
+    const SHEET: f32 = 400.0;
+
+    #[test]
+    fn snap_points_are_the_collapsed_half_and_full_heights() {
+        assert_eq!(snap_height(Snap::Collapsed, COLLAPSED, SHEET), 40.0);
+        assert_eq!(snap_height(Snap::Half, COLLAPSED, SHEET), 200.0);
+        assert_eq!(snap_height(Snap::Full, COLLAPSED, SHEET), 400.0);
+        assert_eq!(snap_height(Snap::Half, COLLAPSED, 50.0), 40.0);
+    }
+
+    #[test]
+    fn a_released_drag_snaps_to_the_nearest_point() {
+        assert_eq!(nearest_snap(60.0, COLLAPSED, SHEET), Snap::Collapsed);
+        assert_eq!(nearest_snap(180.0, COLLAPSED, SHEET), Snap::Half);
+        assert_eq!(nearest_snap(330.0, COLLAPSED, SHEET), Snap::Full);
+        assert_eq!(clamp_height(5.0, COLLAPSED, SHEET), 40.0);
+        assert_eq!(clamp_height(900.0, COLLAPSED, SHEET), 400.0);
+    }
+
+    #[test]
+    fn reported_usage_wins_over_the_estimate() {
+        let parts = [("prompts", 50u64), ("answers", 50)];
+        let reported = json!({ "usage": { "input": 900, "output": 100 } });
+        assert_eq!(used_tokens(&reported, &parts, 0), 1_000);
+        assert_eq!(used_tokens(&reported, &parts, 40), 1_010);
+        assert_eq!(used_tokens(&json!({}), &parts, 0), 100);
     }
 }
 

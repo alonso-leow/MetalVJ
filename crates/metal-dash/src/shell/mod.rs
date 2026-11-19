@@ -1161,12 +1161,15 @@ impl Shell {
 
         // W6: the transport bar, under every view. Declared before the central
         // area (egui needs the bottom panels first); the phone gets the compact form.
-        Panel::bottom(Id::new("shell/transport"))
-            .exact_size(theme.transport_height)
-            .frame(header_frame(&theme))
-            .show(ui, |ui| {
-                transport::paint(ui, &theme, header_door, &mut self.ingest, !arrangement.is_full_grid());
-            });
+        // Only the sequence (Timeline) view carries it; Show / grid views stay clean.
+        if self.view == ShellView::Timeline {
+            Panel::bottom(Id::new("shell/transport"))
+                .exact_size(theme.transport_height)
+                .frame(header_frame(&theme))
+                .show(ui, |ui| {
+                    transport::paint(ui, &theme, header_door, &mut self.ingest, !arrangement.is_full_grid());
+                });
+        }
 
         if events.sidebar_toggled {
             self.library_sidebar_open = !self.library_sidebar_open;

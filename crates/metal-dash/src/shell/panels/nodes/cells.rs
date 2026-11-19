@@ -357,6 +357,25 @@ pub(super) fn secondary(door: &dyn Call, state: &mut PanelState, theme: &Theme, 
     }
 }
 
+/// Ctrl+wheel: one step of a hundredth of the range, up for `dir > 0`.
+pub(super) fn step(door: &dyn Call, state: &mut PanelState, theme: &Theme, hit: &Value, dir: f32) {
+    let (Some(node), Some(name)) = (hit["node"].as_str(), hit["name"].as_str()) else { return };
+    let Some(prim) = cell_prim(state, node, name).cloned() else { return };
+    if prim["bound"] == json!(true) || !matches!(prim["kind"].as_str(), Some("float" | "int")) {
+        return;
+    }
+    let (min, max) = (prim_f32(&prim, "min").unwrap_or(0.0), prim_f32(&prim, "max").unwrap_or(1.0));
+    let was = prim_f32(&prim, "value").or_else(|| prim_f32(&prim, "default")).unwrap_or(min);
+    let mut step = (max - min) / 100.0;
+    if prim["kind"] == "int" {
+        step = step.max(1.0);
+    }
+    let v = (was + dir * step).clamp(min, max);
+    if (v - was).abs() > f32::EPSILON {
+        post_param_value(door, state, theme, node, name, was, v);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // painting
 // ---------------------------------------------------------------------------

@@ -4207,6 +4207,30 @@ fn handle_pointer(
 ) {
     let down_now = response.is_pointer_button_down_on();
 
+    // Backspace/Delete over a cell resets it; Ctrl+wheel over a number steps
+    // it by a hundredth of its range.
+    if response.hovered() && state.zoom >= theme.node_cell_edit_zoom && state.cell_edit.is_none() {
+        let (reset, wheel, pos) = ui.input(|i| {
+            (
+                i.key_pressed(egui::Key::Backspace) || i.key_pressed(egui::Key::Delete),
+                0.0_f32,
+                i.pointer.hover_pos(),
+            )
+        });
+        if (reset || wheel != 0.0) && state.selected_graph.is_some() {
+            if let (Some(gid), Some(pos)) = (state.selected_graph.clone(), pos) {
+                let [gx, gy] = to_graph(rect.min, state.pan, state.zoom, pos);
+                if let Some(h) = hit_at(door, &gid, gx, gy).filter(|h| matches!(h["hit"].as_str(), Some("param" | "cell"))) {
+                    if reset {
+                        cells::secondary(door, state, theme, &h);
+                    } else {
+                        cells::step(door, state, theme, &h, wheel.signum());
+                    }
+                }
+            }
+        }
+    }
+
     // Right-click on a cell: unbind a bound one, reset a number to default.
     if response.secondary_clicked() && state.zoom >= theme.node_cell_edit_zoom {
         if let (Some(gid), Some(pos)) = (state.selected_graph.clone(), response.interact_pointer_pos()) {

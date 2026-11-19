@@ -692,6 +692,189 @@ pub(crate) fn track_gestures(
     wheel_edit(ui, id, value, range, response);
 }
 
+// ---------------------------------------------------------------------------
+// the cell kit: layout-free math and painters shared by the Properties
+// number track and the node canvas's param cells
+// ---------------------------------------------------------------------------
+
+/// The scrub sensitivity (value per screen point) of a numeric cell over
+/// `span = max - min`: `span / NUM_SCRUB_SPAN`, a tenth with Shift, ten times
+/// with Ctrl. One function so Properties and the canvas scrub identically.
+pub fn cell_scrub_sens(span: f32, shift: bool, ctrl: bool) -> f32 {
+    let mut sens = span / NUM_SCRUB_SPAN;
+    if shift {
+        sens /= NUM_SCRUB_SCALE;
+    }
+    if ctrl {
+        sens *= NUM_SCRUB_SCALE;
+    }
+    sens
+}
+
+/// The value after dragging `dx` screen points from `start`, clamped to
+/// `lo..=hi`; `decimals == 0` rounds to a whole number (an int cell).
+pub fn cell_value_from_drag(start: f32, lo: f32, hi: f32, dx: f32, shift: bool, ctrl: bool, decimals: usize) -> f32 {
+    let v = (start + dx * cell_scrub_sens(hi - lo, shift, ctrl)).clamp(lo, hi);
+    if decimals == 0 {
+        v.round().clamp(lo, hi)
+    } else {
+        v
+    }
+}
+
+/// How many decimals a range reads with: span <= 1 two, <= 100 one, else none.
+pub fn cell_decimals(lo: f32, hi: f32) -> usize {
+    let span = hi - lo;
+    if span <= 1.0 {
+        2
+    } else if span <= 100.0 {
+        1
+    } else {
+        0
+    }
+}
+
+/// A value as a cell shows it.
+pub fn cell_format(value: f32, decimals: usize) -> String {
+    format!("{:.*}", decimals, value)
+}
+
+/// The filled span of a cell's value bar as fractions of its width: from the
+/// left edge, or out from the middle for a `centered` range.
+pub fn cell_bar(value: f32, lo: f32, hi: f32, centered: bool) -> (f32, f32) {
+    let span = hi - lo;
+    if span <= 0.0 {
+        return (0.0, 0.0);
+    }
+    let t = ((value - lo) / span).clamp(0.0, 1.0);
+    if centered {
+        (t.min(0.5), t.max(0.5))
+    } else {
+        (0.0, t)
+    }
+}
+
+/// What a cell paints for: the pointer state and whether a source owns it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CellState {
+    pub hover: bool,
+    pub active: bool,
+    pub disabled: bool,
+    /// Driven live (painted in the dot-on ink).
+    pub live: bool,
+}
+
+fn cell_ink(theme: &Theme, st: CellState) -> Color32 {
+    if st.disabled {
+        theme.node_cell_off_ink
+    } else if st.live || st.active {
+        theme.node_dot_on
+    } else {
+        theme.node_field_ink
+    }
+}
+
+/// The cell's ground: the field fill, lighter under the pointer.
+pub fn cell_ground(painter: &egui::Painter, theme: &Theme, rect: Rect, st: CellState) {
+    let fill = if st.hover && !st.disabled { theme.node_cell_hover } else { theme.node_field };
+    painter.rect_filled(rect, theme.field_corner(), fill);
+    if st.active {
+        painter.rect_stroke(rect, theme.field_corner(), theme.node_cell_stroke(theme.node_dot_on), egui::StrokeKind::Inside);
+    }
+}
+
+/// A slider cell: the ground, the value bar (`from..to` as fractions of the
+/// width), the label left and the value right. `text` false paints the flat
+/// bar only (a zoomed-out node).
+#[allow(clippy::too_many_arguments)]
+pub fn cell_paint_float(
+    painter: &egui::Painter,
+    theme: &Theme,
+    rect: Rect,
+    label: &str,
+    value_text: &str,
+    bar: Option<(f32, f32)>,
+    font: &egui::FontId,
+    text: bool,
+    st: CellState,
+) {
+    cell_ground(painter, theme, rect, st);
+    if let Some((a, b)) = bar {
+        if b > a && !st.disabled {
+            let fill = Rect::from_min_max(
+                egui::pos2(rect.left() + rect.width() * a, rect.top()),
+                egui::pos2(rect.left() + rect.width() * b, rect.bottom()),
+            );
+            painter.rect_filled(fill, theme.field_corner(), theme.node_cell_fill);
+        }
+    }
+    if text {
+        cell_label_value(painter, theme, rect, label, value_text, font, st);
+    }
+}
+
+/// The label left (`ink_weak`) and the value right inside `rect`.
+pub fn cell_label_value(painter: &egui::Painter, theme: &Theme, rect: Rect, label: &str, value_text: &str, font: &egui::FontId, st: CellState) {
+    let pad = theme.field_pad.x;
+    let ink = cell_ink(theme, st);
+    let value_w = painter.layout_no_wrap(value_text.to_owned(), font.clone(), ink).size().x;
+    painter.text(egui::pos2(rect.right() - pad, rect.center().y), egui::Align2::RIGHT_CENTER, value_text, font.clone(), ink);
+    if !label.is_empty() {
+        let room = (rect.width() - pad * 3.0 - value_w).max(0.0);
+        let galley = painter.layout(label.to_owned(), font.clone(), theme.ink_weak, room);
+        painter.galley(egui::pos2(rect.left() + pad, rect.center().y - galley.size().y / 2.0), galley, theme.ink_weak);
+    }
+}
+
+/// A toggle cell: label left, a check square right, filled when on.
+pub fn cell_paint_toggle(painter: &egui::Painter, theme: &Theme, rect: Rect, label: &str, on: bool, font: &egui::FontId, text: bool, st: CellState) {
+    cell_ground(painter, theme, rect, st);
+    let side = (rect.height() * 0.6).max(2.0);
+    let sq = Rect::from_center_size(egui::pos2(rect.right() - theme.field_pad.x - side / 2.0, rect.center().y), Vec2::splat(side));
+    let ink = cell_ink(theme, st);
+    if on {
+        painter.rect_filled(sq, theme.field_corner(), if st.disabled { theme.node_cell_off_ink } else { theme.node_dot_on });
+    } else {
+        painter.rect_stroke(sq, theme.field_corner(), theme.node_cell_stroke(theme.node_cell_off_ink), egui::StrokeKind::Inside);
+    }
+    if text && !label.is_empty() {
+        painter.text(egui::pos2(rect.left() + theme.field_pad.x, rect.center().y), egui::Align2::LEFT_CENTER, label, font.clone(), ink);
+    }
+}
+
+/// An enum cell: label left, the chosen option right with a chevron.
+pub fn cell_paint_enum(painter: &egui::Painter, theme: &Theme, rect: Rect, label: &str, choice: &str, font: &egui::FontId, text: bool, st: CellState) {
+    cell_ground(painter, theme, rect, st);
+    if text {
+        cell_label_value(painter, theme, rect, label, &format!("{choice} \u{25be}"), font, st);
+    }
+}
+
+/// A colour cell: label left, the swatch filling the right half.
+pub fn cell_paint_colour(painter: &egui::Painter, theme: &Theme, rect: Rect, label: &str, rgb: Color32, font: &egui::FontId, text: bool, st: CellState) {
+    cell_ground(painter, theme, rect, st);
+    let half = Rect::from_min_max(egui::pos2(rect.center().x, rect.top()), rect.max).shrink(theme.hairline);
+    painter.rect_filled(half, theme.field_corner(), rgb);
+    if text && !label.is_empty() {
+        painter.text(egui::pos2(rect.left() + theme.field_pad.x, rect.center().y), egui::Align2::LEFT_CENTER, label, font.clone(), theme.ink_weak);
+    }
+}
+
+/// A text cell: label left, the string right.
+pub fn cell_paint_text(painter: &egui::Painter, theme: &Theme, rect: Rect, label: &str, value: &str, font: &egui::FontId, text: bool, st: CellState) {
+    cell_ground(painter, theme, rect, st);
+    if text {
+        cell_label_value(painter, theme, rect, label, value, font, st);
+    }
+}
+
+/// A panel header row: chevron + title, a hairline above.
+pub fn cell_paint_panel_header(painter: &egui::Painter, theme: &Theme, rect: Rect, title: &str, open: bool, font: &egui::FontId) {
+    painter.hline(rect.x_range(), rect.top(), theme.node_cell_stroke(theme.node_dot_off));
+    let glyph = if open { "\u{25be}" } else { "\u{25b8}" };
+    painter.text(egui::pos2(rect.left() + theme.field_pad.x, rect.center().y), egui::Align2::LEFT_CENTER, format!("{glyph} {title}"), font.clone(), theme.ink_weak);
+}
+
 /// The one numeric control: a recessed track with the value fill drawn in
 /// the phosphor up to the value's normalized position, the value and its
 /// `suffix` centred, and `◂`/`▸` arrows at the two ends. `num` wraps it in a
@@ -942,13 +1125,7 @@ fn num_track_sized(
         if arrow_dir == 0.0 {
             if response.dragged() {
                 let mods = ui.input(|i| i.modifiers);
-                let mut sens = span / NUM_SCRUB_SPAN;
-                if mods.shift {
-                    sens /= NUM_SCRUB_SCALE;
-                }
-                if mods.ctrl || mods.command {
-                    sens *= NUM_SCRUB_SCALE;
-                }
+                let sens = cell_scrub_sens(span, mods.shift, mods.ctrl || mods.command);
                 *value = (*value + response.drag_delta().x * sens).clamp(lo, hi);
                 ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
                 let live = *value;

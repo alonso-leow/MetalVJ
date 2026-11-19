@@ -1297,9 +1297,12 @@ fn primitive_json(p: &metal_graph::layout::Primitive) -> Value {
                 "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
                 "cx": rect.x + rect.w / 2.0, "cy": rect.y + rect.h / 2.0,
             }),
-            RectTag::ValueField { node, name } => json!({
-                "type": "rect", "tag": "value_field",
-                "node": node, "name": name,
+            RectTag::Cell(c) => json!({
+                "type": "rect", "tag": "cell",
+                "node": c.node, "name": c.name, "kind": c.kind.as_str(),
+                "label": c.label, "value": c.value, "min": c.min, "max": c.max,
+                "default": c.default, "text": c.text, "on": c.on,
+                "options": c.options, "bindable": c.bindable, "bound": c.bound,
                 "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
             }),
             RectTag::Swatch { node, name, rgb } => json!({
@@ -2635,8 +2638,8 @@ mod tests {
             "a port dot names its node"
         );
         assert!(
-            prims.iter().any(|p| p["tag"] == json!("value_field")),
-            "a generator's float rows carry value fields"
+            prims.iter().any(|p| p["tag"] == json!("cell")),
+            "a generator's float rows carry cells"
         );
         assert!(
             reply["issues"]

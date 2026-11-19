@@ -128,10 +128,15 @@ pub fn hit_reply(layout: &metal_graph::layout::Layout, x: f32, y: f32) -> Value 
         // panel learns which row from `name`, and where it sits from `point`
         // (the dot) so a param-to-param stretch has an origin without the
         // panel owning any geometry.
-        metal_graph::Hit::Param(node, name) => {
+        metal_graph::Hit::Cell { node, name, kind } => {
+            use metal_graph::CellKind;
             let point = layout.port_point(&node, &metal_graph::params::param_port(&name));
+            // A number cell keeps the old `param` answer (the scrub target);
+            // every other kind is a `cell` the panel clicks.
+            let hit = if matches!(kind, CellKind::Float | CellKind::Int) { "param" } else { "cell" };
             json!({
-                "hit": "param",
+                "hit": hit,
+                "kind": kind.as_str(),
                 "node": node,
                 "name": name,
                 "point": point.map(|p| json!([p.x, p.y])),

@@ -38,6 +38,8 @@ use serde_json::{json, Value};
 
 use crate::call::{Call, Params};
 
+mod cells;
+
 use crate::shell::classes::Theme;
 #[cfg(test)]
 use crate::shell::classes::DRAG_CLEARANCE;
@@ -137,6 +139,11 @@ struct ParamDrag {
     /// The value the drag has produced so far, clamped to the range — what
     /// the field paints while the pointer is down.
     value: f32,
+    /// A whole-number cell: the value rounds.
+    int: bool,
+    /// Where the press landed on screen: the scrub follows screen travel, so
+    /// its feel does not depend on the zoom.
+    start_screen_x: f32,
 }
 
 /// A cable stretched from an output that carries *several* variables, waiting
@@ -224,6 +231,10 @@ enum Undo {
     /// that edge again — the route's own id (`reply.edge`), the same one a
     /// selected-edge `quitar` would send.
     Unedge { edge: String },
+    /// A param write is undone by writing back the value read before it.
+    Param { node: String, name: String, was: f32 },
+    /// A config-cell write (bool, enum, string) is undone the same way.
+    Config { node: String, key: String, was: Value },
 }
 
 /// Everything the nodes panel remembers between frames: which graph is
@@ -257,6 +268,12 @@ pub struct PanelState {
 
     /// A drag on a value field (N) — see [`ParamDrag`]. One write on release.
     param_drag: Option<ParamDrag>,
+    /// The last press on a param cell (double-click detection).
+    last_cell_click: Option<cells::CellClick>,
+    /// Typed entry open on a cell.
+    cell_edit: Option<cells::CellEdit>,
+    /// An enum cell's option list.
+    cell_pick: Option<cells::CellPick>,
     /// The variable chooser a multi-variable output drop opened (N) — see
     /// [`BindMenu`].
     bind_menu: Option<BindMenu>,
@@ -427,6 +444,9 @@ impl Default for PanelState {
             cable: None,
             undo: Vec::new(),
             param_drag: None,
+            last_cell_click: None,
+            cell_edit: None,
+            cell_pick: None,
             bind_menu: None,
             colour_menu: None,
             live: None,
@@ -2970,6 +2990,7 @@ fn canvas(
     // The colour picker a clicked node swatch opened (2026-10-08) — a source's
     // key/secondary colours set on the canvas itself.
     paint_colour_menu(ui, theme, door, state, rect);
+    cells::paint_overlays(ui, theme, door, state);
 
     // `R22.1`, widened 2026-09-30: every focus change moves the picture. A
     // focused `gen.*` shows its own animation, the `output.device` its
@@ -3322,9 +3343,7 @@ fn paint_primitive(
         }
         Some("port") => paint_port(painter, theme, origin, state, p, drag),
         Some("param_dot") => paint_param_dot(painter, theme, origin, state, p, drag, live),
-        Some("value_field") => {
-            paint_value_field(painter, theme, origin, state, p, drag, live)
-        }
+        Some("cell") => cells::paint_cell(painter, theme, origin, state, p, drag, live),
         Some("swatch") => paint_swatch(painter, theme, origin, state, p, drag),
         // The "more" backing is not painted: it sat over the outline. The
         // tile is the node's one picture, inset inside the card.
@@ -3528,38 +3547,6 @@ fn paint_param_dot(
     let radius = dot_radius(state, theme) * 0.5;
     if !nodes_flow::paint_param_live(painter.ctx(), painter, theme, r.center(), node, radius) {
         painter.circle_filled(r.center(), radius, fill);
-    }
-}
-
-/// A parameter's value field: the recessed readout on the row's right. While a
-/// drag edits it the in-flight value paints; otherwise the cached value, and a
-/// live value if the engine is driving it (`GET /graph/live`).
-fn paint_value_field(
-    painter: &egui::Painter,
-    theme: &Theme,
-    origin: EguiRect,
-    state: &PanelState,
-    p: &Value,
-    drag: Option<DragOffset>,
-    live: LiveRef<'_>,
-) {
-    let r = shifted_rect(origin, state, p, [num(p, "x"), num(p, "y")], drag);
-    let node = p["node"].as_str().unwrap_or_default();
-    let name = p["name"].as_str().unwrap_or_default();
-    painter.rect_filled(r, theme.corner_radius(), theme.node_field);
-    let editing = state
-        .param_drag
-        .as_ref()
-        .filter(|d| d.node == node && d.name == name);
-    let shown = editing.map(|d| d.value).or_else(|| live.param(node, name));
-    if let Some(v) = shown {
-        painter.text(
-            r.right_center() - Vec2::new(theme.node_label_inset * 0.4, 0.0),
-            Align2::RIGHT_CENTER,
-            format_number(v),
-            theme.font_small.clone(),
-            if editing.is_some() { theme.node_dot_on } else { theme.node_field_ink },
-        );
     }
 }
 
@@ -4220,11 +4207,21 @@ fn handle_pointer(
 ) {
     let down_now = response.is_pointer_button_down_on();
 
+    // Right-click on a cell: unbind a bound one, reset a number to default.
+    if response.secondary_clicked() && state.zoom >= theme.node_cell_edit_zoom {
+        if let (Some(gid), Some(pos)) = (state.selected_graph.clone(), response.interact_pointer_pos()) {
+            let [gx, gy] = to_graph(rect.min, state.pan, state.zoom, pos);
+            if let Some(h) = hit_at(door, &gid, gx, gy).filter(|h| matches!(h["hit"].as_str(), Some("param" | "cell"))) {
+                cells::secondary(door, state, theme, &h);
+            }
+        }
+    }
+
     if down_now && !state.pressing {
         state.pressing = true;
         let press_pos = ui.input(|i| i.pointer.press_origin()).unwrap_or(rect.min);
         let ctrl = ui.input(|i| i.modifiers.command || i.modifiers.ctrl);
-        press_hit_test(door, state, selection, rect, press_pos, ctrl);
+        press_hit_test(door, state, selection, rect, press_pos, ctrl, theme);
     }
 
     if down_now {
@@ -4242,15 +4239,16 @@ fn handle_pointer(
             if let Some(cable) = &mut state.cable {
                 cable.cur_screen = pos;
             }
-            // A value-field drag: the value follows the pointer's horizontal
-            // travel, scaled against the range (Shift, finer — N). Still
-            // nothing sent: `finish_param_drag` posts once on release.
-            if let Some(drag) = &mut state.param_drag {
-                drag.cur_pointer = to_graph(rect.min, state.pan, state.zoom, pos);
-                let dx = drag.cur_pointer[0] - drag.start_pointer[0];
-                let shift = ui.input(|i| i.modifiers.shift);
-                let per = (drag.max - drag.min) / PARAM_DRAG_SPAN * if shift { 0.25 } else { 1.0 };
-                drag.value = (drag.start_value + dx * per).clamp(drag.min, drag.max);
+            // A cell scrub: the value follows the pointer's screen travel
+            // (Shift finer, Ctrl coarser). Esc cancels. Nothing is sent until
+            // release (`cells::finish_drag` posts once).
+            if state.param_drag.is_some() {
+                if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                    cells::cancel_drag(state);
+                } else {
+                    let (shift, ctrl) = ui.input(|i| (i.modifiers.shift, i.modifiers.command || i.modifiers.ctrl));
+                    cells::drag_to(state, rect.min, pos, shift, ctrl);
+                }
             }
         }
     }
@@ -4260,7 +4258,7 @@ fn handle_pointer(
         state.pan_drag = None;
         finish_drag(door, state, selection, theme);
         finish_cable(door, state, theme);
-        finish_param_drag(door, state);
+        cells::finish_drag(door, state, theme);
     }
 }
 
@@ -4405,6 +4403,7 @@ fn press_hit_test(
     rect: EguiRect,
     press_pos: Pos2,
     ctrl: bool,
+    theme: &Theme,
 ) {
     state.drag = None;
     state.pan_drag = None;
@@ -4413,7 +4412,14 @@ fn press_hit_test(
         return;
     };
     let [gx, gy] = to_graph(rect.min, state.pan, state.zoom, press_pos);
-    let hit = hit_at(door, &gid, gx, gy);
+    let mut hit = hit_at(door, &gid, gx, gy);
+    // Zoomed far out a cell is too small to edit by accident: the press is
+    // the node's (drag / select) instead.
+    if state.zoom < theme.node_cell_edit_zoom
+        && hit.as_ref().is_some_and(|h| matches!(h["hit"].as_str(), Some("param" | "cell")))
+    {
+        hit = hit.map(|h| json!({ "hit": "node", "node": h["node"] }));
+    }
     // Ctrl+click on a node toggles it in the multi-selection and starts no
     // drag; every other press starts a fresh single selection.
     let hit_node = match hit.as_ref() {
@@ -4427,28 +4433,10 @@ fn press_hit_test(
     state.picked.clear();
 
     match hit.as_ref().and_then(|h| h["hit"].as_str()) {
-        // A value field (N): the drag edits the held value. The range and
-        // start value come from `GET /graph/io` — the door's own read, never
-        // a second copy of the parameter in the panel.
-        Some("param") => {
-            let (Some(node), Some(name)) = (
-                hit.as_ref().and_then(|h| h["node"].as_str()),
-                hit.as_ref().and_then(|h| h["name"].as_str()),
-            ) else {
-                return;
-            };
-            *selection = Selection::Node(node.to_string());
-            if let Some((min, max, value)) = param_bounds(door, &gid, node, name) {
-                state.param_drag = Some(ParamDrag {
-                    node: node.to_string(),
-                    name: name.to_string(),
-                    start_value: value,
-                    start_pointer: [gx, gy],
-                    cur_pointer: [gx, gy],
-                    min,
-                    max,
-                    value,
-                });
+        // A param cell: scrub, toggle, pick or typed entry (`cells::press`).
+        Some("param" | "cell") => {
+            if let Some(h) = hit.as_ref() {
+                cells::press(door, state, selection, theme, h, rect.min, press_pos, web_time::Instant::now());
             }
         }
         // A colour swatch (2026-10-08): select the node and open the picker
@@ -4640,32 +4628,6 @@ fn param_bounds(door: &dyn Call, gid: &str, node: &str, name: &str) -> Option<(f
     Some((min, max, value))
 }
 
-/// Finalises a value-field drag (N): one `POST /graph/node { op: "param" }`
-/// with the value the drag produced — never a stream while the pointer moved.
-/// A drag that never crossed [`PARAM_DRAG_SLOP`] was a click that already
-/// selected the row, so nothing is sent. The inverse records the value the row
-/// held before the edit, so `CTRL + Z` restores it through the same op.
-fn finish_param_drag(door: &dyn Call, state: &mut PanelState) {
-    let Some(drag) = state.param_drag.take() else {
-        return;
-    };
-    let Some(gid) = state.selected_graph.clone() else {
-        return;
-    };
-    let dx = drag.cur_pointer[0] - drag.start_pointer[0];
-    if dx.abs() <= PARAM_DRAG_SLOP {
-        return;
-    }
-    let body = json!({
-        "op": "param",
-        "graph": gid,
-        "node": drag.node,
-        "name": drag.name,
-        "value": drag.value,
-    });
-    door.post_async("/graph/node", body);
-}
-
 /// A cable dropped from an output onto a parameter row (or a param dot
 /// dragged onto an output) is a **binding** (N). The producer's variables on
 /// that port are read from the **consumer's** `GET /graph/io` `sources` (a
@@ -4845,6 +4807,8 @@ pub(crate) fn undo_last(door: &dyn Call, state: &mut PanelState) {
             apply_node_op_locally(state, &body);
             door.post_async("/graph/node", body);
         }
+        Undo::Param { node, name, was } => cells::replay_param(door, state, &node, &name, was),
+        Undo::Config { node, key, was } => cells::replay_config(door, state, &node, &key, &was),
     }
 }
 
@@ -6937,5 +6901,196 @@ mod tests {
         assert_eq!(node["bypass"], json!(true), "a flag without `on` toggles");
         assert_eq!(node["kind"], "gen.turing", "the node itself is still there");
         assert_eq!(graph["graph"]["nodes"][1]["pos"], json!([0.0, 0.0]), "other nodes untouched");
+    }
+
+    // -- node param cells -----------------------------------------------------
+
+    fn cell_state(bound: bool) -> PanelState {
+        let mut s = PanelState::default();
+        s.selected_graph = Some("g1".to_string());
+        s.zoom = 1.0;
+        let cell = |name: &str, kind: &str, extra: Value| {
+            let mut c = json!({
+                "type": "rect", "tag": "cell", "node": "n1", "name": name, "kind": kind,
+                "label": name, "bound": false, "x": 10.0, "y": 50.0, "w": 200.0, "h": 22.0,
+                "min": 0.0, "max": 1.0, "default": 0.25
+            });
+            for (k, v) in extra.as_object().unwrap() {
+                c[k] = v.clone();
+            }
+            c
+        };
+        s.graph = Some(json!({
+            "graph": { "id": "g1", "nodes": [{ "id": "n1", "pos": [0.0, 0.0] }], "edges": [] },
+            "primitives": [
+                cell("amount", "float", json!({ "value": 0.5, "bound": bound })),
+                cell("line_wrap", "bool", json!({ "on": true })),
+                cell("align", "enum", json!({ "text": "left", "options": ["left", "center", "right"] })),
+            ]
+        }));
+        s
+    }
+
+    fn hit_cell(name: &str, kind: &str) -> Value {
+        json!({ "hit": if kind == "float" { "param" } else { "cell" }, "node": "n1", "name": name, "kind": kind })
+    }
+
+    fn node_posts(door: &FakeDoor) -> Vec<Value> {
+        door.calls
+            .borrow()
+            .iter()
+            .filter(|(m, p, _)| m == "POST" && p == "/graph/node")
+            .filter_map(|(_, _, params)| serde_json::from_slice::<Value>(&params.body).ok())
+            .collect()
+    }
+
+    fn press_cell(door: &FakeDoor, state: &mut PanelState, name: &str, kind: &str, at: Pos2) {
+        let mut sel = Selection::None;
+        cells::press(door, state, &mut sel, &Theme::phosphor(), &hit_cell(name, kind), Pos2::ZERO, at, web_time::Instant::now());
+    }
+
+    /// Scrubbing a float cell +40 px posts exactly one `op: param`; Shift
+    /// moves a tenth as far; Esc cancels with no post.
+    #[test]
+    fn scrubbing_a_cell_posts_once_shift_is_finer_and_esc_cancels() {
+        let theme = Theme::phosphor();
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        cells::drag_to(&mut state, Pos2::ZERO, Pos2::new(120.0, 60.0), false, false);
+        cells::drag_to(&mut state, Pos2::ZERO, Pos2::new(140.0, 60.0), false, false);
+        assert!(node_posts(&door).is_empty(), "nothing posts while dragging");
+        cells::finish_drag(&door, &mut state, &theme);
+        let posts = node_posts(&door);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0]["op"], "param");
+        assert!((posts[0]["value"].as_f64().unwrap() - 0.7).abs() < 1e-4, "{:?}", posts[0]);
+        assert_eq!(state.undo.len(), 1);
+
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        cells::drag_to(&mut state, Pos2::ZERO, Pos2::new(140.0, 60.0), true, false);
+        cells::finish_drag(&door, &mut state, &theme);
+        let v = node_posts(&door)[0]["value"].as_f64().unwrap();
+        assert!((v - 0.52).abs() < 1e-4, "shift is a tenth: {v}");
+
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        cells::drag_to(&mut state, Pos2::ZERO, Pos2::new(140.0, 60.0), false, false);
+        cells::cancel_drag(&mut state);
+        cells::finish_drag(&door, &mut state, &theme);
+        assert!(node_posts(&door).is_empty(), "Esc posts nothing");
+    }
+
+    /// A double-click opens typed entry: 0.25 + Enter posts 0.25; past the
+    /// max clamps (Ctrl lifts the clamp); no commit, no post.
+    #[test]
+    fn double_click_types_a_value_and_clamps() {
+        let theme = Theme::phosphor();
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        assert!(state.cell_edit.is_some(), "the second press opens typed entry");
+        state.type_into_cell_edit("0.25");
+        cells::commit_edit(&door, &mut state, &theme, false);
+        let posts = node_posts(&door);
+        assert_eq!(posts.len(), 1);
+        assert!((posts[0]["value"].as_f64().unwrap() - 0.25).abs() < 1e-6);
+
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        state.type_into_cell_edit("7");
+        cells::commit_edit(&door, &mut state, &theme, false);
+        assert_eq!(node_posts(&door)[0]["value"].as_f64(), Some(1.0), "clamped to the range");
+
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        state.cell_edit = None; // Esc
+        assert!(node_posts(&door).is_empty());
+    }
+
+    /// A bool click and an enum pick each post one config write and one undo
+    /// entry; Ctrl+Z writes the old value back through the same route.
+    #[test]
+    fn bool_and_enum_cells_write_config_and_undo() {
+        let theme = Theme::phosphor();
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "line_wrap", "bool", Pos2::new(100.0, 60.0));
+        let posts = node_posts(&door);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0]["op"], "config");
+        assert_eq!(posts[0]["config"]["line_wrap"], json!(false));
+        assert_eq!(state.undo.len(), 1);
+        undo_last(&door, &mut state);
+        assert_eq!(node_posts(&door)[1]["config"]["line_wrap"], json!(true));
+
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "align", "enum", Pos2::new(100.0, 60.0));
+        assert!(state.cell_pick.is_some(), "a press opens the option list");
+        cells::pick_option(&door, &mut state, &theme, "center");
+        let posts = node_posts(&door);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0]["config"]["align"], json!("center"));
+        assert_eq!(state.undo.len(), 1);
+        undo_last(&door, &mut state);
+        assert_eq!(node_posts(&door)[1]["config"]["align"], json!("left"));
+    }
+
+    /// A bound cell is read-only: a press starts no scrub, right-click
+    /// unbinds through `op: bind` with a null source.
+    #[test]
+    fn a_bound_cell_does_not_scrub_and_right_click_unbinds() {
+        let theme = Theme::phosphor();
+        let door = FakeDoor::new();
+        let mut state = cell_state(true);
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(100.0, 60.0));
+        assert!(state.param_drag.is_none());
+        cells::drag_to(&mut state, Pos2::ZERO, Pos2::new(140.0, 60.0), false, false);
+        cells::finish_drag(&door, &mut state, &theme);
+        assert!(node_posts(&door).is_empty());
+        cells::secondary(&door, &mut state, &theme, &hit_cell("amount", "float"));
+        let posts = node_posts(&door);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0]["op"], "bind");
+        assert_eq!(posts[0]["param"], "amount");
+        assert!(posts[0]["from"].is_null());
+    }
+
+    /// A press on a cell scrubs and never moves the node; a press on the
+    /// header drags it; zoomed far out a cell press drags the node instead.
+    #[test]
+    fn a_cell_press_never_drags_the_node_and_a_far_zoom_press_does() {
+        let theme = Theme::phosphor();
+        let canvas = EguiRect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0));
+        let door = FakeDoor::new();
+        door.respond("GET", "/graph/hit", hit_cell("amount", "float"));
+        let mut state = cell_state(false);
+        let mut sel = Selection::None;
+        press_hit_test(&door, &mut state, &mut sel, canvas, Pos2::new(100.0, 60.0), false, &theme);
+        assert!(state.param_drag.is_some() && state.drag.is_none(), "a cell press edits, it does not move the node");
+
+        let door = FakeDoor::new();
+        door.respond("GET", "/graph/hit", json!({ "hit": "node", "node": "n1" }));
+        let mut state = cell_state(false);
+        press_hit_test(&door, &mut state, &mut sel, canvas, Pos2::new(100.0, 10.0), false, &theme);
+        assert!(state.drag.is_some() && state.param_drag.is_none(), "a header press drags the node");
+
+        let door = FakeDoor::new();
+        door.respond("GET", "/graph/hit", hit_cell("amount", "float"));
+        let mut state = cell_state(false);
+        state.zoom = 0.4;
+        press_hit_test(&door, &mut state, &mut sel, canvas, Pos2::new(100.0, 60.0), false, &theme);
+        assert!(state.param_drag.is_none() && state.drag.is_some(), "at zoom 0.4 the press drags the node");
+        cells::finish_drag(&door, &mut state, &theme);
+        assert!(node_posts(&door).is_empty(), "and edits nothing");
     }
 }

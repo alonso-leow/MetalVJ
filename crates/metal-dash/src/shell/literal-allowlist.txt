@@ -55,3 +55,4 @@ panels/viewport_splats.rs:let color = Color32::from_rgba_unmultiplied(
 # Test geometry for the viewport camera and splat projection tests.
 panels/viewport.rs:let rect = Rect::from_min_size(Pos2::new(10.0, 20.0), Vec2::new(640.0, 360.0));
 panels/viewport_splats.rs:let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0));
+panels/nodes.rs:let canvas = EguiRect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0));

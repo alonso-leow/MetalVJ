@@ -41,6 +41,7 @@ pub use metal_schema::{Capabilities, Capability};
 pub use compile::{Op, Plan};
 pub use lint::{Issue, Severity};
 pub use layout::{Dir, Hit, Primitive};
+pub use params::CellKind;
 pub use parity::{is_script_kind, CTL_MATH_KIND, PARITY_EFFECT_IDS, RAMP_KIND};
 
 // ---------------------------------------------------------------------------

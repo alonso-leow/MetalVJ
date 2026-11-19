@@ -32,7 +32,8 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::params::{self, Param, ParamKind};
+use crate::params::{self, ConfigCell, Param, ParamKind};
+pub use crate::params::CellKind;
 use crate::{Graph, Node, NodeId, NodeKind, PortType};
 
 /// The width of every node box, in graph units (all card constants are 1.4x
@@ -51,8 +52,16 @@ pub const SUBHEADER_H: f32 = 33.6;
 pub const ROW_H: f32 = 28.0;
 /// Radius of a port or param dot.
 pub const PORT_R: f32 = 8.4;
-/// Width of a parameter's value field.
+/// Width of a parameter's value field (a colour row's, since 2026-11-19 a
+/// param row's cell spans the node instead).
 pub const FIELD_W: f32 = 72.8;
+/// Height of a param cell inside its [`ROW_H`] row (the rest is the row gap).
+pub const CELL_H: f32 = 22.4;
+/// How far a param cell sits inside the node's left and right edges (clear of
+/// the dots that straddle them).
+pub const CELL_INSET: f32 = 11.2;
+/// The gap between the cells of a vector row.
+pub const CELL_GAP_H: f32 = 1.4;
 /// Side of a colour swatch painted in a node's body.
 pub const SWATCH: f32 = 42.0;
 /// How many rows are shown before a `▸ n more` row folds the rest away.
@@ -191,8 +200,10 @@ pub enum RectTag {
     Port { node: NodeId, port: String, out: bool },
     /// A parameter's dot.
     ParamDot { node: NodeId, name: String },
-    /// A parameter's value field.
-    ValueField { node: NodeId, name: String },
+    /// A parameter's cell: a slider, toggle, dropdown, text field. `name` is
+    /// the param (or config key); the rest is what the painter needs to draw
+    /// it without reading the node's config.
+    Cell(Box<CellTag>),
     /// A colour swatch. `name` is the config key (`rgb`, `colors:0`, …) and
     /// `rgb` the resolved colour (0..1 per channel), so a painter fills it
     /// without re-reading the node's config.
@@ -201,6 +212,28 @@ pub enum RectTag {
     Tile { node: NodeId },
     /// The `▸ n more` row that expands the folded rows.
     More { node: NodeId },
+}
+
+/// Everything a painter needs to draw one param cell.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CellTag {
+    pub node: NodeId,
+    pub name: String,
+    pub kind: CellKind,
+    pub label: String,
+    /// The number a Float/Int cell holds (`None`: driven, shown at default).
+    pub value: Option<f32>,
+    pub min: f32,
+    pub max: f32,
+    pub default: f32,
+    /// An enum's choice or a text cell's string.
+    pub text: Option<String>,
+    pub on: Option<bool>,
+    pub options: Vec<String>,
+    /// Whether the row has a `param:<name>` dot a variable can bind to.
+    pub bindable: bool,
+    /// Whether a variable is bound to it now (the cell is read-only).
+    pub bound: bool,
 }
 
 /// A cable, tagged with its endpoints and its type.
@@ -245,9 +278,9 @@ impl Dir {
 pub enum Hit {
     Node(NodeId),
     Port(NodeId, String, Dir),
-    /// A parameter's value field or dot — the Resolume-Wire "play this row"
-    /// target. `name` is the parameter's name.
-    Param(NodeId, String),
+    /// A parameter's cell — the Resolume-Wire "play this row" target. `name`
+    /// is the parameter's (or config key's) name.
+    Cell { node: NodeId, name: String, kind: CellKind },
     /// A colour swatch in a node's body (2026-10-08) — a `color` node's `rgb`
     /// or a `palette` node's `colors:<i>`. `name` is the config key, so the
     /// panel can open a picker seeded from it and post it back.
@@ -260,7 +293,20 @@ pub enum Hit {
 #[derive(Debug, Clone)]
 pub struct ParamGeom {
     pub dot: Point,
-    pub field: Rect,
+    /// The cell's rect; `None` on a colour row (its swatch is the target).
+    pub cell: Option<Rect>,
+    pub kind: CellKind,
+    pub label: String,
+    pub min: f32,
+    pub max: f32,
+    pub default: f32,
+    pub text: Option<String>,
+    pub on: Option<bool>,
+    pub options: Vec<String>,
+    /// `false` for a config-key cell: no `param:<name>` dot, no binding.
+    pub bindable: bool,
+    /// Set once the edges are known: a variable drives this row.
+    pub bound: bool,
     pub value: Option<f32>,
     /// The `x`-ordered list of swatches this parameter paints, if it is a
     /// colour slot holding a colour.
@@ -347,6 +393,7 @@ fn swatch_rect(geom: &NodeGeom, pg: &ParamGeom, i: usize) -> Rect {
 enum Row {
     Port { name: String, out: bool },
     Param { name: String },
+    Cell { key: String },
     More,
     Tile,
 }
@@ -358,6 +405,7 @@ impl Row {
         match self {
             Row::Port { name, out } => Row::Port { name: name.clone(), out: *out },
             Row::Param { name } => Row::Param { name: name.clone() },
+            Row::Cell { key } => Row::Cell { key: key.clone() },
             Row::More => Row::More,
             Row::Tile => Row::Tile,
         }
@@ -415,17 +463,26 @@ impl Graph {
         for n in &self.nodes {
             let kind = by_kind.get(n.kind.as_str()).copied();
             let params = params::node_params(n, kind);
-            let (geom, label) = node_geom(n, kind, &params);
+            let cells = params::config_cells(n);
+            let (geom, label) = node_geom(n, kind, &params, &cells);
             node_labels.insert(n.id.clone(), label);
             node_rects.insert(n.id.clone(), geom.rect);
             for ((port, out), point) in &geom.ports {
                 let dir = if *out { Dir::Out } else { Dir::In };
                 port_points.insert((n.id.clone(), port.clone(), dir), *point);
             }
-            for (name, pg) in &geom.params {
+            for (name, pg) in geom.params.iter().filter(|(_, pg)| pg.bindable) {
                 port_points.insert((n.id.clone(), params::param_port(name), Dir::In), pg.dot);
             }
             nodes.insert(n.id.clone(), geom);
+        }
+
+        for e in self.edges.iter().filter(|e| params::is_param_edge(e)) {
+            if let (Some(name), Some(g)) = (params::param_name(&e.to.port), nodes.get_mut(&e.to.node)) {
+                if let Some((_, pg)) = g.params.iter_mut().find(|(n, _)| n == name) {
+                    pg.bound = true;
+                }
+            }
         }
 
         let mut edge_paths = BTreeMap::new();
@@ -500,7 +557,7 @@ impl Graph {
 }
 
 /// One node's box, header, port dots, parameter rows, tile and `more` row.
-fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param]) -> (NodeGeom, String) {
+fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[ConfigCell]) -> (NodeGeom, String) {
     let x = n.pos[0];
     let y = n.pos[1];
     let label = if n.label.is_empty() { n.kind.clone() } else { n.label.clone() };
@@ -562,6 +619,9 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param]) -> (NodeGeom, 
     for _ in 0..extra_swatch_rows {
         fixed.push(Row::Param { name: "rgb".to_string() });
     }
+    for c in cells {
+        fixed.push(Row::Cell { key: c.key.clone() });
+    }
 
     let folded = float_params.len() > COLLAPSED_ROWS && !n.expanded;
     let shown_params = if folded { COLLAPSED_ROWS } else { float_params.len() };
@@ -618,26 +678,66 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param]) -> (NodeGeom, 
             }
             Row::Param { name } => {
                 let is_colour = colour_params.iter().any(|p| p.name == *name);
+                let float = float_params.iter().find(|p| p.name == *name);
                 let (value, swatch_list) = if is_colour {
                     (None, swatches.iter().skip(swatch_at).take(1).cloned().collect())
-                } else if let Some(p) = float_params.iter().find(|p| p.name == *name) {
+                } else if let Some(p) = float {
                     (p.value.or(Some(p.default)), Vec::new())
                 } else {
                     (None, swatches.iter().skip(swatch_at).take(1).cloned().collect())
                 };
                 swatch_at += 1;
+                let cell = float.map(|_| cell_rect(x, row_y));
+                let int = float.is_some_and(|p| params::is_int_param(&n.kind, &p.name));
                 param_geoms.push((
                     name.clone(),
                     ParamGeom {
                         dot: Point { x, y: cy },
-                        field: Rect {
-                            x: x + NODE_W - FIELD_W - PORT_R,
-                            y: row_y + ROW_H * 0.15,
-                            w: FIELD_W,
-                            h: ROW_H * 0.7,
+                        cell,
+                        kind: if is_colour || float.is_none() {
+                            CellKind::Colour
+                        } else if int {
+                            CellKind::Int
+                        } else {
+                            CellKind::Float
                         },
+                        label: name.clone(),
+                        min: float.map_or(0.0, |p| p.min),
+                        max: float.map_or(1.0, |p| p.max),
+                        default: float.map_or(0.0, |p| p.default),
+                        text: None,
+                        on: None,
+                        options: Vec::new(),
+                        bindable: true,
+                        bound: false,
                         value,
                         swatches: swatch_list,
+                        palette: Vec::new(),
+                    },
+                ));
+            }
+            Row::Cell { key } => {
+                let Some(c) = cells.iter().find(|c| c.key == *key) else { continue };
+                param_geoms.push((
+                    key.clone(),
+                    ParamGeom {
+                        dot: Point { x, y: cy },
+                        cell: Some(cell_rect(x, row_y)),
+                        kind: c.kind,
+                        label: key.clone(),
+                        min: 0.0,
+                        max: 1.0,
+                        default: 0.0,
+                        text: match c.kind {
+                            CellKind::Enum | CellKind::Text => Some(c.value.as_str().unwrap_or_default().to_string()),
+                            _ => None,
+                        },
+                        on: (c.kind == CellKind::Bool).then(|| c.value.as_bool().unwrap_or(false)),
+                        options: c.options.clone(),
+                        bindable: false,
+                        bound: false,
+                        value: None,
+                        swatches: Vec::new(),
                         palette: Vec::new(),
                     },
                 ));
@@ -661,6 +761,12 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param]) -> (NodeGeom, 
     (NodeGeom { rect, header, ports, params: param_geoms, tile, more, hidden: float_params.len() - shown_params, header_ports }, label)
 }
 
+/// A param row's cell: the full row width inside [`CELL_INSET`], [`CELL_H`]
+/// tall, centred in its [`ROW_H`] row.
+fn cell_rect(x: f32, row_y: f32) -> Rect {
+    Rect { x: x + CELL_INSET, y: row_y + (ROW_H - CELL_H) / 2.0, w: NODE_W - CELL_INSET * 2.0, h: CELL_H }
+}
+
 /// The dot rectangle around a port center.
 fn dot_rect(p: Point) -> Rect {
     Rect { x: p.x - PORT_R, y: p.y - PORT_R, w: PORT_R * 2.0, h: PORT_R * 2.0 }
@@ -670,16 +776,6 @@ fn dot_rect(p: Point) -> Rect {
 /// they live in the same map. `None` when the node has no such port.
 fn port_point_of(geom: &NodeGeom, port: &str, dir: Dir) -> Option<Point> {
     geom.ports.get(&(port.to_string(), dir.is_out())).copied()
-}
-
-/// A compact fixed-point number for a value field ("0", "0.5", "3").
-fn format_number(v: f32) -> String {
-    if (v - v.round()).abs() < 0.001 {
-        format!("{}", v.round() as i64)
-    } else {
-        let s = format!("{v:.2}");
-        s.trim_end_matches('0').trim_end_matches('.').to_string()
-    }
 }
 
 impl Layout {
@@ -719,26 +815,37 @@ impl Layout {
                 }
             }
             for (name, pg) in &geom.params {
-                out.push(Primitive::Rect(TaggedRect {
-                    rect: dot_rect(pg.dot),
-                    tag: RectTag::ParamDot { node: id.clone(), name: name.clone() },
-                }));
-                out.push(Primitive::Rect(TaggedRect {
-                    rect: pg.field,
-                    tag: RectTag::ValueField { node: id.clone(), name: name.clone() },
-                }));
-                out.push(Primitive::Text(Text {
-                    x: geom.rect.x + PORT_R + 6.0,
-                    y: pg.dot.y,
-                    content: name.clone(),
-                    tag: TextTag::Row,
-                }));
-                if let Some(v) = pg.value {
+                if pg.bindable {
+                    out.push(Primitive::Rect(TaggedRect {
+                        rect: dot_rect(pg.dot),
+                        tag: RectTag::ParamDot { node: id.clone(), name: name.clone() },
+                    }));
+                }
+                if let Some(cell) = pg.cell {
+                    out.push(Primitive::Rect(TaggedRect {
+                        rect: cell,
+                        tag: RectTag::Cell(Box::new(CellTag {
+                            node: id.clone(),
+                            name: name.clone(),
+                            kind: pg.kind,
+                            label: pg.label.clone(),
+                            value: pg.value,
+                            min: pg.min,
+                            max: pg.max,
+                            default: pg.default,
+                            text: pg.text.clone(),
+                            on: pg.on,
+                            options: pg.options.clone(),
+                            bindable: pg.bindable,
+                            bound: pg.bound,
+                        })),
+                    }));
+                } else {
                     out.push(Primitive::Text(Text {
-                        x: pg.field.x + 4.0,
-                        y: pg.field.y + pg.field.h / 2.0,
-                        content: format_number(v),
-                        tag: TextTag::Value,
+                        x: geom.rect.x + PORT_R + 6.0,
+                        y: pg.dot.y,
+                        content: name.clone(),
+                        tag: TextTag::Row,
                     }));
                 }
                 for (i, (key, rgb)) in pg.swatches.iter().enumerate() {
@@ -782,7 +889,7 @@ impl Layout {
     /// node body, else [`Hit::Empty`].
     ///
     /// A parameter has **two** targets of its one row, and they answer
-    /// differently (N): the value field is a [`Hit::Param`] — the drag that
+    /// differently (N): the cell is a [`Hit::Cell`] — the drag that
     /// edits a held value — and the dot is a [`Hit::Port`] carrying the
     /// `param:<name>` port, so a cable from an output can land on the row and
     /// bind it. The dot is checked in the port sweep (it lives in
@@ -802,8 +909,8 @@ impl Layout {
 
         for (node, geom) in &self.nodes {
             for (name, pg) in &geom.params {
-                if pg.field.contains(p) {
-                    return Hit::Param(node.clone(), name.clone());
+                if pg.cell.is_some_and(|c| c.contains(p)) {
+                    return Hit::Cell { node: node.clone(), name: name.clone(), kind: pg.kind };
                 }
             }
         }
@@ -1002,7 +1109,7 @@ mod tests {
     }
 
     /// A parameter's two targets answer apart (N): the value field is the
-    /// [`Hit::Param`] a drag edits, the dot is a [`Hit::Port`] with the
+    /// [`Hit::Cell`] a drag edits, the dot is a [`Hit::Port`] with the
     /// `param:<name>` spelling a cable binds through.
     #[test]
     fn a_hit_on_a_value_field_is_param_and_on_a_param_dot_is_the_param_port() {
@@ -1014,12 +1121,14 @@ mod tests {
         let (name, pg) = geom.params.first().expect("fx.vignette has an amount");
         assert_eq!(name, "amount");
         // The value field answers `Param`.
-        match layout.hit(pg.field.x + pg.field.w / 2.0, pg.field.y + pg.field.h / 2.0) {
-            Hit::Param(node, got) => {
+        let cell = pg.cell.expect("a float param has a cell");
+        match layout.hit(cell.x + cell.w / 2.0, cell.y + cell.h / 2.0) {
+            Hit::Cell { node, name: got, kind } => {
                 assert_eq!(node, fx);
                 assert_eq!(got, "amount");
+                assert_eq!(kind, CellKind::Float);
             }
-            other => panic!("a value-field hit is a Param, got {other:?}"),
+            other => panic!("a cell hit is a Cell, got {other:?}"),
         }
         // The dot answers a `Port` carrying the parameter port, so a cable
         // dropped on the row resolves to the same shape a port drop does.
@@ -1162,11 +1271,9 @@ mod tests {
             ROW_H / 2.0,
             "a row's centre is a half-row into its band"
         );
-        assert!(
-            pg.field.x + pg.field.w <= rect.x + rect.w,
-            "the value field stays inside the box's right edge"
-        );
-        assert!(pg.field.contains(Point { x: pg.field.x + 1.0, y: pg.field.y + 1.0 }));
+        let cell = pg.cell.unwrap();
+        assert!(cell.x + cell.w <= rect.x + rect.w, "the cell stays inside the box's right edge");
+        assert!(cell.contains(Point { x: cell.x + 1.0, y: cell.y + 1.0 }));
 
         // The generator's `row` output is a body row on the right edge, and
         // its first parameter row is above it (rows are assembled in order,
@@ -1208,5 +1315,88 @@ mod tests {
         let p = layout.port_point(&gen, "viewer").expect("viewer row");
         let rect = layout.node_rect(&gen).unwrap();
         assert!(p.x <= rect.x + 0.001, "the viewer input sits on the left edge");
+    }
+
+    // -- node param cells -------------------------------------------------
+
+    fn cell_graph() -> (Graph, Vec<NodeKind>, Vec<String>) {
+        let catalog = real_catalog();
+        let mut g = Graph::new("g", "t", Domain::Live);
+        let ids: Vec<String> = ["fx.vignette", "gen.turing", "venue.fixture", "text.source"]
+            .iter()
+            .enumerate()
+            .map(|(i, k)| g.add_node(&format!("n{i}"), k, [i as f32 * 400.0, 0.0]))
+            .collect();
+        (g, catalog, ids)
+    }
+
+    /// Every param row's dot sits on its row's centre, its cell inside the
+    /// row and the node, and no two cells of a node overlap; the box is the
+    /// header plus its rows.
+    #[test]
+    fn cells_sit_in_their_rows_inside_the_node_and_never_overlap() {
+        let (g, catalog, ids) = cell_graph();
+        let layout = g.layout(&catalog);
+        for id in &ids {
+            let rect = layout.node_rect(id).unwrap();
+            let geom = layout.nodes.get(id).unwrap();
+            let mut cells: Vec<Rect> = Vec::new();
+            for (_, pg) in &geom.params {
+                let band = (pg.dot.y - (rect.y + HEADER_H + SUBHEADER_H)) / ROW_H;
+                assert_eq!(band.fract(), 0.5, "the dot is on its row's centre");
+                let Some(c) = pg.cell else { continue };
+                assert!(c.y >= pg.dot.y - ROW_H / 2.0 && c.y + c.h <= pg.dot.y + ROW_H / 2.0, "cell inside its row");
+                assert!(c.x >= rect.x && c.x + c.w <= rect.x + rect.w, "cell inside the node");
+                assert!(c.x > rect.x + PORT_R, "the cell clears the dot");
+                for o in &cells {
+                    assert!(c.y >= o.y + o.h || o.y >= c.y + c.h, "cells never overlap");
+                }
+                cells.push(c);
+            }
+            let rows = ((rect.h - HEADER_H - SUBHEADER_H) / ROW_H).round();
+            assert_eq!(rect.h, HEADER_H + SUBHEADER_H + ROW_H * rows, "height is header plus whole rows");
+        }
+    }
+
+    /// A point in a cell is a cell hit, in a dot the param port, in the
+    /// header the node; a config-key cell has no dot.
+    #[test]
+    fn hit_order_is_dot_then_cell_then_header() {
+        let (g, catalog, ids) = cell_graph();
+        let layout = g.layout(&catalog);
+        let fixture = &ids[2];
+        let geom = layout.nodes.get(fixture).unwrap();
+        let (name, pg) = geom.params.iter().find(|(n, _)| n == "colour_from").expect("enum cell");
+        assert_eq!(pg.kind, CellKind::Enum);
+        assert_eq!(pg.text.as_deref(), Some("frame"));
+        assert!(!pg.bindable);
+        let c = pg.cell.unwrap();
+        match layout.hit(c.x + c.w / 2.0, c.y + c.h / 2.0) {
+            Hit::Cell { name: got, kind, .. } => {
+                assert_eq!(&got, name);
+                assert_eq!(kind, CellKind::Enum);
+            }
+            other => panic!("expected a cell, got {other:?}"),
+        }
+        assert!(layout.port_point(fixture, &params::param_port(name)).is_none(), "no dot on a config cell");
+        let rect = layout.node_rect(fixture).unwrap();
+        assert!(matches!(layout.hit(rect.x + rect.w / 2.0, rect.y + 4.0), Hit::Node(_)), "header is the node");
+        let pick = geom.params.iter().find(|(n, _)| n == "pick").unwrap();
+        assert_eq!(pick.1.kind, CellKind::Int);
+        assert!(layout.port_point(fixture, &params::param_port("pick")).is_some());
+    }
+
+    /// The text source promotes a string, two enums and a bool.
+    #[test]
+    fn a_text_source_has_text_enum_and_bool_cells() {
+        let (mut g, catalog, ids) = cell_graph();
+        g.node_mut(&ids[3]).unwrap().config = crate::Config::from_json_str(r#"{"line_wrap":false,"content":"hi"}"#).unwrap();
+        let layout = g.layout(&catalog);
+        let geom = layout.nodes.get(&ids[3]).unwrap();
+        let by = |n: &str| geom.params.iter().find(|(k, _)| k == n).map(|(_, p)| p).unwrap();
+        assert_eq!(by("content").kind, CellKind::Text);
+        assert_eq!(by("content").text.as_deref(), Some("hi"));
+        assert_eq!(by("align").text.as_deref(), Some("left"));
+        assert_eq!(by("line_wrap").on, Some(false));
     }
 }

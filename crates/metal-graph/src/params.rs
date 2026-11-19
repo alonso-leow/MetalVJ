@@ -686,6 +686,88 @@ fn script_params(config: &Value) -> Vec<Param> {
         .collect()
 }
 
+/// What a body row's cell edits (the node canvas's param cells). A float
+/// [`Param`] is a `Float` cell (or `Int` when [`is_int_param`]); the rest are
+/// config keys promoted by [`config_cells`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CellKind {
+    Float,
+    Int,
+    Bool,
+    Enum,
+    Colour,
+    Text,
+}
+
+impl CellKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CellKind::Float => "float",
+            CellKind::Int => "int",
+            CellKind::Bool => "bool",
+            CellKind::Enum => "enum",
+            CellKind::Colour => "colour",
+            CellKind::Text => "text",
+        }
+    }
+}
+
+/// One non-float config key a node shows as a cell: a bool, an enum, a string.
+/// Read and written through `op: "config"` under `key` — the same key the
+/// runtime reads.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConfigCell {
+    pub key: String,
+    pub kind: CellKind,
+    /// An enum's allowed values.
+    pub options: Vec<String>,
+    /// What the node shows when the key is missing.
+    pub default: Value,
+    /// What the node holds now (the default when the key is missing).
+    pub value: Value,
+}
+
+/// Whether the float param `name` of `kind` is a whole number (an `Int` cell).
+pub fn is_int_param(kind: &str, name: &str) -> bool {
+    (kind == crate::VENUE_FIXTURE_KIND && matches!(name, "pick" | "offset" | "priority"))
+        || (kind == crate::REEL_BATCH_KIND && name == "seed")
+}
+
+/// The non-float config keys `node` promotes to cells: a `venue.fixture`'s
+/// mode selectors, a `text.source`'s string, alignment, style and wrapping.
+pub fn config_cells(node: &Node) -> Vec<ConfigCell> {
+    let config = config_json(node);
+    let make = |key: &str, kind: CellKind, options: &[&str], default: Value| ConfigCell {
+        key: key.to_string(),
+        kind,
+        options: options.iter().map(|o| o.to_string()).collect(),
+        value: config.get(key).filter(|v| !v.is_null()).cloned().unwrap_or_else(|| default.clone()),
+        default,
+    };
+    if node.kind == crate::VENUE_FIXTURE_KIND {
+        let d = venue_fixture_default_config();
+        return [
+            ("colour_from", VENUE_FIXTURE_COLOUR_FROM),
+            ("drive", VENUE_FIXTURE_DRIVE),
+            ("spread", VENUE_FIXTURE_SPREAD),
+            ("hue_lock", VENUE_FIXTURE_HUE_LOCK),
+        ]
+        .into_iter()
+        .map(|(key, opts)| make(key, CellKind::Enum, opts, d[key].clone()))
+        .collect();
+    }
+    if node.kind == crate::TEXT_SOURCE_KIND {
+        return vec![
+            make("content", CellKind::Text, &[], json!("MetalVJ")),
+            make("align", CellKind::Enum, &["left", "center", "right"], json!("left")),
+            make("style", CellKind::Enum, &["normal", "italic"], json!("normal")),
+            make("line_wrap", CellKind::Bool, &[], json!(true)),
+        ];
+    }
+    Vec::new()
+}
+
 /// The parameters one node exposes: its catalog entry's (`kind`), plus what
 /// its config declares (a script's floats), with every held value read off
 /// the config — see the module doc for where each kind holds it.

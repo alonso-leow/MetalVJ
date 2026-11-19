@@ -125,6 +125,12 @@ pub(crate) fn post_node_config(door: &dyn Call, gid: &str, node_id: &str, config
     );
 }
 
+/// Marks a write made outside [`post_node_config`] (a `param` op), so the
+/// panels re-read the graph.
+pub(crate) fn note_write() {
+    WRITES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
 /// Paints the pending edits over a `GET /graph` reply (in place). An edit the
 /// reply already agrees with, or that is older than [`PENDING_FOR`], is dropped.
 pub(crate) fn overlay_pending(graph: &mut Value) {

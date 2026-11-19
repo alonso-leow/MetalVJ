@@ -612,6 +612,16 @@ pub struct Theme {
     pub node_cable_width: f32,
     /// How far inside a row's dot the row's label starts, in points.
     pub node_label_inset: f32,
+    /// A param cell's value-bar fill (the filled part of a slider cell).
+    pub node_cell_fill: Color32,
+    /// A param cell's fill while the pointer is over it.
+    pub node_cell_hover: Color32,
+    /// A param cell's ink when it is disabled (bound to a variable).
+    pub node_cell_off_ink: Color32,
+    /// Below this zoom a cell paints as a flat bar, no text.
+    pub node_cell_text_zoom: f32,
+    /// Below this zoom a cell is not interactive (a press pans/drags).
+    pub node_cell_edit_zoom: f32,
     /// Below this canvas zoom a node paints as a point; its payload shows on hover.
     pub node_point_zoom: f32,
     /// Radius of a far-zoomed node's point, in points. Fixed on screen: it never scales with zoom.
@@ -987,6 +997,11 @@ impl Theme {
             node_cable_dash: 6.0,
             node_cable_width: 1.5,
             node_label_inset: 14.0,
+            node_cell_fill: Color32::from_rgb(0x2c,0x2c,0x34),
+            node_cell_hover: Color32::from_rgb(0x14,0x14,0x1a),
+            node_cell_off_ink: Color32::from_rgb(0x6a,0x6a,0x72),
+            node_cell_text_zoom: 0.5,
+            node_cell_edit_zoom: 0.6,
             node_point_zoom: 0.32,
             node_point_radius: 4.0,
             collapse_secs: 0.18,
@@ -1251,6 +1266,11 @@ impl Theme {
             node_cable_dash: 6.0,
             node_cable_width: 1.5,
             node_label_inset: 14.0,
+            node_cell_fill: Color32::from_rgb(0xd6,0xc6,0xc0),
+            node_cell_hover: Color32::from_rgb(0xdd,0xd2,0xcd),
+            node_cell_off_ink: Color32::from_rgb(0x9a,0x8c,0x90),
+            node_cell_text_zoom: 0.5,
+            node_cell_edit_zoom: 0.6,
             node_point_zoom: 0.32,
             node_point_radius: 4.0,
             collapse_secs: 0.18,
@@ -1591,6 +1611,11 @@ impl Theme {
             node_cable_dash: 9.0,
             node_cable_width: 2.0,
             node_label_inset: 16.0,
+            node_cell_fill: Color32::from_rgb(0xc4,0xc4,0xb8),
+            node_cell_hover: Color32::from_rgb(0xd0,0xd0,0xc8),
+            node_cell_off_ink: Color32::from_rgb(0x86,0x86,0x8a),
+            node_cell_text_zoom: 0.5,
+            node_cell_edit_zoom: 0.6,
             node_point_zoom: 0.35,
             node_point_radius: 4.0,
             collapse_secs: 0.18,
@@ -2139,6 +2164,11 @@ impl Theme {
             top: self.header_pad_y,
             bottom: self.header_pad_y,
         }
+    }
+
+    /// A hairline stroke in `color`, for cell outlines and dividers.
+    pub fn node_cell_stroke(&self, color: Color32) -> Stroke {
+        Stroke::new(self.hairline, color)
     }
 
     /// The one radius, on every corner.

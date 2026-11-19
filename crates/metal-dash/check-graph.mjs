@@ -164,7 +164,7 @@ check(
   const genNode = await addNode(id, GEN.kind, [0, 0]);
   const withGen = await json(`/graph?id=${id}`);
   const tags = new Set(withGen.primitives.map((p) => p.tag));
-  for (const tag of ["node", "header", "title", "port", "value_field"]) {
+  for (const tag of ["node", "header", "title", "port", "cell"]) {
     check(`a generator's primitives carry a \`${tag}\` tag`, tags.has(tag),
       [...tags].join(","));
   }
@@ -173,7 +173,7 @@ check(
     !!portPrim && typeof portPrim.node === "string" && typeof portPrim.port === "string" &&
       typeof portPrim.out === "boolean",
     JSON.stringify(portPrim));
-  const fieldPrim = withGen.primitives.find((p) => p.tag === "value_field");
+  const fieldPrim = withGen.primitives.find((p) => p.tag === "cell");
   check("a tagged value field names its node and parameter",
     !!fieldPrim && fieldPrim.node === genNode && typeof fieldPrim.name === "string",
     JSON.stringify(fieldPrim));
@@ -190,7 +190,7 @@ check(
   // name is `param:<name>` for a parameter dot (N) — the two targets of one
   // row, so a drag edits the field and a cable binds the dot.
   const fx2 = await json(`/graph?id=${id}`);
-  const fxField = fx2.primitives.find((p) => p.tag === "value_field" && p.node === fxNode);
+  const fxField = fx2.primitives.find((p) => p.tag === "cell" && p.node === fxNode);
   check("the effect has a laid-out value field to hit", !!fxField, JSON.stringify(fxField));
   const fieldHit = await json(
     `/graph/hit?id=${id}&x=${fxField.x + fxField.w / 2}&y=${fxField.y + fxField.h / 2}`

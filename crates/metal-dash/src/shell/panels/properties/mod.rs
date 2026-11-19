@@ -763,15 +763,9 @@ impl PanelState {
             // effects chain. A saved `ai`/`ai_fx` reads as Auto.
             let is_manual = node["config"]["mode"].as_str() == Some("manual");
             subtitle(ui, theme, tr("mode"));
-            let mut picked: Option<&str> = None;
-            chain::cell_grid(ui, theme, |ui| {
-                if chain::cell(ui, theme, tr("Auto"), !is_manual).clicked() && is_manual {
-                    picked = Some("auto");
-                }
-                if chain::cell(ui, theme, tr("manual"), is_manual).clicked() && !is_manual {
-                    picked = Some("manual");
-                }
-            });
+            let labels = [tr("Auto").to_string(), tr("manual").to_string()];
+            let picked = chain::choice_cells(ui, theme, None, &labels, usize::from(is_manual))
+                .map(|i| if i == 0 { "auto" } else { "manual" });
             if let Some(value) = picked {
                 text::post_text(door, gid, node_id, json!({ "mode": value }));
             }
@@ -1604,9 +1598,8 @@ fn section_keys(kind: &str, has_params: bool) -> Vec<&'static str> {
     if has_params || always_params {
         keys.push(crate::shell::i18n::tr_key("parameters"));
     }
-    if kind.starts_with("gen.") || kind.starts_with("fx.") {
-        keys.push(crate::shell::i18n::tr_key("loop"));
-    }
+    // The loop page is gone: loops are made in the overlay's create-loop and
+    // in the sequence view.
     // Parity P-E: every source's in/out transition slots.
     if transition::has_slots(kind) {
         keys.push(transition::IN_SECTION);
@@ -1751,9 +1744,9 @@ mod tests {
         assert_eq!(own_sections("audio.live"), vec!["input device"]);
         assert_eq!(own_sections("sensor.yolo"), vec!["sensor"]);
         assert_eq!(own_sections("cam.track"), vec!["camera track"]);
-        assert_eq!(section_keys("gen.turing", false), vec!["Layer", "Effects Chain", "parameters", "loop", "transition in", "transition out"]);
-        assert_eq!(section_keys("fx.shake", false), vec!["effect", "parameters", "loop"]);
-        assert_eq!(section_keys("fx.grade", false), vec!["grade", "effect", "parameters", "loop"]);
+        assert_eq!(section_keys("gen.turing", false), vec!["Layer", "Effects Chain", "parameters", "transition in", "transition out"]);
+        assert_eq!(section_keys("fx.shake", false), vec!["effect", "parameters"]);
+        assert_eq!(section_keys("fx.grade", false), vec!["grade", "effect", "parameters"]);
         assert_eq!(section_keys(TEXT_SOURCE_KIND, false), vec!["text", "parameters", "transition in", "transition out"]);
         assert_eq!(section_keys("reel.batch", false), vec!["reel list", "reaction", "transition in", "transition out"]);
         assert_eq!(section_keys("mask", false), vec!["mask"]);
@@ -2034,7 +2027,7 @@ mod tests {
     }
 
     /// A section's open state is remembered by its label across a focus change
-    /// (2026-10-08): opening `loop` on one gen keeps it open on the next.
+    /// (2026-10-08): opening `transition out` on one gen keeps it open on the next.
     #[test]
     fn a_section_state_survives_a_focus_change() {
         let recorder = browser_door();
@@ -2043,19 +2036,19 @@ mod tests {
         harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
 
-        // `loop` is the third section, closed by default; open it.
-        harness.get_by_label("▸ loop").scroll_to_me();
+        // `transition out` is a late section, closed by default; open it.
+        harness.get_by_label("▸ transition out").scroll_to_me();
         harness.run();
-        harness.get_by_label("▸ loop").click();
+        harness.get_by_label("▸ transition out").click();
         harness.run();
-        harness.get_by_label("▾ loop");
+        harness.get_by_label("▾ transition out");
 
         harness.state_mut().set_selection_for_test(Selection::Node("audio-0".to_string()));
         harness.run();
         harness.state_mut().set_selection_for_test(Selection::Node("gen-0".to_string()));
         harness.run();
-        // The `loop` section is on screen open again without a click.
-        harness.get_by_label("▾ loop");
+        // The `transition out` section is on screen open again without a click.
+        harness.get_by_label("▾ transition out");
     }
 
     /// No `node` and no `effects` section any more; the `layer` section is.

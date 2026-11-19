@@ -14,10 +14,9 @@ use serde_json::{json, Map, Value};
 
 use crate::call::Call;
 use crate::shell::classes::Theme;
-use crate::shell::components::{dropdown_fill, kv_wrap, number_row, payload_button, small_text, subtitle};
+use crate::shell::components::{dropdown_fill, kv_wrap, number_row, payload_button, section_heading, small_text, subtitle, toggle_row};
 use crate::shell::i18n::{tr, trf};
 
-use super::chain::{cell, cell_grid};
 use super::io::colour_stops;
 use super::text::post_text;
 
@@ -41,16 +40,6 @@ pub(crate) fn view_ports(config: &Value) -> Vec<String> {
     metal_graph::views::views_of(config)
         .map(|v| v.list.into_iter().map(|g| format!("{}{}", metal_graph::views::VIEW_PORT_PREFIX, g.name)).collect())
         .unwrap_or_default()
-}
-
-/// The params the regular params section keeps: every param whose name is not
-/// in `parallel`. Order is kept.
-pub(crate) fn hide_parallel(params: &[Value], parallel: &[String]) -> Vec<Value> {
-    params
-        .iter()
-        .filter(|p| !p["name"].as_str().is_some_and(|n| parallel.iter().any(|x| x == n)))
-        .cloned()
-        .collect()
 }
 
 /// The names a view may hold parallel: every float and colour param, then
@@ -274,13 +263,8 @@ pub(crate) fn views_section(
 ) {
     let mut next: Map<String, Value> = node["config"]["views"].as_object().cloned().unwrap_or_default();
     let mut list: Vec<Value> = next.get("list").and_then(Value::as_array).cloned().unwrap_or_default();
-    let mut vary: Vec<Value> = next.get("vary").and_then(Value::as_array).cloned().unwrap_or_default();
+    let vary: Vec<Value> = next.get("vary").and_then(Value::as_array).cloned().unwrap_or_default();
     let mut parallel: Vec<String> = metal_graph::views::views_of(&node["config"]).map(|v| v.parallel).unwrap_or_default();
-    let float_names: Vec<String> = params
-        .iter()
-        .filter(|p| p["kind"] == json!("float"))
-        .filter_map(|p| p["name"].as_str().map(str::to_string))
-        .collect();
     let colour_slots: Vec<String> = params
         .iter()
         .filter(|p| p["kind"] == json!("colour"))
@@ -289,7 +273,45 @@ pub(crate) fn views_section(
     let camera_parallel = parallel.iter().any(|n| n == "camera");
     let mut changed = false;
 
-    subtitle(ui, theme, tr("Views"));
+    // Component 1 — create a variation: every param with a switch for "this
+    // one varies" (floats, colours and the camera), then the button that adds
+    // the variation as the last one, seeded from the main values.
+    subtitle(ui, theme, tr("Create variation"));
+    for name in parallel_choices(params) {
+        let mut on = parallel.iter().any(|n| *n == name);
+        if toggle_row(ui, theme, &name, &mut on).changed() {
+            parallel = toggle_parallel(&parallel, &name);
+            changed = true;
+        }
+    }
+    kv_wrap(ui, theme, "", |ui| {
+        if payload_button(ui, theme, small_text(theme, tr("Add variation"))).clicked() {
+            let mut n = list.len() + 1;
+            while list.iter().any(|v| v["name"].as_str() == Some(format!("v{n}").as_str())) {
+                n += 1;
+            }
+            let mut view = json!({ "name": format!("v{n}") });
+            for name in parallel.iter().filter(|n| n.as_str() != "camera") {
+                let Some(param) = params.iter().find(|p| p["name"].as_str() == Some(name.as_str())) else {
+                    continue;
+                };
+                match param["kind"].as_str() {
+                    Some("float") => view["set"][name.as_str()] = json!(num(&param["value"], num(&param["min"], 0.0))),
+                    Some("colour") => view["colours"][name.as_str()] = json!(colour_value(None, param)),
+                    _ => {}
+                }
+            }
+            list.push(view);
+            changed = true;
+        }
+    });
+
+    let mut amount = num(&next.get("amount").cloned().unwrap_or(json!(1.0)), 1.0);
+    if number_row(ui, theme, tr("Amount"), &mut amount, 0.0..=1.0, "", 2, true).changed() {
+        next.insert("amount".into(), json!(amount));
+        changed = true;
+    }
+
     let ports = view_ports(&node["config"]);
     if !ports.is_empty() {
         ui.label(small_text(theme, trf("outputs: {ports}", &[("ports", &ports.join(", "))])));
@@ -300,10 +322,15 @@ pub(crate) fn views_section(
     };
     ui.label(small_text(theme, viewer));
 
+    // Component 2 — the variations: after the main params above, one column
+    // per variation, each a copy of the whole params list. The params that
+    // vary are editable here; the others show the main value, greyed.
     let mut remove_view: Option<usize> = None;
-    for i in 0..list.len() {
-        let current = list[i]["name"].as_str().unwrap_or("").to_string();
-        let draft_id = Id::new(("view-name", gid, node_id, i));
+    for k in 0..list.len() {
+        let current = list[k]["name"].as_str().unwrap_or("").to_string();
+        subtitle(ui, theme, &current);
+
+        let draft_id = Id::new(("view-name", gid, node_id, k));
         let mut draft = ui.data_mut(|d| d.get_temp::<String>(draft_id)).unwrap_or_else(|| current.clone());
         let mut lost_focus = false;
         kv_wrap(ui, theme, tr("name"), |ui| {
@@ -311,12 +338,12 @@ pub(crate) fn views_section(
         });
         let taken = |name: &str| {
             let name = name.trim();
-            name.is_empty() || list.iter().enumerate().any(|(j, v)| j != i && v["name"].as_str() == Some(name))
+            name.is_empty() || list.iter().enumerate().any(|(j, v)| j != k && v["name"].as_str() == Some(name))
         };
         if lost_focus {
             ui.data_mut(|d| d.remove::<String>(draft_id));
             if !taken(&draft) && draft.trim() != current {
-                list[i]["name"] = json!(draft.trim());
+                list[k]["name"] = json!(draft.trim());
                 changed = true;
             }
         } else {
@@ -325,66 +352,6 @@ pub(crate) fn views_section(
                 ui.label(small_text(theme, tr("a view needs a unique name")));
             }
         }
-
-        // The camera stays in the list row unless `camera` is parallel.
-        if !camera_parallel {
-            changed |= camera_rows(ui, theme, gid, node_id, i, venue, &mut list[i]);
-        }
-
-        // Per-view edits: read-only in v1.
-        for field in ["add", "set"] {
-            if let Some(m) = list[i][field].as_object().filter(|m| !m.is_empty()) {
-                ui.label(small_text(theme, format!("{field} {}", Value::Object(m.clone()))));
-            }
-        }
-
-        kv_wrap(ui, theme, "", |ui| {
-            if payload_button(ui, theme, small_text(theme, tr("remove view"))).clicked() {
-                remove_view = Some(i);
-            }
-        });
-    }
-    if let Some(i) = remove_view {
-        list.remove(i);
-        changed = true;
-    }
-
-    // Add a view: the next free `v<n>` name.
-    kv_wrap(ui, theme, "", |ui| {
-        if payload_button(ui, theme, small_text(theme, tr("Add view"))).clicked() {
-            let mut n = list.len() + 1;
-            while list.iter().any(|v| v["name"].as_str() == Some(format!("v{n}").as_str())) {
-                n += 1;
-            }
-            list.push(json!({ "name": format!("v{n}") }));
-            changed = true;
-        }
-    });
-
-    // Amount: one knob for every variation.
-    let mut amount = num(&next.get("amount").cloned().unwrap_or(json!(1.0)), 1.0);
-    if number_row(ui, theme, tr("Amount"), &mut amount, 0.0..=1.0, "", 2, true).changed() {
-        next.insert("amount".into(), json!(amount));
-        changed = true;
-    }
-
-    // Parallel: the params that differ per view.
-    subtitle(ui, theme, tr("Parallel"));
-    let choices = parallel_choices(params);
-    cell_grid(ui, theme, |ui| {
-        for name in &choices {
-            let on = parallel.iter().any(|n| n == name);
-            if cell(ui, theme, name.as_str(), on).clicked() {
-                parallel = toggle_parallel(&parallel, name);
-                changed = true;
-            }
-        }
-    });
-
-    // Per view: its palette, its parallel params, and the camera when parallel.
-    for k in 0..list.len() {
-        let view_name = list[k]["name"].as_str().unwrap_or("").to_string();
-        subtitle(ui, theme, &view_name);
 
         let palettes = palette_choices(ui, door);
         let mut palette = list[k]["palette"].as_str().unwrap_or("").to_string();
@@ -406,74 +373,60 @@ pub(crate) fn views_section(
             changed = true;
         }
 
-        for name in &parallel {
-            if name == "camera" {
-                if camera_parallel {
-                    changed |= camera_rows(ui, theme, gid, node_id, k, venue, &mut list[k]);
-                }
-                continue;
-            }
-            let Some(param) = params.iter().find(|p| p["name"].as_str() == Some(name.as_str())) else {
-                continue;
-            };
-            match param["kind"].as_str() {
-                Some("float") => {
-                    let min = num(&param["min"], 0.0);
-                    let max = num(&param["max"], 1.0);
-                    let mut value = list[k]["set"][name.as_str()].as_f64().map(|f| f as f32).unwrap_or_else(|| num(&param["value"], min));
-                    if number_row(ui, theme, name, &mut value, min..=max, "", 3, true).changed() {
-                        list[k]["set"][name.as_str()] = json!(value);
-                        changed = true;
-                    }
-                }
-                Some("colour") => {
-                    let mut vector = colour_value(floats(&list[k]["colours"][name.as_str()]), param);
-                    if colour_stops(ui, theme, &mut vector) {
-                        list[k]["colours"][name.as_str()] = json!(vector);
-                        changed = true;
-                    }
-                }
-                _ => {}
-            }
+        // The camera row: editable when it varies, else the shared camera.
+        if camera_parallel {
+            changed |= camera_rows(ui, theme, gid, node_id, k, venue, &mut list[k]);
         }
-    }
 
-    // Vary: one spread per float param.
-    subtitle(ui, theme, tr("Vary"));
-    let mut remove_vary: Option<usize> = None;
-    for (j, v) in vary.iter_mut().enumerate() {
-        let mut param = v["param"].as_str().unwrap_or("").to_string();
-        let options: Vec<(String, &str)> = float_names.iter().map(|n| (n.clone(), n.as_str())).collect();
-        let mut param_changed = false;
-        kv_wrap(ui, theme, tr("param"), |ui| {
-            param_changed = dropdown_fill(ui, theme, ("view-vary", gid, node_id, j), &mut param, &options).changed();
-        });
-        if param_changed {
-            v["param"] = json!(param);
-            changed = true;
+        for param in params.iter().filter(|p| p["kind"] == json!("float") || p["kind"] == json!("colour")) {
+            let Some(name) = param["name"].as_str() else { continue };
+            let varies = parallel.iter().any(|n| n == name);
+            if param["kind"] == json!("float") {
+                let min = num(&param["min"], 0.0);
+                let max = num(&param["max"], 1.0);
+                let main = num(&param["value"], min);
+                let mut value = if varies { list[k]["set"][name].as_f64().map(|f| f as f32).unwrap_or(main) } else { main };
+                let edited = ui
+                    .add_enabled_ui(varies, |ui| number_row(ui, theme, name, &mut value, min..=max, "", 3, varies).changed())
+                    .inner;
+                if varies && edited {
+                    list[k]["set"][name] = json!(value);
+                    changed = true;
+                }
+            } else {
+                let mut vector = if varies {
+                    colour_value(floats(&list[k]["colours"][name]), param)
+                } else {
+                    colour_value(None, param)
+                };
+                section_heading(ui, theme, name);
+                let edited = ui.add_enabled_ui(varies, |ui| colour_stops(ui, theme, &mut vector)).inner;
+                if varies && edited {
+                    list[k]["colours"][name] = json!(vector);
+                    changed = true;
+                }
+            }
         }
-        let mut spread = num(&v["spread"], 0.0);
-        if number_row(ui, theme, tr("spread"), &mut spread, -1.0..=1.0, "", 2, true).changed() {
-            v["spread"] = json!(spread);
-            changed = true;
+
+        // Per-view edits: read-only in v1.
+        for field in ["add", "set"] {
+            if field == "set" {
+                continue;
+            }
+            if let Some(m) = list[k][field].as_object().filter(|m| !m.is_empty()) {
+                ui.label(small_text(theme, format!("{field} {}", Value::Object(m.clone()))));
+            }
         }
+
         kv_wrap(ui, theme, "", |ui| {
-            if payload_button(ui, theme, small_text(theme, tr("remove vary"))).clicked() {
-                remove_vary = Some(j);
+            if payload_button(ui, theme, small_text(theme, tr("remove view"))).clicked() {
+                remove_view = Some(k);
             }
         });
     }
-    if let Some(j) = remove_vary {
-        vary.remove(j);
+    if let Some(i) = remove_view {
+        list.remove(i);
         changed = true;
-    }
-    if let Some(first) = float_names.first() {
-        kv_wrap(ui, theme, "", |ui| {
-            if payload_button(ui, theme, small_text(theme, tr("Add vary"))).clicked() {
-                vary.push(json!({ "param": first, "spread": 0.0 }));
-                changed = true;
-            }
-        });
     }
 
     // One view per projector, when the venue has projectors.
@@ -560,15 +513,6 @@ mod tests {
         assert_eq!(toggle_parallel(&on, "hue"), Vec::<String>::new());
     }
 
-    /// The regular params section keeps only the params that are not parallel.
-    #[test]
-    fn the_filter_hides_parallel_params() {
-        let kept = hide_parallel(&params(), &names(&["hue", "tint"]));
-        let left: Vec<&str> = kept.iter().filter_map(|p| p["name"].as_str()).collect();
-        assert_eq!(left, ["speed", "camera"]);
-        assert_eq!(hide_parallel(&params(), &[]).len(), 4);
-    }
-
     /// A palette writes its colours to parallel colour slots only, and sets
     /// `palette`.
     #[test]
@@ -639,7 +583,7 @@ mod tests {
         let door = std::rc::Rc::new(FakeDoor::new());
         let mut h = draw(std::rc::Rc::clone(&door), json!({ "config": {} }));
         h.run();
-        h.get_by_label("Add view").click();
+        h.get_by_label("Add variation").click();
         h.run();
         let posts: Vec<Value> = door
             .calls

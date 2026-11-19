@@ -190,9 +190,11 @@ pub const ASK_GAP_SECS: f64 = 0.5;
 /// How long an ask may go unanswered before it is given up.
 pub const ASK_TIMEOUT_SECS: f64 = 10.0;
 
-/// Whether `kind` has a card with a listened picture: the `fx.*`, `mat.*` and `gen.*` kinds.
+/// Whether `kind` has a card with a listened picture: the `mat.*` and `gen.*`
+/// kinds. An `fx.*` card only plays its pre-rendered GIF: no render is asked
+/// for while the gallery scrolls, which is what made it stutter.
 pub fn is_listen_kind(kind: &str) -> bool {
-    kind.starts_with("fx.") || kind.starts_with("mat.") || kind.starts_with("gen.")
+    kind.starts_with("mat.") || kind.starts_with("gen.")
 }
 
 /// The kind to ask for without selecting it: the first of `visible` that is a
@@ -315,7 +317,7 @@ mod tests {
 
     #[test]
     fn every_picture_family_is_a_listen_kind() {
-        assert!(is_listen_kind("gen.bloom") && is_listen_kind("fx.blur") && is_listen_kind("mat.gold"));
+        assert!(is_listen_kind("gen.bloom") && !is_listen_kind("fx.blur") && is_listen_kind("mat.gold"));
         assert!(!is_listen_kind("audio.live"));
     }
 
@@ -466,21 +468,21 @@ mod listen_tests {
 
     #[test]
     fn the_first_visible_listen_kind_without_a_picture_is_asked_next() {
-        let visible = kinds(&["gen.x", "fx.a", "mat.b", "fx.c"]);
+        let visible = kinds(&["gen.x", "mat.a", "mat.b", "mat.c"]);
         let none_asked = HashSet::new();
-        assert_eq!(next_unselected_ask(&visible, &none_asked, |k| k != "fx.a", None, 0.0).as_deref(), Some("gen.x"));
+        assert_eq!(next_unselected_ask(&visible, &none_asked, |k| k != "mat.a", None, 0.0).as_deref(), Some("gen.x"));
         assert_eq!(next_unselected_ask(&visible, &none_asked, |_| false, None, 0.0), None, "every card has its picture");
 
         let asked: HashSet<String> = ["gen.x".to_string(), "mat.b".to_string()].into_iter().collect();
-        assert_eq!(next_unselected_ask(&visible, &asked, |k| k != "fx.a", None, 0.0).as_deref(), Some("fx.c"), "asked once");
+        assert_eq!(next_unselected_ask(&visible, &asked, |k| k != "mat.a", None, 0.0).as_deref(), Some("mat.c"), "asked once");
     }
 
     #[test]
     fn unselected_asks_are_half_a_second_apart() {
-        let visible = kinds(&["fx.a", "fx.b"]);
+        let visible = kinds(&["mat.a", "mat.b"]);
         let asked = HashSet::new();
         assert_eq!(next_unselected_ask(&visible, &asked, |_| true, Some(10.0), 10.3), None);
-        assert_eq!(next_unselected_ask(&visible, &asked, |_| true, Some(10.0), 10.5).as_deref(), Some("fx.a"));
+        assert_eq!(next_unselected_ask(&visible, &asked, |_| true, Some(10.0), 10.5).as_deref(), Some("mat.a"));
     }
 
     #[test]
@@ -500,10 +502,10 @@ mod listen_tests {
         let ctx = Context::default();
         let mut listens = Listens::default();
         listens.pick("gen.b");
-        listens.pick("fx.a");
-        listens.pick("fx.a");
+        listens.pick("mat.a");
+        listens.pick("mat.a");
         listens.tick(&door, &ctx, 0.0, None, |_| true);
-        assert_eq!(listen_calls(&door), vec![("gen.b".to_string(), "1".to_string()), ("fx.a".to_string(), "1".to_string())]);
+        assert_eq!(listen_calls(&door), vec![("gen.b".to_string(), "1".to_string()), ("mat.a".to_string(), "1".to_string())]);
     }
 
     #[test]
@@ -512,17 +514,17 @@ mod listen_tests {
         door.respond("GET", LISTEN_PATH, json!({"status": "fresh"}));
         let ctx = Context::default();
         let mut listens = Listens::default();
-        let visible = kinds(&["fx.a", "fx.b"]);
+        let visible = kinds(&["mat.a", "mat.b"]);
 
         listens.tick(&door, &ctx, 0.0, Some(&visible), |_| true);
         listens.tick(&door, &ctx, 0.1, Some(&visible), |_| true);
-        assert_eq!(listen_calls(&door), vec![("fx.a".to_string(), "0".to_string())], "throttled");
+        assert_eq!(listen_calls(&door), vec![("mat.a".to_string(), "0".to_string())], "throttled");
 
         listens.tick(&door, &ctx, 0.6, Some(&visible), |_| true);
         listens.tick(&door, &ctx, 9.0, Some(&visible), |_| true);
         assert_eq!(
             listen_calls(&door),
-            vec![("fx.a".to_string(), "0".to_string()), ("fx.b".to_string(), "0".to_string())],
+            vec![("mat.a".to_string(), "0".to_string()), ("mat.b".to_string(), "0".to_string())],
             "each kind asked once a session"
         );
     }

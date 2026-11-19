@@ -27,6 +27,35 @@ pub(crate) fn cell_grid(ui: &mut Ui, theme: &Theme, add: impl FnOnce(&mut Ui)) {
     kv_wrap(ui, theme, "", add);
 }
 
+/// Two-or-more choices as equal cells that together fill `width` (the
+/// available width when `None`), with no key cell beside them: Auto/Manual in
+/// the properties card and in the node's bar. Returns the picked index when it
+/// changes the selection.
+pub(crate) fn choice_cells(
+    ui: &mut Ui,
+    theme: &Theme,
+    width: Option<f32>,
+    labels: &[String],
+    selected: usize,
+) -> Option<usize> {
+    let mut picked = None;
+    crate::shell::components::payload_cell(ui, theme, width, |ui| {
+        crate::shell::components::payload_split(ui, theme, labels.len(), |ui, i| {
+            let w = ui.available_width().max(1.0);
+            let r = ui.add_sized(
+                [w, theme.cell_height()],
+                egui::Button::new(small_text(theme, labels[i].clone()))
+                    .selected(i == selected)
+                    .corner_radius(theme.square_corner()),
+            );
+            if r.clicked() && i != selected {
+                picked = Some(i);
+            }
+        });
+    });
+    picked
+}
+
 /// One square-cornered cell of [`cell_grid`]: a button that reads `selected`
 /// when it is the current choice.
 pub(crate) fn cell(ui: &mut Ui, theme: &Theme, text: impl Into<String>, selected: bool) -> egui::Response {
@@ -53,6 +82,24 @@ pub(crate) fn cell_menu(
         }
         ui.visuals_mut().menu_corner_radius = square;
         ui.menu_button(small_text(theme, text), add).response
+    })
+    .inner
+}
+
+/// [`cell_menu`] stretched over the whole width left in its row.
+pub(crate) fn cell_menu_fill(
+    ui: &mut Ui,
+    theme: &Theme,
+    text: impl Into<String>,
+    add: impl FnOnce(&mut Ui),
+) -> egui::Response {
+    let text: String = text.into();
+    let avail = ui.available_width();
+    let text_w = ui.fonts_mut(|f| f.layout_no_wrap(text.clone(), theme.font_small.clone(), theme.ink).size().x);
+    ui.scope(|ui| {
+        let pad = ((avail - text_w) / 2.0).max(ui.spacing().button_padding.x);
+        ui.spacing_mut().button_padding.x = pad;
+        cell_menu(ui, theme, text, add)
     })
     .inner
 }
@@ -124,10 +171,11 @@ pub(crate) fn section(
     if chain.is_empty() {
         note(ui, theme, tr("— no effects downstream yet —"));
     }
-    kv_wrap(ui, theme, "", |ui| {
-        for (i, id) in chain.iter().enumerate() {
-            // One effect per line: its name and its remove, two equal sub-cells.
-            let name = name_of(graph, id);
+    for (i, id) in chain.iter().enumerate() {
+        // One effect per line over the whole width: its name and its remove,
+        // two equal sub-cells.
+        let name = name_of(graph, id);
+        crate::shell::components::payload_cell(ui, theme, None, |ui| {
             payload_split(ui, theme, 2, |ui, k| {
                 if k == 0 {
                     if payload_button(ui, theme, small_text(theme, tr_dyn(&name))).clicked() {
@@ -140,8 +188,8 @@ pub(crate) fn section(
                     remove_from_chain(door, gid, graph, gen, &chain, i);
                 }
             });
-        }
-    });
+        });
+    }
 
     // The pick is the chain's last node, or the generator itself.
     let after = chain.last().cloned().unwrap_or_else(|| gen.to_string());
@@ -167,8 +215,8 @@ pub(crate) fn section(
             (kind, label)
         })
         .collect();
-    kv_wrap(ui, theme, "", |ui| {
-        cell_menu(ui, theme, format!("{} \u{e071}", tr("+ effect")),
+    crate::shell::components::payload_cell(ui, theme, None, |ui| {
+        cell_menu_fill(ui, theme, format!("{} \u{e071}", tr("+ effect")),
             |ui| {
                 for (kind, label) in &effects {
                     if ui

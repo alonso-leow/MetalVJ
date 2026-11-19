@@ -60,7 +60,7 @@ use crate::shell::panels::Selection;
 const DRAG_SLOP: f32 = 3.0;
 
 /// Point view: the hovered node's card fills this fraction of the canvas height.
-const HOVER_CARD_FRACTION: f32 = 0.45;
+const HOVER_CARD_FRACTION: f32 = 0.2;
 
 /// The smallest side a focus-bar button shrinks to.
 const BAR_BUTTON_MIN: f32 = 20.0;
@@ -1315,7 +1315,7 @@ const SECTIONS: [Section; 8] = [
 /// Whether `kind` has its own preview on a gallery card: the fx and material
 /// kinds, drawn over a test source (`GET /author/render/kind.jpg`).
 fn has_kind_preview(kind: &str) -> bool {
-    kind.starts_with("fx.") || kind.starts_with("mat.")
+    kind.starts_with("mat.")
 }
 
 /// The card pictures of `kind`, one per variant: a `gen.<model>` kind's cells
@@ -2263,16 +2263,14 @@ fn focus_bar(
                             .and_then(|n| n["config"]["mode"].as_str().map(str::to_string))
                             .as_deref()
                             == Some("manual");
-                        // The same square cells as the properties card.
-                        let mut picked: Option<&str> = None;
-                        crate::shell::panels::properties::chain::cell_grid(ui, theme, |ui| {
-                            if crate::shell::panels::properties::chain::cell(ui, theme, tr("Auto"), !is_manual).clicked() && is_manual {
-                                picked = Some("auto");
-                            }
-                            if crate::shell::panels::properties::chain::cell(ui, theme, tr("manual"), is_manual).clicked() && !is_manual {
-                                picked = Some("manual");
-                            }
-                        });
+                        // The same equal cells as the properties card, over
+                        // the three icon units the bar reserves for them.
+                        let labels = [tr("Auto").to_string(), tr("manual").to_string()];
+                        let w = side * 3.0 + gap_x * 2.0;
+                        let picked = crate::shell::panels::properties::chain::choice_cells(
+                            ui, theme, Some(w), &labels, usize::from(is_manual),
+                        )
+                        .map(|i| if i == 0 { "auto" } else { "manual" });
                         if let Some(value) = picked {
                             set_node_mode(door, state, &gid, id, value);
                         }
@@ -2910,7 +2908,7 @@ fn canvas(
                     // node (two rows) is not blown up by its height alone.
                     let z = (rect.height() * HOVER_CARD_FRACTION / bh)
                         .min(rect.width() * HOVER_CARD_FRACTION / bx[2].max(1.0))
-                        .min(theme.graph_zoom_max)
+                        .min(theme.graph_zoom_max.min(1.5))
                         .max(theme.node_point_hover_zoom);
                     let centre = Vec2::new(bx[0] + bx[2] / 2.0, bx[1] + bx[3] / 2.0);
                     let mut pan = pan0 + centre * (z0 - z);
@@ -5156,19 +5154,19 @@ mod tests {
     /// one that has not landed, round-robin, and nothing once all have.
     #[test]
     fn kind_previews_fetch_each_missing_variant_lazily() {
-        let kinds = vec!["fx.posterize".to_string(), "gen.rings".to_string(), "mat.wood".to_string()];
+        let kinds = vec!["mat.posterize".to_string(), "gen.rings".to_string(), "mat.wood".to_string(), "fx.blur".to_string()];
         assert_eq!(kind_to_fetch(0.0, &[], |_, _| false), None, "no card on screen, no fetch");
         assert_eq!(kind_to_fetch(0.0, &kinds[1..2], |_, _| false), None, "a model has no kind preview");
         let mut seen = Vec::new();
         for slot in 0..8 {
             seen.push(kind_to_fetch(slot as f64 * 0.25, &kinds, |_, _| false).unwrap());
         }
-        assert_eq!(seen[0], ("fx.posterize".to_string(), 0));
-        assert_eq!(seen[1], ("fx.posterize".to_string(), 1), "the next slot takes the next variant");
-        assert_eq!(seen[4], ("mat.wood".to_string(), 0), "after the effect's four, the material's");
+        assert_eq!(seen[0], ("mat.posterize".to_string(), 0));
+        assert_eq!(seen[1], ("mat.posterize".to_string(), 1), "the next slot takes the next variant");
+        assert_eq!(seen[4], ("mat.wood".to_string(), 0), "after one material's four, the next's; an fx plays its GIF and is never fetched");
         assert!(kind_to_fetch(0.0, &kinds, |_, _| true).is_none(), "landed, nothing to fetch");
-        let only_mat = |k: &str, v: usize| !(k == "fx.posterize" && v == 2);
-        assert_eq!(kind_to_fetch(0.0, &kinds, only_mat).unwrap().0, "fx.posterize", "the one missing variant is asked");
+        let only_mat = |k: &str, v: usize| !(k == "mat.posterize" && v == 2);
+        assert_eq!(kind_to_fetch(0.0, &kinds, only_mat).unwrap().0, "mat.posterize", "the one missing variant is asked");
     }
 
 

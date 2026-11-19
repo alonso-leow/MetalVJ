@@ -510,14 +510,12 @@ mod tests {
         assert_eq!(cells[2].min.x, cells[0].min.x);
     }
 
-    /// The overlay and the cards are 40% of their former LINEAR size (the
-    /// former share 0.8 and card width 170 on the first theme), so the grid
-    /// still gets two columns on a narrow window.
+    /// The cards are big enough to read their animation, and the grid still
+    /// gets two columns on a narrow window.
     #[test]
-    fn the_gallery_is_forty_percent_of_its_former_size() {
+    fn the_gallery_cards_are_big_enough_to_read() {
         let theme = Theme::phosphor();
-        assert!((theme.gallery_share - 0.8 * 0.4 * 1.3).abs() < 1e-4, "overlay share {}", theme.gallery_share);
-        assert!((theme.gallery_card_min_w - 170.0 * 0.4 * 1.3).abs() < 1e-4, "card min width {}", theme.gallery_card_min_w);
+        assert!(theme.gallery_card_min_w >= 130.0, "card min width {}", theme.gallery_card_min_w);
         assert_eq!(columns_for(&theme, theme.gallery_card_min_w * 2.0), 2);
     }
 }

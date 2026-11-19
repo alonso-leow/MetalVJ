@@ -87,6 +87,40 @@ pub fn sheet(ctx: &Context, theme: &Theme, id: Id, anchor: Rect, open: &mut bool
     }
 }
 
+/// A one-column menu in the bottom-right corner of `anchor`: the `+` entries
+/// of the overlays grid. Esc, a click outside it or on its `+` again closes it
+/// (`open` goes false); a press on a submenu it opened does not.
+pub fn corner_menu(ctx: &Context, theme: &Theme, id: Id, anchor: Rect, open: &mut bool, add: impl FnOnce(&mut Ui)) {
+    let t = ctx.animate_bool_with_time(id.with("anim"), *open, theme.sheet_anim);
+    if t <= 0.0 {
+        return;
+    }
+    let shown = egui::Area::new(id)
+        .order(egui::Order::Foreground)
+        .pivot(egui::Align2::RIGHT_BOTTOM)
+        .fixed_pos(anchor.right_bottom() - Vec2::splat(theme.item_gap.x))
+        .constrain(true)
+        .show(ctx, |ui| {
+            panel_frame(theme).show(ui, |ui| {
+                ui.set_width(theme.control_width);
+                add(ui);
+            });
+        });
+    let rect = shown.response.rect;
+    let opened_now = ctx.data(|d| d.get_temp::<bool>(id.with("was"))) != Some(true);
+    ctx.data_mut(|d| d.insert_temp(id.with("was"), *open));
+    if *open && !opened_now {
+        let escape = ctx.input(|i| i.key_pressed(egui::Key::Escape));
+        let outside = ctx.input(|i| i.pointer.any_pressed())
+            && ctx.input(|i| i.pointer.interact_pos()).is_some_and(|p| {
+                !rect.contains(p) && ctx.layer_id_at(p).is_none_or(|l| l.order < egui::Order::Foreground)
+            });
+        if escape || outside {
+            *open = false;
+        }
+    }
+}
+
 fn ease(t: f32) -> f32 {
     1.0 - (1.0 - t).powi(3)
 }

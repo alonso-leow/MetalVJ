@@ -523,11 +523,9 @@ pub(crate) fn parameters_section(
     let (ins, _) = live_for(&live, node_id);
     let keyed = ingest.keyframes.contains_key(&ingest.playhead);
     let mut clicked = None;
-    // Parallel params leave this list: each view of a gen node holds its own.
-    let parallel = metal_graph::views::views_of(&node["config"]).map(|v| v.parallel).unwrap_or_default();
-    let shared = super::views::hide_parallel(&params, &parallel);
-
-    for (i, p) in shared.iter().filter(|p| p["kind"] == json!("float")).enumerate() {
+    // The whole params list stays here as the main column; each variation
+    // repeats it below (`views_section`).
+    for (i, p) in params.iter().filter(|p| p["kind"] == json!("float")).enumerate() {
         let name = p["name"].as_str().unwrap_or("").to_string();
         let min = p["min"].as_f64().unwrap_or(0.0) as f32;
         let max = p["max"].as_f64().unwrap_or(1.0) as f32;
@@ -577,7 +575,7 @@ pub(crate) fn parameters_section(
         }
     }
 
-    vector_rows(ui, theme, door, state, gid, node_id, &shared);
+    vector_rows(ui, theme, door, state, gid, node_id, &params);
 
     // Unbind actions for bound rows.
     for p in params.iter().filter(|p| !p["bound"].is_null()) {

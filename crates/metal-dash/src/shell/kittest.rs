@@ -4147,7 +4147,7 @@ mod tests {
 
         // The view selector is one dropdown (W2): open it on its shown "Edit",
         // then pick "Show" from the list.
-        let item = |icon, label: &str| format!("{} {label}", components::glyph(icon));
+        let item = |_icon: Icon, label: &str| label.to_string();
         h.get_by_value(&item(Icon::Pointer, "Edit")).click();
         h.run();
         h.get_by_label(&item(Icon::Eye, "Show")).click();

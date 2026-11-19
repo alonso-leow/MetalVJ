@@ -124,11 +124,7 @@ pub fn divider(ui: &mut Ui, theme: &Theme) {
 /// A section kicker: the small heading at the top of a panel, in the
 /// heading face and the weak ink.
 pub fn section_heading(ui: &mut Ui, theme: &Theme, text: &str) {
-    ui.label(
-        RichText::new(text)
-            .font(theme.font_heading.clone())
-            .color(theme.ink_weak),
-    );
+    subtitle(ui, theme, text);
 }
 
 /// Which edge a delegated sidebar hugs (`S.U13`, `O.12.f`). Biblioteca is
@@ -341,6 +337,22 @@ pub fn colour_row(ui: &mut Ui, theme: &Theme, label: &str, value: &mut Hsb) -> e
 /// The bare swatch button [`colour_row`] draws, for a caller laying out its
 /// own row (a palette's slots).
 pub fn colour_button(ui: &mut Ui, theme: &Theme, value: &mut Hsb) -> egui::Response {
+    // Optimistic hold, like the numeric tracks: what the operator picked keeps
+    // painting (and keeps its hue, which a grey or black rgb round trip loses)
+    // until the caller's own read agrees, so a write landing behind the frame
+    // never snaps the swatch back to the old colour.
+    let hold_id = ui.next_auto_id().with("colour-held");
+    let now = ui.input(|i| i.time);
+    if let Some((h, s, b, at)) = ui.data(|d| d.get_temp::<(f32, f32, f32, f64)>(hold_id)) {
+        let held = Hsb { h, s, b };
+        let (a, c) = (held.to_rgb(), value.to_rgb());
+        let agrees = a.iter().zip(c.iter()).all(|(x, y)| (x - y).abs() < 2e-3);
+        if agrees || now - at > HELD_FOR {
+            ui.data_mut(|d| d.remove::<(f32, f32, f32, f64)>(hold_id));
+        } else {
+            *value = held;
+        }
+    }
     let w = ui.available_width().max(theme.swatch_size.x);
     let (rect, mut response) = ui.allocate_exact_size(egui::vec2(w, ui.spacing().interact_size.y), Sense::click());
     let chip = egui::Rect::from_min_size(rect.min, egui::vec2(rect.height() * 2.0, rect.height()));
@@ -365,6 +377,8 @@ pub fn colour_button(ui: &mut Ui, theme: &Theme, value: &mut Hsb) -> egui::Respo
         });
     if changed {
         response.mark_changed();
+        ui.data_mut(|d| d.insert_temp(hold_id, (value.h, value.s, value.b, now)));
+        ui.ctx().request_repaint();
     }
     response
 }
@@ -832,14 +846,31 @@ fn num_track_sized(
         let mut draft: String = ui
             .data(|d| d.get_temp::<String>(id.with("draft")))
             .unwrap_or_else(|| format!("{:.*}", decimals, *value));
+        let edit_id = id.with("textedit");
+        let first = ui.data(|d| d.get_temp::<bool>(id.with("focus")).unwrap_or(false));
+        if first {
+            ui.memory_mut(|m| m.request_focus(edit_id));
+        }
         let edit = ui.put(
             rect,
             egui::TextEdit::singleline(&mut draft)
+                .id(edit_id)
                 .font(theme.font_small.clone())
+                .horizontal_align(egui::Align::Center)
                 .desired_width(rect.width()),
         );
-        if ui.data(|d| d.get_temp::<bool>(id.with("focus")).unwrap_or(false)) {
-            edit.request_focus();
+        if first {
+            // The click both opens the edit and selects the whole number, so
+            // the next keystroke replaces it and the text stays centred.
+            let ctx = ui.ctx().clone();
+            if let Some(mut st) = egui::TextEdit::load_state(&ctx, edit_id) {
+                let len = draft.chars().count();
+                st.cursor.set_char_range(Some(egui::text::CCursorRange::two(
+                    egui::text::CCursor::new(0),
+                    egui::text::CCursor::new(len),
+                )));
+                st.store(&ctx, edit_id);
+            }
             ui.data_mut(|d| d.insert_temp(id.with("focus"), false));
         }
         ui.data_mut(|d| d.insert_temp(id.with("draft"), draft.clone()));
@@ -1618,10 +1649,8 @@ pub fn dropdown_icons_enabled<T: PartialEq + Clone>(
     options: &[(T, &str, Option<Icon>)],
     enabled: bool,
 ) -> egui::Response {
-    let text = |label: &str, icon: Option<Icon>| match icon {
-        Some(icon) => format!("{} {label}", glyph(icon)),
-        None => label.to_string(),
-    };
+    // The labels only: the icon glyph drew as an empty square before them.
+    let text = |label: &str, _icon: Option<Icon>| label.to_string();
     let shown = options
         .iter()
         .find(|(value, _, _)| value == current)

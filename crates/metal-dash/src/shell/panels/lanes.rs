@@ -5320,7 +5320,7 @@ fn paint_cell(
             // A pick that opens something else (the controller editor, a new
             // sequence or loop) closes the sheet; a submenu inside it does not.
             let before = (state.editing_controller.is_some(), state.new_track, state.new_loop.is_some());
-            crate::shell::sheet::sheet(ui.ctx(), theme, Id::new("shell/region/lanes/add-sheet"), anchor, &mut open, tr("add"), |ui| {
+            crate::shell::sheet::corner_menu(ui.ctx(), theme, Id::new("shell/region/lanes/add-sheet"), anchor, &mut open, |ui| {
                 add_menu(ui, theme, door, state, open_graph, None);
             });
             let after = (state.editing_controller.is_some(), state.new_track, state.new_loop.is_some());
@@ -6556,7 +6556,10 @@ fn plain_menu<R>(
     label: RichText,
     content: impl FnOnce(&mut Ui) -> R,
 ) -> (Response, Option<R>) {
-    let button = egui::Button::new(label.font(theme.font_small.clone())).frame(true);
+    // The entry spans the cell it sits in.
+    let button = egui::Button::new(label.font(theme.font_small.clone()))
+        .frame(true)
+        .min_size(egui::vec2(ui.available_width(), 0.0));
     let (response, inner) = if egui::containers::menu::is_in_menu(ui) {
         egui::containers::menu::SubMenuButton::from_button(button).ui(ui, content)
     } else {
@@ -6661,9 +6664,9 @@ fn add_menu(
         w.corner_radius = theme.sharp_corner();
     }
     ui.set_style(style);
-    // The entries flow in cells of one common width, two to a row.
-    ui.set_max_width(2.0 * theme.control_width + theme.item_gap.x);
-    ui.horizontal_wrapped(|ui| {
+    // The entries stack in one column of cells of one common width.
+    ui.set_max_width(theme.control_width);
+    ui.vertical(|ui| {
 
         if add_cell(ui, theme, RichText::new(tr("create sequence"))).clicked() {
             state.mode_override = Some(crate::shell::lanes::Mode::Lanes);

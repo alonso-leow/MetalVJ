@@ -826,6 +826,13 @@ pub fn cell_label_value(painter: &egui::Painter, theme: &Theme, rect: Rect, labe
     }
 }
 
+/// The step arrows at a hovered number cell's two ends.
+pub fn cell_paint_arrows(painter: &egui::Painter, theme: &Theme, rect: Rect, font: &egui::FontId) {
+    let zone = rect.height();
+    painter.text(egui::pos2(rect.left() + zone / 2.0, rect.center().y), egui::Align2::CENTER_CENTER, NUM_ARROW_LEFT, font.clone(), theme.ink_weak);
+    painter.text(egui::pos2(rect.right() - zone / 2.0, rect.center().y), egui::Align2::CENTER_CENTER, NUM_ARROW_RIGHT, font.clone(), theme.ink_weak);
+}
+
 /// A toggle cell: label left, a check square right, filled when on.
 pub fn cell_paint_toggle(painter: &egui::Painter, theme: &Theme, rect: Rect, label: &str, on: bool, font: &egui::FontId, text: bool, st: CellState) {
     cell_ground(painter, theme, rect, st);

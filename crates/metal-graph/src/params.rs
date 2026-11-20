@@ -698,6 +698,10 @@ pub enum CellKind {
     Enum,
     Colour,
     Text,
+    /// `n` floats side by side (a position, a target).
+    Vec,
+    /// A trigger: a press writes `true`.
+    Button,
 }
 
 impl CellKind {
@@ -709,6 +713,8 @@ impl CellKind {
             CellKind::Enum => "enum",
             CellKind::Colour => "colour",
             CellKind::Text => "text",
+            CellKind::Vec => "vec",
+            CellKind::Button => "button",
         }
     }
 }
@@ -726,12 +732,29 @@ pub struct ConfigCell {
     pub default: Value,
     /// What the node holds now (the default when the key is missing).
     pub value: Value,
+    /// The collapsible panel it sits in (`None`: always shown).
+    pub group: Option<&'static str>,
 }
 
 /// Whether the float param `name` of `kind` is a whole number (an `Int` cell).
 pub fn is_int_param(kind: &str, name: &str) -> bool {
     (kind == crate::VENUE_FIXTURE_KIND && matches!(name, "pick" | "offset" | "priority"))
         || (kind == crate::REEL_BATCH_KIND && name == "seed")
+}
+
+/// A node's card state, kept on the node as `config.ui` (`collapsed`, and
+/// `open`: the ids of its open panels). Layout needs it, so it lives in the
+/// graph, not in the panel.
+pub fn ui_state(node: &Node) -> (bool, Vec<String>) {
+    let config = config_json(node);
+    let ui = config.get("ui");
+    let collapsed = ui.and_then(|u| u.get("collapsed")).and_then(Value::as_bool).unwrap_or(false);
+    let open = ui
+        .and_then(|u| u.get("open"))
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .unwrap_or_default();
+    (collapsed, open)
 }
 
 /// The non-float config keys `node` promotes to cells: a `venue.fixture`'s
@@ -744,6 +767,7 @@ pub fn config_cells(node: &Node) -> Vec<ConfigCell> {
         options: options.iter().map(|o| o.to_string()).collect(),
         value: config.get(key).filter(|v| !v.is_null()).cloned().unwrap_or_else(|| default.clone()),
         default,
+        group: None,
     };
     if node.kind == crate::VENUE_FIXTURE_KIND {
         let d = venue_fixture_default_config();
@@ -754,16 +778,24 @@ pub fn config_cells(node: &Node) -> Vec<ConfigCell> {
             ("hue_lock", VENUE_FIXTURE_HUE_LOCK),
         ]
         .into_iter()
-        .map(|(key, opts)| make(key, CellKind::Enum, opts, d[key].clone()))
+        .map(|(key, opts)| {
+            let mut c = make(key, CellKind::Enum, opts, d[key].clone());
+            c.group = (key != "colour_from").then_some("advanced");
+            c
+        })
         .collect();
     }
     if node.kind == crate::TEXT_SOURCE_KIND {
-        return vec![
+        let mut cells = vec![
             make("content", CellKind::Text, &[], json!("MetalVJ")),
             make("align", CellKind::Enum, &["left", "center", "right"], json!("left")),
             make("style", CellKind::Enum, &["normal", "italic"], json!("normal")),
             make("line_wrap", CellKind::Bool, &[], json!(true)),
         ];
+        for c in cells.iter_mut().filter(|c| c.key == "style" || c.key == "line_wrap") {
+            c.group = Some("style");
+        }
+        return cells;
     }
     Vec::new()
 }

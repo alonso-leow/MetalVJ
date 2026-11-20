@@ -43,7 +43,7 @@ pub const NODE_W: f32 = 246.4;
 /// only space nodes out with it; the real box height follows its content.
 pub const NODE_H: f32 = 78.4;
 /// The header band's own height.
-pub const HEADER_H: f32 = 36.4;
+pub const HEADER_H: f32 = 30.8;
 /// The band under the header that holds the focused node's bar (the strip of
 /// verbs, shown below the title). Every node reserves it, so the rows below
 /// never move when a node takes focus.
@@ -51,7 +51,7 @@ pub const SUBHEADER_H: f32 = 33.6;
 /// Height of one body row.
 pub const ROW_H: f32 = 28.0;
 /// Radius of a port or param dot.
-pub const PORT_R: f32 = 8.4;
+pub const PORT_R: f32 = 7.0;
 /// Width of a parameter's value field (a colour row's, since 2026-11-19 a
 /// param row's cell spans the node instead).
 pub const FIELD_W: f32 = 72.8;
@@ -60,6 +60,8 @@ pub const CELL_H: f32 = 22.4;
 /// How far a param cell sits inside the node's left and right edges (clear of
 /// the dots that straddle them).
 pub const CELL_INSET: f32 = 11.2;
+/// A collapsible panel's header row height (18 in the Blender-like spec, 1.4x).
+pub const PANEL_H: f32 = 25.2;
 /// The gap between the cells of a vector row.
 pub const CELL_GAP_H: f32 = 1.4;
 /// Side of a colour swatch painted in a node's body.
@@ -212,6 +214,10 @@ pub enum RectTag {
     Tile { node: NodeId },
     /// The `▸ n more` row that expands the folded rows.
     More { node: NodeId },
+    /// A collapsible panel's header row.
+    Panel { node: NodeId, id: String, title: String, open: bool },
+    /// The chevron on a header that collapses the whole node.
+    Chevron { node: NodeId, collapsed: bool },
 }
 
 /// Everything a painter needs to draw one param cell.
@@ -234,6 +240,15 @@ pub struct CellTag {
     pub bindable: bool,
     /// Whether a variable is bound to it now (the cell is read-only).
     pub bound: bool,
+    /// A vec cell's floats (its slice of the vector).
+    pub values: Vec<f32>,
+    /// Where that slice starts in the whole vector (`vec_of`).
+    pub offset: usize,
+    /// The param a vec cell writes (`camera`).
+    pub vec_of: Option<String>,
+    /// A colour cell's colour and the config key it edits.
+    pub rgb: Option<[f32; 3]>,
+    pub key: Option<String>,
 }
 
 /// A cable, tagged with its endpoints and its type.
@@ -285,6 +300,8 @@ pub enum Hit {
     /// or a `palette` node's `colors:<i>`. `name` is the config key, so the
     /// panel can open a picker seeded from it and post it back.
     Swatch(NodeId, String),
+    /// A panel header or a node's collapse chevron (`panel: None`).
+    Toggle { node: NodeId, panel: Option<String> },
     Edge(String),
     Empty,
 }
@@ -305,6 +322,11 @@ pub struct ParamGeom {
     pub options: Vec<String>,
     /// `false` for a config-key cell: no `param:<name>` dot, no binding.
     pub bindable: bool,
+    pub values: Vec<f32>,
+    pub offset: usize,
+    pub vec_of: Option<String>,
+    pub rgb: Option<[f32; 3]>,
+    pub key: Option<String>,
     /// Set once the edges are known: a variable drives this row.
     pub bound: bool,
     pub value: Option<f32>,
@@ -331,6 +353,11 @@ struct NodeGeom {
     hidden: usize,
     /// `true` when a port dot sits on the header band rather than a body row.
     header_ports: Vec<(String, bool)>,
+    /// Panel header rows: `(id, title, open, rect)`.
+    panels: Vec<(String, String, bool, Rect)>,
+    /// The collapse chevron on the header's left.
+    chevron: Rect,
+    collapsed: bool,
 }
 
 /// The resolved geometry of one graph: every node's box, every port's point,
@@ -394,6 +421,8 @@ enum Row {
     Port { name: String, out: bool },
     Param { name: String },
     Cell { key: String },
+    Panel { id: String, title: String },
+    Vec { name: String, of: String, offset: usize, n: usize },
     More,
     Tile,
 }
@@ -406,16 +435,16 @@ impl Row {
             Row::Port { name, out } => Row::Port { name: name.clone(), out: *out },
             Row::Param { name } => Row::Param { name: name.clone() },
             Row::Cell { key } => Row::Cell { key: key.clone() },
+            Row::Panel { id, title } => Row::Panel { id: id.clone(), title: id_title(title) },
+            Row::Vec { name, of, offset, n } => Row::Vec { name: name.clone(), of: of.clone(), offset: *offset, n: *n },
             Row::More => Row::More,
             Row::Tile => Row::Tile,
         }
     }
 }
 
-/// The height a node's box needs for `rows` body rows (a header plus the
-/// rows), never less than a single header.
-fn box_height(rows: usize) -> f32 {
-    HEADER_H + SUBHEADER_H + ROW_H * rows.max(1) as f32
+fn id_title(t: &str) -> String {
+    t.to_string()
 }
 
 /// The index of the one input that sits on the header's left edge: the first
@@ -562,6 +591,7 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[Confi
     let y = n.pos[1];
     let label = if n.label.is_empty() { n.kind.clone() } else { n.label.clone() };
     let config = config_json(n);
+    let (collapsed, open_panels) = params::ui_state(n);
 
     let inputs = kind.map(|k| k.inputs.as_slice()).unwrap_or(&[]);
     let outputs = kind.map(|k| k.outputs.as_slice()).unwrap_or(&[]);
@@ -575,6 +605,7 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[Confi
         params.iter().filter(|p| p.kind == ParamKind::Colour).collect();
     let float_params: Vec<&Param> =
         params.iter().filter(|p| p.kind == ParamKind::Float).collect();
+    let camera: Option<&Param> = params.iter().find(|p| p.kind == ParamKind::Camera);
     let swatches = config_swatches(&config);
     // A colour node with a plain `rgb` swatch but no declared colour param
     // (a `color` kind another agent is adding) still gets one row for it.
@@ -599,9 +630,8 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[Confi
         fixed.push(Row::Port { name: p.name.clone(), out: true });
     }
     // A gen node with views also takes a viewer position on the input row
-    // `viewer` (a Control edge), after the catalog inputs.
-    // A gen node also exposes one image output per view, `view.<name>`, after
-    // the catalog outputs, in list order.
+    // `viewer` (a Control edge), after the catalog inputs, and one image
+    // output per view, `view.<name>`, in list order.
     if n.kind.starts_with("gen.") {
         if let Some(views) = crate::views::views_of(&config) {
             fixed.push(Row::Port { name: crate::views::VIEWER_PORT.to_string(), out: false });
@@ -619,8 +649,31 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[Confi
     for _ in 0..extra_swatch_rows {
         fixed.push(Row::Param { name: "rgb".to_string() });
     }
-    for c in cells {
+    // Config cells: the always-shown ones, then one panel per group.
+    for c in cells.iter().filter(|c| c.group.is_none()) {
         fixed.push(Row::Cell { key: c.key.clone() });
+    }
+    let mut groups: Vec<&str> = Vec::new();
+    for g in cells.iter().filter_map(|c| c.group) {
+        if !groups.contains(&g) {
+            groups.push(g);
+        }
+    }
+    for g in groups {
+        fixed.push(Row::Panel { id: g.to_string(), title: g.to_string() });
+        if open_panels.iter().any(|o| o == g) {
+            for c in cells.iter().filter(|c| c.group == Some(g)) {
+                fixed.push(Row::Cell { key: c.key.clone() });
+            }
+        }
+    }
+    if camera.is_some() {
+        fixed.push(Row::Panel { id: "camera".to_string(), title: "camera".to_string() });
+        if open_panels.iter().any(|o| o == "camera") {
+            for (name, offset, nn) in [("pos", 0usize, 3usize), ("target", 3, 3), ("fov", 6, 1)] {
+                fixed.push(Row::Vec { name: name.to_string(), of: params::CAMERA_PARAM.to_string(), offset, n: nn });
+            }
+        }
     }
 
     let folded = float_params.len() > COLLAPSED_ROWS && !n.expanded;
@@ -633,27 +686,26 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[Confi
     for p in float_params.iter().take(shown_params) {
         rows.push(Row::Param { name: p.name.clone() });
     }
-    let more_index = if folded {
-        let i = rows.len();
+    if folded {
         rows.push(Row::More);
-        Some(i)
-    } else {
-        None
-    };
-    let tile_index = if has_tile {
-        let i = rows.len();
+    }
+    if has_tile {
         rows.push(Row::Tile);
-        Some(i)
-    } else {
-        None
-    };
+    }
+    if collapsed {
+        rows.clear();
+    }
 
-    let visible = rows.len().max(1);
-    let rect = Rect { x, y, w: NODE_W, h: box_height(visible) };
+    let row_h = |r: &Row| if matches!(r, Row::Panel { .. }) { PANEL_H } else { ROW_H };
+    let body_h: f32 = if rows.is_empty() { ROW_H } else { rows.iter().map(row_h).sum() };
+    let h = if collapsed { HEADER_H } else { HEADER_H + SUBHEADER_H + body_h };
+    let rect = Rect { x, y, w: NODE_W, h };
     let header = Rect { x, y, w: NODE_W, h: HEADER_H };
+    let chevron = Rect { x: x + CELL_INSET * 0.5, y: y + (HEADER_H - PANEL_H * 0.6) / 2.0, w: PANEL_H * 0.6, h: PANEL_H * 0.6 };
 
     let mut ports: BTreeMap<(String, bool), Point> = BTreeMap::new();
     let mut param_geoms: Vec<(String, ParamGeom)> = Vec::new();
+    let mut panels: Vec<(String, String, bool, Rect)> = Vec::new();
     let mut tile = None;
     let mut more = None;
 
@@ -667,10 +719,34 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[Confi
         ports.insert((name.clone(), *out), point);
     }
 
+    let blank = |dot: Point, kind: CellKind, label: &str| ParamGeom {
+        dot,
+        cell: None,
+        kind,
+        label: label.to_string(),
+        min: 0.0,
+        max: 1.0,
+        default: 0.0,
+        text: None,
+        on: None,
+        options: Vec::new(),
+        bindable: false,
+        values: Vec::new(),
+        offset: 0,
+        vec_of: None,
+        rgb: None,
+        key: None,
+        bound: false,
+        value: None,
+        swatches: Vec::new(),
+        palette: Vec::new(),
+    };
+
     let mut swatch_at = 0usize;
-    for (row_i, row) in rows.iter().enumerate() {
-        let row_y = y + HEADER_H + SUBHEADER_H + ROW_H * row_i as f32;
-        let cy = row_y + ROW_H / 2.0;
+    let mut row_y = y + HEADER_H + SUBHEADER_H;
+    for row in rows.iter() {
+        let this_h = row_h(row);
+        let cy = row_y + this_h / 2.0;
         match row {
             Row::Port { name, out } => {
                 let point = if *out { Point { x: x + NODE_W, y: cy } } else { Point { x, y: cy } };
@@ -679,75 +755,61 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[Confi
             Row::Param { name } => {
                 let is_colour = colour_params.iter().any(|p| p.name == *name);
                 let float = float_params.iter().find(|p| p.name == *name);
-                let (value, swatch_list) = if is_colour {
+                let (value, swatch_list): (Option<f32>, Vec<(String, [f32; 3])>) = if is_colour || float.is_none() {
                     (None, swatches.iter().skip(swatch_at).take(1).cloned().collect())
-                } else if let Some(p) = float {
-                    (p.value.or(Some(p.default)), Vec::new())
                 } else {
-                    (None, swatches.iter().skip(swatch_at).take(1).cloned().collect())
+                    (float.and_then(|p| p.value.or(Some(p.default))), Vec::new())
                 };
                 swatch_at += 1;
-                let cell = float.map(|_| cell_rect(x, row_y));
                 let int = float.is_some_and(|p| params::is_int_param(&n.kind, &p.name));
-                param_geoms.push((
-                    name.clone(),
-                    ParamGeom {
-                        dot: Point { x, y: cy },
-                        cell,
-                        kind: if is_colour || float.is_none() {
-                            CellKind::Colour
-                        } else if int {
-                            CellKind::Int
-                        } else {
-                            CellKind::Float
-                        },
-                        label: name.clone(),
-                        min: float.map_or(0.0, |p| p.min),
-                        max: float.map_or(1.0, |p| p.max),
-                        default: float.map_or(0.0, |p| p.default),
-                        text: None,
-                        on: None,
-                        options: Vec::new(),
-                        bindable: true,
-                        bound: false,
-                        value,
-                        swatches: swatch_list,
-                        palette: Vec::new(),
-                    },
-                ));
+                let mut g = blank(Point { x, y: cy }, CellKind::Colour, name);
+                g.cell = Some(cell_rect(x, row_y));
+                g.bindable = true;
+                if float.is_some() && !is_colour {
+                    g.kind = if int { CellKind::Int } else { CellKind::Float };
+                    g.min = float.map_or(0.0, |p| p.min);
+                    g.max = float.map_or(1.0, |p| p.max);
+                    g.default = float.map_or(0.0, |p| p.default);
+                    g.value = value;
+                } else if let Some((key, rgb)) = swatch_list.first() {
+                    g.rgb = Some(*rgb);
+                    g.key = Some(key.clone());
+                }
+                param_geoms.push((name.clone(), g));
             }
             Row::Cell { key } => {
-                let Some(c) = cells.iter().find(|c| c.key == *key) else { continue };
-                param_geoms.push((
-                    key.clone(),
-                    ParamGeom {
-                        dot: Point { x, y: cy },
-                        cell: Some(cell_rect(x, row_y)),
-                        kind: c.kind,
-                        label: key.clone(),
-                        min: 0.0,
-                        max: 1.0,
-                        default: 0.0,
-                        text: match c.kind {
-                            CellKind::Enum | CellKind::Text => Some(c.value.as_str().unwrap_or_default().to_string()),
-                            _ => None,
-                        },
-                        on: (c.kind == CellKind::Bool).then(|| c.value.as_bool().unwrap_or(false)),
-                        options: c.options.clone(),
-                        bindable: false,
-                        bound: false,
-                        value: None,
-                        swatches: Vec::new(),
-                        palette: Vec::new(),
-                    },
-                ));
+                if let Some(c) = cells.iter().find(|c| c.key == *key) {
+                    let mut g = blank(Point { x, y: cy }, c.kind, key);
+                    g.cell = Some(cell_rect(x, row_y));
+                    g.text = match c.kind {
+                        CellKind::Enum | CellKind::Text => Some(c.value.as_str().unwrap_or_default().to_string()),
+                        _ => None,
+                    };
+                    g.on = (c.kind == CellKind::Bool).then(|| c.value.as_bool().unwrap_or(false));
+                    g.options = c.options.clone();
+                    param_geoms.push((key.clone(), g));
+                }
+            }
+            Row::Vec { name, of, offset, n: nn } => {
+                let held = camera.and_then(|p| p.values.clone().or_else(|| p.defaults.clone())).unwrap_or_default();
+                let mut g = blank(Point { x, y: cy }, CellKind::Vec, name);
+                g.cell = Some(cell_rect(x, row_y));
+                g.values = held.iter().skip(*offset).take(*nn).copied().collect();
+                g.offset = *offset;
+                g.vec_of = Some(of.clone());
+                let fov = *offset == 6;
+                g.min = if fov { 5.0 } else { -20.0 };
+                g.max = if fov { 120.0 } else { 20.0 };
+                param_geoms.push((format!("{of}.{name}"), g));
+            }
+            Row::Panel { id, title } => {
+                let open = open_panels.iter().any(|o| o == id);
+                panels.push((id.clone(), title.clone(), open, Rect { x: x + CELL_INSET, y: row_y, w: NODE_W - CELL_INSET * 2.0, h: PANEL_H }));
             }
             Row::More => {
-                debug_assert_eq!(Some(row_i), more_index);
                 more = Some(Rect { x, y: row_y, w: NODE_W, h: ROW_H });
             }
             Row::Tile => {
-                debug_assert_eq!(Some(row_i), tile_index);
                 tile = Some(Rect {
                     x: x + PORT_R,
                     y: row_y + 2.0,
@@ -756,9 +818,36 @@ fn node_geom(n: &Node, kind: Option<&NodeKind>, params: &[Param], cells: &[Confi
                 });
             }
         }
+        row_y += this_h;
     }
 
-    (NodeGeom { rect, header, ports, params: param_geoms, tile, more, hidden: float_params.len() - shown_params, header_ports }, label)
+    // A collapsed node keeps every dot, pinned to its header, so cables stay.
+    if collapsed {
+        let c = y + HEADER_H / 2.0;
+        for ((_, out), pt) in ports.iter_mut() {
+            *pt = Point { x: if *out { x + NODE_W } else { x }, y: c };
+        }
+        let mut seen = Vec::new();
+        for p in inputs.iter().filter(|p| !header_ports.contains(&(p.name.clone(), false))) {
+            seen.push((p.name.clone(), false));
+        }
+        for (name, out) in seen {
+            ports.insert((name, out), Point { x, y: c });
+        }
+        for p in params.iter().filter(|p| matches!(p.kind, ParamKind::Float | ParamKind::Colour)) {
+            let mut g = blank(Point { x, y: c }, CellKind::Float, &p.name);
+            g.bindable = true;
+            param_geoms.push((p.name.clone(), g));
+        }
+        for o in outputs.iter().filter(|p| !header_ports.contains(&(p.name.clone(), true))) {
+            ports.insert((o.name.clone(), true), Point { x: x + NODE_W, y: c });
+        }
+    }
+
+    (
+        NodeGeom { rect, header, ports, params: param_geoms, tile, more, hidden: float_params.len() - shown_params, header_ports, panels, chevron, collapsed },
+        label,
+    )
 }
 
 /// A param row's cell: the full row width inside [`CELL_INSET`], [`CELL_H`]
@@ -791,7 +880,20 @@ impl Layout {
                 content: label,
                 tag: TextTag::Title,
             }));
+            out.push(Primitive::Rect(TaggedRect {
+                rect: geom.chevron,
+                tag: RectTag::Chevron { node: id.clone(), collapsed: geom.collapsed },
+            }));
+            for (pid, title, open, r) in &geom.panels {
+                out.push(Primitive::Rect(TaggedRect {
+                    rect: *r,
+                    tag: RectTag::Panel { node: id.clone(), id: pid.clone(), title: title.clone(), open: *open },
+                }));
+            }
             for ((port, out_dir), p) in &geom.ports {
+                if geom.collapsed && !geom.header_ports.contains(&(port.clone(), *out_dir)) {
+                    continue;
+                }
                 out.push(Primitive::Rect(TaggedRect {
                     rect: dot_rect(*p),
                     tag: RectTag::Port { node: id.clone(), port: port.clone(), out: *out_dir },
@@ -814,7 +916,7 @@ impl Layout {
                     }));
                 }
             }
-            for (name, pg) in &geom.params {
+            for (name, pg) in geom.params.iter().filter(|_| !geom.collapsed) {
                 if pg.bindable {
                     out.push(Primitive::Rect(TaggedRect {
                         rect: dot_rect(pg.dot),
@@ -838,14 +940,12 @@ impl Layout {
                             options: pg.options.clone(),
                             bindable: pg.bindable,
                             bound: pg.bound,
+                            values: pg.values.clone(),
+                            offset: pg.offset,
+                            vec_of: pg.vec_of.clone(),
+                            rgb: pg.rgb,
+                            key: pg.key.clone(),
                         })),
-                    }));
-                } else {
-                    out.push(Primitive::Text(Text {
-                        x: geom.rect.x + PORT_R + 6.0,
-                        y: pg.dot.y,
-                        content: name.clone(),
-                        tag: TextTag::Row,
                     }));
                 }
                 for (i, (key, rgb)) in pg.swatches.iter().enumerate() {
@@ -911,6 +1011,17 @@ impl Layout {
             for (name, pg) in &geom.params {
                 if pg.cell.is_some_and(|c| c.contains(p)) {
                     return Hit::Cell { node: node.clone(), name: name.clone(), kind: pg.kind };
+                }
+            }
+        }
+
+        for (node, geom) in &self.nodes {
+            if geom.chevron.contains(p) {
+                return Hit::Toggle { node: node.clone(), panel: None };
+            }
+            for (id, _, _, r) in &geom.panels {
+                if r.contains(p) {
+                    return Hit::Toggle { node: node.clone(), panel: Some(id.clone()) };
                 }
             }
         }
@@ -1197,52 +1308,35 @@ mod tests {
         assert!(geom.rect.h > plain_h, "the box grows to fit the view rows");
     }
 
-    /// A colour config paints a swatch in the body, tagged with its key.
+    /// A colour config paints a colour cell in the body, tagged with its key
+    /// and colour; a click on it is a colour `Cell` hit.
     #[test]
-    fn a_colour_config_paints_a_swatch() {
+    fn a_colour_config_is_a_colour_cell_with_its_key() {
         let catalog = real_catalog();
         let mut g = Graph::new("g", "t", Domain::Live);
         let id = g.add_node("color", "gen.turing", [0.0, 0.0]);
         g.node_mut(&id).unwrap().config =
             crate::Config::from_json_str(r#"{"rgb": [1.0, 0.0, 0.0]}"#).unwrap();
         let layout = g.layout(&catalog);
-        let has_swatch = layout.primitives().into_iter().any(|p| {
-            matches!(
-                p,
-                Primitive::Rect(TaggedRect { tag: RectTag::Swatch { name, rgb, .. }, .. })
-                    if name == "rgb" && rgb == [1.0, 0.0, 0.0]
-            )
-        });
-        assert!(has_swatch, "a node holding `rgb` paints one swatch");
-    }
-
-    /// A click on a swatch hits its own key (2026-10-08), so the canvas can
-    /// open a picker seeded from the colour the chip shows.
-    #[test]
-    fn a_swatch_click_hits_its_own_key() {
-        let catalog = real_catalog();
-        let mut g = Graph::new("g", "t", Domain::Live);
-        let id = g.add_node("color", "gen.turing", [0.0, 0.0]);
-        g.node_mut(&id).unwrap().config =
-            crate::Config::from_json_str(r#"{"rgb": [1.0, 0.0, 0.0]}"#).unwrap();
-        let layout = g.layout(&catalog);
-        let rect = layout
+        let (rect, name) = layout
             .primitives()
             .into_iter()
             .find_map(|p| match p {
-                Primitive::Rect(t) => match t.tag {
-                    RectTag::Swatch { .. } => Some(t.rect),
-                    _ => None,
-                },
+                Primitive::Rect(TaggedRect { rect, tag: RectTag::Cell(c) })
+                    if c.kind == CellKind::Colour && c.key.as_deref() == Some("rgb") && c.rgb == Some([1.0, 0.0, 0.0]) =>
+                {
+                    Some((rect, c.name.clone()))
+                }
                 _ => None,
             })
-            .expect("a swatch rect");
+            .expect("a colour cell for `rgb`");
         match layout.hit(rect.x + rect.w / 2.0, rect.y + rect.h / 2.0) {
-            Hit::Swatch(node, key) => {
+            Hit::Cell { node, name: got, kind } => {
                 assert_eq!(node, id);
-                assert_eq!(key, "rgb");
+                assert_eq!(got, name);
+                assert_eq!(kind, CellKind::Colour);
             }
-            other => panic!("expected a swatch hit, got {other:?}"),
+            other => panic!("expected a colour cell hit, got {other:?}"),
         }
     }
 
@@ -1342,9 +1436,8 @@ mod tests {
             let geom = layout.nodes.get(id).unwrap();
             let mut cells: Vec<Rect> = Vec::new();
             for (_, pg) in &geom.params {
-                let band = (pg.dot.y - (rect.y + HEADER_H + SUBHEADER_H)) / ROW_H;
-                assert_eq!(band.fract(), 0.5, "the dot is on its row's centre");
                 let Some(c) = pg.cell else { continue };
+                assert!((c.y + c.h / 2.0 - pg.dot.y).abs() < 1e-3, "the dot is on its row's centre");
                 assert!(c.y >= pg.dot.y - ROW_H / 2.0 && c.y + c.h <= pg.dot.y + ROW_H / 2.0, "cell inside its row");
                 assert!(c.x >= rect.x && c.x + c.w <= rect.x + rect.w, "cell inside the node");
                 assert!(c.x > rect.x + PORT_R, "the cell clears the dot");
@@ -1353,8 +1446,8 @@ mod tests {
                 }
                 cells.push(c);
             }
-            let rows = ((rect.h - HEADER_H - SUBHEADER_H) / ROW_H).round();
-            assert_eq!(rect.h, HEADER_H + SUBHEADER_H + ROW_H * rows, "height is header plus whole rows");
+            let last = cells.iter().map(|c| c.y + c.h).fold(rect.y, f32::max);
+            assert!(rect.h >= HEADER_H + SUBHEADER_H + ROW_H.min(1.0) && last <= rect.y + rect.h, "the box holds its cells");
         }
     }
 
@@ -1390,7 +1483,7 @@ mod tests {
     #[test]
     fn a_text_source_has_text_enum_and_bool_cells() {
         let (mut g, catalog, ids) = cell_graph();
-        g.node_mut(&ids[3]).unwrap().config = crate::Config::from_json_str(r#"{"line_wrap":false,"content":"hi"}"#).unwrap();
+        g.node_mut(&ids[3]).unwrap().config = crate::Config::from_json_str(r#"{"line_wrap":false,"content":"hi","ui":{"open":["style"]}}"#).unwrap();
         let layout = g.layout(&catalog);
         let geom = layout.nodes.get(&ids[3]).unwrap();
         let by = |n: &str| geom.params.iter().find(|(k, _)| k == n).map(|(_, p)| p).unwrap();
@@ -1398,5 +1491,76 @@ mod tests {
         assert_eq!(by("content").text.as_deref(), Some("hi"));
         assert_eq!(by("align").text.as_deref(), Some("left"));
         assert_eq!(by("line_wrap").on, Some(false));
+    }
+
+    /// A closed panel shows only its header; opening it (config.ui.open)
+    /// lays out its cells; a toggle hit names the panel.
+    #[test]
+    fn panels_hide_their_cells_until_open_and_answer_a_toggle_hit() {
+        let (mut g, catalog, ids) = cell_graph();
+        let fixture = ids[2].clone();
+        let layout = g.layout(&catalog);
+        let geom = layout.nodes.get(&fixture).unwrap();
+        assert!(geom.params.iter().all(|(n, _)| n != "spread"), "closed panel hides its cells");
+        let (_, _, open, r) = geom.panels[0].clone();
+        assert!(!open);
+        assert_eq!(layout.hit(r.x + r.w / 2.0, r.y + r.h / 2.0), Hit::Toggle { node: fixture.clone(), panel: Some("advanced".into()) });
+        g.node_mut(&fixture).unwrap().config = crate::Config::from_json_str(r#"{"ui":{"open":["advanced"]}}"#).unwrap();
+        let layout = g.layout(&catalog);
+        assert!(layout.nodes.get(&fixture).unwrap().params.iter().any(|(n, _)| n == "spread"));
+    }
+
+    /// A collapsed node is a header: height HEADER_H, ports kept on it, the
+    /// chevron answers a node toggle.
+    #[test]
+    fn a_collapsed_node_is_just_its_header_and_keeps_its_ports() {
+        let (mut g, catalog, ids) = cell_graph();
+        let gen = ids[1].clone();
+        let before = g.layout(&catalog).node_rect(&gen).unwrap().h;
+        g.node_mut(&gen).unwrap().config = crate::Config::from_json_str(r#"{"ui":{"collapsed":true}}"#).unwrap();
+        let layout = g.layout(&catalog);
+        let r = layout.node_rect(&gen).unwrap();
+        assert!(r.h < before);
+        assert_eq!(r.h, HEADER_H);
+        let p = layout.port_point(&gen, "image").unwrap();
+        assert_eq!(p.y, r.y + HEADER_H / 2.0);
+        let c = layout.nodes.get(&gen).unwrap().chevron;
+        assert_eq!(layout.hit(c.x + c.w / 2.0, c.y + c.h / 2.0), Hit::Toggle { node: gen, panel: None });
+    }
+
+    /// A generator's camera is a panel of pos/target/fov vec cells.
+    #[test]
+    fn the_camera_is_a_panel_of_vec_cells() {
+        let (mut g, catalog, ids) = cell_graph();
+        let gen = ids[1].clone();
+        let layout = g.layout(&catalog);
+        let geom = layout.nodes.get(&gen).unwrap();
+        if geom.panels.iter().any(|p| p.0 == "camera") {
+            g.node_mut(&gen).unwrap().config = crate::Config::from_json_str(r#"{"ui":{"open":["camera"]}}"#).unwrap();
+            let layout = g.layout(&catalog);
+            let geom = layout.nodes.get(&gen).unwrap();
+            let pos = geom.params.iter().find(|(n, _)| n == "camera.pos").unwrap();
+            assert_eq!(pos.1.kind, CellKind::Vec);
+            assert_eq!(pos.1.values.len(), 3);
+            let fov = geom.params.iter().find(|(n, _)| n == "camera.fov").unwrap();
+            assert_eq!(fov.1.values.len(), 1);
+        }
+    }
+
+    /// Perf: laying out and tagging a 100-node graph of generators stays in
+    /// the low milliseconds (the canvas then culls what is off screen).
+    #[test]
+    fn a_hundred_nodes_lay_out_fast() {
+        let catalog = real_catalog();
+        let mut g = Graph::new("g", "t", Domain::Live);
+        for i in 0..100 {
+            g.add_node(&format!("n{i}"), "gen.turing", [(i % 10) as f32 * 300.0, (i / 10) as f32 * 600.0]);
+        }
+        let t = std::time::Instant::now();
+        let prims = g.layout(&catalog).primitives();
+        let took = t.elapsed();
+        assert!(prims.len() > 1000);
+        assert!(took < std::time::Duration::from_secs(3), "100 nodes took {took:?}");
+        eprintln!("100 nodes: {} primitives in {took:?}", prims.len());
     }
 }

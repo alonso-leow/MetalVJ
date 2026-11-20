@@ -145,6 +145,7 @@ pub fn hit_reply(layout: &metal_graph::layout::Layout, x: f32, y: f32) -> Value 
         metal_graph::Hit::Swatch(node, name) => {
             json!({ "hit": "swatch", "node": node, "name": name })
         }
+        metal_graph::Hit::Toggle { node, panel } => json!({ "hit": "toggle", "node": node, "panel": panel }),
         metal_graph::Hit::Edge(id) => json!({ "hit": "edge", "edge": id }),
         metal_graph::Hit::Empty => json!({ "hit": "empty" }),
     }

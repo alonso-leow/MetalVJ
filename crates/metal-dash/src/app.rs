@@ -723,12 +723,21 @@ pub fn primitive_json(p: &metal_graph::layout::Primitive) -> Value {
                 "label": c.label, "value": c.value, "min": c.min, "max": c.max,
                 "default": c.default, "text": c.text, "on": c.on,
                 "options": c.options, "bindable": c.bindable, "bound": c.bound,
+                "values": c.values, "offset": c.offset, "vec_of": c.vec_of, "rgb": c.rgb, "key": c.key,
                 "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
             }),
             RectTag::Swatch { node, name, rgb } => json!({
                 "type": "rect", "tag": "swatch",
                 "node": node, "name": name,
                 "color": [rgb[0], rgb[1], rgb[2]],
+                "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
+            }),
+            RectTag::Panel { node, id, title, open } => json!({
+                "type": "rect", "tag": "panel", "node": node, "id": id, "title": title, "open": open,
+                "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
+            }),
+            RectTag::Chevron { node, collapsed } => json!({
+                "type": "rect", "tag": "chevron", "node": node, "collapsed": collapsed,
                 "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h,
             }),
             RectTag::Tile { node } => json!({

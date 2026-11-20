@@ -144,6 +144,8 @@ struct ParamDrag {
     /// Where the press landed on screen: the scrub follows screen travel, so
     /// its feel does not depend on the zoom.
     start_screen_x: f32,
+    /// A vec cell's scrub (a camera axis): the vector it is part of.
+    vec: Option<cells::VecDrag>,
 }
 
 /// A cable stretched from an output that carries *several* variables, waiting
@@ -235,6 +237,8 @@ enum Undo {
     Param { node: String, name: String, was: f32 },
     /// A config-cell write (bool, enum, string) is undone the same way.
     Config { node: String, key: String, was: Value },
+    /// A vec cell write (the camera's 7 floats) restores the whole vector.
+    Vector { node: String, name: String, was: Vec<f32> },
 }
 
 /// Everything the nodes panel remembers between frames: which graph is
@@ -2675,7 +2679,9 @@ fn canvas(
     if state.pulsing().is_some() {
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
     }
-    wheel_zoom(ui, theme, state, rect, &response);
+    if !cells::wheel_step(ui, door, state, theme, rect, &response) {
+        wheel_zoom(ui, theme, state, rect, &response);
+    }
     // Only while the pointer is on the bare canvas: a bar, the gallery or settings above it
     // take the hover from the canvas response.
     if matches!(selection, Selection::Node(_)) && response.hovered() && !state.gallery_open {
@@ -2893,7 +2899,14 @@ fn canvas(
                 if open.is_none() {
                     state.hover_card = None;
                 }
+                // Culling: only what intersects the canvas (plus a card's width)
+                // is painted — a 100-node graph paints the handful on screen.
+                let view = view_graph_rect(rect, state);
+                let _span = crate::perf::Span::new("nodes.cells");
                 for p in prims.iter().filter(|p| p["type"] != "path" && !node_body_numeric(p)) {
+                    if !far && !primitive_in_view(p, view) {
+                        continue;
+                    }
                     if !far {
                         paint_primitive(&painter, theme, rect, state, p, tiles.as_ref(), drag_offset, selected_node, lit_edges, live_of(state));
                     } else if p["tag"] == "node"
@@ -3344,6 +3357,8 @@ fn paint_primitive(
         Some("port") => paint_port(painter, theme, origin, state, p, drag),
         Some("param_dot") => paint_param_dot(painter, theme, origin, state, p, drag, live),
         Some("cell") => cells::paint_cell(painter, theme, origin, state, p, drag, live),
+        Some("panel") => cells::paint_panel(painter, theme, origin, state, p, drag),
+        Some("chevron") => cells::paint_chevron(painter, theme, origin, state, p, drag),
         Some("swatch") => paint_swatch(painter, theme, origin, state, p, drag),
         // The "more" backing is not painted: it sat over the outline. The
         // tile is the node's one picture, inset inside the card.
@@ -3355,6 +3370,20 @@ fn paint_primitive(
             _ => {}
         },
     }
+}
+
+/// The canvas's visible area in graph units, widened by one card.
+fn view_graph_rect(rect: EguiRect, state: &PanelState) -> [f32; 4] {
+    let pad = metal_graph::layout::NODE_W;
+    let a = to_graph(rect.min, state.pan, state.zoom, rect.min);
+    let b = to_graph(rect.min, state.pan, state.zoom, rect.max);
+    [a[0] - pad, a[1] - pad, b[0] + pad, b[1] + pad]
+}
+
+/// Whether a primitive's own box meets the view (a text anchor is a point).
+fn primitive_in_view(p: &Value, view: [f32; 4]) -> bool {
+    let (x, y, w, h) = (num(p, "x"), num(p, "y"), num(p, "w"), num(p, "h"));
+    x <= view[2] && x + w >= view[0] && y <= view[3] && y + h >= view[1]
 }
 
 /// The `[x, y, w, h]` box of the node under graph point `at`, if any.
@@ -4210,6 +4239,27 @@ fn handle_pointer(
     // Backspace/Delete over a cell resets it; Ctrl+wheel over a number steps
     // it by a hundredth of its range.
     if response.hovered() && state.zoom >= theme.node_cell_edit_zoom && state.cell_edit.is_none() {
+        let (copy, paste): (bool, Option<String>) = ui.input(|i| {
+            (
+                i.events.iter().any(|e| matches!(e, egui::Event::Copy)),
+                i.events.iter().find_map(|e| if let egui::Event::Paste(t) = e { Some(t.clone()) } else { None }),
+            )
+        });
+        if copy || paste.is_some() {
+            if let (Some(gid), Some(pos)) = (state.selected_graph.clone(), ui.input(|i| i.pointer.hover_pos())) {
+                let [gx, gy] = to_graph(rect.min, state.pan, state.zoom, pos);
+                if let Some(h) = hit_at(door, &gid, gx, gy).filter(|h| matches!(h["hit"].as_str(), Some("param" | "cell"))) {
+                    if copy {
+                        if let Some(t) = cells::copy_text(state, &h) {
+                            ui.ctx().copy_text(t);
+                        }
+                    }
+                    if let Some(t) = paste {
+                        cells::paste(door, state, theme, &h, &t);
+                    }
+                }
+            }
+        }
         let (reset, wheel, pos) = ui.input(|i| {
             (
                 i.key_pressed(egui::Key::Backspace) || i.key_pressed(egui::Key::Delete),
@@ -4457,6 +4507,12 @@ fn press_hit_test(
     state.picked.clear();
 
     match hit.as_ref().and_then(|h| h["hit"].as_str()) {
+        Some("toggle") => {
+            if let Some(h) = hit.as_ref() {
+                *selection = Selection::Node(h["node"].as_str().unwrap_or_default().to_string());
+                cells::toggle(door, state, h);
+            }
+        }
         // A param cell: scrub, toggle, pick or typed entry (`cells::press`).
         Some("param" | "cell") => {
             if let Some(h) = hit.as_ref() {
@@ -4833,6 +4889,7 @@ pub(crate) fn undo_last(door: &dyn Call, state: &mut PanelState) {
         }
         Undo::Param { node, name, was } => cells::replay_param(door, state, &node, &name, was),
         Undo::Config { node, key, was } => cells::replay_config(door, state, &node, &key, &was),
+        Undo::Vector { node, name, was } => cells::replay_vector(door, state, &node, &name, &was),
     }
 }
 
@@ -7116,5 +7173,102 @@ mod tests {
         assert!(state.param_drag.is_none() && state.drag.is_some(), "at zoom 0.4 the press drags the node");
         cells::finish_drag(&door, &mut state, &theme);
         assert!(node_posts(&door).is_empty(), "and edits nothing");
+    }
+
+    fn vec_state() -> PanelState {
+        let mut s = cell_state(false);
+        let prims = s.graph.as_mut().unwrap()["primitives"].as_array_mut().unwrap();
+        for (name, off, vals) in [("camera.pos", 0, json!([1.0, 2.0, 3.0])), ("camera.target", 3, json!([0.0, 0.0, 0.0])), ("camera.fov", 6, json!([60.0]))] {
+            prims.push(json!({
+                "type": "rect", "tag": "cell", "node": "n1", "name": name, "kind": "vec", "label": name,
+                "values": vals, "offset": off, "vec_of": "camera", "min": -20.0, "max": 20.0,
+                "bound": false, "x": 10.0, "y": 90.0, "w": 200.0, "h": 22.0
+            }));
+        }
+        s
+    }
+
+    /// A camera axis scrub posts the whole 7-float vector once, and undo
+    /// writes the old vector back.
+    #[test]
+    fn a_vec_cell_scrub_posts_the_whole_vector_and_undoes() {
+        let theme = Theme::phosphor();
+        let door = FakeDoor::new();
+        let mut state = vec_state();
+        // The press lands in the first third of `camera.pos`: the X axis.
+        press_cell(&door, &mut state, "camera.pos", "vec", Pos2::new(30.0, 100.0));
+        cells::drag_to(&mut state, Pos2::ZERO, Pos2::new(70.0, 100.0), false, false);
+        cells::finish_drag(&door, &mut state, &theme);
+        let posts = node_posts(&door);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0]["name"], "camera");
+        let v: Vec<f64> = posts[0]["value"].as_array().unwrap().iter().map(|x| x.as_f64().unwrap()).collect();
+        assert_eq!(v.len(), 7);
+        assert!((v[0] - 9.0).abs() < 1e-4, "40px over a 40 range: {v:?}");
+        assert_eq!(&v[1..3], &[2.0, 3.0]);
+        undo_last(&door, &mut state);
+        assert_eq!(node_posts(&door)[1]["value"][0].as_f64(), Some(1.0));
+    }
+
+    /// Hover arrows step by a hundredth of the range; Ctrl+V pastes a
+    /// number; Ctrl+C copies it; a colour press opens the picker.
+    #[test]
+    fn arrows_paste_copy_and_colour_press() {
+        let theme = Theme::phosphor();
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        press_cell(&door, &mut state, "amount", "float", Pos2::new(12.0, 60.0));
+        assert!((node_posts(&door)[0]["value"].as_f64().unwrap() - 0.49).abs() < 1e-4, "left arrow");
+        assert!(state.param_drag.is_none());
+        let hit = hit_cell("amount", "float");
+        assert_eq!(cells::copy_text(&state, &hit).as_deref(), Some("0.49"));
+        cells::paste(&door, &mut state, &theme, &hit, "9");
+        assert_eq!(node_posts(&door)[1]["value"].as_f64(), Some(1.0), "paste clamps");
+
+        let mut state = cell_state(false);
+        state.graph.as_mut().unwrap()["primitives"].as_array_mut().unwrap().push(json!({
+            "type": "rect", "tag": "cell", "node": "n1", "name": "rgb", "kind": "colour", "key": "rgb",
+            "rgb": [1.0, 0.0, 0.0], "bound": false, "x": 10.0, "y": 130.0, "w": 200.0, "h": 22.0
+        }));
+        press_cell(&door, &mut state, "rgb", "colour", Pos2::new(100.0, 140.0));
+        assert!(state.colour_menu.is_some());
+    }
+
+    /// A panel header writes `config.ui.open`; the chevron writes `collapsed`.
+    #[test]
+    fn panel_and_chevron_toggles_post_the_ui_config() {
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        cells::toggle(&door, &mut state, &json!({ "node": "n1", "panel": "advanced" }));
+        cells::toggle(&door, &mut state, &json!({ "node": "n1", "panel": null }));
+        let posts = node_posts(&door);
+        assert_eq!(posts[0]["config"]["ui"]["open"], json!(["advanced"]));
+        assert_eq!(posts[1]["config"]["ui"]["collapsed"], json!(true));
+    }
+
+    /// Ctrl+click multi-selection: one scrub applies to every picked node
+    /// that has the cell.
+    #[test]
+    fn an_edit_applies_to_every_picked_node_with_that_cell() {
+        let theme = Theme::phosphor();
+        let door = FakeDoor::new();
+        let mut state = cell_state(false);
+        let extra: Vec<Value> = state.graph.as_ref().unwrap()["primitives"].as_array().unwrap().iter()
+            .filter(|p| p["name"] == "amount").map(|p| { let mut q = p.clone(); q["node"] = json!("n2"); q }).collect();
+        state.graph.as_mut().unwrap()["primitives"].as_array_mut().unwrap().extend(extra);
+        state.picked = vec!["n2".into(), "n1".into()];
+        cells::post_param_value(&door, &mut state, &theme, "n1", "amount", 0.5, 0.8);
+        let nodes: Vec<Value> = node_posts(&door).iter().map(|b| b["node"].clone()).collect();
+        assert_eq!(nodes, vec![json!("n1"), json!("n2")]);
+    }
+
+    /// Only primitives meeting the view paint.
+    #[test]
+    fn culling_skips_primitives_outside_the_view() {
+        let canvas = EguiRect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0));
+        let state = PanelState::default();
+        let view = view_graph_rect(canvas, &state);
+        assert!(primitive_in_view(&json!({ "x": 100.0, "y": 100.0, "w": 10.0, "h": 10.0 }), view));
+        assert!(!primitive_in_view(&json!({ "x": 5000.0, "y": 100.0, "w": 10.0, "h": 10.0 }), view));
     }
 }

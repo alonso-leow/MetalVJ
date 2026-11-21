@@ -128,6 +128,11 @@ const PERSONALITY: &[FloatSpec] = &[
     spec("bg_gradient", -1.0, 1.0, 0.0),
     spec("bg_vignette", 0.0, 1.0, 0.0),
     spec("bg_pulse", 0.0, 1.0, 0.0),
+    // Turns only the eyes about their own centre of the face, in turns. The
+    // eyes no longer follow the direction of travel: they sit fixed on the
+    // body (still squashing and stretching with it) and this is their one
+    // rotation.
+    spec("eye_rotation", -0.5, 0.5, 0.0),
 ];
 /// The old fixed light, (-0.45, 0.89), as a fraction of a turn.
 const LIGHT_TURNS: f32 = 0.3251;
@@ -588,7 +593,7 @@ impl Model for Mengano {
             world: [m.world[0], m.world[1], m.scene_a, m.scene_b],
             misc2: [floats[11], 0.0, 0.0, 0.0],
             dance: [m.dance.sx, m.dance.sy, m.dance.tilt, m.dance.jelly],
-            dance2: [m.dance.lag[0], m.dance.lag[1], 0.0, floats[P + 11] * std::f32::consts::TAU],
+            dance2: [m.dance.lag[0], m.dance.lag[1], floats[P + 26] * std::f32::consts::TAU, floats[P + 11] * std::f32::consts::TAU],
             glow1: [floats[P + 12], floats[P + 13], floats[P + 14], floats[P + 15]],
             glow2: [
                 floats[P + 16],
@@ -869,7 +874,7 @@ mod tests {
         assert_eq!(names[11], "light_angle");
         assert_eq!(names[19], "glow_pulse");
         assert_eq!(names[25], "bg_pulse");
-        assert_eq!(PERSONALITY.len(), 26);
+        assert_eq!(PERSONALITY.len(), 27);
         let (a, b) = (-0.45f32, 0.89f32);
         assert!((b.atan2(a) / std::f32::consts::TAU - LIGHT_TURNS).abs() < 1e-3);
     }

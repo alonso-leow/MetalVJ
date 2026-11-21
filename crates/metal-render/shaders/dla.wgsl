@@ -60,6 +60,8 @@ struct DlaUniform {
     f2: vec4<f32>,
     // zancada, radio, cell_world, seed_key
     f3: vec4<f32>,
+    // zoom (zoom * dolly), pan_x, pan_y, unused
+    f4: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> u: DlaUniform;
@@ -317,7 +319,7 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
     // World coordinates, the field's own frame, spun by `rotacion`.
     var p = vec2<f32>((in.uv.x - 0.5) * 2.0 * aspect, (0.5 - in.uv.y) * 2.0);
     let rot = u.f0.z * u.f0.y * 0.6;
-    p = rot2(p, rot);
+    p = rot2(p / max(u.f4.x, 0.01), rot) + u.f4.yz;
 
     if (abs(p.x) < HALF && abs(p.y) < HALF) {
         let cell_world = u.f3.z;
@@ -385,8 +387,9 @@ fn vs_sparks(
     // Inactive slots collapse to a degenerate quad at the origin: no
     // fragment is shaded, no branch needed.
     let live = step(0.5, w.z) * u.f1.z;
-    let half_q = u.f3.z * 0.55;
-    var p = rot2(w.xy, u.f0.z * u.f0.y * 0.6) + corners[vi] * half_q;
+    let zoom = max(u.f4.x, 0.01);
+    let half_q = u.f3.z * 0.55 * zoom;
+    var p = rot2(w.xy - u.f4.yz, u.f0.z * u.f0.y * 0.6) * zoom + corners[vi] * half_q;
     out.pos = vec4<f32>(p.x / max(u.f0.x, 0.01), -p.y, 0.0, 1.0);
     out.bright = live;
     if (live <= 0.0) {

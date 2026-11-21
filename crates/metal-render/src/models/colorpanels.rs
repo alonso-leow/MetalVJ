@@ -11,7 +11,7 @@ use crate::model::{spec, FloatSpec};
 use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
-    spec("density", 0.4, 9.6, 3.0),
+    spec("density", 0.4, 4.08, 3.0),
     spec("length", 0.2, 2.5, 1.1),
     spec("edges", 0.0, 1.0, 0.45),
     spec("blur", 0.0, 1.0, 0.0),

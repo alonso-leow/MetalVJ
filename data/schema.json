@@ -26996,6 +26996,13 @@
               "max": 1.0,
               "min": 0.0,
               "name": "bg_pulse"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 0.5,
+              "min": -0.5,
+              "name": "eye_rotation"
             }
           ],
           "type": "floats"
@@ -54011,6 +54018,44 @@
           ],
           "name": "background",
           "type": "color_slot"
+        },
+        {
+          "fields": [
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.4000000059604645,
+              "name": "zoom"
+            }
+          ],
+          "type": "floats"
+        },
+        {
+          "fields": [
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": -3.0,
+              "name": "cam_x"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": -3.0,
+              "name": "cam_y"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": -3.0,
+              "name": "cam_z"
+            }
+          ],
+          "type": "floats"
         },
         {
           "fields": [
@@ -93562,7 +93607,7 @@
             {
               "default": 3.0,
               "drive": 1.0,
-              "max": 9.600000381469727,
+              "max": 4.079999923706055,
               "min": 0.4000000059604645,
               "name": "density"
             },

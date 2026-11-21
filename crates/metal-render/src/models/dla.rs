@@ -91,6 +91,19 @@ const FLOATS: &[FloatSpec] = &[
     spec_held("seed", 0.0, 1.0, 0.0, 0.0),
 ];
 
+/// Camera: how far in the frame looks. Driven, so a beat can punch the
+/// whole coral in and out; 1 is the framing the model always had.
+const ZOOM_FLOATS: &[FloatSpec] = &[spec("zoom", 0.4, 4.0, 1.0)];
+
+/// Plain authorable floats (not a 3D pose, so no `camera_track`): `cam_x` /
+/// `cam_y` pan the frame across the field in world units, `cam_z` dollies
+/// (an extra zoom of `2^(cam_z/2)`). All default 0 = the old framing.
+const CAMERA_TRACK_FLOATS: &[FloatSpec] = &[
+    spec("cam_x", -3.0, 3.0, 0.0),
+    spec("cam_y", -3.0, 3.0, 0.0),
+    spec("cam_z", -3.0, 3.0, 0.0),
+];
+
 /// Ice on glass: a near-black navy core rising up through blue and cyan to
 /// a white-hot tip, which is the ramp that makes fresh growth read as the
 /// lit part of the picture. Linear values — dark on paper, right on a
@@ -108,6 +121,8 @@ pub static SCHEMA: Schema = Schema {
         Block::Floats(FLOATS),
         color_at("coral", &CORAL),
         background(),
+        Block::Floats(ZOOM_FLOATS),
+        Block::Floats(CAMERA_TRACK_FLOATS),
         crate::model::SIGNAL_FLOATS_BLOCK, crate::model::EFFECTS_FLOATS_BLOCK,
         crate::model::EFFECTS_COLOR_BLOCK,
     ],
@@ -158,6 +173,8 @@ struct Uniform {
     f2: [f32; 4],
     // zancada, radio, cell_world, seed_key
     f3: [f32; 4],
+    // zoom (zoom * dolly), pan_x, pan_y, unused
+    f4: [f32; 4],
 }
 
 /// Every GPU resource that does not depend on the target format: the
@@ -865,6 +882,12 @@ impl Model for Dla {
             f1: [floats[8], floats[9], floats[10], active],
             f2: [self.sim.steps_done as f32 + 1.0, floats[2], floats[3], floats[4]],
             f3: [floats[5], floats[6], cell_world, seed_key as f32],
+            f4: [
+                floats[37].clamp(0.4, 4.0) * (floats[40].clamp(-3.0, 3.0) * 0.5).exp2(),
+                floats[38].clamp(-3.0, 3.0),
+                floats[39].clamp(-3.0, 3.0),
+                0.0,
+            ],
         };
         let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("dla uniform"),
@@ -988,16 +1011,17 @@ mod tests {
 
     #[test]
     fn the_schema_and_the_slices_render_reads_are_the_same_width() {
-        // 13 floats + coral + fondo. `render` slices `[13..25]` and
-        // `[25..37]` by hand, and indexes `floats[0]`..`floats[12]`.
+        // 13 floats + coral + fondo + zoom + cam_x/y/z. `render` slices
+        // `[13..25]` and `[25..37]` by hand, indexes `floats[0]`..`[12]`
+        // and the camera at 37..41.
         assert_eq!(FLOATS.len(), 13);
         assert_eq!(
             SCHEMA.width(),
-            37 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH
+            41 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH
         );
         assert_eq!(
             SCHEMA.defaults().len(),
-            37 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH
+            41 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH
         );
     }
 

@@ -33,7 +33,7 @@ struct MenganoUniform {
     // material.wgsl, prepended ahead of this file.
     // x/y scale of the dance squash (world axes), tilt of the face (rad), jelly ripple
     dance: vec4<f32>,
-    // eye lag xy (world), unused, light angle (rad, world space)
+    // eye lag xy (world), eye rotation (rad), light angle (rad, world space)
     dance2: vec4<f32>,
     // aura, halo, rim boost, emissive
     glow1: vec4<f32>,
@@ -229,10 +229,15 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
         let gaze = mix(saccade_target(tick - 1.0, bias), saccade_target(tick, bias), ease) * 0.5;
 
         let open = clamp(u.eyes.z, 0.0, 1.0);
+        // The eyes live in the ball's unit coordinates (so they still squash
+        // and stretch with the body) but turned back to world axes, so they
+        // do not rotate with the direction of travel; `eye_rotation` is the
+        // only turn they get, on top of the dance tilt.
+        let le = rot2(local.x * ax + local.y * ay, -u.dance.z - u.dance2.z);
         for (var e = 0; e < 2; e = e + 1) {
-            let lag_l = rot2(vec2<f32>(dot(u.dance2.xy, ax), dot(u.dance2.xy, ay)), -u.dance.z);
+            let lag_l = rot2(u.dance2.xy, -u.dance.z - u.dance2.z);
             let centre = vec2<f32>(select(-sep, sep, e == 1), lift) + lag_l * radius;
-            let q = lr - centre;
+            let q = le - centre;
             let ed = length(q) - eye_r;
             let eaa = max(fwidth(ed), 1e-5);
             let in_eye = 1.0 - smoothstep(-eaa, eaa, ed);

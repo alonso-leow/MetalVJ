@@ -1,0 +1,92 @@
+{
+ "id": "humo-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "smoke"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "cut"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    0.3,
+    0.3,
+    0.3,
+    0.9,
+    0.3,
+    0.3,
+    0.3,
+    0.9,
+    0.3,
+    0.3,
+    0.3,
+    0.9,
+    0.3,
+    0.3,
+    0.3
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "density"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    null,
+    0.5,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    0.5,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "smoke",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

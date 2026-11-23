@@ -1,0 +1,96 @@
+{
+ "id": "scratch-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "scratch"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "width"
+   },
+   "curve": "step",
+   "steps": [
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    0.5,
+    null,
+    0.1,
+    null,
+    null,
+    null,
+    0.6,
+    0.45,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "edge"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    0.3,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "element",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    {
+     "colour": 3
+    },
+    null,
+    {
+     "colour": 1
+    },
+    null
+   ]
+  }
+ ]
+}

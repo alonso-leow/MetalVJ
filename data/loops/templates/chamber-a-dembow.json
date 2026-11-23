@@ -1,0 +1,92 @@
+{
+ "id": "chamber-a-dembow",
+ "name": "Dembow",
+ "target": {
+  "model": "chamber"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "height"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    0.2,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "origin_x"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "fire"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null
+   ]
+  }
+ ]
+}

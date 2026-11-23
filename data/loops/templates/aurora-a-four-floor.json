@@ -1,0 +1,13 @@
+{
+ "id": "aurora-a-four-floor",
+ "name": "Four Floor",
+ "target": {"model": "aurora"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "impact"}, "curve": "step",
+   "steps": [0.9, null, null, null, 0.9, null, null, null, 0.9, null, null, null, 0.9, null, 0.5, null]},
+  {"target": {"kind": "float", "param": "energy"}, "curve": "step",
+   "steps": [0.3, null, null, null, 0.5, null, null, null, 0.7, null, null, null, 0.9, null, null, null]},
+  {"target": {"kind": "palette", "slot": "palette", "palette": "neon"},
+   "steps": [{"colour": 3}, null, null, null, {"colour": 0}, null, null, null, {"colour": 3}, null, null, null, {"colour": 0}, null, {"colour": 3}, null]}
+ ]
+}

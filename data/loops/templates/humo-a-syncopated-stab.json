@@ -1,0 +1,92 @@
+{
+ "id": "humo-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "smoke"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "light"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    0.8,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "cut"
+   },
+   "curve": "step",
+   "steps": [
+    0.7,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    0.2,
+    null,
+    null,
+    null,
+    0.7,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "smoke",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null
+   ]
+  }
+ ]
+}

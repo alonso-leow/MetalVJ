@@ -1,0 +1,1 @@
+{ "id": "portal-atras", "name": "Portal atrás", "kind": "portal", "duration": 8, "unit": "beats", "ease": "linear", "dir": "right", "angle": 180, "via": "auto" }

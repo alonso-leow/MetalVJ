@@ -1,0 +1,23 @@
+# A warm/cool bi-white fixture, as data: two white channels and a master, no
+# RGB and no movement. `a` is the warm channel and `b` the cool one, so a
+# non-RGB lamp still takes a colour (fixtures F5): `fixture::colour_signal`
+# splits a colour's warmth across `a` and `b`, and this profile's own
+# `[[channel]]`s read them through the one remap. Same conventions as
+# `example-wash.toml`: slots are 0-based offsets from `address` (1-based, as a
+# desk numbers them).
+
+label = "Example Bi-White (warm/cool)"
+universe = 0
+address = 30
+
+[[channel]]
+signal = "level"
+coarse = 0
+
+[[channel]]
+signal = "a"
+coarse = 1
+
+[[channel]]
+signal = "b"
+coarse = 2

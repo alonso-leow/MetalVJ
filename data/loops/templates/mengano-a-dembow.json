@@ -1,0 +1,13 @@
+{
+ "id": "mengano-a-dembow",
+ "name": "Dembow",
+ "target": {"model": "someone"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "teleport"}, "curve": "step",
+   "steps": [0.85, null, null, 0.85, null, null, 0.15, 0.85, null, null, 0.15, null, null, null, 0.85, null]},
+  {"target": {"kind": "float", "param": "eyes"}, "curve": "step",
+   "steps": [0.2, null, null, null, 0.9, null, null, null, 0.2, null, null, null, 0.9, null, null, null]},
+  {"target": {"kind": "palette", "slot": "background", "palette": "fire"},
+   "steps": [{"colour": 1}, null, null, null, {"colour": 3}, null, null, null, {"colour": 1}, null, null, null, {"colour": 3}, null, {"colour": 0}, null]}
+ ]
+}

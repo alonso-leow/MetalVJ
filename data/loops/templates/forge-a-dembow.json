@@ -1,0 +1,11 @@
+{
+ "id": "forge-a-dembow",
+ "name": "Dembow",
+ "target": {"model": "forge"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "rms"}, "curve": "step",
+   "steps": [null, null, null, 0.85, null, null, 0.85, null, null, null, 0.85, null, null, null, 0.85, null]},
+  {"target": {"kind": "float", "param": "bandwidth"}, "curve": "step",
+   "steps": [null, null, null, null, 0.9, null, null, null, null, null, null, null, 0.9, null, null, null]}
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "id": "fx-image-pop-pop-beat",
+ "name": "Pop beat",
+ "target": {
+  "effect": "image-pop"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "rate"
+   },
+   "curve": "ramp",
+   "steps": [0.6, 0.352, 0.215, 0.133, 0.6, 0.352, 0.215, 0.133, 0.6, 0.352, 0.215, 0.133, 0.6, 0.352, 0.215, 0.133]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "scale"
+   },
+   "curve": "step",
+   "steps": [0.2, 0.2, 0.2, 0.2, 0.5, 0.32, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.5, 0.32, 0.2, 0.2]
+  }
+ ]
+}

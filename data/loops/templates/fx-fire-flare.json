@@ -1,0 +1,16 @@
+{
+ "id": "fx-fire-flare",
+ "name": "Flare",
+ "target": {
+  "effect": "fire"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "ramp",
+   "steps": [0.8, 0.485, 0.31, 0.205, 0.8, 0.485, 0.31, 0.205, 0.8, 0.485, 0.31, 0.205, 0.8, 0.485, 0.31, 0.205]
+  }
+ ]
+}

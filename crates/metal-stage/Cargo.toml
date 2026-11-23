@@ -1,0 +1,13 @@
+[package]
+name = "metal-stage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Pure maths and data: the stage hitbox grid, the float names the fixture AI speaks,
+# the patch → matrix mapping, the sequence state and the audio-tick dataset.
+# No graphics, no I/O beyond serde. `metal-perform` adapts a venue into a `Patch`.
+[dependencies]
+metal-schema = { path = "../metal-schema" }
+serde.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,26 @@
+# A fixture profile, as data: an RGB wash with no movement. Referenced by
+# the washes in `data/agent/venues/bar.toml`, which take hue/sat/level from
+# the projected frame where their beam lands (`venue::light_floats`).
+#
+# Same conventions as `example-moving-head.toml`: slots are 0-based offsets
+# from `address` (1-based, as a desk numbers them).
+
+label = "Example RGB Wash"
+universe = 0
+address = 20
+
+[[channel]]
+signal = "level"
+coarse = 0
+
+[[channel]]
+signal = "hue"
+coarse = 1
+
+[[channel]]
+signal = "sat"
+coarse = 2
+
+[[channel]]
+signal = "strobe"
+coarse = 3

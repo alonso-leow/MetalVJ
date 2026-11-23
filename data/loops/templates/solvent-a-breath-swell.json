@@ -1,0 +1,88 @@
+{
+ "id": "solvent-a-breath-swell",
+ "name": "Breath Swell",
+ "target": {
+  "model": "solvent"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "smudge"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.15,
+    0.3,
+    0.45,
+    0.6,
+    0.75,
+    0.9,
+    0.9,
+    0.8,
+    0.65,
+    0.5,
+    0.35,
+    0.25,
+    0.2,
+    0.2,
+    0.15,
+    0.15
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "granular"
+   },
+   "curve": "step",
+   "steps": [
+    0.2,
+    null,
+    null,
+    null,
+    0.35,
+    null,
+    null,
+    null,
+    0.5,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "liquid_a",
+    "palette": "rays"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

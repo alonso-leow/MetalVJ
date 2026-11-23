@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# The digest interpreter, installed once.
+#
+# The Library's ingest runs `data/digest/digest_audio.py`, which imports
+# librosa. The system `python3` on a fresh machine does not have it, so the
+# song lands as `failed` and the lanes open with no matrix. This creates the
+# project venv the digester falls back to (`~/.cache/metalvj/venv`) and
+# installs what the one extractor needs.
+#
+# Run it once: `scripts/setup-digest`. Re-running is safe — the venv is reused
+# and pip is idempotent. The interpreter it prints is the one the digester
+# resolves next (unless `FW_PYTHON` overrides it).
+set -euo pipefail
+
+VENV="${HOME:?HOME is not set}/.cache/metalvj/venv"
+PYTHON="${VENV}/bin/python"
+
+if [ ! -x "$PYTHON" ]; then
+    echo "creating ${VENV}"
+    python3 -m venv "$VENV"
+fi
+
+"$PYTHON" -m pip install --upgrade pip
+"$PYTHON" -m pip install librosa numpy
+
+echo "digest interpreter: ${PYTHON}"

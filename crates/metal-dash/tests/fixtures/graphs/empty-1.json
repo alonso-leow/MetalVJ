@@ -1,0 +1,97 @@
+{
+  "id": "empty-1",
+  "name": "empty",
+  "domain": "live",
+  "nodes": [
+    {
+      "id": "fx-0",
+      "kind": "fx.shake",
+      "pos": [
+        608.1992,
+        73.58984
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    },
+    {
+      "id": "gen-0",
+      "kind": "gen.entrance",
+      "pos": [
+        -28.589844,
+        9.390625
+      ],
+      "label": "entrance",
+      "bypass": false,
+      "solo": false,
+      "config": {
+        "blend": "normal",
+        "feed": "model",
+        "library": null,
+        "mask": null,
+        "opacity": 1.0,
+        "picked": [],
+        "sector": {
+          "h": 1.0,
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        "source_id": "l0-0",
+        "z": 0
+      }
+    },
+    {
+      "id": "gen-1",
+      "kind": "gen.geoterrain",
+      "pos": [
+        237.63672,
+        91.890625
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": {
+        "blend": null,
+        "mask": null,
+        "opacity": null,
+        "sector": null,
+        "z": 0
+      }
+    },
+    {
+      "id": "out-0",
+      "kind": "output.device",
+      "pos": [
+        800.0,
+        0.0
+      ],
+      "label": "",
+      "bypass": false,
+      "solo": false,
+      "config": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-0",
+      "from": {
+        "node": "gen-0",
+        "port": "image"
+      },
+      "to": {
+        "node": "out-0",
+        "port": "image"
+      }
+    }
+  ],
+  "ids": {
+    "next": {
+      "edge": 1,
+      "fx": 1,
+      "gen": 2,
+      "out": 1
+    }
+  }
+}

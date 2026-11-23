@@ -1,0 +1,32 @@
+{
+  "domain": "venue",
+  "step": "retarget-absent-cell",
+  "date": "2026-11-13",
+  "status": "ready",
+  "requires": "a running metal-dash reachable through metal-mcp; the bar venue on disk",
+  "venue": "bar",
+  "calls": [
+    {
+      "tool": "stage_matrix",
+      "args": {
+        "op": "retarget",
+        "venue": "bar",
+        "floats": {
+          "l3.house.c.led_bar.p2.level": 1.0,
+          "l2.back.l.spot.level": 0.5,
+          "not.a.float": 1.0
+        }
+      }
+    },
+    {
+      "tool": "look_venue",
+      "args": {
+        "id": "bar"
+      },
+      "reads": "fixtures"
+    }
+  ],
+  "expect": {
+    "read": "retarget.floats holds only names of the bar's own matrix; retarget.moved names where the pixel segment and the spot landed (a stand-in type at the same point, else the nearest point holding the type); retarget.dropped is [\"not.a.float\"]"
+  }
+}

@@ -1,0 +1,13 @@
+{
+ "id": "parallax-cueva-a-slow-breath",
+ "name": "Slow Breath",
+ "target": {"model": "parallax-cave"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "fog"}, "curve": "ramp",
+   "steps": [0.15, 0.2, 0.27, 0.35, 0.44, 0.53, 0.62, 0.7, 0.76, 0.8, 0.8, 0.76, 0.7, 0.6, 0.45, 0.3]},
+  {"target": {"kind": "float", "param": "swing"}, "curve": "step",
+   "steps": [0.2, null, null, null, null, null, null, null, 0.6, null, null, null, null, null, null, null]},
+  {"target": {"kind": "palette", "slot": "background", "palette": "skies"},
+   "steps": [{"colour": 0}, null, null, null, null, null, null, null, {"colour": 2}, null, null, null, {"colour": 3}, null, null, null]}
+ ]
+}

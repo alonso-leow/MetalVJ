@@ -1,0 +1,16 @@
+{
+ "id": "fx-text-jitter-snap",
+ "name": "Snap",
+ "target": {
+  "effect": "text.jitter"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "step",
+   "steps": [0.0, 0.0, 0.0, 0.0, 0.8, 0.32, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.32, 0.0, 0.0]
+  }
+ ]
+}

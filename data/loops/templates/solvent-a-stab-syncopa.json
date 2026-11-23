@@ -1,0 +1,115 @@
+{
+ "id": "solvent-a-stab-syncopa",
+ "name": "Stab Syncopa",
+ "target": {
+  "model": "solvent"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "hit"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    0.1,
+    0.1,
+    null,
+    0.8,
+    null,
+    null,
+    0.9,
+    null,
+    0.1,
+    null,
+    0.8,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "granular"
+   },
+   "curve": "step",
+   "steps": [
+    0.8,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.8,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "mix"
+   },
+   "curve": "step",
+   "steps": [
+    0.1,
+    null,
+    null,
+    null,
+    0.1,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    0.9,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "background",
+    "palette": "backgrounds"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

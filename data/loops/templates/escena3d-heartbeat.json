@@ -1,0 +1,25 @@
+{
+ "id": "escena3d-heartbeat",
+ "name": "Heartbeat",
+ "target": {
+  "model": "scene3d"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "grid_scale"
+   },
+   "curve": "ramp",
+   "steps": [0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255, 0.85, 0.535, 0.36, 0.255]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "metal"
+   },
+   "curve": "ramp",
+   "steps": [0.15, 0.253, 0.5, 0.747, 0.85, 0.747, 0.5, 0.253, 0.15, 0.253, 0.5, 0.747, 0.85, 0.747, 0.5, 0.253]
+  }
+ ]
+}

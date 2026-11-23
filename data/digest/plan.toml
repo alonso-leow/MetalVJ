@@ -1,0 +1,242 @@
+# The corpus plan: what to dance, before any node has a value.
+#
+# Every entry here is a PERFORMANCE, not a dataset row. Each performance
+# becomes several dataset outputs for free, after filming, through
+# koreo-stage: N-dancer figures (row/column/triangle/circle/square) and
+# mirror links (Body::Mirror, derived not baked) multiply one recording
+# into many training examples without dancing it again. That multiplier
+# is not listed per-row below — apply it once, at annotation time, to
+# whichever takes you choose to expand.
+#
+# `nodes = "pending"` on every row: this file fixes genre, tempo, effort,
+# style, and difficulty target ahead of time so the only thing missing
+# after filming is the node values themselves.
+
+[metronome]
+# Isolates INTENTION from geometry. No melody, no genre — a click track
+# carries tempo and nothing else, on purpose (the design notes §5 Phase 2). Every
+# BPM already yields all 8 Laban efforts per take, for free:
+#
+#   koreo-click set --bpm 60,76,96,120,144 --out data/click/
+#
+# Nothing to design here; run the command. Difficulty and style do not
+# apply to this corpus by construction.
+bpm = [60, 76, 96, 120, 144]
+command = "koreo-click set --bpm 60,76,96,120,144 --out data/click/"
+note = "already fully specified; the only missing thing is the operator dancing it"
+
+# ---------------------------------------------------------------------------
+# Score takes: the music -> dance mapping (the design notes Phase 2, "real songs are
+# the primary examples"). Six Debussy solo-piano pieces, public domain,
+# spanning tempo and character. Bring your own recording; nothing here
+# names or ships an audio file.
+#
+# Three variants per piece:
+#   a. LITERAL   — style and effort matched to the piece's own character.
+#                  Low difficulty. This is the baseline reading.
+#   b. CONTRAST  — a deliberately mismatched genre/effort on the same
+#                  melody. This is what "even genres" asks for: it tests
+#                  whether the notation can separate music from motion,
+#                  not just recover the obvious reading.
+#   c. STRETCH   — the literal style pushed to high difficulty: denser
+#                  vocabulary, same effort/style target, harder body.
+#                  Exercises the difficulty channel's range.
+# ---------------------------------------------------------------------------
+
+[[score]]
+id = "clair-de-lune-a"
+piece = "Clair de Lune (Suite bergamasque, III)"
+character = "slow, suspended, legato"
+variant = "literal"
+genre = "contemporary"
+style = { contemporary = 0.8, lyrical = 0.2 }
+effort = ["Float", "Glide"]
+difficulty = 0.2
+nodes = "pending"
+
+[[score]]
+id = "clair-de-lune-b"
+piece = "Clair de Lune (Suite bergamasque, III)"
+character = "slow, suspended, legato"
+variant = "contrast"
+genre = "hip-hop"
+style = { hip_hop = 0.7, popping = 0.3 }
+effort = ["Punch", "Slash"]
+difficulty = 0.3
+nodes = "pending"
+
+[[score]]
+id = "clair-de-lune-c"
+piece = "Clair de Lune (Suite bergamasque, III)"
+character = "slow, suspended, legato"
+variant = "stretch"
+genre = "contemporary"
+style = { contemporary = 0.8, lyrical = 0.2 }
+effort = ["Float", "Glide"]
+difficulty = 0.85
+nodes = "pending"
+
+[[score]]
+id = "reverie-a"
+piece = "Rêverie"
+character = "slow, dreamlike, sustained"
+variant = "literal"
+genre = "contemporary"
+style = { contemporary = 0.6, lyrical = 0.4 }
+effort = ["Float", "Wring"]
+difficulty = 0.2
+nodes = "pending"
+
+[[score]]
+id = "reverie-b"
+piece = "Rêverie"
+character = "slow, dreamlike, sustained"
+variant = "contrast"
+genre = "salsa"
+style = { salsa = 1.0 }
+effort = ["Punch", "Press"]
+difficulty = 0.35
+nodes = "pending"
+
+[[score]]
+id = "reverie-c"
+piece = "Rêverie"
+character = "slow, dreamlike, sustained"
+variant = "stretch"
+genre = "contemporary"
+style = { contemporary = 0.6, lyrical = 0.4 }
+effort = ["Float", "Wring"]
+difficulty = 0.85
+nodes = "pending"
+
+[[score]]
+id = "arabesque-1-a"
+piece = "Arabesque No. 1"
+character = "flowing, moderate, rippling"
+variant = "literal"
+genre = "ballet"
+style = { ballet = 0.7, contemporary = 0.3 }
+effort = ["Glide", "Float"]
+difficulty = 0.3
+nodes = "pending"
+
+[[score]]
+id = "arabesque-1-b"
+piece = "Arabesque No. 1"
+character = "flowing, moderate, rippling"
+variant = "contrast"
+genre = "waacking"
+style = { waacking = 1.0 }
+effort = ["Slash", "Flick"]
+difficulty = 0.4
+nodes = "pending"
+
+[[score]]
+id = "arabesque-1-c"
+piece = "Arabesque No. 1"
+character = "flowing, moderate, rippling"
+variant = "stretch"
+genre = "ballet"
+style = { ballet = 0.7, contemporary = 0.3 }
+effort = ["Glide", "Float"]
+difficulty = 0.85
+nodes = "pending"
+
+[[score]]
+id = "arabesque-2-a"
+piece = "Arabesque No. 2"
+character = "brighter, moderate-fast, playful"
+variant = "literal"
+genre = "jazz"
+style = { jazz = 0.7, contemporary = 0.3 }
+effort = ["Flick", "Glide"]
+difficulty = 0.35
+nodes = "pending"
+
+[[score]]
+id = "arabesque-2-b"
+piece = "Arabesque No. 2"
+character = "brighter, moderate-fast, playful"
+variant = "contrast"
+genre = "reggaeton"
+style = { reggaeton = 1.0 }
+effort = ["Press", "Punch"]
+difficulty = 0.4
+nodes = "pending"
+
+[[score]]
+id = "arabesque-2-c"
+piece = "Arabesque No. 2"
+character = "brighter, moderate-fast, playful"
+variant = "stretch"
+genre = "jazz"
+style = { jazz = 0.7, contemporary = 0.3 }
+effort = ["Flick", "Glide"]
+difficulty = 0.85
+nodes = "pending"
+
+[[score]]
+id = "fille-cheveux-lin-a"
+piece = "La fille aux cheveux de lin (Préludes, Bk 1, No. 8)"
+character = "slow, tender, understated"
+variant = "literal"
+genre = "contemporary"
+style = { contemporary = 1.0 }
+effort = ["Float", "Press"]
+difficulty = 0.2
+nodes = "pending"
+
+[[score]]
+id = "fille-cheveux-lin-b"
+piece = "La fille aux cheveux de lin (Préludes, Bk 1, No. 8)"
+character = "slow, tender, understated"
+variant = "contrast"
+genre = "bachata"
+style = { bachata = 1.0 }
+effort = ["Wring", "Press"]
+difficulty = 0.3
+nodes = "pending"
+
+[[score]]
+id = "fille-cheveux-lin-c"
+piece = "La fille aux cheveux de lin (Préludes, Bk 1, No. 8)"
+character = "slow, tender, understated"
+variant = "stretch"
+genre = "contemporary"
+style = { contemporary = 1.0 }
+effort = ["Float", "Press"]
+difficulty = 0.85
+nodes = "pending"
+
+[[score]]
+id = "golliwog-a"
+piece = "Golliwog's Cakewalk (Children's Corner, VI)"
+character = "fast, syncopated, playful"
+variant = "literal"
+genre = "jazz"
+style = { jazz = 0.6, tap = 0.4 }
+effort = ["Punch", "Flick"]
+difficulty = 0.4
+nodes = "pending"
+
+[[score]]
+id = "golliwog-b"
+piece = "Golliwog's Cakewalk (Children's Corner, VI)"
+character = "fast, syncopated, playful"
+variant = "contrast"
+genre = "contemporary"
+style = { contemporary = 1.0 }
+effort = ["Float", "Glide"]
+difficulty = 0.3
+nodes = "pending"
+
+[[score]]
+id = "golliwog-c"
+piece = "Golliwog's Cakewalk (Children's Corner, VI)"
+character = "fast, syncopated, playful"
+variant = "stretch"
+genre = "jazz"
+style = { jazz = 0.6, tap = 0.4 }
+effort = ["Punch", "Flick"]
+difficulty = 0.9
+nodes = "pending"

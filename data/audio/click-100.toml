@@ -1,0 +1,5 @@
+name = "click-100"
+bpm = 100.0
+beats_per_bar = 4
+bars = 16
+body_start = 1.395

@@ -1,0 +1,94 @@
+{
+ "id": "geoterrain-a-four-floor",
+ "name": "Four Floor",
+ "target": {
+  "model": "geoterrain"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "radius"
+   },
+   "curve": "step",
+   "steps": [
+    0.95,
+    0.3,
+    0.3,
+    0.3,
+    0.95,
+    0.3,
+    0.3,
+    0.3,
+    0.95,
+    0.3,
+    0.3,
+    0.3,
+    0.95,
+    0.3,
+    0.3,
+    0.3
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "thickness"
+   },
+   "curve": "step",
+   "steps": [
+    0.1,
+    null,
+    null,
+    null,
+    0.7,
+    null,
+    null,
+    null,
+    0.1,
+    null,
+    null,
+    0.4,
+    0.7,
+    null,
+    null,
+    0.4
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "spiral",
+    "palette": "neon"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    {
+     "colour": 2
+    },
+    null
+   ]
+  }
+ ]
+}

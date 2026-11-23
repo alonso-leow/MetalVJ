@@ -1,0 +1,25 @@
+{
+ "id": "fx-warp-breathe",
+ "name": "Breathe",
+ "target": {
+  "effect": "warp"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "mode"
+   },
+   "curve": "step",
+   "steps": [0.08, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "amount"
+   },
+   "curve": "ramp",
+   "steps": [0.0, 0.019, 0.073, 0.154, 0.25, 0.346, 0.427, 0.481, 0.5, 0.481, 0.427, 0.346, 0.25, 0.154, 0.073, 0.019]
+  }
+ ]
+}

@@ -1,0 +1,67 @@
+[
+  {
+    "id": "empty-1",
+    "name": "empty",
+    "layers": [
+      {
+        "id": "l0-0",
+        "name": "entrance",
+        "model": 3,
+        "opacity": 1.0,
+        "z": 0,
+        "blend": "normal",
+        "sector": {
+          "x": 0.0,
+          "y": 0.0,
+          "w": 1.0,
+          "h": 1.0
+        },
+        "active": true,
+        "solo": false,
+        "base": null,
+        "library": null,
+        "feed": "model",
+        "picked": [],
+        "mask": null,
+        "fondo_alpha": false,
+        "giro": 0.0,
+        "giro_mode": "crop",
+        "outputs": [],
+        "effects": {
+          "version": 1,
+          "shake": 0.0,
+          "light_leak": 0.0,
+          "leak_color": [
+            1.0,
+            0.9,
+            0.6,
+            1.0,
+            0.3,
+            0.9,
+            0.9,
+            0.2,
+            0.6,
+            0.6,
+            0.8,
+            1.0
+          ],
+          "ghost": 0.0,
+          "kaleido": 0.0,
+          "crt": 0.0,
+          "glitch": 0.0,
+          "posterize": 0.0,
+          "zoom": 0.0,
+          "fire": 0.0,
+          "lorenz": 0.0,
+          "vignette": 0.0,
+          "blur": 0.0,
+          "sharpen": 0.0,
+          "grain": 0.0,
+          "chain": []
+        },
+        "fijo_mask": 0
+      }
+    ],
+    "composition": "overlap"
+  }
+]

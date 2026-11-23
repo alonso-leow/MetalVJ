@@ -1,0 +1,33 @@
+{
+ "id": "fx-clarity-clarity",
+ "name": "Clarity",
+ "target": {
+  "effect": "clarity"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "amount"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.6,
+    0.33,
+    0.18,
+    0.09,
+    0.6,
+    0.33,
+    0.18,
+    0.09,
+    0.6,
+    0.33,
+    0.18,
+    0.09,
+    0.6,
+    0.33,
+    0.18,
+    0.09
+   ]
+  }
+ ]
+}

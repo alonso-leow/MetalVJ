@@ -1,0 +1,41 @@
+{
+ "id": "rings-climb",
+ "name": "Climb",
+ "target": {
+  "model": "rings"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "impulse"
+   },
+   "curve": "step",
+   "steps": [0.15, 0.197, 0.243, 0.29, 0.337, 0.383, 0.43, 0.477, 0.523, 0.57, 0.617, 0.663, 0.71, 0.757, 0.803, 0.85]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "shine"
+   },
+   "curve": "step",
+   "steps": [0.15, null, null, null, 0.29, null, null, null, 0.15, null, null, null, 0.85, 0.36, 0.85, 0.36]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "alternate"
+   },
+   "curve": "ramp",
+   "steps": [0.15, 0.177, 0.253, 0.366, 0.5, 0.634, 0.747, 0.823, 0.85, 0.823, 0.747, 0.634, 0.5, 0.366, 0.253, 0.177]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "rings",
+    "palette": "rays"
+   },
+   "steps": [{"colour": 0}, null, null, null, null, null, null, null, null, null, null, null, {"colour": 3}, {"colour": 0}, {"colour": 3}, {"colour": 0}]
+  }
+ ]
+}

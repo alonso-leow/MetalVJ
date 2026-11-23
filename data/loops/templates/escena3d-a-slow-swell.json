@@ -1,0 +1,59 @@
+{
+ "id": "escena3d-a-slow-swell",
+ "name": "Slow Swell",
+ "target": {
+  "model": "scene3d"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "grid_gap"
+   },
+   "curve": "ramp",
+   "steps": [
+    0.05,
+    0.14,
+    0.25,
+    0.37,
+    0.5,
+    0.63,
+    0.75,
+    0.86,
+    0.95,
+    0.86,
+    0.75,
+    0.63,
+    0.5,
+    0.37,
+    0.25,
+    0.14
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "bg_b"
+   },
+   "curve": "step",
+   "steps": [
+    0.1,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

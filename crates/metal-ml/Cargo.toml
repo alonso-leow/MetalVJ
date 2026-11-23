@@ -1,0 +1,25 @@
+[package]
+name = "metal-ml"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# D6: one runtime crate for every ONNX model the repo will ever load. ONNX
+# Runtime is a heavy dependency that fetches a prebuilt native library at
+# build time, so this crate owns it and nobody else does — swapping it for
+# `tract` later is a change in one Cargo.toml.
+#
+# metal-sense's exact line. `default-features = false, features = ["ndarray",
+# "half"]` was tried first (per the plan's step 1) but cannot compile: ort's
+# `ndarray` path needs `ndarray::NdFloat`, which lives behind ndarray's `std`
+# feature, which ort only enables through its own `std`. ort's default feature
+# set supplies `std` plus `download-binaries`, and the prebuilt native library
+# is already cached under ~/.cache/ort.pyke.io, so this is the line that
+# builds offline. See step 1's outcome in the report.
+[dependencies]
+ort = { version = "2.0.0-rc.13" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+sha2 = "0.10"

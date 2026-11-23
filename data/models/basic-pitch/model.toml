@@ -1,0 +1,24 @@
+# Basic Pitch (Spotify AB) — polyphonic note/onset posterior model.
+#
+# Licence: Apache-2.0 — see NOTICE at the repo root.
+#
+# `model.onnx` is VENDORED (committed, 230 KB) and sha256-checked: `metal_ml`
+# refuses to load it if the bytes do not match `sha256` below. The `url` is
+# provenance only — where the file came from, not a fetch requirement. Tests
+# that need the model skip cleanly if it is absent, but it is expected present.
+#
+# Provenance: basic_pitch/saved_models/icassp_2022/nmp.onnx in spotify/basic-pitch
+# (tf2onnx export).
+#
+# Input:  "serving_default_input_2:0", float32 [1, 43844, 1] at 22 050 Hz
+#         (fixed 2 s window; verified by running the model).
+# Outputs (by name — the session lists them as :2, :1, :0, so never by index):
+#   StatefulPartitionedCall:1  note   [1, 172, 88]  sustained pitch posterior
+#   StatefulPartitionedCall:2  onset  [1, 172, 88]  attack posterior (spiky)
+#   StatefulPartitionedCall:0  contour [1, 172, 264]  (unused by tone)
+url = "https://raw.githubusercontent.com/spotify/basic-pitch/main/basic_pitch/saved_models/icassp_2022/nmp.onnx"
+sha256 = "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec"
+file = "model.onnx"
+inputs = ["serving_default_input_2:0"]
+outputs = ["StatefulPartitionedCall:1", "StatefulPartitionedCall:2"]
+licence = "Apache-2.0"

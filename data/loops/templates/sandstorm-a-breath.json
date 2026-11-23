@@ -1,0 +1,10 @@
+{
+ "id": "sandstorm-a-breath",
+ "name": "Breath",
+ "target": {"model": "sandstorm"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "shine"}, "curve": "ramp", "steps": [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]},
+  {"target": {"kind": "float", "param": "width"}, "curve": "ramp", "steps": [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]},
+  {"target": {"kind": "palette", "slot": "sand", "palette": "skies"}, "steps": [{"colour": 0}, null, null, null, null, null, null, null, {"colour": 2}, null, null, null, null, null, null, null]}
+ ]
+}

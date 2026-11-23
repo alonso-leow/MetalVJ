@@ -1,0 +1,12 @@
+# Voice labels for one song, hand-marked by listening.
+#
+# Resolution: ~1 s. Times are seconds from the start of the file.
+# `voice` is half-open [start, end); everything NOT listed is no voice.
+# `style` is optional, one entry per voice span (sing | rap | speak | whisper).
+#
+# click-100 is a click track: it has no voice by definition, so this is a
+# real label, not a pending template. Any presence detected on it is a false
+# alarm, and that is the only ground truth the probe has until the six songs
+# are marked.
+song = "click-100"
+voice = []

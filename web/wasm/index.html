@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MetalVJ: fixed scene</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #f6f5f2; --fg: #1d1c1a; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #161513; --fg: #ece9e2; } }
+    :root[data-theme="dark"] { --bg: #161513; --fg: #ece9e2; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 15px/1.4 system-ui, sans-serif; }
+    #the_canvas_id { display: block; width: 100%; height: 100%; }
+    #status { position: fixed; left: 16px; bottom: 12px; opacity: .7; }
+    #brand { position: fixed; left: 16px; top: 12px; font: 700 20px/1 system-ui, sans-serif; letter-spacing: .02em; }
+    #brand .logo-metal { color: #4d8dff; }
+    #brand .logo-vj { color: #ff2e2e; }
+    @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) #brand .logo-metal { color: #1f5fd6; } :root:not([data-theme="dark"]) #brand .logo-vj { color: #d62828; } }
+    :root[data-theme="light"] #brand .logo-metal { color: #1f5fd6; }
+    :root[data-theme="light"] #brand .logo-vj { color: #d62828; }
+  </style>
+</head>
+<body>
+  <canvas id="the_canvas_id"></canvas>
+  <div id="brand" aria-label="MetalVJ"><span class="logo-metal">Metal</span><span class="logo-vj">VJ</span></div>
+  <p id="status">loading the scene…</p>
+  <script type="module">
+    import init from "./pkg/metal_dash.js";
+    init()
+      .then(() => { document.getElementById("status").remove(); document.getElementById("brand").remove(); })
+      .catch((e) => {
+        document.getElementById("status").textContent =
+          "could not start: " + e + " (run scripts/build-wasm.sh first, and serve over http)";
+      });
+  </script>
+</body>
+</html>

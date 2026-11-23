@@ -1,0 +1,267 @@
+# Few-shot example: the main one. A bar, indoors, read from two cameras.
+#
+# The model reads each camera's image into a [[shot]] (the six fields, in
+# order: camera angle, projection-point angle, projector distance, floor
+# brightness, background brightness, horizon path), then writes the one
+# venue both shots agree on. Every number below is what the venue's own
+# geometry gives back (`metal_perform::venue::Venue::check`), with the small
+# disagreements two real readings have.
+#
+# Units: metres, +y up, floor at y = 0, the open side of the bar at z = 0 and
+# the back wall at z = -5. yaw 0 looks toward the back wall (-z), +90 looks
+# right (+x); pitch > 0 looks up. A surface is origin + s*u + t*v with (0,0)
+# its top-left seen from the lit side.
+#
+# Image points are read off the 9 x 9 grid drawn over each image (columns
+# numbered along the top, rows down the left): [column, row, part], with
+# part the ninth of the cell the point sits in, numbered like a phone keypad
+# (1 2 3 / 4 5 6 / 7 8 9). A corner outside the picture keeps counting cells
+# past the edge: column 0 is left of column 1, row 10 below row 9.
+
+[venue]
+id = "bar"
+name = "Bar under the balcony"
+setting = "indoor"
+based_on = [
+  "tmp-images/party-flyer-1.jpg: the roofed bar under the balcony, the teak folding chairs",
+  "tmp-images/party-flyer-2.jpg: the round log side table the projector stands on",
+]
+notes = """
+The covered bar on the ground floor of the pool house, closed on three sides,
+open to the pool deck. The projector stands on a log side table in the
+middle of the room and throws over the counter onto the back wall; the
+counter front catches the bottom of the frame. The floor lamp, the LED strip
+and the four washes are not in the photos: they are part of the rig.
+"""
+
+# ---------------------------------------------------------------- shots ---
+
+[[shot]]
+id = "bar-a"
+image = "bar-cam-a.jpg"
+camera = { eye = [4.0, 1.55, -0.2], yaw = 0.0, pitch = 3.0, roll = 0.0, fov = 43.0, aspect = 1.7778 }
+projection = { projector = "proj-1", yaw = 0.6, pitch = 12.5, lands_on = "back-wall" }
+projector_distance = 4.45
+floor_brightness = 0.14
+background_brightness = 0.09
+horizon_path = []
+notes = "Tripod at the entrance, centred. The whole back wall and the counter front are in frame; the side walls are behind the camera's edges."
+
+[[shot.sees]]
+surface = "back-wall"
+corners = [[0, 2, 7], [10, 2, 9], [10, 9, 9], [0, 9, 7]]
+
+[[shot.sees]]
+surface = "counter.front"
+corners = [[1, 7, 6], [9, 7, 4], [9, 11, 1], [1, 11, 3]]
+
+[[shot]]
+id = "bar-b"
+image = "bar-cam-b.jpg"
+camera = { eye = [7.4, 1.7, -0.5], yaw = -38.0, pitch = -4.0, roll = 0.0, fov = 43.0, aspect = 1.7778 }
+projection = { projector = "proj-1", yaw = -1.2, pitch = 14.1, lands_on = "back-wall" }
+projector_distance = 4.62
+floor_brightness = 0.12
+background_brightness = 0.08
+horizon_path = []
+notes = "From the front-right corner, looking across the room. Sees the left wall and the lamp; the counter front is foreshortened."
+
+[[shot.sees]]
+surface = "back-wall"
+corners = [[3, 2, 7], [12, 0, 1], [11, 10, 6], [3, 7, 1]]
+
+[[shot.sees]]
+surface = "counter.front"
+corners = [[3, 5, 7], [7, 6, 4], [7, 10, 1], [3, 7, 7]]
+
+[[shot.sees]]
+surface = "left-wall"
+corners = [[-5, 1, 6], [3, 2, 7], [3, 7, 1], [-4, 9, 1]]
+
+# ------------------------------------------------------------- surfaces ---
+
+[[surface]]
+id = "back-wall"
+name = "back wall"
+origin = [0.0, 2.9, -5.0]
+u = [8.0, 0.0, 0.0]
+v = [0.0, -2.9, 0.0]
+material = "rough plaster, off-white"
+
+[[surface]]
+id = "left-wall"
+name = "left wall"
+origin = [0.0, 2.9, 0.0]
+u = [0.0, 0.0, -5.0]
+v = [0.0, -2.9, 0.0]
+material = "rough plaster, off-white"
+
+[[surface]]
+id = "right-wall"
+name = "right wall"
+origin = [8.0, 2.9, -5.0]
+u = [0.0, 0.0, 5.0]
+v = [0.0, -2.9, 0.0]
+material = "slatted wood screen"
+
+[[surface]]
+id = "floor"
+name = "floor"
+origin = [0.0, 0.0, -5.0]
+u = [8.0, 0.0, 0.0]
+v = [0.0, 0.0, 5.0]
+material = "sand-coloured tile"
+
+# -------------------------------------------------------------- objects ---
+
+[[object]]
+id = "counter"
+name = "bar counter"
+kind = "counter"
+at = [4.0, 0.0, -4.1]
+size = [4.0, 1.1, 0.6]
+faces = ["front"]
+description = "Solid counter along the back wall. Its front is a surface the projector reaches, so it gets a mask of its own."
+
+[[object]]
+id = "table-log"
+name = "log side table"
+kind = "table"
+at = [4.0, 0.0, -0.6]
+size = [0.45, 0.55, 0.45]
+description = "Round side table cut from a single log, the one between the chairs in the flyers. The projector stands on it."
+
+[[object]]
+id = "lamp"
+name = "floor lamp"
+kind = "lamp"
+at = [0.6, 0.0, -4.4]
+size = [0.3, 1.35, 0.3]
+crown = { center = [0.6, 1.5, -4.4], radius = 0.22 }
+emits = 0.35
+description = "Warm floor lamp (about 2700 K) with a round paper shade, in the back-left corner. Not in the photos. It lifts the floor near the corner, so keep projected content off the left third of the back wall."
+
+[[object]]
+id = "chair-1"
+name = "teak folding chair"
+kind = "chair"
+at = [6.9, 0.0, -1.6]
+size = [0.6, 0.9, 0.8]
+yaw = -20.0
+description = "Slatted teak folding chair, like the ones on the deck."
+
+[[object]]
+id = "chair-2"
+name = "teak folding chair"
+kind = "chair"
+at = [7.2, 0.0, -2.6]
+size = [0.6, 0.9, 0.8]
+yaw = -20.0
+description = "Slatted teak folding chair, like the ones on the deck."
+
+# ------------------------------------------------------------ projectors ---
+
+[[projector]]
+id = "proj-1"
+name = "bar projector"
+output = "proyector-bar"
+on = "table-log"
+lens = [0.0, 0.12, 0.0]
+yaw = 0.0
+pitch = 13.2
+throw_ratio = 1.2
+aspect = 1.7778
+lumens = 3500
+
+# -------------------------------------------------------------- fixtures ---
+
+# Four washes in a line on a pipe under the ceiling, pooling on the two
+# projected panels. drive = "frame": each takes hue/sat/level from the
+# projected frame where its beam lands, so they tint the wall with the
+# projection instead of against it.
+
+[[fixture]]
+id = "wash-1"
+name = "wash 1"
+kind = "wash"
+profile = "example-wash"
+at = [2.5, 2.75, -2.4]
+yaw = 0.0
+pitch = -20.0
+beam = 30.0
+wire = "dmx"
+drive = "frame"
+
+[[fixture]]
+id = "wash-2"
+name = "wash 2"
+kind = "wash"
+profile = "example-wash"
+at = [3.5, 2.75, -2.4]
+yaw = 0.0
+pitch = -20.0
+beam = 30.0
+wire = "dmx"
+drive = "frame"
+
+[[fixture]]
+id = "wash-3"
+name = "wash 3"
+kind = "wash"
+profile = "example-wash"
+at = [4.5, 2.75, -2.4]
+yaw = 0.0
+pitch = -20.0
+beam = 30.0
+wire = "dmx"
+drive = "frame"
+
+[[fixture]]
+id = "wash-4"
+name = "wash 4"
+kind = "wash"
+profile = "example-wash"
+at = [5.5, 2.75, -2.4]
+yaw = 0.0
+pitch = -20.0
+beam = 30.0
+wire = "dmx"
+drive = "frame"
+
+[[fixture]]
+id = "strip-1"
+name = "RGB strip around the panels"
+kind = "led_strip"
+on = "back-wall"
+path = [[0.28, 0.08], [0.72, 0.08], [0.72, 0.54], [0.28, 0.54]]
+closed = true
+pixels_per_m = 30.0
+wire = "usb"
+drive = "frame"
+notes = "Outlines both panels. Each pixel copies the frame's colour where it sits, so the strip carries the projection's edge past the panels."
+
+# ----------------------------------------------------------------- masks ---
+
+[[mask]]
+id = "panel-left"
+name = "left panel"
+on = "back-wall"
+points = [[0.30, 0.10], [0.47, 0.10], [0.47, 0.52], [0.30, 0.52]]
+rgb = [255, 120, 40]
+content = "Slow amber smoke rising, reacting to the low end."
+
+[[mask]]
+id = "panel-right"
+name = "right panel"
+on = "back-wall"
+points = [[0.53, 0.10], [0.70, 0.10], [0.70, 0.52], [0.53, 0.52]]
+rgb = [40, 140, 255]
+content = "The same smoke mirrored, in cool blue."
+
+[[mask]]
+id = "counter-band"
+name = "counter band"
+on = "counter.front"
+points = [[0.20, 0.05], [0.80, 0.05], [0.80, 0.32], [0.20, 0.32]]
+rgb = [255, 255, 255]
+content = "A thin level meter running along the counter, white on black."

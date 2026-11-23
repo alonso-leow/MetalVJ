@@ -1,0 +1,94 @@
+{
+ "id": "kaleido-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {
+  "model": "kaleido"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "sharpness"
+   },
+   "curve": "step",
+   "steps": [
+    0.95,
+    null,
+    null,
+    0.2,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    0.85,
+    null,
+    0.2,
+    null,
+    0.95,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "radius"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "crystal",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 2
+    },
+    null,
+    {
+     "colour": 0
+    },
+    null,
+    {
+     "colour": 3
+    },
+    null
+   ]
+  }
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "id": "forge-skip",
+ "name": "Skip",
+ "target": {
+  "model": "forge"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "onset"
+   },
+   "curve": "step",
+   "steps": [0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null, 0.15, null, 0.85, null]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "rms"
+   },
+   "curve": "step",
+   "steps": [0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15, 0.85, 0.15, null, 0.85, 0.15, null, 0.85, 0.15]
+  }
+ ]
+}

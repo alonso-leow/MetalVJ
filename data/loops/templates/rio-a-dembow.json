@@ -1,0 +1,33 @@
+{
+ "id": "rio-a-dembow",
+ "name": "Dembow",
+ "target": {
+  "model": "river"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "sweep"
+   },
+   "curve": "step",
+   "steps": [0.9, 0.2, 0.2, 0.9, 0.2, 0.2, 0.9, 0.2, 0.2, 0.2, 0.9, 0.2, 0.2, 0.2, 0.9, 0.2]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "foam"
+   },
+   "curve": "step",
+   "steps": [0.15, 0.15, 0.15, 0.15, 0.85, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.85, 0.15, 0.15, 0.15]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "mesh",
+    "palette": "fire"
+   },
+   "steps": [{"colour": 0}, null, null, null, null, null, {"colour": 3}, null, null, null, {"colour": 1}, null, null, null, {"colour": 3}, null]
+  }
+ ]
+}

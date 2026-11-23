@@ -1,0 +1,11 @@
+{
+ "id": "forge-a-syncopated-stab",
+ "name": "Syncopated Stab",
+ "target": {"model": "forge"},
+ "tracks": [
+  {"target": {"kind": "float", "param": "centroid"}, "curve": "step",
+   "steps": [0.9, null, 0.9, null, null, null, 0.9, null, null, 0.9, null, null, 0.9, null, null, null]},
+  {"target": {"kind": "float", "param": "onset"}, "curve": "step",
+   "steps": [null, null, null, 0.85, null, null, null, 0.85, null, null, null, null, null, 0.85, null, 0.6]}
+ ]
+}

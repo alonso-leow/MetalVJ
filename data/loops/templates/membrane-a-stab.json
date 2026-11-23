@@ -1,0 +1,90 @@
+{
+ "id": "membrane-a-stab",
+ "name": "Stab",
+ "target": {
+  "model": "membrane"
+ },
+ "tracks": [
+  {
+   "target": {
+    "kind": "float",
+    "param": "growth"
+   },
+   "curve": "step",
+   "steps": [
+    0.95,
+    null,
+    null,
+    null,
+    null,
+    0.4,
+    null,
+    0.95,
+    null,
+    null,
+    null,
+    0.95,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "float",
+    "param": "wind_direction_x"
+   },
+   "curve": "step",
+   "steps": [
+    0.9,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    0.1,
+    null,
+    null,
+    null,
+    0.9,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "target": {
+    "kind": "palette",
+    "slot": "background",
+    "palette": "psychedelia"
+   },
+   "steps": [
+    {
+     "colour": 0
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "colour": 3
+    },
+    null,
+    null,
+    null,
+    {
+     "colour": 1
+    },
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

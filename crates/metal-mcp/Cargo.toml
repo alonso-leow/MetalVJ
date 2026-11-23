@@ -1,0 +1,20 @@
+[package]
+name = "metal-mcp"
+description = "MCP server for MetalVJ: exposes metal-agent's tool catalog over stdio and Streamable HTTP, forwarding each call to metal-dash"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "metal-mcp"
+path = "src/main.rs"
+
+[dependencies]
+# The catalog is the source of truth (rule 7): names, blurbs, schemas and
+# read/destructive flags are read from metal-agent, never copied. `gpu` is off so
+# the adapter does not drag wgpu in; `raster` stays listed either way.
+metal-agent = { path = "../metal-agent", default-features = false }
+serde_json = { workspace = true }

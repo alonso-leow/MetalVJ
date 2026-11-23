@@ -868,3 +868,12 @@ replay is per (node, model) and re-plays whole rows; dither is unverified on GPU
 
 Pre-rewrite plans for history: `git show 35a9f6f8:plan.md`,
 `git show 0bc59052^:plan-opus.md`.
+
+## Integrations (2026-11-23)
+
+Settings ▸ Integrations (`crates/metal-dash/src/integrations.rs`, `GET/POST /integrations`)
+installs the storytold CLIs (photocraft, effectcraft, vectorcraft: each
+`<cli> mcp`) and Blender (flatpak, headless) under `<data>/integrations/`, and
+writes `mcp.json` for `metal-agent`. Blender-object → music wiring:
+`docs/skills/wire-blender-object.md` (glTF extras / sidecar bindings still a gap).
+Verified 2026-11-23: photocraft `mcp --headless` (27 tools) and `run --new … --cmd type.create` give a transparent text PNG; effectcraft `mcp` (27 tools), `layer.newText` + `layer.applyTextPreset` + `render-frame` work. Open: an autonomous logo loop (render → look → iterate) on top of these.

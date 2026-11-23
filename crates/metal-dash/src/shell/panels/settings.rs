@@ -42,7 +42,7 @@ const AGENT_TOOL_PATH: &str = "/agent/tool";
 /// fill. A fourth section means one entry here and one match in `paint`'s
 /// section dispatch, nothing else (a list this short spelled once it is,
 /// not counted twice).
-const SECTIONS: [(&str, Section); 9] = [
+const SECTIONS: [(&str, Section); 10] = [
     (tr_key("ui"), Section::Ui),
     (tr_key("theme"), Section::Theme),
     (tr_key("language"), Section::Language),
@@ -52,10 +52,13 @@ const SECTIONS: [(&str, Section); 9] = [
     (tr_key("P2P"), Section::Devices),
     (tr_key("export"), Section::Export),
     (tr_key("performance"), Section::Performance),
+    (tr_key("integrations"), Section::Integrations),
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Section {
+    /// External CLIs / MCP servers / Blender, installed from here.
+    Integrations,
     Ui,
     Theme,
     Language,
@@ -543,6 +546,7 @@ pub fn paint(
                             Section::Devices => pairing::paint_devices(ui, theme, door, pairing),
                             Section::Export => section_export(ui, theme, door, state),
                             Section::Performance => section_performance(ui, theme, door, state),
+                            Section::Integrations => section_integrations(ui, theme, door),
                         }
                     });
                 });
@@ -565,6 +569,7 @@ fn section_icon(section: Section) -> Icon {
         Section::Devices => Icon::Devices,
         Section::Export => Icon::Export,
         Section::Performance => Icon::Gauge,
+        Section::Integrations => Icon::Devices,
     }
 }
 
@@ -2405,4 +2410,50 @@ mod tests {
         assert_eq!(state.take_style_change().as_deref(), Some("daylight"));
         assert_eq!(state.take_style_change(), None, "taken once");
     }
+}
+
+/// Integrations: install / update / remove the external Craft CLIs and
+/// Blender. Reads `GET /integrations`, acts through `POST /integrations`.
+fn section_integrations(ui: &mut Ui, theme: &Theme, door: &dyn Call) {
+    section_heading(ui, theme, tr("integrations"));
+    ui.label(
+        RichText::new(tr("CLIs and MCP servers the agent can use; installed next to the data"))
+            .font(theme.font_small.clone())
+            .color(theme.ink_weak),
+    );
+    let reply = door.json("GET", "/integrations", None).unwrap_or_else(|_| json!({}));
+    for it in reply["integrations"].as_array().cloned().unwrap_or_default() {
+        let id = it["id"].as_str().unwrap_or("").to_string();
+        let installed = it["installed"].as_bool().unwrap_or(false);
+        let running = it["job"].as_str() == Some("running");
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(it["name"].as_str().unwrap_or("")).font(theme.font_heading.clone()));
+            let state = if running { "installing…" } else if installed { "installed" } else { "not installed" };
+            ui.label(RichText::new(tr(state)).font(theme.font_small.clone()).color(theme.ink_weak));
+            if it["mcp"].as_bool() == Some(true) {
+                ui.label(RichText::new("MCP").font(theme.font_small.clone()).color(theme.ink_weak));
+            }
+        });
+        ui.label(RichText::new(it["what"].as_str().unwrap_or("")).font(theme.font_small.clone()).color(theme.ink_weak));
+        ui.horizontal(|ui| {
+            let (label, op) = if installed { (tr("update"), "update") } else { (tr("install"), "install") };
+            if ui.add_enabled(!running, egui::Button::new(label)).clicked() {
+                let _ = door.json("POST", "/integrations", Some(json!({ "id": id, "op": op })));
+            }
+            if installed && id != "blender" && ui.add_enabled(!running, egui::Button::new(tr("remove"))).clicked() {
+                let _ = door.json("POST", "/integrations", Some(json!({ "id": id, "op": "remove" })));
+            }
+        });
+        if let Some(log) = it["log"].as_str().filter(|l| !l.is_empty()) {
+            ui.label(RichText::new(log).font(theme.font_small.clone()).color(theme.ink_weak));
+        }
+    }
+    if running_any(&reply) {
+        ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
+    }
+}
+
+fn running_any(reply: &serde_json::Value) -> bool {
+    reply["integrations"].as_array().is_some_and(|a| a.iter().any(|i| i["job"].as_str() == Some("running")))
 }

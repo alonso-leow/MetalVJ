@@ -111,6 +111,7 @@ mod json_memo;
 mod paint;
 mod warm;
 mod perf;
+mod integrations;
 mod timecode;
 // The in-app updater's settings and wire replies (`call/update.rs` is the two
 // routes). No git: GitHub Releases in, a verified binary out. Gated on

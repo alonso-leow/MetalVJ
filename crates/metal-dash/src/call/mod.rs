@@ -643,6 +643,9 @@ pub static ROUTES: &[Route] = &[
         prefix: false,
         handler: Handler::Json(crate::timecode::sacn_nodes),
     },
+    // Settings → Integrations: external CLIs / MCP servers and Blender.
+    Route { method: "GET", path: "/integrations", prefix: false, handler: Handler::Json(crate::integrations::get) },
+    Route { method: "POST", path: "/integrations", prefix: false, handler: Handler::Json(crate::integrations::post) },
     Route {
         method: "POST",
         path: "/transport",

@@ -78,7 +78,9 @@ impl State {
             started: Instant::now(),
             paused_at: None,
             status: String::new(),
-            selected: 0,
+            // The first live model: a retired row is a tombstone with an empty
+            // schema, and the leading slots are tombstones now.
+            selected: renderer.schemas().iter().position(|s| !s.defaults().is_empty()).unwrap_or(0),
             live_seq: 0,
         }
     }

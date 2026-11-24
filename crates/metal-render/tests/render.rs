@@ -16,6 +16,9 @@ const W: u32 = 64;
 const H: u32 = 64;
 const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
+/// A live model that moves with time; slots 0 and 1 are retired tombstones.
+const ESCAPE: usize = 2;
+
 fn render_and_readback(model: &mut dyn Model, gpu: &Gpu, floats: &[f32], time: f32) -> Vec<f32> {
     render_at(model, gpu, floats, time, W, H)
 }
@@ -179,32 +182,6 @@ fn turing_advances_with_time_and_holds_still_without_it() {
     assert!(rewound.chunks_exact(4).any(|px| px[0] != 0.0 || px[1] != 0.0 || px[2] != 0.0));
 }
 
-/// DLA keeps state the same way Turing does, so it owes the same direct
-/// check. The byte-equality is doing double duty here: the sparks are a
-/// readout of walker state baked fresh every frame, so a frame that advances
-/// nothing must show the *same* sparks, not a cleared ring — and the
-/// readback comparison is what proves it.
-#[test]
-fn dla_advances_with_time_and_holds_still_without_it() {
-    let gpu = Gpu::new_headless();
-    let mut model = metal_render::models::dla::Dla::new();
-    let floats = model.schema().defaults();
-
-    let a = render_and_readback(&mut model, &gpu, &floats, 4.0);
-    let again = render_and_readback(&mut model, &gpu, &floats, 4.0);
-    assert_eq!(a, again, "the same instant twice must not step the aggregation");
-
-    let later = render_and_readback(&mut model, &gpu, &floats, 4.5);
-    assert_ne!(a, later, "half a second later the coral must have grown");
-
-    let rewound = render_and_readback(&mut model, &gpu, &floats, 0.0);
-    assert!(
-        rewound.iter().all(|v| !v.is_nan() && !v.is_infinite()),
-        "rewinding must reseed, not integrate backwards"
-    );
-    assert!(rewound.chunks_exact(4).any(|px| px[0] != 0.0 || px[1] != 0.0 || px[2] != 0.0));
-}
-
 /// Ghosting is the first effect in this project that remembers anything, and
 /// the property it must not break is the one every other gate rests on: the
 /// same instant asked for twice advances nothing and returns the same image.
@@ -219,9 +196,9 @@ fn a_trail_remembers_the_frames_before_it_and_still_holds_still() {
     use metal_render::model::EFFECTS_WIDTH;
 
     let mut renderer = Renderer::new();
-    // Geoterrain: it moves visibly with time, which is what a trail needs to
-    // have anything to leave behind.
-    let index = 0;
+    // Escape: it moves visibly with time, which is what a trail needs to
+    // have anything to leave behind (slots 0 and 1 are retired tombstones).
+    let index = metal_render::registry::index_of_id("escape").expect("escape");
     let plain = renderer.schemas()[index].defaults();
     let mut row = plain.clone();
     let at = row.len() - EFFECTS_WIDTH + 2; // ghost, third of the four effects floats
@@ -256,7 +233,7 @@ fn the_kaleidoscope_effect_folds_any_model_without_tearing_a_hole_in_it() {
     use metal_render::model::EFFECTS_WIDTH;
 
     let mut renderer = Renderer::new();
-    for index in [0usize, 1, 6] {
+    for index in [2usize, 3, 6] {
         let row = renderer.schemas()[index].defaults();
         let mut kaleido_row = row.clone();
         kaleido_row[row.len() - EFFECTS_WIDTH + 3] = 6.0; // kaleido, fourth effects float
@@ -282,7 +259,7 @@ fn the_post_chain_compiles_and_runs() {
     let gpu = Gpu::new_headless();
     let post = PostChain::new(&gpu.device, FORMAT);
 
-    let mut model = all_models().into_iter().next().expect("at least one model");
+    let mut model = all_models().into_iter().find(|m| !m.retired()).expect("at least one live model");
     let floats = model.schema().defaults();
     let (_src_texture, src_view) = offscreen_target(
         &gpu.device,
@@ -341,7 +318,7 @@ fn an_active_colour_grade_moves_the_frame_on_the_gpu() {
     let gpu = Gpu::new_headless();
     let post = PostChain::new(&gpu.device, FORMAT);
 
-    let mut model = all_models().into_iter().next().expect("at least one model");
+    let mut model = all_models().into_iter().find(|m| !m.retired()).expect("at least one live model");
     let floats = model.schema().defaults();
     let (_src_texture, src_view) = offscreen_target(
         &gpu.device,
@@ -439,7 +416,7 @@ fn two_effects_enabled_together_chain_instead_of_crossfading() {
     let gpu = Gpu::new_headless();
     let post = PostChain::new(&gpu.device, FORMAT);
 
-    let mut model = all_models().into_iter().next().expect("at least one model");
+    let mut model = all_models().into_iter().find(|m| !m.retired()).expect("at least one live model");
     let floats = model.schema().defaults();
     let (_src_texture, src_view) = offscreen_target(
         &gpu.device,
@@ -524,7 +501,7 @@ fn every_effect_on_at_once_still_renders_a_finite_frame() {
     let gpu = Gpu::new_headless();
     let post = PostChain::new(&gpu.device, FORMAT);
 
-    let mut model = all_models().into_iter().next().expect("at least one model");
+    let mut model = all_models().into_iter().find(|m| !m.retired()).expect("at least one live model");
     let floats = model.schema().defaults();
     let (_src_texture, src_view) = offscreen_target(
         &gpu.device,
@@ -645,7 +622,7 @@ fn solo_and_an_empty_explicit_chain_render_the_same_picture() {
     use metal_render::model::EFFECTS_WIDTH;
 
     let mut renderer = Renderer::new();
-    for index in [0usize, 3, 7] {
+    for index in [2usize, 4, 7] {
         let defaults = renderer.schemas()[index].defaults();
         let mut row = defaults.clone();
         let at = row.len() - EFFECTS_WIDTH;
@@ -703,7 +680,7 @@ fn reordering_two_interacting_effects_changes_the_rendered_picture() {
     let gpu = Gpu::new_headless();
     let post = PostChain::new(&gpu.device, FORMAT);
 
-    let mut model = all_models().into_iter().next().expect("at least one model");
+    let mut model = all_models().into_iter().find(|m| !m.retired()).expect("at least one live model");
     let floats = model.schema().defaults();
     let (_src_texture, src_view) = offscreen_target(
         &gpu.device,
@@ -784,7 +761,7 @@ fn a_chain_step_naming_an_unknown_kind_is_dropped_rather_than_changing_the_pictu
     use metal_render::headless::Renderer;
 
     let mut renderer = Renderer::new();
-    let index = 0usize;
+    let index = metal_render::registry::index_of_id("escape").expect("escape");
     let row = renderer.schemas()[index].defaults();
 
     let plain = renderer.solo_chain(
@@ -826,7 +803,7 @@ fn an_oversized_or_out_of_range_chain_does_not_panic_or_produce_garbage() {
     use metal_render::headless::Renderer;
 
     let mut renderer = Renderer::new();
-    let index = 0usize;
+    let index = metal_render::registry::index_of_id("escape").expect("escape");
     let row = renderer.schemas()[index].defaults();
 
     let mut chain = Vec::new();
@@ -1143,7 +1120,7 @@ fn the_estela_ring_is_sane_on_the_very_first_frame_it_is_asked_for() {
     use metal_render::headless::Renderer;
 
     let mut renderer = Renderer::new();
-    let index = 0usize;
+    let index = metal_render::registry::index_of_id("escape").expect("escape");
     let row = renderer.schemas()[index].defaults();
 
     let (pixels, w, h) = renderer.solo_chain(
@@ -1174,7 +1151,7 @@ fn an_estela_chain_step_at_zero_renders_identical_to_no_chain_at_all() {
     let gpu = Gpu::new_headless();
     let post = PostChain::new(&gpu.device, FORMAT);
 
-    let mut model = all_models().into_iter().next().expect("at least one model");
+    let mut model = all_models().into_iter().find(|m| !m.retired()).expect("at least one live model");
     let floats = model.schema().defaults();
     let (_src_texture, src_view) = offscreen_target(
         &gpu.device,
@@ -1245,7 +1222,7 @@ fn an_estela_chain_step_at_zero_renders_identical_to_no_chain_at_all() {
 /// is no second frame behind it to reveal — the whole "several different
 /// moments at once" look `models::estela`'s own doc describes needs the
 /// generator to have actually drawn something different a few taps ago.
-/// Model 0 (Geoterrain) is `a_trail_remembers_the_frames_before_it_and_
+/// Escape is `a_trail_remembers_the_frames_before_it_and_
 /// still_holds_still`'s own choice for the same reason: it moves visibly
 /// with time, which is what a history needs to have anything to reveal.
 #[test]
@@ -1253,7 +1230,7 @@ fn an_estela_chain_step_changes_the_picture_once_the_ring_has_real_history() {
     use metal_render::headless::Renderer;
 
     let mut renderer = Renderer::new();
-    let index = 0usize;
+    let index = metal_render::registry::index_of_id("escape").expect("escape");
     let row = renderer.schemas()[index].defaults();
     let chain = [EffectStep { effect: CHAIN_KIND_ESTELA, amount: 1.0, slot: 0 }];
 
@@ -1394,7 +1371,7 @@ fn run_fm(gpu: &Gpu, post: &PostChain, src_view: &wgpu::TextureView, adv: &[f32]
 }
 
 fn fm_source(gpu: &Gpu) -> wgpu::TextureView {
-    let mut model = all_models().into_iter().next().expect("at least one model");
+    let mut model = all_models().into_iter().find(|m| !m.retired()).expect("at least one live model");
     let floats = model.schema().defaults();
     let (w, h) = (
         (W as f32 * metal_render::shared::post::OVERSCAN) as u32,
@@ -1458,12 +1435,12 @@ fn every_fm_float_changes_the_rendered_frame() {
 fn an_fm_row_moves_the_picture_through_the_renderer_and_a_default_row_does_not() {
     use metal_render::headless::Renderer;
     let mut renderer = Renderer::new();
-    let row = renderer.schemas()[0].defaults();
+    let row = renderer.schemas()[ESCAPE].defaults();
     let at = row.len() - metal_schema::EFFECTS_WIDTH;
     let mut on = row.clone();
     let cant = metal_schema::effect_index("fx_fm_cant").unwrap();
     on[at + cant] = 0.9;
-    let draw = |r: &mut Renderer, row: &[f32]| r.solo_chain(0, row, 2.3, 96, 54, false, &[], &EstelaParams::default()).0;
+    let draw = |r: &mut Renderer, row: &[f32]| r.solo_chain(ESCAPE, row, 2.3, 96, 54, false, &[], &EstelaParams::default()).0;
     let off_a = draw(&mut renderer, &row);
     let on_a = draw(&mut renderer, &on);
     assert_ne!(off_a, on_a, "an fm row did not change the picture");
@@ -1601,12 +1578,12 @@ fn the_wavewarp_edge_modes_differ_on_a_frame_that_reaches_the_border() {
 fn a_wavewarp_row_moves_the_picture_through_the_renderer_and_a_default_row_does_not() {
     use metal_render::headless::Renderer;
     let mut renderer = Renderer::new();
-    let row = renderer.schemas()[0].defaults();
+    let row = renderer.schemas()[ESCAPE].defaults();
     let at = row.len() - metal_schema::EFFECTS_WIDTH;
     let mut on = row.clone();
     let cant = metal_schema::effect_index("fx_wavewarp_cant").unwrap();
     on[at + cant] = 0.9;
-    let draw = |r: &mut Renderer, row: &[f32]| r.solo_chain(0, row, 2.3, 96, 54, false, &[], &EstelaParams::default()).0;
+    let draw = |r: &mut Renderer, row: &[f32]| r.solo_chain(ESCAPE, row, 2.3, 96, 54, false, &[], &EstelaParams::default()).0;
     let off_a = draw(&mut renderer, &row);
     let on_a = draw(&mut renderer, &on);
     assert_ne!(off_a, on_a, "a wavewarp row did not change the picture");
@@ -1731,12 +1708,12 @@ fn ascii_at_full_amount_draws_only_ink_and_ground() {
 fn an_ascii_row_moves_the_picture_through_the_renderer_and_a_default_row_does_not() {
     use metal_render::headless::Renderer;
     let mut renderer = Renderer::new();
-    let row = renderer.schemas()[0].defaults();
+    let row = renderer.schemas()[ESCAPE].defaults();
     let at = row.len() - metal_schema::EFFECTS_WIDTH;
     let mut on = row.clone();
     let cant = metal_schema::effect_index("fx_ascii_cant").unwrap();
     on[at + cant] = 0.9;
-    let draw = |r: &mut Renderer, row: &[f32]| r.solo_chain(0, row, 2.3, 96, 54, false, &[], &EstelaParams::default()).0;
+    let draw = |r: &mut Renderer, row: &[f32]| r.solo_chain(ESCAPE, row, 2.3, 96, 54, false, &[], &EstelaParams::default()).0;
     let off_a = draw(&mut renderer, &row);
     let on_a = draw(&mut renderer, &on);
     assert_ne!(off_a, on_a, "an ascii row did not change the picture");
@@ -2029,6 +2006,9 @@ fn stutter_run(index: usize, set: Set, times: &[f32]) -> Vec<Vec<u8>> {
 fn moving_model() -> usize {
     let mut renderer = metal_render::headless::Renderer::new();
     for index in 0..renderer.model_count() {
+        if renderer.schemas()[index].defaults().is_empty() {
+            continue; // a retired tombstone
+        }
         let row = stutter_row(&renderer, index, &[]);
         let a = renderer.solo_chain(index, &row, 0.01, 64, 36, false, &[], &EstelaParams::default()).0;
         let b = renderer.solo_chain(index, &row, 0.30, 64, 36, false, &[], &EstelaParams::default()).0;

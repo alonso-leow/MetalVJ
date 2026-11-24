@@ -795,20 +795,20 @@ mod tests {
         std::env::set_current_dir(&prior_cwd).expect("restore cwd");
 
         let ids = state.catalog.ids();
-        let real = ids.iter().position(|m| *m == "rings").expect("rings is registered");
-        let manifest = state.models.manifest.models.iter().position(|m| m.id == "rings").expect("rings in the manifest");
-        assert_ne!(real, manifest, "the two lists disagree on rings' position (the bug this pins)");
+        let real = ids.iter().position(|m| *m == "puzzle").expect("puzzle is registered");
+        let manifest = state.models.manifest.models.iter().position(|m| m.id == "puzzle").expect("puzzle in the manifest");
+        assert_ne!(real, manifest, "the two lists disagree on puzzle's position (the bug this pins)");
 
         let width = state.preview.rows[real].len();
         let row = vec![0.0f32; width];
         let mut params = Params {
-            query: [("model".to_string(), "rings".to_string())].into_iter().collect(),
+            query: [("model".to_string(), "puzzle".to_string())].into_iter().collect(),
             body: serde_json::to_vec(&row).unwrap(),
             tail: None,
         };
         let mut ctx = Ctx { state: &mut state };
-        render::floats(&mut ctx, &params).expect("rings' own width is accepted by id");
-        assert_eq!(ctx.state.preview.rows[real], row, "the row landed on rings, not on another model");
+        render::floats(&mut ctx, &params).expect("puzzle's own width is accepted by id");
+        assert_eq!(ctx.state.preview.rows[real], row, "the row landed on puzzle, not on another model");
 
         params.query = [("model".to_string(), "nope".to_string())].into_iter().collect();
         assert!(render::floats(&mut ctx, &params).is_err(), "an unknown id is refused, never guessed");

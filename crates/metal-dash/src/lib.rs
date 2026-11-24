@@ -2815,12 +2815,12 @@ mod tests {
         let mut state = State::new(paint.as_ref());
         state.paused_at = Some(3.0);
 
-        let mut fixed = Layer::new("fixed", "fixed", 0);
+        let mut fixed = Layer::new("fixed", "fixed", 2);
         fixed.effects.shake = 0.6;
         fixed.fijo_mask = 1 << 0; // bit 0 — shake, apply_node_post's own order
         fixed.outputs = vec![MAIN.to_string()];
 
-        let mut reactive = Layer::new("reactive", "reactive", 0);
+        let mut reactive = Layer::new("reactive", "reactive", 2);
         reactive.outputs = vec![MAIN.to_string()];
         // `reactive.effects`/`fijo_mask` stay at `Layer::new`'s own
         // defaults — `Post::default()` and 0 — i.e. fully reactive.
@@ -2969,7 +2969,7 @@ mod tests {
         state.stack_mut(MAIN).unwrap().mode = layers::DeviceMode::Own;
         state.paused_at = Some(3.0);
 
-        arm(&mut state, "back", 0, extreme_row(paint.schemas()[0]));
+        arm(&mut state, "back", 2, extreme_row(paint.schemas()[2]));
 
         let air = state.airing(&mut sim, state.time());
         let manifest_ids = paint.ids();
@@ -3022,13 +3022,13 @@ mod tests {
 
         let (resting, w, h) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
 
-        let row = extreme_row(paint.schemas()[0]);
+        let row = extreme_row(paint.schemas()[2]);
         assert_ne!(
             row,
-            paint.schemas()[0].defaults(),
+            paint.schemas()[2].defaults(),
             "the fixture row must differ from the resting row or this proves nothing"
         );
-        arm(&mut state, "back", 0, row);
+        arm(&mut state, "back", 2, row);
 
         let (played, w2, h2) = render_device(&mut *paint, &mut sim, &mut state, MAIN, 64, 36);
         assert_eq!((w, h), (w2, h2));
@@ -3086,7 +3086,7 @@ mod tests {
 
         let resting = render_source(&mut *paint, &mut sim, &mut state, MAIN, "back", 32, 18)
             .expect("the layer exists");
-        arm(&mut state, "back", 0, extreme_row(paint.schemas()[0]));
+        arm(&mut state, "back", 2, extreme_row(paint.schemas()[2]));
         let played = render_source(&mut *paint, &mut sim, &mut state, MAIN, "back", 32, 18)
             .expect("the layer exists");
         assert_ne!(
@@ -3097,7 +3097,7 @@ mod tests {
         // The layer with nothing armed is untouched, which is what says the
         // lookup is by layer and not by device.
         let a = render_source(&mut *paint, &mut sim, &mut state, MAIN, "echo", 32, 18);
-        arm(&mut state, "back", 0, paint.schemas()[0].defaults());
+        arm(&mut state, "back", 2, paint.schemas()[2].defaults());
         let b = render_source(&mut *paint, &mut sim, &mut state, MAIN, "echo", 32, 18);
         assert_eq!(
             a, b,

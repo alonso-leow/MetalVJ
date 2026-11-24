@@ -1,22 +1,22 @@
 {
- "id": "dembow-estrobo",
+ "id": "dembow-chamber",
  "name": "Dembow",
  "target": {
-  "model": "strobe"
+  "model": "chamber"
  },
  "tracks": [
   {
    "target": {
     "kind": "float",
-    "param": "glare"
+    "param": "height"
    },
    "curve": "step",
-   "steps": [0.1, 0.1, 0.1, 0.95, 0.695, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.95, 0.695, 0.1, 0.1, 0.1]
+   "steps": [0.12, 0.12, 0.12, 0.75, 0.6, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.75, 0.6, 0.12, 0.12, 0.12]
   },
   {
    "target": {
     "kind": "float",
-    "param": "duty"
+    "param": "gravity"
    },
    "curve": "step",
    "steps": [0.3, 0.3, 0.3, 0.8, 0.65, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.8, 0.65, 0.3, 0.3, 0.3]

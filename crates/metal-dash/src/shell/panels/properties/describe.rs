@@ -30,16 +30,6 @@ pub(super) fn lookup(kind: &str) -> Option<&'static Entry> {
 const ENTRIES: &[Entry] = &[
     // ---- generator ----
     Entry {
-        kind: "gen.geoterrain",
-        description: tr_key("Parametric spiral arms that twist out from the centre, drawn as thick lines."),
-        keypoints: [tr_key("arm count"), tr_key("twist"), tr_key("thickness")],
-    },
-    Entry {
-        kind: "gen.domain",
-        description: tr_key("Scanlines, row tearing and RGB split that make the frame look like a broken signal."),
-        keypoints: [tr_key("scanlines"), tr_key("distortion"), tr_key("rgb split")],
-    },
-    Entry {
         kind: "gen.escape",
         description: tr_key("Endless strings that cross the frame and sway, drawn as thin lines."),
         keypoints: [tr_key("string count"), tr_key("tension"), tr_key("thickness")],
@@ -100,11 +90,6 @@ const ENTRIES: &[Entry] = &[
         keypoints: [tr_key("brightness"), tr_key("pulse"), tr_key("sweep")],
     },
     Entry {
-        kind: "gen.ascii",
-        description: tr_key("A waveform redrawn in text characters, one glyph per grid cell."),
-        keypoints: [tr_key("amplitude"), tr_key("columns"), tr_key("speed")],
-    },
-    Entry {
         kind: "gen.puzzle",
         description: tr_key("A tile board that changes only when pieces slide in from its four edges."),
         keypoints: [tr_key("columns"), tr_key("rows"), tr_key("slide")],
@@ -113,11 +98,6 @@ const ENTRIES: &[Entry] = &[
         kind: "gen.someone",
         description: tr_key("A squishy ball with eyes that crosses the frame or stands while the frame passes."),
         keypoints: [tr_key("elasticity"), tr_key("background speed"), tr_key("blink")],
-    },
-    Entry {
-        kind: "gen.rings",
-        description: tr_key("A ball bouncing inside turning rings, each with a gap it can escape through."),
-        keypoints: [tr_key("ring count"), tr_key("speed"), tr_key("gravity")],
     },
     Entry {
         kind: "gen.scratch",
@@ -135,16 +115,6 @@ const ENTRIES: &[Entry] = &[
         keypoints: [tr_key("density"), tr_key("wind"), tr_key("grain size")],
     },
     Entry {
-        kind: "gen.strobe",
-        description: tr_key("The whole frame as light: beat-locked flashes with set duty, decay and band chases."),
-        keypoints: [tr_key("period"), tr_key("duty"), tr_key("decay")],
-    },
-    Entry {
-        kind: "gen.lightning",
-        description: tr_key("Arcs jumping outward from one live centre to the edge of its reach, then fading."),
-        keypoints: [tr_key("arc count"), tr_key("reach"), tr_key("branches")],
-    },
-    Entry {
         kind: "gen.moire",
         description: tr_key("Line rulings laid over each other, so the picture is the difference between them."),
         keypoints: [tr_key("layers"), tr_key("pitch"), tr_key("rotation")],
@@ -153,11 +123,6 @@ const ENTRIES: &[Entry] = &[
         kind: "gen.stained-glass",
         description: tr_key("A leaded window of glass panes that drift and light up a few at a time."),
         keypoints: [tr_key("pane count"), tr_key("lead"), tr_key("burst")],
-    },
-    Entry {
-        kind: "gen.smoke",
-        description: tr_key("Smoke rising from a source, curled by a warp and lit from one direction."),
-        keypoints: [tr_key("rise"), tr_key("density"), tr_key("light direction")],
     },
     Entry {
         kind: "gen.terrarium",
@@ -175,19 +140,9 @@ const ENTRIES: &[Entry] = &[
         keypoints: [tr_key("speed"), tr_key("band spacing"), tr_key("emphasis")],
     },
     Entry {
-        kind: "gen.beam",
-        description: tr_key("A vector oscilloscope trace that draws the music as a glowing line, like a CRT beam."),
-        keypoints: [tr_key("decay"), tr_key("intensity"), tr_key("amplitude")],
-    },
-    Entry {
         kind: "gen.scene3d",
         description: tr_key("A raymarched box repeated across a tile grid, with metal and roughness controls."),
         keypoints: [tr_key("grid columns"), tr_key("rotation"), tr_key("metal")],
-    },
-    Entry {
-        kind: "gen.dla",
-        description: tr_key("Random walkers that stick where they touch, growing a branching coral-like cluster."),
-        keypoints: [tr_key("walkers"), tr_key("stride"), tr_key("spark")],
     },
     Entry {
         kind: "gen.forge",
@@ -265,11 +220,6 @@ const ENTRIES: &[Entry] = &[
         keypoints: [tr_key("particle count"), tr_key("central mass"), tr_key("chaos")],
     },
     Entry {
-        kind: "gen.corals",
-        description: tr_key("A polyline that grows by differential line rules, splitting and repelling like coral."),
-        keypoints: [tr_key("growth speed"), tr_key("split chance"), tr_key("stroke width")],
-    },
-    Entry {
         kind: "gen.fineline",
         description: tr_key("A 3D scene drawn as fine pen lines, hatched and stripped to silhouettes like a plotter."),
         keypoints: [tr_key("hatch density"), tr_key("stroke width"), tr_key("object count")],
@@ -318,11 +268,6 @@ const ENTRIES: &[Entry] = &[
         kind: "gen.flutedglass",
         description: tr_key("A picture seen through ribbed glass, with light and shadow bands sliding across."),
         keypoints: [tr_key("flute size"), tr_key("wave"), tr_key("chromatic")],
-    },
-    Entry {
-        kind: "gen.godrays",
-        description: tr_key("Light shafts fanning from a point, with a core glow and a bloom halo."),
-        keypoints: [tr_key("ray count"), tr_key("bloom"), tr_key("density")],
     },
     Entry {
         kind: "gen.graingradient",

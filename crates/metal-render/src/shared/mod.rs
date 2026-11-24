@@ -4,6 +4,8 @@
 //! to every model's own WGSL so `grad4`/`hash11`/`ColorSlot` are always in
 //! scope without a module system WGSL does not have.
 
+pub mod ascii_ramps;
+
 pub mod backdrop;
 pub mod brush;
 pub mod footage;

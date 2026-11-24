@@ -176,7 +176,10 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
         let base = mix(grad4(u.root_color, 0.6) * 0.8, grad4(u.tip_color, 1.0), in.t);
         let fres = pow(1.0 - clamp(abs(dot(normalize(in.nrm), V)), 0.0, 1.0), 2.0);
         let glow = glow_amt * smoothstep(0.5, 1.0, in.t);
-        let col = base * (0.55 + glow * 2.2) + grad4(u.tip_color, 1.0) * rim_amt * fres * in.t * 0.8;
+        let flick = 0.6 + 0.4 * sin(u.floats2.w * 3.0 + in.world.x * 9.0 + in.world.y * 7.0);
+        var col = base * (0.5 + glow * 2.4 * flick) + grad4(u.tip_color, 1.0) * rim_amt * fres * in.t * 0.9;
+        let far = length(eye - in.world);
+        col = col * mix(0.12, 1.0, exp(-max(far - 1.8, 0.0) * 0.75));
         return vec4<f32>(col, 1.0);
     }
 
@@ -202,9 +205,20 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     let back = pow(clamp(dot(V, -normalize(L + N * 0.6)), 0.0, 1.0), 2.0);
     let sss = translucency * thin * (0.12 + 0.55 * back);
 
-    // Capillaries: thin lines, brighter in the thin parts.
-    let vn = abs(quintic_noise(in.world.xy * 3.2 + 3.0) * 2.0 - 1.0);
-    let veins = (1.0 - smoothstep(0.0, 0.09, vn)) * (0.3 + 0.7 * translucency);
+    // Capillaries: thin organic lines (domain-warped so they branch instead of
+    // boxing into lattice squares), brighter in the thin parts.
+    let wp = in.world.xy * 1.3;
+    let warp = vec2<f32>(quintic_noise(wp), quintic_noise(wp + vec2<f32>(5.2, 1.7))) - 0.5;
+    let vp = in.world.xy * 3.2 + 3.0 + warp * 1.6;
+    let vn = abs(quintic_noise(vp) * 2.0 - 1.0);
+    let vw = fwidth(vn) + 0.035;
+    let veins = (1.0 - smoothstep(0.0, vw * 2.0, vn)) * (0.3 + 0.7 * translucency);
+    let vn2 = abs(quintic_noise(vp * 2.7 + 11.0) * 2.0 - 1.0);
+    let veins2 = (1.0 - smoothstep(0.0, vw * 1.4, vn2)) * 0.45 * (0.3 + 0.7 * translucency);
+    // Bioluminescence: light travels along the capillaries, outward from the
+    // pulses, so the skin breathes in time with the floats driving it.
+    let tt = u.floats2.w * (0.6 + u.f3.z * 0.6);
+    let travel = pow(0.5 + 0.5 * sin(tt * 2.2 - length(in.world.xy) * 2.4 + warp.x * 4.0), 6.0);
 
     let fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
     let H = normalize(L + V);
@@ -212,11 +226,18 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
 
     var col = skin * (0.08 + 0.6 * wrap * wrap);
     col = col + flesh * sss * (0.7 + glow_amt * 1.0);
-    col = col * (1.0 - veins * 0.55) + grad4(u.root_color, 0.8) * veins * thin * 0.5;
-    col = col + mix(skin, grad4(u.tip_color, 1.0), 0.35) * fres * rim_amt * 1.3;
-    col = col + vec3<f32>(spec) * 0.3;
+    let vv = max(veins, veins2);
+    col = col * (1.0 - vv * 0.5) + grad4(u.root_color, 0.8) * vv * thin * 0.5;
+    col = col + grad4(u.tip_color, 1.0) * vv * travel * glow_amt * 1.6;
+    // A thin-film sheen: the rim walks the tip slot, so grazing angles shimmer.
+    let sheen = grad4(u.tip_color, fract(0.55 + fres * 0.8 + h * 0.3));
+    col = col + mix(skin, sheen, 0.6) * fres * rim_amt * 1.4;
+    col = col + vec3<f32>(spec) * 0.45;
     // Ridges catch the glow, valleys fall into shadow.
-    col = col * (0.75 + 0.5 * clamp(0.5 + h * 1.2, 0.0, 1.0));
-    col = vec3<f32>(1.0) - exp(-col * 1.5);
+    col = col * (0.62 + 0.7 * clamp(0.5 + h * 1.2, 0.0, 1.0));
+    // The far skin sinks into the dark, so the sheet has no hard horizon edge.
+    let far = length(eye - in.world);
+    col = col * mix(0.12, 1.0, exp(-max(far - 1.8, 0.0) * 0.75));
+    col = vec3<f32>(1.0) - exp(-col * 1.6);
     return vec4<f32>(col, 1.0);
 }

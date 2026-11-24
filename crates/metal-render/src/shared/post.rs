@@ -733,8 +733,8 @@ mod chain_conformance_tests {
     /// and the ramp lengths it hard-codes must equal the Rust source.
     #[test]
     fn the_embedded_ascii_font_equals_the_models_ramps() {
-        let ramps = crate::models::ascii::packed_ramps();
-        assert_eq!(crate::models::ascii::ramp_lengths(), vec![10, 9, 8, 7], "post.wgsl hard-codes these lengths");
+        let ramps = crate::shared::ascii_ramps::packed_ramps();
+        assert_eq!(crate::shared::ascii_ramps::ramp_lengths(), vec![10, 9, 8, 7], "post.wgsl hard-codes these lengths");
         assert!(SHADER.contains(&format!("array<vec2<u32>, {}>(", ramps.len())));
         let table: String = ramps.iter().map(|[x, y]| format!("    vec2<u32>({x}u, {y}u)")).collect::<Vec<_>>().join(",\n");
         assert!(SHADER.contains(&table), "ASCII_GLYPHS in post.wgsl differs from models/ascii.rs");

@@ -1856,7 +1856,7 @@ mod param_tests {
         // A second source replaces the first: one edge into the port.
         let second = graph_node(
             &mut ctx,
-            &body(json!({ "op": "attach", "graph": graph, "node": mask, "port": "stroke", "kind": "gen.rings" })),
+            &body(json!({ "op": "attach", "graph": graph, "node": mask, "port": "stroke", "kind": "gen.puzzle" })),
         )
         .expect("replace the source")["node"]
             .as_str()
@@ -1901,12 +1901,12 @@ mod param_tests {
             .to_string();
         graph_node(
             &mut ctx,
-            &body(json!({ "op": "attach", "graph": graph, "node": mask, "port": "stroke", "kind": "gen.rings" })),
+            &body(json!({ "op": "attach", "graph": graph, "node": mask, "port": "stroke", "kind": "gen.puzzle" })),
         )
         .expect("replace the source");
         let g = crate::load_graph(&graph).unwrap();
         assert!(g.node(&first).is_none(), "the replaced source had no other use: removed");
-        assert_eq!(g.nodes.iter().filter(|n| n.kind == "gen.rings").count(), 1);
+        assert_eq!(g.nodes.iter().filter(|n| n.kind == "gen.puzzle").count(), 1);
 
         // Now wire the device's generator into the port: it is the previous
         // source of nothing, so the rings node goes; the generator stays.
@@ -1916,7 +1916,7 @@ mod param_tests {
         )
         .expect("attach the generator that feeds the device");
         let g = crate::load_graph(&graph).unwrap();
-        assert!(g.nodes.iter().all(|n| n.kind != "gen.rings"), "the replaced rings node is gone");
+        assert!(g.nodes.iter().all(|n| n.kind != "gen.puzzle"), "the replaced puzzle node is gone");
         assert!(g.node(&gen).is_some());
 
         // Detaching the port: the generator still feeds the device, so it stays.

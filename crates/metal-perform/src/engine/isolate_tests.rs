@@ -159,8 +159,8 @@ fn kind_variants_are_four_distinct_float_sets_in_range() {
             }
         }
     }
-    assert!(kind_variant_floats("gen.rings", 0).is_empty(), "a model is not a kind preview");
-    assert!(kind_preview_graph("gen.rings", 0, "rings").is_none());
+    assert!(kind_variant_floats("gen.puzzle", 0).is_empty(), "a model is not a kind preview");
+    assert!(kind_preview_graph("gen.puzzle", 0, "puzzle").is_none());
 }
 
 /// An fx kind renders its own preview at each variant, over the ramp source,
@@ -216,11 +216,11 @@ fn render_gen_listened_draws_each_time_from_the_recording() {
     let silent = vec![vec![0.0f32; crate::digest::FEATURES]; 64];
     let loud_row: Vec<f32> = (0..crate::digest::FEATURES).map(|c| if c == 0 || c == 2 { 0.9 } else { 0.5 }).collect();
     let loud = vec![loud_row; 64];
-    let quiet = render_gen_listened(&mut *paint, &mut state, "rings", 1, 48, 27, &silent, 8.0, &times)
-        .expect("the rings model renders");
+    let quiet = render_gen_listened(&mut *paint, &mut state, "puzzle", 1, 48, 27, &silent, 8.0, &times)
+        .expect("the puzzle model renders");
     assert_eq!(quiet.len(), times.len(), "one frame per time");
     assert!(quiet.iter().all(|(_, w, h)| (*w, *h) == (48, 27)));
-    let hot = render_gen_listened(&mut *paint, &mut state, "gen.rings", 1, 48, 27, &loud, 8.0, &times)
+    let hot = render_gen_listened(&mut *paint, &mut state, "gen.puzzle", 1, 48, 27, &loud, 8.0, &times)
         .expect("the gen. prefix is accepted");
     assert_eq!(hot.len(), times.len(), "one frame per time");
     assert!(render_gen_listened(&mut *paint, &mut state, "nope", 0, 48, 27, &loud, 8.0, &times).is_none());

@@ -6050,21 +6050,22 @@ pub fn black(w: u32, h: u32) -> Vec<u8> {
 /// a third on a different model, different z, different blend, to prove
 /// the shared node does not also collapse the layers' own identities.
 pub fn fan_out_stack() -> Vec<Layer> {
-    let mut back = Layer::new("back", "back", 0);
+    // Models 2 and 3 (escape, entrance): slots 0 and 1 are retired tombstones.
+    let mut back = Layer::new("back", "back", 2);
     back.z = 0;
     back.blend = Blend::Normal;
     back.opacity = 1.0;
 
     // Same model, same feed, same (absent) base as `back` — the pair
     // `compile_device_plan` must fold onto one node.
-    let mut echo = Layer::new("echo", "echo", 0);
+    let mut echo = Layer::new("echo", "echo", 2);
     echo.z = 1;
     echo.blend = Blend::Add;
     echo.opacity = 0.4;
 
     // A different generator, behind both, so draw order still has
     // something to get wrong.
-    let mut base_layer = Layer::new("base", "base", 1);
+    let mut base_layer = Layer::new("base", "base", 3);
     base_layer.z = -5;
     base_layer.blend = Blend::Normal;
 
@@ -8138,9 +8139,11 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
         /// `FW_PRINT_GOLDEN=1 cargo test -p metal-perform -- --nocapture` and
         /// paste the printed values.
         const GOLDEN: &[(&str, u64)] = &[
-            ("automix", 0xbb66da10d71ce6ad),
-            ("collection", 0xa5b7c87e2eba8f89),
-            ("contoured", 0xbb66da10d71ce6ad),
+            // Re-frozen 2026-11-23 (11 gen models retired): `fan_out_stack` moved
+            // off slots 0/1, which are tombstones now, onto escape/entrance.
+            ("automix", 0xd9fccb03600f52ae),
+            ("collection", 0x295e8697878ba91c),
+            ("contoured", 0xd9fccb03600f52ae),
             // Re-frozen 2026-09-27 (BLE Phase B): appending the signal block's
             // five floats (`sig_cct`, `sig_zoom`, `sig_focus`, `sig_iris`,
             // `sig_frost`) widens every row and, because the signal block
@@ -8154,10 +8157,10 @@ front = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
             // change alters every composed frame; re-frozen with
             // `FW_PRINT_GOLDEN=1`.
             ("empty-1", 0x9a02de9048308b25),
-            ("fixed-effects", 0xcfbefd67fb913a67),
-            ("overlay", 0x7a016fced75c4b5c),
+            ("fixed-effects", 0xada6be33ebc7f4c2),
+            ("overlay", 0xcf6cbcb0e20253d9),
             ("remote-ceded", 0x9a02de9048308b25),
-            ("scheduled-run", 0xa5b7c87e2eba8f89),
+            ("scheduled-run", 0x295e8697878ba91c),
         ];
 
         /// One corpus scenario's frame, through the live path, checked

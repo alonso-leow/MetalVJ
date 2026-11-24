@@ -31,22 +31,15 @@
 
 use crate::model::{Block, Capabilities, Ctx, Model, Schema};
 
-use crate::models::ascii::Ascii;
 use crate::models::aurora::Aurora;
-use crate::models::beam::Beam;
 use crate::models::brasa::Brasa;
 use crate::models::chamber::Chamber;
 use crate::models::cyberspace::Cyberspace;
-use crate::models::dla::Dla;
-use crate::models::domain::Domain;
 use crate::models::entrance::Entrance;
 use crate::models::escena3d::Escena3d;
 use crate::models::escape::Escape;
-use crate::models::estrobo::Estrobo;
 use crate::models::forge::Forge;
 use crate::models::fractals::Fractals;
-use crate::models::geoterrain::Geoterrain;
-use crate::models::humo::Humo;
 use crate::models::kaleido::Kaleido;
 use crate::models::lazer::Lazer;
 use crate::models::membrane::Membrane;
@@ -58,7 +51,6 @@ use crate::models::fineline::Fineline;
 use crate::models::fluido::Fluido;
 use crate::models::nubes::Nubes;
 use crate::models::particulas::Particulas;
-use crate::models::corales::Corales;
 use crate::models::paisaje::Paisaje;
 use crate::models::oracle::Oracle;
 use crate::models::parallax::{ParallaxCampos, ParallaxCielo, ParallaxCiudad, ParallaxCueva};
@@ -76,7 +68,6 @@ use crate::models::dithering::Dithering;
 use crate::models::dotorbit::Dotorbit;
 use crate::models::gemsmoke::Gemsmoke;
 use crate::models::flutedglass::Flutedglass;
-use crate::models::godrays::Godrays;
 use crate::models::graingradient::Graingradient;
 use crate::models::halftonedots::Halftonedots;
 use crate::models::metaballs::Metaballs;
@@ -96,8 +87,6 @@ use crate::models::ripples::Ripples;
 use crate::models::water::Water;
 use crate::models::gradiente::Gradiente;
 use crate::models::puzzle::Puzzle;
-use crate::models::relampago::Relampago;
-use crate::models::rings::Rings;
 use crate::models::rio::Rio;
 use crate::models::room::Room;
 use crate::models::sandstorm::Sandstorm;
@@ -207,8 +196,8 @@ impl Model for Retired {
 
 /// The suite, in the order it was built. **Append-only** — see the module doc.
 pub const MODEL_SPECS: &[ModelSpec] = &[
-    spec!("geoterrain", Geoterrain),
-    spec!("domain", Domain),
+    tombstone!("geoterrain"),
+    tombstone!("domain"),
     spec!("escape", Escape),
     spec!("entrance", Entrance),
     spec!("cyberspace", Cyberspace),
@@ -228,14 +217,14 @@ pub const MODEL_SPECS: &[ModelSpec] = &[
     // 2026-10-16: `matrix` renamed to `room` (materials M6); the id becomes a
     // material, the model a room. Tombstone, not deletion (rule 1).
     tombstone!("matrix"),
-    spec!("ascii", Ascii),
+    tombstone!("ascii"),
     // 2026-09-28: `walking` retired with its rig sibling `pov`.
     tombstone!("walking"),
     // The five asked for on 2026-08-22, in the order they were asked for.
     // Four are 2D objects with state, not fields over the frame.
     spec!("puzzle", Puzzle),
     spec!("someone", Mengano),
-    spec!("rings", Rings),
+    tombstone!("rings"),
     spec!("scratch", Scratch),
     spec!("laser", Lazer),
     // 2026-08-23. The first model with no CPU side at all: sand has no
@@ -243,11 +232,11 @@ pub const MODEL_SPECS: &[ModelSpec] = &[
     spec!("sandstorm", Sandstorm),
     // The five asked for on 2026-08-23, after a ranking. Four share
     // `shared::fullscreen`; Lightning draws through `line2d`.
-    spec!("strobe", Estrobo),
-    spec!("lightning", Relampago),
+    tombstone!("strobe"),
+    tombstone!("lightning"),
     spec!("moire", Moire),
     spec!("stained-glass", Vitral),
-    spec!("smoke", Humo),
+    tombstone!("smoke"),
     // 2026-08-23. Sandstorm's vocabulary poured into a box with a floor — the
     // second model that keeps state, because a pile is a history.
     spec!("terrarium", Terrario),
@@ -271,14 +260,14 @@ pub const MODEL_SPECS: &[ModelSpec] = &[
     // 2026-08-25. Two picks ported from fosfora: spectrogram curtain bands and
     // a vector-CRT trace. Both generative, so plain at the trait's common end.
     spec!("aurora", Aurora),
-    spec!("beam", Beam),
+    tombstone!("beam"),
     // 2026-09-05. `the design notes` §H.1 — the template the AI harness
     // reads as its starting point for a personalised shader.
     spec!("scene3d", Escena3d),
     // 2026-09-14. Diffusion-limited aggregation — the walker-ring algorithm as
     // a model. The second model that keeps state, and the one that could not
     // not: an aggregate is a history.
-    spec!("dla", Dla),
+    tombstone!("dla"),
     // 2026-09-25. The model whose shader is written at runtime — by the AI,
     // through `save_shader` — and validated by `metal_forge::check` before it
     // draws. Its row is the sixteen ingest columns as they arrive; which WGSL
@@ -310,7 +299,7 @@ pub const MODEL_SPECS: &[ModelSpec] = &[
     // 2026-10-15. N-body particle system (leapfrog, shearing sheet), after rebound.
     spec!("particles", Particulas),
     // 2026-10-15. Differential line growth, after inconvergent/differential-line.
-    spec!("corals", Corales),
+    tombstone!("corals"),
     // 2026-10-15. 3D fine-line plotter drawing, after abey79/lines + vpype.
     spec!("fineline", Fineline),
     // 2026-10-15. Scrolling ink landscape, after LingDong-/shan-shui-inf.
@@ -330,7 +319,7 @@ pub const MODEL_SPECS: &[ModelSpec] = &[
     // 2026-10-16. Procedural model: ribbed glass over a source picture.
     spec!("flutedglass", Flutedglass),
     // 2026-10-16. Procedural model: light shafts with core glow and bloom.
-    spec!("godrays", Godrays),
+    tombstone!("godrays"),
     // 2026-10-16. Procedural model: grain gradient + static radial gradient.
     spec!("graingradient", Graingradient),
     // 2026-10-16. Procedural model: picture as a halftone dot screen.
@@ -597,8 +586,6 @@ mod tests {
             }
         }
         assert!(!covered.is_empty(), "no model exposes a surface");
-        // `geoterrain` draws through `line2d`, whose strokes wear the material.
-        assert!(covered.contains(&"geoterrain"), "geoterrain's strokes take a material");
         assert_eq!(gaps, MATERIAL_GAPS, "models with a surface but no working material (covered: {covered:?})");
     }
 }

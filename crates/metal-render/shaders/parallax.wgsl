@@ -331,7 +331,7 @@ fn cloud(q: vec2<f32>, w: f32, id: f32, row: f32) -> f32 {
         d = smin(d, length(q - vec2<f32>(px, py)) - r, w * 0.18);
     }
     // a ragged edge, never a compass circle
-    d = d + (lattice_fbm(q / w * 3.0 + vec2<f32>(id, row), 3) - 0.5) * w * 0.12;
+    d = d + (lattice_fbm(q / w * 3.0 + vec2<f32>(id, row), 4) - 0.5) * w * 0.2;
     // the underside fades out instead of ending on a ruled line
     return max(d, -(q.y + w * 0.08));
 }
@@ -423,10 +423,17 @@ fn sky(s: vec2<f32>, li: i32) -> Smp {
                 var cc = mix(belly, crown, smoothstep(0.1, 0.9, hgt));
                 // soft inner gradient: the core is denser than the edge
                 cc = mix(cc * 1.1, cc * 0.85, depth_in * (1.0 - hgt));
-                // a lit rim along the top only
+                // billows: lumpy internal shading, lit tops, shadowed folds
+                let bil = lattice_fbm(q / w * 4.5 + vec2<f32>(id * 13.0, row), 3);
+                cc = cc * (0.74 + 0.55 * bil * (0.3 + 0.7 * hgt));
+                // a lit rim along the top, and a silver lining on every thin edge
                 let rim = smoothstep(-0.02 * k, 0.0, dc) * smoothstep(0.35, 0.9, hgt);
+                let lining = smoothstep(-0.02 * w, 0.0, dc) * smoothstep(0.3, 0.8, hgt);
                 cc = mix(cc, sun_c * min(luz(), 1.4), rim * 0.55);
-                put(&o, cc, cover(dc) * mix(0.75, 1.0, lt));
+                cc = cc + sun_c * min(luz(), 1.4) * lining * 0.14;
+                // soft vapour edge instead of a cut-out line
+                let soft = clamp(0.5 - dc / max(w * 0.018 + u.f1.z * 1.3, 1e-5), 0.0, 1.0);
+                put(&o, cc, soft * mix(0.75, 1.0, lt));
             }
         }
     }
@@ -920,6 +927,10 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
     acc = acc + glow / (1.0 + 0.6 * max(max(glow.r, glow.g), glow.b));
     // soft clip so stacked glows do not burn to flat white
     acc = acc / (1.0 + max(acc - vec3<f32>(0.8), vec3<f32>(0.0)));
+
+    // a gentle lens falloff, so the eye settles on the middle of the world
+    let vc = (in.uv - vec2<f32>(0.5)) * vec2<f32>(aspect, 1.0);
+    acc = acc * (1.0 - 0.18 * smoothstep(0.2, 1.1, dot(vc, vc) * 1.4));
 
     let alpha = select(1.0, clamp(cov + length(glow), 0.0, 1.0), fondo_alpha);
     return vec4<f32>(acc, alpha);

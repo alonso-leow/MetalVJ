@@ -36,7 +36,15 @@ fn vs_main(in: VIn) -> VOut {
 
 @fragment
 fn fs_main(in: VOut) -> @location(0) vec4<f32> {
-    let cov = clamp(in.soft + 0.5 - abs(in.side), 0.0, 1.0);
-    let rgb = kit_look(in.color.rgb, u.look.x, u.look.y, u.look.z, u.look.w);
-    return vec4<f32>(rgb, in.color.a * cov * u.misc.y);
+    let d = abs(in.side);
+    let cov = clamp(in.soft + 0.5 - d, 0.0, 1.0);
+    // Neon ink: a hot core, the ink itself, and a soft halo outside it that is
+    // stronger on the heavier strokes (silhouettes glow, hatching barely does).
+    let out_d = max(d - in.soft, 0.0);
+    let halo = exp(-out_d * out_d / 4.5) * 0.32 * clamp(in.soft / 1.2, 0.25, 1.0);
+    let core = clamp(1.0 - d / max(in.soft, 0.5), 0.0, 1.0);
+    var ink = kit_look(in.color.rgb, u.look.x, u.look.y, u.look.z, u.look.w);
+    ink = mix(ink, vec3<f32>(1.0), core * core * 0.28 * clamp(in.soft - 0.4, 0.0, 1.0));
+    let a = max(cov, halo);
+    return vec4<f32>(ink, in.color.a * a * u.misc.y);
 }

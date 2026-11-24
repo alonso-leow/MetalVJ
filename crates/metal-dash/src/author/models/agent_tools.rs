@@ -3081,7 +3081,7 @@ mod tests {
     fn manifest() -> Manifest {
         serde_json::from_str(
             r#"{"rate":8.0,"models":[
-                {"id":"geoterrain","label":"Geoterrain","blocks":[
+                {"id":"escape","label":"Escape","blocks":[
                     {"type":"floats","fields":[{"name":"radius","min":0.0,"max":5.0,"default":1.0}]}
                 ]}
             ]}"#,
@@ -3244,10 +3244,10 @@ mod tests {
     }
 
     /// A generator segment on layer 1, the shape the lanes control lists —
-    /// `geoterrain` because it is the first entry of the checked-in
+    /// `escape` because it is the first entry of the checked-in
     /// `data/schema.json`, not because the test cares which model it is.
     fn model_segment(id: &str, layer: usize) -> Value {
-        json!({ "id": id, "from": 10, "to": 20, "model": "geoterrain", "layer": layer })
+        json!({ "id": id, "from": 10, "to": 20, "model": "escape", "layer": layer })
     }
 
     /// S.D's verification, in one test: *"the document saved by the
@@ -3287,14 +3287,14 @@ mod tests {
         assert_eq!(mixed["mix"]["opacity"], 0.75);
         // Everything the drag would have carried along survives — no
         // partial patch, same guarantee `move_segment` makes.
-        assert_eq!(mixed["model"], "geoterrain");
+        assert_eq!(mixed["model"], "escape");
         assert_eq!(mixed["layer"], 1);
         let via_tool = fs::read_to_string(timeline_path(tl_id)).unwrap();
 
         fresh_timeline(tl_id);
         super::super::edit_segment(&add_body).expect("reseed");
         let control_segment = json!({
-            "id": seg_id, "from": 10, "to": 20, "model": "geoterrain", "layer": 1,
+            "id": seg_id, "from": 10, "to": 20, "model": "escape", "layer": 1,
             "mix": { "mask": "mask-2", "blend": "screen", "opacity": 0.75 }
         });
         let control_body = json!({ "timeline": tl_id, "track": "model", "op": "move", "segment": control_segment });
@@ -4837,7 +4837,7 @@ mod tests {
 
     #[test]
     fn set_keyframe_writes_byte_identical_to_save_example_and_replaces_by_tick() {
-        let model = "geoterrain";
+        let model = "escape";
         let song = "sk-agent-tools-song";
         let _ = fs::remove_file(example_path(model, song));
 
@@ -4914,7 +4914,7 @@ mod tests {
     /// moment is fine tick 128 or base tick 32, and both land on canonical 128.
     #[test]
     fn agent_tools_speak_the_active_level() {
-        let model = "geoterrain";
+        let model = "escape";
         let (song_fine, song_base) = ("sk-speak-fine", "sk-speak-base");
         let _ = fs::remove_file(example_path(model, song_fine));
         let _ = fs::remove_file(example_path(model, song_base));
@@ -4970,7 +4970,7 @@ mod tests {
 
     #[test]
     fn set_keyframe_rejects_a_wrong_width_row() {
-        let model = "geoterrain";
+        let model = "escape";
         let song = "sk-agent-tools-bad-width";
         let mut h = harness();
         let err = h

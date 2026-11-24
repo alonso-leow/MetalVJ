@@ -1,15 +1,5 @@
 [
   {
-    "id": "geoterrain",
-    "look": "generative: draws its own picture; draws its own backdrop",
-    "name": "Geoterrain"
-  },
-  {
-    "id": "domain",
-    "look": "generative: draws its own picture",
-    "name": "Domain"
-  },
-  {
     "id": "escape",
     "look": "generative: draws its own picture; draws its own backdrop",
     "name": "Escape"
@@ -70,11 +60,6 @@
     "name": "Matrix"
   },
   {
-    "id": "ascii",
-    "look": "generative: draws its own picture",
-    "name": "ASCII Waveform"
-  },
-  {
     "id": "puzzle",
     "look": "generative: draws its own picture; draws its own backdrop",
     "name": "Puzzle"
@@ -83,11 +68,6 @@
     "id": "mengano",
     "look": "generative: draws its own picture",
     "name": "Mengano"
-  },
-  {
-    "id": "rings",
-    "look": "generative: draws its own picture",
-    "name": "Rings"
   },
   {
     "id": "scratch",
@@ -150,19 +130,9 @@
     "name": "Aurora"
   },
   {
-    "id": "beam",
-    "look": "generative: draws its own picture",
-    "name": "Beam"
-  },
-  {
     "id": "escena3d",
     "look": "generative: draws its own picture; draws its own backdrop; camera-trackable",
     "name": "Scene 3D"
-  },
-  {
-    "id": "dla",
-    "look": "generative: draws its own picture",
-    "name": "Dla"
   },
   {
     "id": "forge",

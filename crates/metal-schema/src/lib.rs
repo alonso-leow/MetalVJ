@@ -2515,9 +2515,13 @@ pub fn chain_from_query(text: &str) -> Option<Vec<EffectStep>> {
 
 /// Reads the shared effects back out of a row's trailing floats — the mirror
 /// of appending [`EFFECTS_FLOATS_BLOCK`] and [`EFFECTS_COLOR_BLOCK`] to a
-/// schema. Panics if `floats` is shorter than [`EFFECTS_WIDTH`], the same
-/// contract every other fixed-offset read against a row already has.
+/// schema. A row shorter than [`EFFECTS_WIDTH`] (a retired model's empty
+/// tombstone row) reads as the default, neutral post.
 pub fn read_post(floats: &[f32]) -> Post {
+    if floats.len() < EFFECTS_WIDTH {
+        // a retired model's tombstone row carries no floats at all
+        return Post::default();
+    }
     let at = floats.len() - EFFECTS_WIDTH;
     Post {
         version: EFFECTS_VERSION,

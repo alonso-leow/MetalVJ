@@ -603,8 +603,10 @@ mod tests {
         let paint = crate::paint::painter();
         let ids = paint.ids();
         let schemas = paint.schemas();
-        let model = ids[0];
-        let real_schema = schemas[0];
+        // the first live model (the leading slots are retired tombstones)
+        let first = schemas.iter().position(|s| !s.defaults().is_empty()).expect("a live model");
+        let model = ids[first];
+        let real_schema = schemas[first];
 
         let mut g = metal_graph::Graph::new("ai-train", "t", metal_graph::Domain::Live);
         let gen = g.add_node("gen", &format!("gen.{model}"), [2.0, 0.0]);

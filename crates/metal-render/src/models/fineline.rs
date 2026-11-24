@@ -1240,6 +1240,10 @@ impl LinePipe {
     }
 }
 
+/// Pixels of soft halo around every stroke, so the plot reads as lit ink on a
+/// stage screen instead of a hairline lost at projector distance.
+const GLOW_PX: f32 = 4.0;
+
 /// Triangle-strip vertices for every run, joined by degenerate triangles.
 /// Widths are in pixels; `px` is the size of one pixel in aspect units.
 fn strip_vertices(runs: &[Run], slot: &ColorSlotGpu, widths: [f32; 4], px: f32) -> Vec<LVert> {
@@ -1249,7 +1253,9 @@ fn strip_vertices(runs: &[Run], slot: &ColorSlotGpu, widths: [f32; 4], px: f32) 
         if widths[r.kind.min(3) as usize] <= 0.0 {
             continue;
         }
-        let total = half_px + 1.0;
+        // 1 px of anti-aliasing plus the neon halo `fineline_line.wgsl` draws
+        // outside the ink (it fades to nothing before the strip's edge).
+        let total = half_px + 1.0 + GLOW_PX;
         let mut pts: Vec<&P2> = Vec::with_capacity(r.pts.len());
         for p in &r.pts {
             if pts.last().map_or(true, |l| l.p.distance_squared(p.p) > 1e-12) {

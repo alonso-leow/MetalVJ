@@ -52,6 +52,8 @@ struct RioUniform {
     mat_stones: MaterialU,
     mat_bushes: MaterialU,
     screen: vec4<f32>,
+    // mountains, river_type, _, _ (2026-11-25)
+    terra: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> u: RioUniform;
@@ -187,6 +189,50 @@ fn part_shaded(base: vec3<f32>, role: f32, p: vec3<f32>, n: vec3<f32>, screen_uv
     return material_apply(u.mat_water, surf_water_tex, surf_water_samp, base, p, n, screen_uv, v, t);
 }
 
+// 2026-11-25: mountains on the banks, shaped by one of 16 river presets.
+// Mirrors `meander` in models/rio.rs so the water channel stays clear.
+fn rv_meander(z: f32) -> f32 {
+    return 0.55 * sin(z * 0.19) + 0.25 * sin(z * 0.41 + 1.2);
+}
+fn rv_h(p: vec2<f32>) -> f32 {
+    return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453);
+}
+fn rv_n(p: vec2<f32>) -> f32 {
+    let i = floor(p); let f = fract(p);
+    let w = f * f * (3.0 - 2.0 * f);
+    return mix(mix(rv_h(i), rv_h(i + vec2<f32>(1.0, 0.0)), w.x), mix(rv_h(i + vec2<f32>(0.0, 1.0)), rv_h(i + vec2<f32>(1.0, 1.0)), w.x), w.y);
+}
+fn rv_fbm(p: vec2<f32>) -> f32 {
+    return rv_n(p) * 0.55 + rv_n(p * 2.1 + 3.1) * 0.28 + rv_n(p * 4.3 + 7.7) * 0.17;
+}
+fn rv_mountain(x: f32, z: f32) -> f32 {
+    let k = i32(clamp(round(u.terra.y), 0.0, 15.0));
+    let d = abs(x - rv_meander(z));
+    let side = sign(x - rv_meander(z));
+    let rise = smoothstep(1.1, 3.0, d);
+    let p = vec2<f32>(x, z);
+    var h = 0.0;
+    switch (k) {
+        case 1: { h = 0.45 * rv_n(p * 0.35); }                                       // rolling hills
+        case 2: { h = smoothstep(1.3, 1.6, d) * (0.9 + 0.1 * rv_n(p * 2.0)); }       // canyon walls
+        case 3: { h = floor(rv_fbm(p * 0.4) * 4.0) / 4.0 + 0.2; }                   // mesa terraces
+        case 4: { h = select(0.05, 1.0, side > 0.0) * (0.8 + 0.2 * rv_n(p)); }      // one-sided cliff
+        case 5: { h = 0.35 * (0.5 + 0.5 * sin(x * 2.2 + rv_n(p * 0.5) * 3.0)); }    // dunes
+        case 6: { let c = fract(p * 0.25) - 0.5; h = max(0.0, 1.0 - length(c) * 3.0); } // volcano cones
+        case 7: { h = smoothstep(1.2, 1.5, d) * (1.1 + 0.3 * rv_fbm(p)); }           // fjord
+        case 8: { h = 0.3 * rv_fbm(p * 1.3) + 0.15 * rv_n(p * 6.0); }               // jungle mounds
+        case 9: { h = 1.0 - abs(rv_fbm(p * 0.5) * 2.0 - 1.0); }                     // ridged range
+        case 10: { h = smoothstep(0.35, 0.45, rv_fbm(p * 0.3)) * 0.8; }             // plateau
+        case 11: { h = floor(d * 2.0) * 0.25 * (0.8 + 0.2 * rv_n(p)); }            // terraces
+        case 12: { let a = length(p - vec2<f32>(-2.6, 8.0)); let b = length(p - vec2<f32>(2.8, 10.0)); h = max(0.0, 1.4 - a * 0.45) + max(0.0, 1.2 - b * 0.45); } // twin peaks
+        case 13: { h = abs(sin(rv_fbm(p * 0.8) * 9.0)) * 0.6; }                     // badlands
+        case 14: { h = (d - 1.1) * 0.35 + 0.2 * rv_n(p * 0.7); }                    // glacier U-valley
+        case 15: { h = pow(rv_n(p * 1.6), 4.0) * 2.0; }                             // spires
+        default: { h = rv_fbm(p * 0.45) * (0.7 + 0.3 * rv_n(p * 1.7)); }            // alpine
+    }
+    return max(h, 0.0) * rise * u.terra.x;
+}
+
 @vertex
 fn vs_main(in: VIn) -> VOut {
     let variation = u.floats.y;
@@ -200,6 +246,8 @@ fn vs_main(in: VIn) -> VOut {
 
     var world = in.pos;
     let role = in.tag.z;
+    // Banks, stones and bushes ride the mountains; the water (role 4) does not.
+    if (role < 3.5) { world.y = world.y + rv_mountain(world.x, world.z); }
 
     // Rule 5, first half. Both branches are ordered low to high and closed at
     // the top for the reason matrix.wgsl records: an open comparison lets a

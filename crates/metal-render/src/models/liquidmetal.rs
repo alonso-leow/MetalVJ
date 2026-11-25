@@ -14,7 +14,7 @@ use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
     // forma (procedural shape when no source): 0 disc, 1 daisy, 2 diamond, 3 metaballs
-    spec_held("shape", 0.0, 3.0, 2.0, 0.2),
+    spec_held("shape", 0.0, 15.0, 2.0, 0.2),
     spec("repetition", 0.5, 12.0, 2.0),
     spec("softness", 0.0, 1.0, 0.1),
     spec("displace_r", -1.0, 1.0, 0.3),
@@ -40,6 +40,11 @@ const FLOATS: &[FloatSpec] = &[
     spec("background_reflection", 0.0, 1.0, 0.4),
     spec("edge", 0.0, 0.5, 0.05),
     spec("seed", 0.0, 50.0, 0.0),
+    // Appended 2026-11-25: 1 = the `shape` object even when a picture is
+    // connected (16 objects: disc, daisy, diamond, metaballs, rounded box,
+    // ring, star, heart, cross, triangle, hexagon, capsule, crescent, twin
+    // rings, wobbling blob, lemniscate).
+    spec_held("use_shape", 0.0, 1.0, 1.0, 0.2),
 ];
 
 /// Linear: dark steel, mid grey, light grey, near white.

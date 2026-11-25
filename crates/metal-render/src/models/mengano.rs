@@ -133,6 +133,12 @@ const PERSONALITY: &[FloatSpec] = &[
     // body (still squashing and stretching with it) and this is their one
     // rotation.
     spec("eye_rotation", -0.5, 0.5, 0.0),
+    // Appended 2026-11-25: 16 body forms (circle, ellipses, rounded square,
+    // triangle, pentagon, hexagon, star, heart, irregular blob, bean, pear,
+    // cloud, diamond, egg, splat) and 16 eye presets (pairs, cyclops, rows,
+    // clusters, uneven, slit/square/star/cross pupils, droopy lids).
+    spec_held("form", 0.0, 15.0, 0.0, 0.2),
+    spec_held("eye_style", 0.0, 15.0, 0.0, 0.2),
 ];
 /// The old fixed light, (-0.45, 0.89), as a fraction of a turn.
 const LIGHT_TURNS: f32 = 0.3251;
@@ -602,7 +608,7 @@ impl Model for Mengano {
                 1.0 + (m.dance.beat - 1.0) * floats[P + 19].clamp(0.0, 1.0),
             ],
             bg1: [floats[P + 20], floats[P + 21], floats[P + 22], floats[P + 23]],
-            bg2: [floats[P + 24], floats[P + 25] * m.dance.beat * 0.5, 0.0, 0.0],
+            bg2: [floats[P + 24], floats[P + 25] * m.dance.beat * 0.5, floats[P + 26], floats[P + 27]],
             mat_body: self.surfaces.uniform(0),
         };
         let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -874,7 +880,7 @@ mod tests {
         assert_eq!(names[11], "light_angle");
         assert_eq!(names[19], "glow_pulse");
         assert_eq!(names[25], "bg_pulse");
-        assert_eq!(PERSONALITY.len(), 27);
+        assert_eq!(PERSONALITY.len(), 29);
         let (a, b) = (-0.45f32, 0.89f32);
         assert!((b.atan2(a) / std::f32::consts::TAU - LIGHT_TURNS).abs() < 1e-3);
     }

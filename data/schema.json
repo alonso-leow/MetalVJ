@@ -14526,6 +14526,13 @@
               "max": 1.0,
               "min": 0.0,
               "name": "fold"
+            },
+            {
+              "default": 1.5,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.0,
+              "name": "trace_speed"
             }
           ],
           "type": "floats"
@@ -21823,6 +21830,20 @@
               "max": 0.5,
               "min": -0.5,
               "name": "eye_rotation"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "form"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "eye_style"
             }
           ],
           "type": "floats"
@@ -29013,6 +29034,13 @@
               "max": 1.0,
               "min": -1.0,
               "name": "separation"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "layout"
             }
           ],
           "type": "floats"
@@ -34471,6 +34499,20 @@
               "max": 1.0,
               "min": 0.0,
               "name": "fill"
+            },
+            {
+              "default": 0.800000011920929,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.0,
+              "name": "mountains"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "river_type"
             }
           ],
           "type": "floats"
@@ -36337,6 +36379,69 @@
               "max": 1.0,
               "min": 0.0,
               "name": "sharpness"
+            },
+            {
+              "default": 6.0,
+              "drive": 0.25,
+              "max": 12.0,
+              "min": 2.0,
+              "name": "sectors"
+            },
+            {
+              "default": 6.0,
+              "drive": 0.25,
+              "max": 8.0,
+              "min": 1.0,
+              "name": "depth_rows"
+            },
+            {
+              "default": 1.2000000476837158,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.4000000059604645,
+              "name": "depth_gap"
+            },
+            {
+              "default": 0.25,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": 0.0,
+              "name": "fly"
+            },
+            {
+              "default": 0.11999999731779099,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "twist"
+            },
+            {
+              "default": 0.15000000596046448,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "sway"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "lift"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.5,
+              "min": -1.5,
+              "name": "dolly"
+            },
+            {
+              "default": 0.4000000059604645,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "tension"
             }
           ],
           "type": "floats"
@@ -38168,6 +38273,53 @@
               "max": 5.0,
               "min": -5.0,
               "name": "cam_dolly"
+            }
+          ],
+          "type": "floats"
+        },
+        {
+          "fields": [
+            {
+              "default": 1.0,
+              "drive": 0.20000000298023224,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "infinite"
+            },
+            {
+              "default": 0.550000011920929,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "obj_hue"
+            },
+            {
+              "default": 0.550000011920929,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "obj_sat"
+            },
+            {
+              "default": 0.800000011920929,
+              "drive": 1.0,
+              "max": 1.5,
+              "min": 0.0,
+              "name": "obj_bri"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 3.1415998935699463,
+              "min": -3.1415998935699463,
+              "name": "roll"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": -2.0,
+              "name": "roll_speed"
             }
           ],
           "type": "floats"
@@ -44032,6 +44184,34 @@
               "max": 100.0,
               "min": 0.0,
               "name": "seed"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.6000000238418579,
+              "name": "zoom"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.5,
+              "min": -1.5,
+              "name": "cam_height"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.2000000476837158,
+              "min": -3.0,
+              "name": "cam_depth"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 0.800000011920929,
+              "min": -0.800000011920929,
+              "name": "cam_roll"
             }
           ],
           "type": "floats"
@@ -45996,6 +46176,34 @@
               "max": 100.0,
               "min": 0.0,
               "name": "seed"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.6000000238418579,
+              "name": "zoom"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.5,
+              "min": -1.5,
+              "name": "cam_height"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.2000000476837158,
+              "min": -3.0,
+              "name": "cam_depth"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 0.800000011920929,
+              "min": -0.800000011920929,
+              "name": "cam_roll"
             }
           ],
           "type": "floats"
@@ -47960,6 +48168,34 @@
               "max": 100.0,
               "min": 0.0,
               "name": "seed"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.6000000238418579,
+              "name": "zoom"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.5,
+              "min": -1.5,
+              "name": "cam_height"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.2000000476837158,
+              "min": -3.0,
+              "name": "cam_depth"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 0.800000011920929,
+              "min": -0.800000011920929,
+              "name": "cam_roll"
             }
           ],
           "type": "floats"
@@ -49924,6 +50160,34 @@
               "max": 100.0,
               "min": 0.0,
               "name": "seed"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.6000000238418579,
+              "name": "zoom"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.5,
+              "min": -1.5,
+              "name": "cam_height"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.2000000476837158,
+              "min": -3.0,
+              "name": "cam_depth"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 0.800000011920929,
+              "min": -0.800000011920929,
+              "name": "cam_roll"
             }
           ],
           "type": "floats"
@@ -57904,6 +58168,62 @@
               "max": 4.0,
               "min": -4.0,
               "name": "texture_speed"
+            },
+            {
+              "default": 5.0,
+              "drive": 0.25,
+              "max": 9.0,
+              "min": 1.0,
+              "name": "columns"
+            },
+            {
+              "default": 3.0,
+              "drive": 0.25,
+              "max": 7.0,
+              "min": 1.0,
+              "name": "rows"
+            },
+            {
+              "default": 6.0,
+              "drive": 0.25,
+              "max": 12.0,
+              "min": 1.0,
+              "name": "depth_rows"
+            },
+            {
+              "default": 2.700000047683716,
+              "drive": 1.0,
+              "max": 6.0,
+              "min": 2.299999952316284,
+              "name": "spacing"
+            },
+            {
+              "default": 0.05000000074505806,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "spin_x"
+            },
+            {
+              "default": 0.11999999731779099,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "spin_y"
+            },
+            {
+              "default": 0.029999999329447746,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "spin_z"
+            },
+            {
+              "default": 0.6000000238418579,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "dither"
             }
           ],
           "type": "floats"
@@ -63809,7 +64129,7 @@
             {
               "default": 0.0,
               "drive": 0.20000000298023224,
-              "max": 3.0,
+              "max": 15.0,
               "min": 0.0,
               "name": "emitter_mode"
             },
@@ -63896,6 +64216,20 @@
               "max": 2.0,
               "min": 0.0,
               "name": "tone_drift"
+            },
+            {
+              "default": 0.3499999940395355,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "stretch"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 6.0,
+              "min": 0.0,
+              "name": "symmetry"
             }
           ],
           "type": "floats"
@@ -69858,6 +70192,41 @@
               "max": 1.0,
               "min": 0.0,
               "name": "plane"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "scene"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "fly_in"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "glide"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 3.0,
+              "min": 0.5,
+              "name": "zoom"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 2.0,
+              "min": -1.0,
+              "name": "rise"
             }
           ],
           "type": "floats"
@@ -73901,6 +74270,62 @@
               "max": 1.0,
               "min": 0.0,
               "name": "light_hard"
+            },
+            {
+              "default": 5.0,
+              "drive": 0.25,
+              "max": 7.0,
+              "min": 1.0,
+              "name": "columns"
+            },
+            {
+              "default": 3.0,
+              "drive": 0.25,
+              "max": 5.0,
+              "min": 1.0,
+              "name": "rows"
+            },
+            {
+              "default": 5.0,
+              "drive": 0.25,
+              "max": 8.0,
+              "min": 1.0,
+              "name": "depth_rows"
+            },
+            {
+              "default": 4.199999809265137,
+              "drive": 1.0,
+              "max": 8.0,
+              "min": 3.9000000953674316,
+              "name": "spacing"
+            },
+            {
+              "default": 0.03999999910593033,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "spin_x"
+            },
+            {
+              "default": 0.10000000149011612,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "spin_y"
+            },
+            {
+              "default": 0.019999999552965164,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "spin_z"
+            },
+            {
+              "default": 0.6000000238418579,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "dither"
             }
           ],
           "type": "floats"
@@ -75846,6 +76271,20 @@
               "max": 1.0,
               "min": 0.0,
               "name": "ripple"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "layout"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "panel_form"
             }
           ],
           "type": "floats"
@@ -93959,6 +94398,13 @@
               "max": 50.0,
               "min": 0.0,
               "name": "seed"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "layout"
             }
           ],
           "type": "floats"
@@ -95811,7 +96257,7 @@
             {
               "default": 2.0,
               "drive": 0.20000000298023224,
-              "max": 3.0,
+              "max": 15.0,
               "min": 0.0,
               "name": "shape"
             },
@@ -95989,6 +96435,13 @@
               "max": 50.0,
               "min": 0.0,
               "name": "seed"
+            },
+            {
+              "default": 1.0,
+              "drive": 0.20000000298023224,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "use_shape"
             }
           ],
           "type": "floats"
@@ -126353,6 +126806,13 @@
               "max": 50.0,
               "min": 0.0,
               "name": "seed"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "layout"
             }
           ],
           "type": "floats"
@@ -128260,6 +128720,34 @@
               "max": 1.0,
               "min": 0.0,
               "name": "fill"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.5,
+              "name": "size_x"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.5,
+              "name": "size_y"
+            },
+            {
+              "default": 1.0,
+              "drive": 1.0,
+              "max": 4.0,
+              "min": 0.5,
+              "name": "size_z"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 15.0,
+              "min": 0.0,
+              "name": "room_type"
             }
           ],
           "type": "floats"

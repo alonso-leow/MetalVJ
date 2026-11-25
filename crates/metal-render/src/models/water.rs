@@ -13,7 +13,7 @@
 //! background shows), `semilla`. Slots: `agua` (depth tint), `luz` (highlights,
 //! foam, glints).
 
-use crate::model::{spec, FloatSpec};
+use crate::model::{spec, spec_held, FloatSpec};
 use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
@@ -44,6 +44,8 @@ const FLOATS: &[FloatSpec] = &[
     spec("flashes", 0.0, 1.0, 0.0),
     spec("clear", 0.0, 1.0, 0.0),
     spec("seed", 0.0, 50.0, 0.0),
+    // Appended 2026-11-25: one of 16 composition layouts (p_layout).
+    spec_held("layout", 0.0, 15.0, 0.0, 0.2),
 ];
 
 /// Linear values: deep navy, teal, cyan, pale aqua.

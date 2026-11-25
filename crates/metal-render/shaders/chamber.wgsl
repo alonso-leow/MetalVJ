@@ -22,6 +22,8 @@ fn seam(x: f32, z: f32) -> f32 {
     return 1.0 - smoothstep(0.78, 0.98, m);
 }
 
+const WAVE_GAIN: f32 = 0.4;
+
 fn height_at(x: f32, z: f32) -> f32 {
     let origin = vec2<f32>(u.floats.x * 2.0 - 1.0, u.floats.y * 2.0 - 1.0) * 0.9;
     let d = length(vec2<f32>(x, z) - origin);
@@ -41,7 +43,8 @@ fn height_at(x: f32, z: f32) -> f32 {
     let fall = (exp(-p * p * sharpness) - tail) / (1.0 - tail);
     let q = 1.0 - p;
     let rise = exp(-q * q * sharpness * 12.0);
-    return u.floats.z * max(fall, rise) * seam(x, z);
+    // 2026-11-25 review: waves were too strong, intensity cut 60%.
+    return u.floats.z * WAVE_GAIN * max(fall, rise) * seam(x, z);
 }
 
 struct VIn {
@@ -77,7 +80,7 @@ fn vs_main(in: VIn, @builtin(instance_index) face: u32) -> VOut {
     var out: VOut;
     out.clip = u.view_proj * vec4<f32>(world_pos, 1.0);
     out.normal = world_normal;
-    out.t = clamp(h / max(u.floats.z, 0.001), 0.0, 1.0);
+    out.t = clamp(h / max(u.floats.z * WAVE_GAIN, 0.001), 0.0, 1.0);
     out.local = in.pos.xz;
     out.world = world_pos;
     out.dist = out.clip.w;

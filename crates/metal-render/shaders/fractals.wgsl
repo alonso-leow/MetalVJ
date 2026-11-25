@@ -11,6 +11,7 @@ struct FracUniform {
     color: ColorSlot,
     floats: vec4<f32>,  // zoom, c_re, c_im, iterations
     floats2: vec4<f32>, // drift, fold, time, aspect (w/h)
+    centre: vec4<f32>,  // camera on the outline xy, implicit zoom
 };
 
 @group(0) @binding(0) var<uniform> u: FracUniform;
@@ -43,7 +44,9 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     // The plane. Widened on x by the frame's aspect so the set is round on a
     // wide output rather than an ellipse — there is no vertex stage here to
     // carry the correction, so it rides in the uniform.
-    var z = (in.uv - vec2<f32>(0.5, 0.5)) * vec2<f32>(2.0 * aspect, 2.0) / zoom;
+    // The frame is a window on the outline (centre, implicit zoom): only the
+    // pixels in it are ever iterated.
+    var z = u.centre.xy + (in.uv - vec2<f32>(0.5, 0.5)) * vec2<f32>(2.0 * aspect, 2.0) / (zoom * max(u.centre.z, 1.0));
 
     // `fold` bends the plane before the iteration — the difference between a
     // Julia set and a Julia set that breathes. At 0 this is exactly the plain

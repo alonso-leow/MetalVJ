@@ -46,6 +46,10 @@ struct Escena3dUniform {
     // elevation — one float because a full light vector is three sliders for
     // one knob's worth of "where the light is coming from".
     mat: vec4<f32>,
+    // infinite, _, _, _
+    ex: vec4<f32>,
+    // object hue, sat, brightness, _
+    col: vec4<f32>,
     // The `body` part's picture and `mat_*`, one `MaterialU` — see
     // material.wgsl, prepended ahead of this file.
     mat_body: MaterialU,
@@ -56,8 +60,8 @@ struct Escena3dUniform {
 @group(0) @binding(2) var surf_body_samp: sampler;
 
 const TAU: f32 = 6.28318530718;
-const MAX_STEPS: i32 = 96;
-const MAX_DIST: f32 = 40.0;
+const MAX_STEPS: i32 = 128;
+const MAX_DIST: f32 = 60.0;
 const SURF_EPS: f32 = 0.0015;
 
 // --- rotation ------------------------------------------------------------
@@ -96,8 +100,12 @@ fn map(p: vec3<f32>) -> f32 {
 
     // Nearest tile index along each axis, clamped to the finite grid so the
     // field is a grid of `cols x rows` objects, not an infinite tiling.
-    let ix = clamp(round(p.x / spacing), -(cols - 1.0) * 0.5, (cols - 1.0) * 0.5);
-    let iz = clamp(round(p.z / spacing), -(rows - 1.0) * 0.5, (rows - 1.0) * 0.5);
+    // Infinite (default): the tiles repeat forever along x and z.
+    let inf = u.ex.x > 0.5;
+    let rx = select((cols - 1.0) * 0.5, 1e6, inf);
+    let rz = select((rows - 1.0) * 0.5, 1e6, inf);
+    let ix = clamp(round(p.x / spacing), -rx, rx);
+    let iz = clamp(round(p.z / spacing), -rz, rz);
 
     var local = p - vec3<f32>(ix * spacing, 0.0, iz * spacing);
 
@@ -113,6 +121,12 @@ fn map(p: vec3<f32>) -> f32 {
 
 // Central-difference normal off `map()` — six taps, cheap enough at this
 // step count and the plain way to shade an implicit surface.
+fn obj_colour() -> vec3<f32> {
+    let h = fract(u.col.x) * 6.0;
+    let rgb = clamp(vec3<f32>(abs(h - 3.0) - 1.0, 2.0 - abs(h - 2.0), 2.0 - abs(h - 4.0)), vec3<f32>(0.0), vec3<f32>(1.0));
+    return mix(vec3<f32>(1.0), rgb, clamp(u.col.y, 0.0, 1.0)) * max(u.col.z, 0.0);
+}
+
 fn calc_normal(p: vec3<f32>) -> vec3<f32> {
     let e = vec2<f32>(0.001, 0.0);
     return normalize(vec3<f32>(
@@ -154,7 +168,7 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
             hit = true;
             break;
         }
-        t = t + d;
+        t = t + d * 0.8;
         if (t > MAX_DIST) {
             break;
         }
@@ -175,7 +189,7 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
     // `mat_*` kind replace the template's plain grey, its bump and glitch
     // perturb the normal, and a kind overrides `metal`/`rough` when it is on.
     let shaded = material_apply(
-        u.mat_body, surf_body_tex, surf_body_samp, vec3<f32>(0.72), p, calc_normal(p), in.uv, view, u.f0.y,
+        u.mat_body, surf_body_tex, surf_body_samp, obj_colour(), p, calc_normal(p), in.uv, view, u.f0.y,
     );
     let n = shaded.normal;
     let base = shaded.albedo;
@@ -204,6 +218,8 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
     let specular = vec3<f32>(pow(max(dot(n, half_vec), 0.0), spec_power)) * spec_strength;
     let ambient = base * 0.18;
 
-    let color = ambient + diffuse + specular;
+    // Distance fog into the sky, so the infinite field fades instead of aliasing.
+    let fog = clamp((t - 6.0) / (MAX_DIST - 6.0), 0.0, 1.0);
+    let color = mix(ambient + diffuse + specular, sky, fog * fog);
     return vec4<f32>(color, 1.0);
 }

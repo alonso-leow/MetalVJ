@@ -56,7 +56,7 @@ const FLOATS: &[FloatSpec] = &[
     // Kicks per second (the beat rate).
     spec("splat_rhythm", 0.0, 8.0, 1.5),
     // 0 orbit, 1 sweeping line, 2 random, 3 mirrored. Structural.
-    spec_held("emitter_mode", 0.0, 3.0, 0.0, 0.2),
+    spec_held("emitter_mode", 0.0, 15.0, 0.0, 0.2),
     // Centre of the emitter pattern (y from the top).
     spec("emitter_x", 0.0, 1.0, 0.5),
     spec("emitter_y", 0.0, 1.0, 0.5),
@@ -75,6 +75,12 @@ const FLOATS: &[FloatSpec] = &[
     spec("iridescence", 0.0, 1.0, 0.1),
     // Speed at which the splat palette position drifts.
     spec("tone_drift", 0.0, 2.0, 0.4),
+    // Appended 2026-11-25: drags that are not circles. `stretch` draws each
+    // splat as a streak along its push (0 a round blob, 1 a long stroke);
+    // `symmetry` mirrors the emitters into N radial copies around the
+    // emitter centre (0/1 none), so the liquid moves in kaleido patterns.
+    spec("stretch", 0.0, 1.0, 0.35),
+    spec_held("symmetry", 0.0, 6.0, 0.0, 0.2),
 ];
 
 /// Linear: magenta, cyan, amber, violet.
@@ -124,6 +130,8 @@ const F_PESO: usize = 20;
 const F_SOMBRA: usize = 21;
 const F_IRI: usize = 22;
 const F_DERIVA: usize = 23;
+const F_STRETCH: usize = 24;
+const F_SYM: usize = 25;
 
 const DT: f32 = 1.0 / 60.0;
 /// 60 steps per second, run in 30 Hz ticks of two steps each.
@@ -183,6 +191,8 @@ pub struct Params {
     pub shadow: f32,
     pub iri: f32,
     pub drift: f32,
+    pub stretch: f32,
+    pub symmetry: u32,
 }
 
 impl Params {
@@ -200,7 +210,7 @@ impl Params {
             fuerza: g(F_FUERZA),
             n: (g(F_N).round() as usize).clamp(1, MAX_EMITTERS),
             rhythm: g(F_RITMO),
-            mode: g(F_MODO).round().clamp(0.0, 3.0) as u32,
+            mode: g(F_MODO).round().clamp(0.0, 15.0) as u32,
             ex: g(F_EX),
             ey: g(F_EY),
             turn: g(F_GIRO),
@@ -212,6 +222,8 @@ impl Params {
             shadow: g(F_SOMBRA),
             iri: g(F_IRI),
             drift: g(F_DERIVA),
+            stretch: g(F_STRETCH),
+            symmetry: g(F_SYM).round().clamp(0.0, 6.0) as u32,
         }
     }
 
@@ -283,6 +295,60 @@ pub fn emitters(p: &Params, aspect: f32, phase: f32, kick: u32, hue: f32) -> Vec
                     let pos = [0.1 + 0.8 * hash(i as u32, kick, 1), 0.1 + 0.8 * hash(i as u32, kick, 2)];
                     (pos, [ang.cos(), ang.sin()])
                 }
+                4 => ([(i as f32 + 0.5) / n as f32, 0.94], [(phase * tau + i as f32).sin() * 0.3, -1.0]), // jets up from the floor
+                5 => ([0.06, (i as f32 + 0.5) / n as f32], [1.0, (phase * tau * 2.0 + i as f32).sin() * 0.4]), // sweep from the left
+                6 => {
+                    // spiral arm unwinding outward
+                    let fi = i as f32 / n as f32;
+                    let ang = phase * tau + fi * tau * 1.5;
+                    let rr = 0.06 + fi * 0.36;
+                    ([p.ex + rr * ang.cos() / a, p.ey + rr * ang.sin()], [-ang.sin() * sign, ang.cos() * sign])
+                }
+                7 => {
+                    // figure eight
+                    let ang = phase * tau + tau * i as f32 / n as f32;
+                    let pos = [p.ex + 0.3 * ang.sin() / a, p.ey + 0.2 * (2.0 * ang).sin()];
+                    (pos, [ang.cos(), (2.0 * ang).cos()])
+                }
+                8 | 9 => {
+                    // burst out from / implode into the centre
+                    let ang = tau * i as f32 / n as f32 + phase;
+                    let (s2, c2) = ang.sin_cos();
+                    let k = if p.mode == 8 { 1.0 } else { -1.0 };
+                    let rr = if p.mode == 8 { 0.05 } else { 0.38 };
+                    ([p.ex + rr * c2 / a, p.ey + rr * s2], [c2 * k, s2 * k])
+                }
+                10 => {
+                    // a travelling wave of pushes across the frame
+                    let x = (i as f32 + 0.5) / n as f32;
+                    let y = p.ey + 0.2 * (x * tau * 1.5 + phase * tau).sin();
+                    (([x, y]), [0.3, (x * tau * 1.5 + phase * tau).cos()])
+                }
+                11 => {
+                    // counter-rotating vortex pair
+                    let side = if i % 2 == 0 { -1.0 } else { 1.0 };
+                    let ang = phase * tau * side + tau * (i / 2) as f32 / n.div_ceil(2) as f32;
+                    let c0 = [p.ex + side * 0.2 / a, p.ey];
+                    ([c0[0] + 0.12 * ang.cos() / a, c0[1] + 0.12 * ang.sin()], [-ang.sin() * side, ang.cos() * side])
+                }
+                12 => ([0.06 + 0.88 * hash(i as u32, kick, 7), 0.06], [hash(i as u32, kick, 8) * 0.4 - 0.2, 1.0]), // rain from the top
+                13 => {
+                    // a cross: pushes along the four axes
+                    let dirs = [[1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0]];
+                    let d = dirs[i % 4];
+                    ([p.ex - d[0] * 0.3 / a, p.ey - d[1] * 0.3], d)
+                }
+                14 => {
+                    // a wide orbit hugging the frame
+                    let ang = phase * tau * 0.5 + tau * i as f32 / n as f32;
+                    ([0.5 + 0.42 * ang.cos(), 0.5 + 0.4 * ang.sin()], [-ang.sin() * sign, ang.cos() * sign])
+                }
+                15 => {
+                    // zigzag scan line
+                    let x = (phase + i as f32 / n as f32).rem_euclid(1.0);
+                    let zig = tri(x * 4.0);
+                    ([x, 0.15 + 0.7 * zig], [1.0, if (x * 8.0).floor() as i32 % 2 == 0 { 1.0 } else { -1.0 }])
+                }
                 _ => {
                     let half = n.div_ceil(2);
                     let j = i / 2;
@@ -300,6 +366,21 @@ pub fn emitters(p: &Params, aspect: f32, phase: f32, kick: u32, hue: f32) -> Vec
             };
             Emitter { pos: [clampp(pos[0]), clampp(pos[1])], dir, hue: hue_i }
         })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .flat_map(|e| {
+            // Radial symmetry: k copies turned about the emitter centre.
+            let k = p.symmetry.max(1) as usize;
+            (0..k).map(move |j| {
+                let ang = tau * j as f32 / k as f32;
+                let (s, c) = ang.sin_cos();
+                let (dx, dy) = ((e.pos[0] - p.ex) * a, e.pos[1] - p.ey);
+                let pos = [p.ex + (dx * c - dy * s) / a, p.ey + dx * s + dy * c];
+                let dir = [e.dir[0] * c - e.dir[1] * s, e.dir[0] * s + e.dir[1] * c];
+                Emitter { pos: [clampp(pos[0]), clampp(pos[1])], dir, hue: e.hue }
+            })
+        })
+        .take(MAX_EMITTERS)
         .collect()
 }
 
@@ -598,7 +679,7 @@ fn run_step(pass: &mut Pass, gpu: &mut Gpu, p: &Params, clock: &mut Clock) {
     let gain_d = if burst { BURST_DYE } else { STREAM_DYE };
     for (i, e) in em.iter().enumerate() {
         u.sp0[i] = [e.pos[0], e.pos[1], e.dir[0] * gain_f, e.dir[1] * gain_f];
-        u.sp1[i] = [e.hue, gain_d, radius, 0.0];
+        u.sp1[i] = [e.hue, gain_d, radius, p.stretch];
     }
     let g = GRAVITY_SCALE * rs * DT;
     u.p1 = [p.grav[0] * g, p.grav[1] * g, em.len() as f32, vmax];
@@ -748,7 +829,7 @@ mod tests {
         assert_eq!(d[offset("zoom")], 1.0);
         assert_eq!(d[offset("shine")], 1.0);
         assert_eq!(d[offset("simulation_resolution")], 128.0);
-        assert_eq!(FLOATS.len(), F_DERIVA + 1);
+        assert_eq!(FLOATS.len(), F_SYM + 1);
     }
 
     #[test]

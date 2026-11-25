@@ -115,10 +115,23 @@ const CAMERA_TRACK_FLOATS: &[FloatSpec] = &[
     metal_schema::POSE_LOOK_FLOATS[2],
 ];
 
+/// Appended 2026-11-25 (review): the grid repeats forever by default (a
+/// small group of tiles read as weird), the object has its own colour, and
+/// the view rolls about its z axis (a held angle plus a speed).
+const EXTRA_FLOATS: &[FloatSpec] = &[
+    crate::model::spec_held("infinite", 0.0, 1.0, 1.0, 0.2),
+    spec("obj_hue", 0.0, 1.0, 0.55),
+    spec("obj_sat", 0.0, 1.0, 0.55),
+    spec("obj_bri", 0.0, 1.5, 0.8),
+    spec("roll", -3.1416, 3.1416, 0.0),
+    spec("roll_speed", -2.0, 2.0, 0.0),
+];
+
 pub static SCHEMA: Schema = Schema {
     blocks: &[
         Block::Floats(FLOATS),
         Block::Floats(CAMERA_TRACK_FLOATS),
+        Block::Floats(EXTRA_FLOATS),
         crate::model::SIGNAL_FLOATS_BLOCK,
         crate::model::EFFECTS_FLOATS_BLOCK,
         crate::model::EFFECTS_COLOR_BLOCK,
@@ -137,6 +150,8 @@ struct Uniform {
     grid: [f32; 4],
     bg: [f32; 4],
     mat: [f32; 4],
+    ex: [f32; 4],
+    col: [f32; 4],
     /// `body`'s picture and `mat_*`, see `material.wgsl`.
     mat_body: MaterialU,
 }
@@ -236,6 +251,9 @@ impl Model for Escena3d {
         let world_up = Vec3::Y;
         let right = fwd.cross(world_up).normalize_or_zero();
         let up = right.cross(fwd);
+        let roll = floats[26] + floats[27] * ctx.time;
+        let (sr, cr) = roll.sin_cos();
+        let (right, up) = (right * cr + up * sr, up * cr - right * sr);
 
         self.surfaces.sync(ctx.device, ctx.queue);
         let uniform = Uniform {
@@ -248,6 +266,8 @@ impl Model for Escena3d {
             grid: [grid_columns, grid_rows, grid_gap, grid_scale],
             bg: [bg_a, bg_b, bg_mix, if ctx.fondo_alpha { 1.0 } else { 0.0 }],
             mat: [metal, rough, light_direction, 0.0],
+            ex: [floats[22], 0.0, 0.0, 0.0],
+            col: [floats[23], floats[24], floats[25], 0.0],
             mat_body: self.surfaces.uniform(0),
         };
         self.pass.draw_textured(ctx, target, format, &uniform, &self.surfaces.bind_pairs());
@@ -264,9 +284,9 @@ mod tests {
 
     #[test]
     fn the_schema_and_the_slices_render_reads_are_the_same_width() {
-        // 16 own floats + the 6 pose floats. `render` reads `[0..22]`.
-        assert_eq!(SCHEMA.width(), 22 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
-        assert_eq!(row().len(), 22 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        // 16 own floats + the 6 pose floats + 6 extra. `render` reads `[0..28]`.
+        assert_eq!(SCHEMA.width(), 28 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        assert_eq!(row().len(), 28 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
     }
 
     #[test]

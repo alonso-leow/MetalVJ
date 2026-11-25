@@ -40,6 +40,8 @@ const FLOATS: &[FloatSpec] = &[
     spec("cycle", 0.0, 2.0, 0.0),
     spec("grain", 0.0, 1.0, 0.0),
     spec("seed", 0.0, 50.0, 0.0),
+    // Appended 2026-11-25: one of 16 composition layouts (p_layout).
+    spec_held("layout", 0.0, 15.0, 0.0, 0.2),
 ];
 
 /// Linear: black, deep red, orange, yellow-white (thermal ramp).

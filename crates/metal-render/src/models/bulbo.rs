@@ -82,6 +82,16 @@ const FLOATS: &[FloatSpec] = &[
     spec("light_x", -1.0, 1.0, 0.5),
     spec("light_y", -1.0, 1.0, 0.6),
     spec("light_hard", 0.0, 1.0, 0.3),
+    // Appended 2026-11-25: a 3D lattice of the fractal (shaders/lattice.wgsl)
+    // instead of one lone bulb, every copy spinning on three axes.
+    spec_held("columns", 1.0, 7.0, 5.0, 0.25),
+    spec_held("rows", 1.0, 5.0, 3.0, 0.25),
+    spec_held("depth_rows", 1.0, 8.0, 5.0, 0.25),
+    spec("spacing", 3.9, 8.0, 4.2),
+    spec("spin_x", -1.0, 1.0, 0.04),
+    spec("spin_y", -1.0, 1.0, 0.1),
+    spec("spin_z", -1.0, 1.0, 0.02),
+    spec("dither", 0.0, 1.0, 0.6),
 ];
 
 const F_FORMULA: usize = 0;
@@ -105,6 +115,7 @@ const F_TMEZCLA: usize = 23;
 const F_TCICLOS: usize = 24;
 const F_LUZ: usize = 25;
 const F_LUZ_DURA: usize = 27;
+const F_LAT: usize = 28;
 
 // Violet shadow, magenta, ember orange, pale gold.
 const ORBITA: [f32; 12] = [0.06, 0.04, 0.22, 0.65, 0.12, 0.55, 0.98, 0.45, 0.12, 1.0, 0.92, 0.65];
@@ -191,12 +202,12 @@ pub fn de_menger(p: Vec3, iters: u32) -> f32 {
 /// The model's own floats, clamped into range (NaN reads as the default).
 #[derive(Clone, Debug)]
 struct Own {
-    v: [f32; 28],
+    v: [f32; 36],
 }
 
 impl Own {
     fn from(floats: &[f32]) -> Own {
-        let mut v = [0.0; 28];
+        let mut v = [0.0; 36];
         for (i, s) in FLOATS.iter().enumerate() {
             let x = floats.get(i).copied().unwrap_or(s.default);
             v[i] = if x.is_finite() { x.clamp(s.min, s.max) } else { s.default };
@@ -235,6 +246,8 @@ struct Uniform {
     right: [f32; 4],
     up: [f32; 4],
     fwd: [f32; 4],
+    lat: [f32; 4],
+    spin: [f32; 4],
     /// `body`'s picture and `mat_*`, see `material.wgsl`.
     mat_body: MaterialU,
 }
@@ -243,10 +256,11 @@ fn shader_src() -> &'static str {
     static SRC: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     SRC.get_or_init(|| {
         format!(
-            "{}\n{}\n{}\n{}",
+            "{}\n{}\n{}\n{}\n{}",
             include_str!("../../shaders/surface.wgsl"),
             include_str!("../../shaders/material.wgsl"),
             kit::WGSL,
+            include_str!("../../shaders/lattice.wgsl"),
             include_str!("../../shaders/bulbo.wgsl"),
         )
     })
@@ -334,6 +348,8 @@ fn uniform(ctx: &Ctx, floats: &[f32]) -> Uniform {
         right: v4(right, 0.0),
         up: v4(up, 0.0),
         fwd: v4(fwd, 0.0),
+        lat: [o[F_LAT], o[F_LAT + 1], o[F_LAT + 2], o[F_LAT + 3]],
+        spin: [o[F_LAT + 4], o[F_LAT + 5], o[F_LAT + 6], o[F_LAT + 7]],
         // Filled by `render` from the model's `PartSet`, which has no device.
         mat_body: MaterialU::default(),
     }
@@ -411,6 +427,9 @@ mod tests {
             *v = 0.3;
         }
         f[F_FORMULA] = fid as f32;
+        // The legacy single-object tests: one copy, no spin.
+        f[F_LAT..F_LAT + 3].fill(1.0);
+        f[F_LAT + 4..F_LAT + 7].fill(0.0);
         f
     }
 
@@ -428,8 +447,8 @@ mod tests {
         assert_eq!(off(B_ORB), FLOATS.len());
         assert_eq!(off(B_CAM) + kit::Cam3d::N, off(B_LOOK));
         assert!(Bulbo::new().camera_track(), "the CAM3D kit plus CAM_TRACK is the standard pose");
-        assert!(FLOATS.len() + kit::Cam3d::N + kit::Look::N <= 44);
-        assert_eq!(Own { v: [0.0; 28] }.v.len(), FLOATS.len());
+        assert!(FLOATS.len() + kit::Cam3d::N + kit::Look::N <= 52);
+        assert_eq!(Own { v: [0.0; 36] }.v.len(), FLOATS.len());
     }
 
     #[test]
@@ -570,6 +589,7 @@ mod tests {
         let mut bases: Vec<Vec<f32>> = (0..FORMULAS).map(base).collect();
         for b in &mut bases {
             b[F_JMIX] = 0.5;
+            b[F_LAT] = 2.0; // two columns, so spacing, columns and depth rows show
         }
         let refs: Vec<Vec<u8>> = bases.iter().map(|b| frames(&gpu, b)).collect();
         for (i, spec) in idx {

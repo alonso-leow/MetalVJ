@@ -93,6 +93,16 @@ const FLOATS: &[FloatSpec] = &[
     // cell with a face that carries a real normal, so the room takes a picture
     // and a material on its parts like any other 3D model. Appended (rule 2).
     spec("fill", 0.0, 1.0, 0.0),
+    // Appended 2026-11-25: the room's size on each axis (x wide, y tall, z
+    // deep), on top of one of 16 room types (`room_type`: cube, long hall,
+    // atrium, bunker, gallery, corridor, tower, closet, studio, loft,
+    // cathedral, tunnel, warehouse, attic, ballroom, cell). The camera's
+    // position, aim and drift scale with the room, so a bigger room keeps the
+    // same transitions instead of leaving the camera stranded in a corner.
+    spec("size_x", 0.5, 4.0, 1.0),
+    spec("size_y", 0.5, 4.0, 1.0),
+    spec("size_z", 0.5, 4.0, 1.0),
+    spec_held("room_type", 0.0, 15.0, 0.0, 0.2),
 ];
 
 pub static SCHEMA: Schema = Schema {
@@ -123,6 +133,26 @@ pub static SCHEMA: Schema = Schema {
     crate::model::EFFECTS_COLOR_BLOCK,
 ],
 };
+
+/// The 16 room types: (x, y, z) proportions and how many furniture pieces fit.
+const ROOM_TYPES: [([f32; 3], u32); 16] = [
+    ([1.0, 1.0, 1.0], 6), // cube
+    ([1.0, 1.0, 2.6], 6), // long hall
+    ([1.4, 2.6, 1.4], 6), // atrium
+    ([1.6, 0.6, 1.6], 4), // bunker
+    ([2.6, 1.1, 1.2], 6), // gallery
+    ([0.7, 1.0, 3.2], 2), // corridor
+    ([0.9, 3.4, 0.9], 3), // tower
+    ([0.6, 0.9, 0.6], 2), // closet
+    ([1.8, 1.3, 1.8], 6), // studio
+    ([2.4, 1.6, 2.0], 6), // loft
+    ([1.6, 3.8, 2.8], 6), // cathedral
+    ([1.0, 0.8, 4.0], 1), // tunnel
+    ([3.2, 2.0, 3.2], 6), // warehouse
+    ([1.6, 0.75, 2.0], 5), // attic
+    ([3.6, 2.2, 2.6], 6), // ballroom
+    ([0.8, 0.8, 1.1], 1), // cell
+];
 
 /// Reserved for `cam.track` (H4) — see `models::turing`'s block for the
 /// convention and the reasoning.
@@ -200,6 +230,8 @@ struct Uniform {
     mat_window: MaterialU,
     mat_door: MaterialU,
     screen: [f32; 4],
+    /// Room size (x, y, z) and its geometric mean, appended 2026-11-25.
+    scale: [f32; 4],
 }
 
 /// The baked room: its lines, and the filled/translucent faces the weave emits
@@ -522,13 +554,19 @@ impl Model for Room {
         self.surfaces.sync(ctx.device, ctx.queue);
         let gpu = self.gpu.get(format, || Self::build(ctx.device, format));
 
+        let room_type = ROOM_TYPES[(floats[14].round() as usize).min(15)];
+        let scale = Vec3::new(
+            floats[11] * room_type.0[0],
+            floats[12] * room_type.0[1],
+            floats[13] * room_type.0[2],
+        );
         // The three structural floats are the mesh's identity. `caras` and
         // `muebles` join `lineas` here because the room is baked now: they
         // used to be an instance count and a thing that did not exist.
         let key = (
             (floats[7].round() as u32).clamp(2, 40),
             (floats[8].round() as u32).clamp(1, 6),
-            (floats[9].round() as u32).clamp(0, 6),
+            (floats[9].round() as u32).clamp(0, 6).min(room_type.1),
         );
         if !matches!(&gpu.mesh, Some((_, built)) if *built == key) {
             gpu.mesh = Some((Self::build_mesh(ctx.device, key.0, key.1, key.2), key));
@@ -539,7 +577,7 @@ impl Model for Room {
         // appended to the model's own block, which is why the camera, the
         // colour slot and the background all moved one place (rule 2).
         let cam_at = SCHEMA.offset(1);
-        let fill = floats[cam_at - 1];
+        let fill = floats[10];
 
         // The camera wanders on a slow ellipse around wherever it was put, and
         // its aim wanders on a slower one. From inside a room with things in it
@@ -557,14 +595,17 @@ impl Model for Room {
             (ctx.time * 0.11 + 2.4).sin() * 0.16,
             (ctx.time * 0.15 + 4.0).cos() * 0.30,
         ) * drift;
-        let eye = Vec3::new(cam[0], cam[1], cam[2]) + wander;
-        let view_proj = crate::model::posed_view_proj(
-            eye,
-            Vec3::new(cam[3], cam[4], cam[5]) + aim,
+        // Everything the camera does scales with the room (the multiplier that
+        // keeps a larger room's transitions equivalent).
+        let eye = (Vec3::new(cam[0], cam[1], cam[2]) + wander) * scale;
+        let (eye_p, aim_p) = crate::model::posed(eye, (Vec3::new(cam[3], cam[4], cam[5]) + aim) * scale, crate::model::camera_look(floats));
+        let tr = crate::model::soft_camera_track_offset(floats);
+        let view_proj = crate::model::tracked_view_proj(
+            eye_p,
+            aim_p,
             cam[6],
             ctx.aspect(),
-            floats,
-            true,
+            [tr[0] * scale.x, tr[1] * scale.y, tr[2] * scale.z],
         );
 
         let color_at = SCHEMA.offset(2);
@@ -573,7 +614,7 @@ impl Model for Room {
             color: ColorSlotGpu::from_floats(&floats[color_at..color_at + 12]),
             floats: [floats[0], floats[1], floats[2], floats[3]],
             floats2: [ctx.time, floats[5], floats[6], fill],
-            bulb: [BULB.x, BULB.y, BULB.z, 0.0],
+            bulb: [BULB.x * scale.x, BULB.y * scale.y, BULB.z * scale.z, 0.0],
             eye: [eye.x, eye.y, eye.z, 0.0],
             view_proj,
             mat_walls: self.surfaces.uniform(0),
@@ -583,6 +624,7 @@ impl Model for Room {
             mat_window: self.surfaces.uniform(4),
             mat_door: self.surfaces.uniform(5),
             screen: [ctx.width as f32, ctx.height as f32, 0.0, 0.0],
+            scale: [scale.x, scale.y, scale.z, (scale.x * scale.y * scale.z).cbrt()],
         };
         let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("room uniform"),

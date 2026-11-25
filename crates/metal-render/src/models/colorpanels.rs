@@ -7,7 +7,7 @@
 //! (sway) for variability. `densidad` is a fractional panel count (x2.5), the
 //! last panel fading in, so it is safe to modulate.
 
-use crate::model::{spec, FloatSpec};
+use crate::model::{spec, spec_held, FloatSpec};
 use crate::shared::scaffold::ScaffoldDef;
 
 const FLOATS: &[FloatSpec] = &[
@@ -27,6 +27,13 @@ const FLOATS: &[FloatSpec] = &[
     spec("perspective", 0.0, 0.9, 0.35),
     spec("crystal", 0.1, 1.0, 0.7),
     spec("ripple", 0.0, 1.0, 0.0),
+    // Appended 2026-11-25: one of 16 arrangements of the panels (p_layout:
+    // ring, mirrored, stacked, quads, tiles, kaleido, brick, polar, rings,
+    // diamonds, strips, bands, spiral) and one of 16 panel forms (rect,
+    // rounded, ellipse, diamond, triangles, arch, hexagon, trapezoid, skew,
+    // disc, cross, star, wavy, notched, hourglass).
+    spec_held("layout", 0.0, 15.0, 0.0, 0.2),
+    spec_held("panel_form", 0.0, 15.0, 0.0, 0.2),
 ];
 
 /// Linear values (targets encode sRGB on write): violet, magenta, amber, cyan.

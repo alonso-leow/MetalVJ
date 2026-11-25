@@ -127,6 +127,12 @@ const FLOATS: &[FloatSpec] = &[
     // the river takes a picture and a material like any other 3D model.
     // Appended (rule 2).
     spec("fill", 0.0, 1.0, 0.0),
+    // Appended 2026-11-25: mountains rising from the banks (`mountains` is
+    // their height) in one of 16 river presets (`river_type`): alpine, hills,
+    // canyon, mesa, cliff, dunes, volcanoes, fjord, jungle, ridges, plateau,
+    // terraces, twin peaks, badlands, glacier, spires.
+    spec("mountains", 0.0, 3.0, 0.8),
+    spec_held("river_type", 0.0, 15.0, 0.0, 0.2),
 ];
 
 pub static SCHEMA: Schema = Schema {
@@ -252,6 +258,8 @@ struct Uniform {
     mat_stones: MaterialU,
     mat_bushes: MaterialU,
     screen: [f32; 4],
+    /// mountains, river_type (2026-11-25)
+    terra: [f32; 4],
 }
 
 /// The baked valley, the structural floats it was baked for, and the stones
@@ -776,7 +784,7 @@ impl Model for Rio {
         // appended to the model's own block, which is why the camera, the
         // colour slot and the background all moved one place (rule 2).
         let cam_at = SCHEMA.offset(1);
-        let fill = floats[cam_at - 1];
+        let fill = floats[17];
 
         // The camera wanders on a slow ellipse around wherever it was put, and
         // its aim on a slower one — Matrix's drift, at this world's scale.
@@ -827,6 +835,7 @@ impl Model for Rio {
             mat_stones: self.surfaces.uniform(2),
             mat_bushes: self.surfaces.uniform(3),
             screen: [ctx.width as f32, ctx.height as f32, fill, 0.0],
+            terra: [floats[18], floats[19], 0.0, 0.0],
         };
         let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("rio uniform"),

@@ -69,7 +69,8 @@ fn water_h(q0: vec2<f32>, t: f32) -> f32 {
     return h;
 }
 
-fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
+fn scaffold_shade(p_in: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
+    let p = p_layout(p_in, f_layout());
     let t = p_time();
     let q = p * (3.0 / max(f_size(), 0.05));
     let e = 0.035;

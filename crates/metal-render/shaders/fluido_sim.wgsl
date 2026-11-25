@@ -37,6 +37,19 @@ fn tidy(v: vec4<f32>, m: f32) -> vec4<f32> {
     return clamp(z, vec4<f32>(-m), vec4<f32>(m));
 }
 
+// A splat's weight: a round blob at stretch 0, a streak along its push at 1
+// (2026-11-25: drags that are not circles).
+fn splat_w(d: vec2<f32>, i: i32) -> f32 {
+    let f = u.sp0[i].zw;
+    let fl = length(f);
+    let dir = select(vec2<f32>(1.0, 0.0), f / max(fl, 1e-6), fl > 1e-6);
+    let along = dot(d, dir);
+    let across = dot(d, vec2<f32>(-dir.y, dir.x));
+    let st = clamp(u.sp1[i].w, 0.0, 1.0);
+    let q = along * along / (1.0 + st * 9.0) + across * across * (1.0 + st * 1.5);
+    return exp(-q / max(u.sp1[i].z, 1e-5));
+}
+
 @fragment
 fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
     let mode = i32(floor(u.p0.x + 0.5));
@@ -123,7 +136,7 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
             if (i >= n) { break; }
             var d = uv - u.sp0[i].xy;
             d.x = d.x * u.p2.z;
-            let g = exp(-dot(d, d) / max(u.sp1[i].z, 1e-5));
+            let g = splat_w(d, i);
             v = vec4<f32>(v.xy + u.sp0[i].zw * g, 0.0, 1.0);
         }
         return tidy(v, u.p1.w);
@@ -136,7 +149,7 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
             if (i >= n) { break; }
             var d = uv - u.sp0[i].xy;
             d.x = d.x * u.p2.z;
-            let g = exp(-dot(d, d) / max(u.sp1[i].z, 1e-5));
+            let g = splat_w(d, i);
             c = vec4<f32>(c.rgb + grad4(u.ink, u.sp1[i].x) * u.sp1[i].y * g, 1.0);
         }
         return clamp(tidy(c, u.p1.y), vec4<f32>(0.0), vec4<f32>(u.p1.y));

@@ -41,6 +41,21 @@ const FLOATS: &[FloatSpec] = &[
     spec("haze", 0.0, 1.0, 0.5),
     // Curtain edge profile: 0 the soft bell, 1 crisper flat-topped ribbons.
     spec("sharpness", 0.0, 1.0, 0.35),
+    // Appended 2026-11-25 (review): Aurora is a 3D kaleido string mesh.
+    // `sectors` is the mirror count (match the kaleido fx), `depth_rows` the
+    // layers of mesh receding into an endless tunnel (`depth_gap` apart,
+    // flying at `fly`), each layer turned by `twist`. The camera sways
+    // (`sway`), lifts (`lift`) and dollies (`dolly`).
+    // `tension` raises the strings' vibration modes.
+    spec_held("sectors", 2.0, 12.0, 6.0, 0.25),
+    spec_held("depth_rows", 1.0, 8.0, 6.0, 0.25),
+    spec("depth_gap", 0.4, 4.0, 1.2),
+    spec("fly", 0.0, 2.0, 0.25),
+    spec("twist", -1.0, 1.0, 0.12),
+    spec("sway", -1.0, 1.0, 0.15),
+    spec("lift", -1.0, 1.0, 0.0),
+    spec("dolly", -1.5, 1.5, 0.0),
+    spec("tension", 0.0, 1.0, 0.4),
 ];
 
 /// Warm to cool, the same order fosfora's fixed array walked: deep red at
@@ -72,6 +87,8 @@ struct Uniform {
     c: [f32; 4],
     d: [f32; 4],
     e: [f32; 4],
+    f: [f32; 4],
+    g: [f32; 4],
 }
 
 pub struct Aurora {
@@ -108,12 +125,14 @@ impl Model for Aurora {
         // 3..9 banda_0..banda_6, 10 energia, 11 impacto, 12 enfasis_banda,
         // 13 enfasis_fuerza, 14 haze, 15 sharpness.
         let uniform = Uniform {
-            palette: ColorSlotGpu::from_floats(&floats[16..28]),
+            palette: ColorSlotGpu::from_floats(&floats[25..37]),
             a: [ctx.aspect(), ctx.time, floats[0], floats[1]],
             b: [floats[2], floats[10], floats[11], floats[12]],
             c: [floats[13], floats[3], floats[4], floats[5]],
             d: [floats[6], floats[7], floats[8], floats[9]],
-            e: [floats[14], floats[15], 0.0, 0.0],
+            e: [floats[14], floats[15], floats[24], 0.0],
+            f: [floats[16], floats[17], floats[18], floats[19]],
+            g: [floats[20], floats[21], floats[22], floats[23]],
         };
         self.pass.draw(ctx, target, format, &uniform);
     }
@@ -129,9 +148,9 @@ mod tests {
 
     #[test]
     fn the_schema_and_the_slices_render_reads_are_the_same_width() {
-        // 16 floats + one colour slot. `render` slices `[16..28]`.
-        assert_eq!(SCHEMA.width(), 28 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
-        assert_eq!(row().len(), 28 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        // 25 floats + one colour slot. `render` slices `[25..37]`.
+        assert_eq!(SCHEMA.width(), 37 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        assert_eq!(row().len(), 37 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
     }
 
     #[test]

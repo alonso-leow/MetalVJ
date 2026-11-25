@@ -173,7 +173,6 @@ impl Model for Membrane {
             false,
         );
 
-        let n_hairs = (floats[2].round() as u32).max(1);
         let uniform = Uniform {
             root_color: ColorSlotGpu::from_floats(&floats[27..39]),
             tip_color: ColorSlotGpu::from_floats(&floats[39..51]),
@@ -201,7 +200,6 @@ impl Model for Membrane {
             })
         };
         let surface_bg = mk(0.0, "membrane surface");
-        let hair_bg = mk(1.0, "membrane hair");
 
         let depth_view = gpu.depth.get(ctx.device, ctx.width, ctx.height);
         // The background, first and as its own pass — it is what clears the
@@ -235,8 +233,8 @@ impl Model for Membrane {
             pass.set_pipeline(&gpu.pipeline);
             pass.set_bind_group(0, &surface_bg, &[]);
             pass.draw(0..(200 * 150 * 6), 0..1);
-            pass.set_bind_group(0, &hair_bg, &[]);
-            pass.draw(0..3, 0..n_hairs);
+            // 2026-11-25 review: the hairs are gone, the surface carries the
+            // model. The hair floats stay in the schema (append-only rows).
         }
         ctx.queue.submit(Some(encoder.finish()));
     }

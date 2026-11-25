@@ -44,6 +44,8 @@ const FLOATS: &[FloatSpec] = &[
     spec("mix", 0.0, 1.0, 0.35),
     spec("contrast", 0.2, 4.0, 2.2),
     spec("separation", -1.0, 1.0, 0.12),
+    // Appended 2026-11-25: one of 16 ruling layouts (shaders/moire.wgsl mo_layout).
+    spec_held("layout", 0.0, 15.0, 0.0, 0.2),
 ];
 
 /// Not white: a moiré is read by its *nodes*, and four white stops make the
@@ -87,6 +89,7 @@ struct Uniform {
     a: [f32; 4],
     b: [f32; 4],
     c: [f32; 4],
+    d: [f32; 4],
 }
 
 pub struct Moire {
@@ -120,11 +123,12 @@ impl Model for Moire {
         format: wgpu::TextureFormat,
     ) {
         let uniform = Uniform {
-            lines: ColorSlotGpu::from_floats(&floats[10..22]),
-            background: ColorSlotGpu::from_floats(&floats[22..34]),
+            lines: ColorSlotGpu::from_floats(&floats[11..23]),
+            background: ColorSlotGpu::from_floats(&floats[23..35]),
             a: [ctx.aspect(), ctx.time, floats[0].round(), floats[1]],
             b: [floats[2], floats[3], floats[4], floats[5]],
             c: [floats[6], floats[7], floats[8], floats[9]],
+            d: [floats[10], 0.0, 0.0, 0.0],
         };
         self.pass.draw(ctx, target, format, &uniform);
     }
@@ -140,9 +144,9 @@ mod tests {
 
     #[test]
     fn the_schema_and_the_slices_render_reads_are_the_same_width() {
-        // 10 floats + two colour slots. `render` slices `[10..22]` and `[22..34]`.
-        assert_eq!(SCHEMA.width(), 34 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
-        assert_eq!(row().len(), 34 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        // 11 floats + two colour slots. `render` slices `[11..23]` and `[23..35]`.
+        assert_eq!(SCHEMA.width(), 35 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        assert_eq!(row().len(), 35 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
     }
 
     #[test]

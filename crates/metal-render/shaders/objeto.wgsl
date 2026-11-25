@@ -45,6 +45,10 @@ struct ObjU {
     right: vec4<f32>,
     up: vec4<f32>,
     fwd: vec4<f32>,
+    // columns, rows, depth rows, spacing (lattice.wgsl)
+    lat: vec4<f32>,
+    // spin_x, spin_y, spin_z, dither
+    spin: vec4<f32>,
     // The `body` part's picture and `mat_*`, one `MaterialU` — see
     // material.wgsl, prepended ahead of this file.
     mat_body: MaterialU,
@@ -101,8 +105,12 @@ fn ob_field(q: vec3<f32>) -> vec3<f32> {
     return vec3<f32>((length(uu) - r1) * min(r2, 1.0), r2, th);
 }
 
+fn ob_lp(p: vec3<f32>) -> vec3<f32> {
+    return lat_local(p, u.lat, u.spin, u.a.y);
+}
+
 fn ob_map(p: vec3<f32>) -> f32 {
-    return ob_field(ob_inv(p)).x * u.g1b.w / u.a.w;
+    return ob_field(ob_inv(ob_lp(p))).x * u.g1b.w / u.a.w;
 }
 
 fn ob_normal(p: vec3<f32>) -> vec3<f32> {
@@ -155,7 +163,7 @@ fn ob_tex(q: vec3<f32>, th: f32, t: f32) -> f32 {
 
 fn ob_shade(p: vec3<f32>, rd: vec3<f32>, t: f32, uv: vec2<f32>) -> vec3<f32> {
     var n = ob_normal(p);
-    let q = ob_inv(p);
+    let q = ob_inv(ob_lp(p));
     let fld = ob_field(q);
     let hn = clamp(0.5 + 0.5 * q.z / max(u.g1b.z, 0.01), 0.0, 1.0);
     var tt = 0.55 * (0.5 + 0.5 * ob_normal(p).y) + 0.45 * hn;
@@ -202,21 +210,18 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
     var col = bgc;
     var cover = 0.0;
 
-    // Bounding sphere (object units are normalised to radius 1).
+    // Bounding box of the lattice (each copy is normalised to radius 1).
     let R = 1.1;
-    let b = dot(ro, rd);
-    let c = dot(ro, ro) - R * R;
-    let h2 = b * b - c;
-    if (h2 > 0.0) {
-        let sq = sqrt(h2);
-        let tend = -b + sq;
-        var t = max(-b - sq, 0.0);
+    let bx = lat_box(ro, rd, u.lat, R);
+    if (bx.y > max(bx.x, 0.0)) {
+        let tend = bx.y;
+        var t = max(bx.x, 0.0);
         var dmin = 1e9;
         var tm = t;
         var hit = false;
         let px = max(u.d.w, 1e-5);
         if (tend > 0.0) {
-            for (var i = 0; i < 112; i = i + 1) {
+            for (var i = 0; i < 200; i = i + 1) {
                 let d = ob_map(ro + rd * t);
                 let rr = d / (max(t, 0.1) * px * u.g1b.w);
                 if (rr < dmin) { dmin = rr; tm = t; }

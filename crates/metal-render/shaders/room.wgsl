@@ -50,6 +50,8 @@ struct RoomUniform {
     mat_window: MaterialU,
     mat_door: MaterialU,
     screen: vec4<f32>,
+    // room size xyz (2026-11-25), w = its geometric mean
+    scale: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> u: RoomUniform;
@@ -122,7 +124,7 @@ fn vs_main(in: VIn) -> VOut {
     let time = u.floats2.x;
     let lamp = u.floats2.y;
 
-    let world = in.pos;
+    let world = in.pos * u.scale.xyz;
     let role = in.tag.z;
 
     // The cell flicker: a hash per (strand, cell along it, object, slot of
@@ -135,7 +137,7 @@ fn vs_main(in: VIn) -> VOut {
     // Rule 1. Inverse-square from the bulb, mixed against flat light so
     // `lampara` is a dial between "an empty cube, evenly lit" and "one lamp in
     // a dark room", rather than a brightness slider with a second job.
-    let reach = world - u.bulb.xyz;
+    let reach = (world - u.bulb.xyz) / max(u.scale.w, 0.1);
     let bulb = 2.2 / (1.0 + dot(reach, reach) * 2.4);
     let lit = mix(1.0, bulb, clamp(lamp, 0.0, 1.0));
 
@@ -182,7 +184,7 @@ fn vs_main(in: VIn) -> VOut {
     out.lum = lum;
     out.wpos = world;
     out.obj = in.obj;
-    out.nrm = in.nrm;
+    out.nrm = in.nrm / u.scale.xyz;
     // Distance from the camera, not from the room's centre. The centre was a
     // fair stand-in for the eye while the room was empty and is simply wrong
     // once there is a couch between you and a wall.
@@ -218,7 +220,7 @@ fn fs_fill(in: VOut) -> @location(0) vec4<f32> {
     let fill = clamp(u.floats2.w, 0.0, 1.0);
     let base = room_colour(in.lum, in.depth);
     let screen_uv = in.clip.xy / u.screen.xy;
-    let shaded = part_shaded(base, in.obj, in.wpos, normalize(in.nrm), screen_uv);
+    let shaded = part_shaded(base, in.obj, in.wpos, normalize(in.nrm + vec3<f32>(0.0, 1e-6, 0.0)), screen_uv);
 
     let fade = 1.0 - 0.5 * in.depth;
     let col = shaded.albedo * shine * in.lum * fade;

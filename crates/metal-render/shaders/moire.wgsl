@@ -30,12 +30,40 @@ struct MoireUniform {
     b: vec4<f32>,
     // zoom, mezcla, contraste, centro_sep
     c: vec4<f32>,
+    // layout, _, _, _
+    d: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> u: MoireUniform;
 
 const MAX_CAPAS: i32 = 6;
 const TAU: f32 = 6.28318530718;
+
+// 2026-11-25: 16 ruling layouts (`layout`), the distance each layer rules.
+fn mo_layout(q: vec2<f32>, dir: vec2<f32>, flat: f32, ring: f32, f: f32) -> f32 {
+    let k = i32(clamp(round(u.d.x), 0.0, 15.0));
+    let r = max(ring, 1e-4);
+    let a = atan2(q.y, q.x);
+    let ql = vec2<f32>(dot(q, dir), dot(q, vec2<f32>(-dir.y, dir.x)));
+    switch (k) {
+        case 1: { return ql.x * ql.y * 1.5; }                                   // hyperbolas
+        case 2: { return (a / TAU) * 0.3 + log(r) * 0.12; }                     // log spiral
+        case 3: { return a / TAU * 0.6 * (1.0 + f); }                           // spokes
+        case 4: { return max(abs(ql.x), abs(ql.y)); }                           // square rings
+        case 5: { return abs(ql.x) + abs(ql.y); }                               // diamonds
+        case 6: { return flat + 0.05 * sin(ql.y * 9.0 + f); }                   // waves
+        case 7: { return flat + 0.04 * abs(fract(ql.y * 4.0) * 2.0 - 1.0); }    // zigzag
+        case 8: { return length(ql * vec2<f32>(1.0, 2.2)); }                    // ellipses
+        case 9: { return log(r) * 0.15 + a / TAU * 0.05 * f; }                  // log-polar
+        case 10: { let h = abs(ql); return max(h.x * 0.866 + h.y * 0.5, h.y); } // hexagons
+        case 11: { return (ql.x + ql.y) * 0.7 + 0.02 * sin(ql.x * 20.0); }      // weave
+        case 12: { return r * (1.0 + 0.2 * cos(a * 5.0)); }                     // stars
+        case 13: { return r * r * cos(2.0 * a) + r * 0.2; }                     // lemniscates
+        case 14: { return max(ql.y * 0.5 + abs(ql.x) * 0.866, -ql.y); }         // triangles
+        case 15: { return r - 0.3 * cos(a); }                                   // cardioids
+        default: { return flat; }
+    }
+}
 
 @fragment
 fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
@@ -83,7 +111,7 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
         // rather than two code paths.
         let flat = dot(q, dir);
         let ring = length(q);
-        let d = mix(flat, ring, curve);
+        let d = mix(mo_layout(q, dir, flat, ring, f), ring, curve);
 
         // One period of the ruling, antialiased against the screen derivative.
         // Without the `fwidth` term a fine ruling aliases into its own moiré —

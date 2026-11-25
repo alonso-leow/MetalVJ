@@ -129,6 +129,66 @@ fn saccade_target(tick: f32, bias: vec2<f32>) -> vec2<f32> {
     return bias + (hash2(tick) * 2.0 - 1.0) * 0.6;
 }
 
+const MG_PI: f32 = 3.14159265;
+
+// 2026-11-25: 16 body forms (`form`), the outline radius (in radii) at the
+// direction of `q`. Regular polygons, organic and irregular blobs.
+fn mg_poly(a: f32, n: f32) -> f32 {
+    let w = 2.0 * MG_PI / n;
+    return cos(MG_PI / n) / cos(a - w * floor(a / w) - w * 0.5);
+}
+fn mg_form(q: vec2<f32>, t: f32) -> f32 {
+    let k = i32(clamp(round(u.bg2.z), 0.0, 15.0));
+    let a = atan2(q.y, q.x);
+    let ca = cos(a); let sa = sin(a);
+    switch (k) {
+        case 1: { return 1.0 / length(vec2<f32>(ca / 1.25, sa / 0.8)); }        // wide ellipse
+        case 2: { return 1.0 / length(vec2<f32>(ca / 0.82, sa / 1.2)); }        // tall ellipse
+        case 3: { return 1.0 / pow(pow(abs(ca), 4.0) + pow(abs(sa), 4.0), 0.25); } // rounded square
+        case 4: { return mg_poly(a + MG_PI * 0.5, 3.0) * 1.05; }              // triangle
+        case 5: { return mg_poly(a + MG_PI * 0.5, 5.0); }                     // pentagon
+        case 6: { return mg_poly(a, 6.0); }                                    // hexagon
+        case 7: { return 0.82 + 0.22 * cos(a * 5.0 + MG_PI * 0.5); }           // star
+        case 8: { return 0.85 + 0.2 * sa - 0.12 * abs(ca) * sa + 0.12 * pow(abs(ca), 3.0) * step(0.0, sa); } // heart-ish
+        case 9: { return 0.9 + 0.1 * sin(a * 3.0 + t * 0.7) + 0.06 * sin(a * 5.0 - t * 1.1); } // living blob
+        case 10: { return 1.0 - 0.18 * max(sa, 0.0) * abs(ca) * 2.0 + 0.1 * abs(ca); } // bean
+        case 11: { return 0.9 - 0.2 * sa; }                                     // pear
+        case 12: { return 0.88 + 0.12 * abs(sin(a * 3.5)); }                    // cloud lobes
+        case 13: { return 1.0 / (abs(ca) + abs(sa)) * 1.1; }                    // diamond
+        case 14: { return 0.95 + 0.12 * sa; }                                   // egg
+        case 15: { return 0.85 + 0.16 * pow(abs(sin(a * 4.0 + 0.7)), 6.0) + 0.06 * sin(a * 9.0); } // splat
+        default: { return 1.0; }
+    }
+}
+
+// 16 eye presets (`eye_style`): eye e of 7 -> (centre x, y in radii, size, on).
+fn mg_eye(e: i32) -> vec4<f32> {
+    let k = i32(clamp(round(u.bg2.w), 0.0, 15.0));
+    let fe = f32(e);
+    switch (k) {
+        case 1: { return vec4<f32>(0.0, 0.15, 1.7, select(0.0, 1.0, e == 0)); }                      // cyclops
+        case 2: { return vec4<f32>((fe - 1.0) * 0.5, 0.17, 0.75, select(0.0, 1.0, e < 3)); }         // three in a row
+        case 3: { var c = array<vec2<f32>, 3>(vec2<f32>(-0.4, 0.3), vec2<f32>(0.4, 0.3), vec2<f32>(0.0, -0.25)); return vec4<f32>(c[min(e, 2)], 0.75, select(0.0, 1.0, e < 3)); } // triangle
+        case 4: { return vec4<f32>(select(-0.36, 0.36, e % 2 == 1), select(0.38, -0.12, e >= 2), 0.62, select(0.0, 1.0, e < 4)); } // 2x2
+        case 5: { return vec4<f32>(select(-0.3, 0.3, e == 1), 0.15, 1.3, select(0.0, 1.0, e < 2)); }  // big close
+        case 6: { return vec4<f32>(select(-0.6, 0.6, e == 1), 0.2, 0.55, select(0.0, 1.0, e < 2)); }  // small wide
+        case 7: { return vec4<f32>(select(-0.42, 0.38, e == 1), select(0.12, 0.25, e == 1), select(1.25, 0.6, e == 1), select(0.0, 1.0, e < 2)); } // uneven
+        case 8: { let a = (fe - 2.0) * 0.45; return vec4<f32>(sin(a) * 0.6, cos(a) * 0.55 - 0.2, 0.5, select(0.0, 1.0, e < 5)); } // arc of five
+        case 12: { let a = fe * 1.047; return vec4<f32>(select(cos(a) * 0.5, 0.0, e == 6), select(sin(a) * 0.5 + 0.05, 0.05, e == 6), 0.45, select(0.0, 1.0, e < 7)); } // cluster
+        case 15: { let h = fract(sin(vec2<f32>(fe * 12.9, fe * 78.2)) * 43758.5); return vec4<f32>(h.x * 1.2 - 0.6, h.y * 1.0 - 0.4, 0.35 + 0.4 * fract(h.x * 7.0), select(0.0, 1.0, e < 7)); } // scattered
+        default: { return vec4<f32>(select(-0.42, 0.42, e == 1), 0.17, 1.0, select(0.0, 1.0, e < 2)); } // pairs (0, 9, 10, 11, 13, 14)
+    }
+}
+// Pupil metric for the style: 0 round, 1 slit, 2 square, 3 star, 4 cross.
+fn mg_pupil(q: vec2<f32>) -> f32 {
+    let k = i32(clamp(round(u.bg2.w), 0.0, 15.0));
+    if (k == 9) { return length(q * vec2<f32>(3.0, 0.8)); }
+    if (k == 10) { return max(abs(q.x), abs(q.y)) * 1.15; }
+    if (k == 11) { let a = atan2(q.y, q.x); return length(q) / (0.75 + 0.25 * cos(a * 5.0)); }
+    if (k == 14) { let aq = abs(q); return min(max(aq.x * 3.0, aq.y), max(aq.x, aq.y * 3.0)); }
+    return length(q);
+}
+
 @fragment
 fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     let aspect = max(u.misc.x, 0.01);
@@ -166,7 +226,7 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     let rr = length(local);
     // Jelly: a slow ripple round the rim, only while the body is being shaken.
     let ripple = u.dance.w * radius * 0.05 * sin(atan2(local.y, local.x) * 3.0 + time * 9.0);
-    let d = rr - radius - ripple;
+    let d = rr - radius * mg_form(rot2(local, -u.dance.z), time) - ripple;
     let aa = max(fwidth(d), 1e-5);
     let inside = 1.0 - smoothstep(-aa, aa, d);
 
@@ -215,7 +275,7 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
 
         // ---- the eyes ----------------------------------------------------
         // Placed in the ball's own local frame, so they squash with it.
-        let eye_r = radius * clamp(u.eyes.w, 0.05, 1.0) * 0.44;
+        let eye_r0 = radius * clamp(u.eyes.w, 0.05, 1.0) * 0.44;
         let sep = radius * 0.42;
         let lift = radius * 0.17;
 
@@ -229,14 +289,14 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
         let gaze = mix(saccade_target(tick - 1.0, bias), saccade_target(tick, bias), ease) * 0.5;
 
         let open = clamp(u.eyes.z, 0.0, 1.0);
-        // The eyes live in the ball's unit coordinates (so they still squash
-        // and stretch with the body) but turned back to world axes, so they
-        // do not rotate with the direction of travel; `eye_rotation` is the
-        // only turn they get, on top of the dance tilt.
         let le = rot2(local.x * ax + local.y * ay, -u.dance.z - u.dance2.z);
-        for (var e = 0; e < 2; e = e + 1) {
+        let droop = select(1.0, 0.55, i32(round(u.bg2.w)) == 13);
+        for (var e = 0; e < 7; e = e + 1) {
+            let el = mg_eye(e);
+            if (el.w < 0.5) { continue; }
             let lag_l = rot2(u.dance2.xy, -u.dance.z - u.dance2.z);
-            let centre = vec2<f32>(select(-sep, sep, e == 1), lift) + lag_l * radius;
+            let centre = el.xy * radius + lag_l * radius;
+            let eye_r = eye_r0 * el.z;
             let q = le - centre;
             let ed = length(q) - eye_r;
             let eaa = max(fwidth(ed), 1e-5);
@@ -245,7 +305,7 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
 
             // The lid. Same colour as the skin around it — Oracle's rule —
             // so closing one closes an eye rather than punching a hole.
-            let lid = eye_r * (open * 2.0 - 1.0);
+            let lid = eye_r * (open * droop * 2.0 - 1.0);
             if (q.y > lid) {
                 skin = mix(skin, body_m * 0.88, in_eye);
                 continue;
@@ -254,7 +314,7 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
             var eye = grad4(u.eye, 0.06);
             let pupil_r = eye_r * 0.56;
             let pupil_at = gaze * eye_r * 0.34;
-            let pd = length(q - pupil_at) - pupil_r;
+            let pd = mg_pupil(q - pupil_at) - pupil_r;
             eye = mix(eye, grad4(u.eye, 0.94), 1.0 - smoothstep(-eaa, eaa, pd));
             // The catchlight, which is the entire difference between an eye
             // and a hole.

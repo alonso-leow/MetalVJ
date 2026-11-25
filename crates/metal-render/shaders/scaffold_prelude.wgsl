@@ -73,6 +73,33 @@ fn p_edge(d: f32, edge: f32, w: f32) -> f32 {
 }
 
 // Slot colour by index (0..2) at t in 0..1.
+// 16 predefined composition layouts (2026-11-25): a domain transform a model
+// applies before drawing, so one model reads as 16 different compositions.
+// `id` is a held float rounded to 0..15. Output stays in about the input's range.
+fn p_layout(p: vec2<f32>, id: f32) -> vec2<f32> {
+    let k = i32(clamp(round(id), 0.0, 15.0));
+    let r = length(p);
+    let a = atan2(p.y, p.x);
+    switch (k) {
+        case 1: { return vec2<f32>(abs(p.x) - 0.45, p.y); }                 // mirrored pair
+        case 2: { return vec2<f32>(p.x, abs(p.y) - 0.25); }                 // stacked pair
+        case 3: { return abs(p) - vec2<f32>(0.45, 0.25); }                  // quad mirror
+        case 4: { return (fract(p * 1.6 + 0.5) - 0.5) / 0.8; }              // 2x2-ish tiles
+        case 5: { return (fract(p * 2.6 + 0.5) - 0.5) / 1.1; }              // 3x3 tiles
+        case 6: { let w = 2.0944; let b = abs(a - w * floor(a / w) - w * 0.5); return vec2<f32>(cos(b), sin(b)) * r; }  // kaleido 3
+        case 7: { let w = 1.2566; let b = abs(a - w * floor(a / w) - w * 0.5); return vec2<f32>(cos(b), sin(b)) * r; }  // kaleido 5
+        case 8: { let w = 0.7854; let b = abs(a - w * floor(a / w) - w * 0.5); return vec2<f32>(cos(b), sin(b)) * r; }  // kaleido 8
+        case 9: { var q = p * 2.0; q.x = q.x + 0.5 * floor(q.y + 0.5); return (fract(q + 0.5) - 0.5) * 0.9; }         // brick
+        case 10: { return vec2<f32>(a / 3.1416 * 0.9, r * 1.6 - 0.6); }      // polar unwrap
+        case 11: { return vec2<f32>(fract(r * 3.0) - 0.5, a / 3.1416 * 0.5); } // rings
+        case 12: { let q = p_rot(p, 0.7854) * 1.8; return (fract(q + 0.5) - 0.5) * 0.9; }                          // diamonds
+        case 13: { return vec2<f32>((fract(p.x * 2.5 + 0.5) - 0.5) * 0.8, p.y); }  // vertical strips
+        case 14: { return vec2<f32>(p.x * 0.7, (fract(p.y * 2.0 + 0.5) - 0.5) * 0.9); } // horizontal bands
+        case 15: { return p_rot(p, r * 4.0) * 1.1; }                         // spiral twist
+        default: { return p; }
+    }
+}
+
 fn p_pal(k: u32, t: f32) -> vec3<f32> {
     if (k == 0u) { return grad4(P.s0, t); }
     if (k == 1u) { return grad4(P.s1, t); }

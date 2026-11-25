@@ -48,6 +48,10 @@ struct BuU {
     right: vec4<f32>,
     up: vec4<f32>,
     fwd: vec4<f32>,
+    // columns, rows, depth rows, spacing (lattice.wgsl)
+    lat: vec4<f32>,
+    // spin_x, spin_y, spin_z, dither
+    spin: vec4<f32>,
     // The `body` part's picture and `mat_*`, one `MaterialU` — see
     // material.wgsl, prepended ahead of this file.
     mat_body: MaterialU,
@@ -323,6 +327,10 @@ fn bu_one(p: vec3<f32>, id: i32) -> vec2<f32> {
 }
 
 fn bu_map(p: vec3<f32>) -> vec2<f32> {
+    return bu_map0(lat_local(p, u.lat, u.spin, u.a.y));
+}
+
+fn bu_map0(p: vec3<f32>) -> vec2<f32> {
     var r = bu_one(p, i32(u.f.x));
     if (u.f.z > 0.001) {
         r = mix(r, bu_one(p, i32(u.f.y)), u.f.z);
@@ -416,13 +424,11 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
     var cover = 0.0;
     var glow = 0.0;
 
-    let b = dot(ro, rd);
-    let c = dot(ro, ro) - BU_R * BU_R;
-    let h2 = b * b - c;
-    if (h2 > 0.0) {
-        let sq = sqrt(h2);
-        let tend = -b + sq;
-        let t0 = max(-b - sq, 0.0);
+    // Bounding box of the lattice of copies (lattice.wgsl).
+    let bx = lat_box(ro, rd, u.lat, BU_R);
+    if (bx.y > max(bx.x, 0.0)) {
+        let tend = bx.y;
+        let t0 = max(bx.x, 0.0);
         var t = t0;
         var dmin = 1e9;
         var tm = t;
@@ -430,9 +436,10 @@ fn fs_main(in: FsVOut) -> @location(0) vec4<f32> {
         var used = 0;
         let px = max(u.l2.w, 1e-5);
         let prec = max(u.o.w, 0.05);
-        let maxs = i32(u.g.w);
+        // A lattice ray crosses several copies: twice the authored budget.
+        let maxs = i32(u.g.w) * 2;
         if (tend > 0.0) {
-            for (var i = 0; i < 112; i = i + 1) {
+            for (var i = 0; i < 192; i = i + 1) {
                 if (i >= maxs) { break; }
                 used = i + 1;
                 let d = bu_map(ro + rd * t).x;

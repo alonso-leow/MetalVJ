@@ -69,7 +69,172 @@ const FLOATS: &[FloatSpec] = &[
     spec("dotted", 0.0, 1.0, 0.0),
     spec("hide", 0.0, 1.0, 1.0),
     spec("plane", 0.0, 1.0, 0.5),
+    // Appended 2026-11-25. `scene` picks one of 16 composed scenes (0 the
+    // free shapes above; 1 castle, 2 cat, 3 dog, 4 bird, 5 fish, 6 elephant,
+    // 7 tree grove, 8 pine forest, 9 park, 10 mountains, 11 flowers,
+    // 12 turtle, 13 rock garden, 14 lighthouse, 15 mushrooms). Camera moves
+    // inside the scene: `fly_in` pushes the eye through it (0 outside, 1 deep
+    // inside), `glide` travels sideways along it, `zoom` narrows the lens,
+    // `rise` lifts the eye over it.
+    spec_held("scene", 0.0, 15.0, 0.0, 0.2),
+    spec("fly_in", 0.0, 1.0, 0.0),
+    spec("glide", -1.0, 1.0, 0.0),
+    spec("zoom", 0.5, 3.0, 1.0),
+    spec("rise", -1.0, 2.0, 0.0),
 ];
+
+/// One part of a composed scene: shape index, position, per-axis scale, yaw.
+struct Part(usize, [f32; 3], [f32; 3], f32);
+
+/// The composed scenes (`scene` 1..15) as parts made of the five shapes
+/// (0 sphere, 1 cube, 2 torus, 3 cone, 4 knot). y = -0.55 is the ground.
+fn scene_parts(id: usize) -> Vec<Part> {
+    const G: f32 = -0.55;
+    let mut v = Vec::new();
+    match id {
+        1 => {
+            // castle: keep, four towers with cone roofs, curtain walls, gate ring
+            v.push(Part(1, [0.0, G + 0.55, 0.0], [0.55, 0.55, 0.55], 0.0));
+            for (x, z) in [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
+                v.push(Part(1, [x, G + 0.7, z], [0.22, 0.7, 0.22], 0.0));
+                v.push(Part(3, [x, G + 1.75, z], [0.32, 0.45, 0.32], 0.0));
+            }
+            v.push(Part(1, [0.0, G + 0.3, 1.0], [0.8, 0.3, 0.08], 0.0));
+            v.push(Part(1, [0.0, G + 0.3, -1.0], [0.8, 0.3, 0.08], 0.0));
+            v.push(Part(3, [0.0, G + 1.45, 0.0], [0.45, 0.5, 0.45], 0.0));
+        }
+        2 | 3 => {
+            // cat (2) / dog (3): body, head, ears, legs, tail
+            let dog = id == 3;
+            v.push(Part(0, [0.0, G + 0.6, 0.0], [0.75, 0.38, 0.36], 0.0));
+            v.push(Part(0, [0.85, G + 0.95, 0.0], [0.32, 0.3, 0.3], 0.0));
+            if dog {
+                v.push(Part(0, [1.15, G + 0.88, 0.0], [0.22, 0.14, 0.14], 0.0));
+                v.push(Part(0, [0.8, G + 1.12, 0.22], [0.08, 0.2, 0.06], 0.0));
+                v.push(Part(0, [0.8, G + 1.12, -0.22], [0.08, 0.2, 0.06], 0.0));
+            } else {
+                v.push(Part(3, [0.8, G + 1.3, 0.16], [0.1, 0.16, 0.1], 0.0));
+                v.push(Part(3, [0.8, G + 1.3, -0.16], [0.1, 0.16, 0.1], 0.0));
+            }
+            for (x, z) in [(-0.5, 0.2), (-0.5, -0.2), (0.5, 0.2), (0.5, -0.2)] {
+                v.push(Part(1, [x, G + 0.22, z], [0.07, 0.24, 0.07], 0.0));
+            }
+            v.push(Part(2, [-0.85, G + 0.85, 0.0], [0.3, 0.3, 0.3], 1.57));
+        }
+        4 => {
+            // bird: body, head, beak, wings, tail, perch
+            v.push(Part(0, [0.0, G + 1.0, 0.0], [0.45, 0.3, 0.3], 0.0));
+            v.push(Part(0, [0.45, G + 1.25, 0.0], [0.2, 0.2, 0.2], 0.0));
+            v.push(Part(3, [0.7, G + 1.25, 0.0], [0.06, 0.16, 0.06], -1.57));
+            v.push(Part(1, [0.0, G + 1.1, 0.42], [0.35, 0.03, 0.3], 0.3));
+            v.push(Part(1, [0.0, G + 1.1, -0.42], [0.35, 0.03, 0.3], -0.3));
+            v.push(Part(1, [-0.55, G + 0.95, 0.0], [0.25, 0.03, 0.12], 0.0));
+            v.push(Part(1, [0.0, G + 0.62, 0.0], [0.9, 0.04, 0.04], 0.0));
+        }
+        5 => {
+            // fish school: three fish of body + tail fin
+            for (i, (x, y, z)) in [(0.0, 1.0, 0.0), (-0.9, 0.6, 0.7), (0.8, 0.5, -0.8)].into_iter().enumerate() {
+                let k = 1.0 - 0.2 * i as f32;
+                v.push(Part(0, [x, G + y, z], [0.55 * k, 0.28 * k, 0.14 * k], 0.0));
+                v.push(Part(3, [x - 0.6 * k, G + y, z], [0.2 * k, 0.25 * k, 0.04 * k], 0.0));
+            }
+        }
+        6 => {
+            // elephant: body, head, trunk, ears, legs
+            v.push(Part(0, [0.0, G + 1.0, 0.0], [0.95, 0.6, 0.55], 0.0));
+            v.push(Part(0, [1.05, G + 1.2, 0.0], [0.42, 0.4, 0.38], 0.0));
+            v.push(Part(2, [1.4, G + 0.75, 0.0], [0.28, 0.45, 0.28], 1.57));
+            v.push(Part(0, [0.9, G + 1.25, 0.45], [0.3, 0.38, 0.05], 0.0));
+            v.push(Part(0, [0.9, G + 1.25, -0.45], [0.3, 0.38, 0.05], 0.0));
+            for (x, z) in [(-0.55, 0.3), (-0.55, -0.3), (0.55, 0.3), (0.55, -0.3)] {
+                v.push(Part(1, [x, G + 0.3, z], [0.16, 0.32, 0.16], 0.0));
+            }
+        }
+        7 | 8 => {
+            // tree grove (7) / pine forest (8)
+            for i in 0..7 {
+                let a = i as f32 * 2.4;
+                let r = 0.5 + 0.25 * i as f32;
+                let (x, z) = (r * a.cos(), r * a.sin());
+                let h = 0.9 + 0.35 * ((i * 7 % 5) as f32 / 5.0);
+                v.push(Part(1, [x, G + h * 0.4, z], [0.06, h * 0.4, 0.06], 0.0));
+                if id == 7 {
+                    v.push(Part(0, [x, G + h, z], [0.42, 0.36, 0.42], a));
+                } else {
+                    v.push(Part(3, [x, G + h * 1.05, z], [0.32, h * 0.6, 0.32], 0.0));
+                }
+            }
+        }
+        9 => {
+            // park: bench, two trees, fountain basin and spout, lamp post
+            v.push(Part(1, [0.0, G + 0.35, 0.9], [0.7, 0.04, 0.18], 0.0));
+            v.push(Part(1, [0.0, G + 0.6, 1.05], [0.7, 0.2, 0.03], 0.0));
+            v.push(Part(2, [0.0, G + 0.1, -0.3], [0.8, 0.5, 0.8], 0.0));
+            v.push(Part(3, [0.0, G + 0.55, -0.3], [0.12, 0.45, 0.12], 0.0));
+            for x in [-1.6, 1.6] {
+                v.push(Part(1, [x, G + 0.45, 0.0], [0.07, 0.45, 0.07], 0.0));
+                v.push(Part(0, [x, G + 1.15, 0.0], [0.5, 0.42, 0.5], 0.0));
+            }
+            v.push(Part(1, [1.0, G + 0.7, 1.0], [0.03, 0.7, 0.03], 0.0));
+            v.push(Part(0, [1.0, G + 1.45, 1.0], [0.1, 0.1, 0.1], 0.0));
+        }
+        10 => {
+            // mountains
+            for (x, z, h) in [(0.0, -1.0, 2.2), (-1.6, -0.4, 1.5), (1.5, -0.6, 1.7), (-0.8, 0.8, 0.9), (1.0, 0.9, 1.0)] {
+                v.push(Part(3, [x, G + h * 0.5, z], [h * 0.6, h * 0.62, h * 0.6], x));
+            }
+        }
+        11 => {
+            // flowers: stems and torus blossoms with sphere hearts
+            for i in 0..6 {
+                let a = i as f32 * 1.05;
+                let (x, z) = (1.0 * a.cos() * (0.4 + 0.15 * i as f32), 1.0 * a.sin() * (0.4 + 0.15 * i as f32));
+                let h = 0.6 + 0.12 * (i % 3) as f32;
+                v.push(Part(1, [x, G + h * 0.5, z], [0.025, h * 0.5, 0.025], 0.0));
+                v.push(Part(2, [x, G + h, z], [0.28, 0.28, 0.28], a));
+                v.push(Part(0, [x, G + h, z], [0.08, 0.08, 0.08], 0.0));
+            }
+        }
+        12 => {
+            // turtle: shell, head, legs
+            v.push(Part(0, [0.0, G + 0.35, 0.0], [0.8, 0.4, 0.65], 0.0));
+            v.push(Part(0, [0.95, G + 0.3, 0.0], [0.22, 0.18, 0.18], 0.0));
+            for (x, z) in [(-0.5, 0.5), (-0.5, -0.5), (0.5, 0.5), (0.5, -0.5)] {
+                v.push(Part(0, [x, G + 0.1, z], [0.18, 0.1, 0.14], 0.0));
+            }
+        }
+        13 => {
+            // rock garden: stones of the superquadric cube on raked rings
+            for i in 0..7 {
+                let a = i as f32 * 2.1;
+                let r = 0.3 + 0.28 * i as f32;
+                let k = 0.25 + 0.12 * ((i * 5 % 4) as f32);
+                v.push(Part(1, [r * a.cos(), G + k * 0.6, r * a.sin()], [k * 1.3, k * 0.75, k], a));
+            }
+            v.push(Part(2, [0.0, G + 0.02, 0.0], [2.2, 0.15, 2.2], 0.0));
+        }
+        14 => {
+            // lighthouse on a rock
+            v.push(Part(0, [0.0, G + 0.15, 0.0], [1.0, 0.35, 0.9], 0.0));
+            v.push(Part(3, [0.0, G + 1.4, 0.0], [0.38, 1.3, 0.38], 0.0));
+            for y in [0.9, 1.5, 2.1] {
+                v.push(Part(2, [0.0, G + y, 0.0], [0.32, 0.25, 0.32], 0.0));
+            }
+            v.push(Part(0, [0.0, G + 2.7, 0.0], [0.16, 0.16, 0.16], 0.0));
+        }
+        _ => {
+            // mushrooms
+            for i in 0..6 {
+                let a = i as f32 * 2.3;
+                let r = 0.35 + 0.22 * i as f32;
+                let h = 0.35 + 0.15 * ((i * 3 % 4) as f32);
+                v.push(Part(1, [r * a.cos(), G + h * 0.5, r * a.sin()], [0.07, h * 0.5, 0.07], 0.0));
+                v.push(Part(0, [r * a.cos(), G + h, r * a.sin()], [0.32, 0.14, 0.32], 0.0));
+            }
+        }
+    }
+    v
+}
 
 const F_A: usize = 0;
 const F_B: usize = 1;
@@ -90,6 +255,11 @@ const F_CORTE: usize = 15;
 const F_PUNT: usize = 16;
 const F_OCULTAR: usize = 17;
 const F_PLANO: usize = 18;
+const F_SCENE: usize = 19;
+const F_FLY: usize = 20;
+const F_GLIDE: usize = 21;
+const F_ZOOM: usize = 22;
+const F_RISE: usize = 23;
 
 /// Blue-black ink: pale and washed far away, dark near. Walked by depth.
 const TRAZO: [f32; 12] = [
@@ -686,6 +856,7 @@ pub struct Params {
     pub dotted: f32,
     pub hide: f32,
     pub plane: f32,
+    pub scene: usize,
     /// Hatch spacing divisor: 1 at 1080p and above, below 1 on small outputs
     /// (preview tiles) so they carry fewer hatch lines. Not a float row entry.
     pub hatch_scale: f32,
@@ -715,6 +886,7 @@ impl Params {
             dotted: c(F_PUNT),
             hide: c(F_OCULTAR),
             plane: c(F_PLANO),
+            scene: c(F_SCENE).round() as usize,
             hatch_scale: 1.0,
         }
     }
@@ -734,11 +906,12 @@ impl Params {
         ];
         k.extend(f.iter().map(|v| v.to_bits()));
         k.push(self.n as u32);
+        k.push(self.scene as u32);
     }
 
     /// The floats that decide the meshes; the cache key.
-    fn mesh_key(&self) -> [u32; 5] {
-        [self.a.to_bits(), self.b.to_bits(), self.mix.to_bits(), self.variety.to_bits(), self.n as u32]
+    fn mesh_key(&self) -> [u32; 6] {
+        [self.a.to_bits(), self.b.to_bits(), self.mix.to_bits(), self.variety.to_bits(), self.n as u32, self.scene as u32]
     }
 }
 
@@ -764,13 +937,13 @@ fn vnoise(p: Vec2) -> f32 {
 
 /// The meshes of the scene's objects, shared by the whole frame.
 pub struct SceneMeshes {
-    key: [u32; 5],
+    key: [u32; 6],
     meshes: std::sync::Arc<Vec<Mesh>>,
 }
 
 impl SceneMeshes {
     pub fn new() -> SceneMeshes {
-        SceneMeshes { key: [u32::MAX; 5], meshes: std::sync::Arc::new(Vec::new()) }
+        SceneMeshes { key: [u32::MAX; 6], meshes: std::sync::Arc::new(Vec::new()) }
     }
 
     pub fn sync(&mut self, p: &Params) -> &[Mesh] {
@@ -781,12 +954,14 @@ impl SceneMeshes {
                 4..=6 => (40, 22),
                 _ => (32, 18),
             };
-            self.meshes = std::sync::Arc::new((0..p.n.max(1))
+            self.meshes = std::sync::Arc::new(if p.scene > 0 {
+                scene_parts(p.scene).iter().map(|pt| build_mesh(pt.0 as f32, pt.0 as f32, 0.0, 32, 18)).collect()
+            } else { (0..p.n.max(1))
                 .map(|i| {
                     let off = p.variety * i as f32;
                     build_mesh(p.a + off, p.b + off, p.mix, nu, nv)
                 })
-                .collect());
+                .collect() });
             self.key = key;
         }
         &self.meshes
@@ -808,11 +983,27 @@ struct Placed {
     world: Vec<Vec3>,
     rot: Mat3,
     pos: Vec3,
-    size: f32,
+    size: Vec3,
 }
 
 fn place(p: &Params, meshes: &[Mesh], time: f32) -> Vec<Placed> {
     let n = meshes.len();
+    if p.scene > 0 {
+        // A composed scene turns as one piece (`turn`), each part at its pose.
+        let parts = scene_parts(p.scene);
+        let spin = Mat3::from_rotation_y(p.turn * time * 0.3);
+        return meshes
+            .iter()
+            .zip(parts.iter())
+            .map(|(m, pt)| {
+                let size = Vec3::from(pt.2);
+                let rot = spin * Mat3::from_rotation_y(pt.3);
+                let pos = spin * Vec3::from(pt.1);
+                let world = m.verts.iter().map(|&v| pos + rot * (v * size)).collect();
+                Placed { world, rot, pos, size }
+            })
+            .collect();
+    }
     let spread = 0.3 + 3.0 * p.dispersion;
     meshes
         .iter()
@@ -826,7 +1017,7 @@ fn place(p: &Params, meshes: &[Mesh], time: f32) -> Vec<Placed> {
             let yaw = h(2) * TAU + p.turn * time * (0.6 + 0.8 * h(3));
             let rot = Mat3::from_rotation_y(yaw) * Mat3::from_rotation_x((h(4) - 0.5) * 0.4) * Mat3::from_rotation_z((h(5) - 0.5) * 0.3);
             let world = m.verts.iter().map(|&v| pos + rot * (v * size)).collect();
-            Placed { world, rot, pos, size }
+            Placed { world, rot, pos, size: Vec3::splat(size) }
         })
         .collect()
 }
@@ -1441,7 +1632,16 @@ impl Fineline {
         let mut cam = camera(&kit::Cam3d::from_floats(&floats[off(B_CAM)..off(B_CAM) + kit::Cam3d::N]), time);
         let t = kit::CamTrack::from_floats(&floats[off(B_TRACK)..off(B_TRACK) + kit::CamTrack::N]);
         cam.eye += Vec3::new(t.x, t.y, t.z);
-        (Params::from_floats(own), cam, time)
+        let p = Params::from_floats(own);
+        // Moves inside the scene (2026-11-25): fly through it along the view,
+        // glide sideways, rise over it, zoom the lens.
+        let g = |i: usize| clean(own[i], FLOATS[i].min, FLOATS[i].max, FLOATS[i].default);
+        let dist = cam.eye.length();
+        cam.eye += cam.fwd * (g(F_FLY) * dist * 0.95)
+            + cam.right * ((time * 0.25).sin() * g(F_GLIDE) * 1.5)
+            + Vec3::Y * g(F_RISE);
+        cam.tan_half /= g(F_ZOOM).max(0.1);
+        (p, cam, time)
     }
 
     /// The strokes this model would draw (no GPU, always inline): used by the tests.

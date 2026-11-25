@@ -71,6 +71,16 @@ const FLOATS: &[FloatSpec] = &[
     spec_held("texture_type", 0.0, 4.0, 0.0, 0.2),
     spec("texture_contrast", 0.0, 1.5, 0.35),
     spec("texture_speed", -4.0, 4.0, 0.3),
+    // Appended 2026-11-25: a 3D lattice of the object (shaders/lattice.wgsl)
+    // instead of one lone object, every copy spinning on three axes.
+    spec_held("columns", 1.0, 9.0, 5.0, 0.25),
+    spec_held("rows", 1.0, 7.0, 3.0, 0.25),
+    spec_held("depth_rows", 1.0, 12.0, 6.0, 0.25),
+    spec("spacing", 2.3, 6.0, 2.7),
+    spec("spin_x", -1.0, 1.0, 0.05),
+    spec("spin_y", -1.0, 1.0, 0.12),
+    spec("spin_z", -1.0, 1.0, 0.03),
+    spec("dither", 0.0, 1.0, 0.6),
 ];
 
 const SUPERFICIE: [f32; 12] = [0.10, 0.12, 0.45, 0.55, 0.15, 0.65, 0.95, 0.45, 0.25, 1.0, 0.9, 0.7];
@@ -110,6 +120,7 @@ const F_LUZ: usize = 17;
 const F_LUZ_DURA: usize = 20;
 const F_AMBIENTE: usize = 21;
 const F_TEX: usize = 25;
+const F_LAT: usize = 29;
 
 /// One superformula curve's six parameters.
 #[derive(Clone, Copy, Debug)]
@@ -222,6 +233,8 @@ struct Uniform {
     right: [f32; 4],
     up: [f32; 4],
     fwd: [f32; 4],
+    lat: [f32; 4],
+    spin: [f32; 4],
     /// `body`'s picture and `mat_*`, see `material.wgsl`.
     mat_body: MaterialU,
 }
@@ -230,10 +243,11 @@ fn shader_src() -> &'static str {
     static SRC: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     SRC.get_or_init(|| {
         format!(
-            "{}\n{}\n{}\n{}",
+            "{}\n{}\n{}\n{}\n{}",
             include_str!("../../shaders/surface.wgsl"),
             include_str!("../../shaders/material.wgsl"),
             kit::WGSL,
+            include_str!("../../shaders/lattice.wgsl"),
             include_str!("../../shaders/objeto.wgsl"),
         )
     })
@@ -359,6 +373,8 @@ impl Model for Objeto {
             right: v4(right, 0.0),
             up: v4(up, 0.0),
             fwd: v4(fwd, 0.0),
+            lat: [own[F_LAT], own[F_LAT + 1], own[F_LAT + 2], own[F_LAT + 3]],
+            spin: [own[F_LAT + 4], own[F_LAT + 5], own[F_LAT + 6], own[F_LAT + 7]],
             mat_body: self.surfaces.uniform(0),
         };
         self.pass.draw_textured(ctx, target, format, &uniform, &self.surfaces.bind_pairs());
@@ -374,7 +390,7 @@ mod tests {
     const W: u32 = 64;
     const TIMES: [f32; 2] = [0.0, 0.7];
     /// The frozen `object` frame wearing the matrix grid (kind 6, mix 1).
-    const GOLDEN_OBJETO_MATRIX: u64 = 0x93d00756b3aea871;
+    const GOLDEN_OBJETO_MATRIX: u64 = 0x2874532c4e509022;
 
     fn frame_at(gpu: &crate::gpu::Gpu, model: &mut Objeto, floats: &[f32], time: f32, w: u32, h: u32) -> Vec<u8> {
         let (tex, view) = crate::gpu::offscreen_target(&gpu.device, w, h, FORMAT);
@@ -393,6 +409,9 @@ mod tests {
         for v in &mut f[off(B_FONDO)..off(B_FONDO) + 12] {
             *v = 0.3;
         }
+        // The legacy single-object tests: one copy, no spin.
+        f[F_LAT..F_LAT + 3].fill(1.0);
+        f[F_LAT + 4..F_LAT + 7].fill(0.0);
         f
     }
 
@@ -491,7 +510,8 @@ mod tests {
         let mut idx: Vec<(usize, FloatSpec)> = FLOATS.iter().enumerate().map(|(i, s)| (i, *s)).collect();
         idx.extend(kit::CAM3D.iter().enumerate().map(|(i, s)| (cam + i, *s)));
         idx.extend(kit::LOOK.iter().enumerate().map(|(i, s)| (look + i, *s)));
-        let b = base();
+        let mut b = base();
+        b[F_LAT] = 2.0; // two columns, so spacing, columns and depth rows show
         let reference = frames(&gpu, &b);
         for (i, spec) in idx {
             let far = if (spec.max - b[i]).abs() > (b[i] - spec.min).abs() { spec.max } else { spec.min };
@@ -536,6 +556,9 @@ mod tests {
         // surface itself is radius 1). Camera at default distance.
         let gpu = crate::gpu::Gpu::new_headless();
         let mut f = SCHEMA.defaults();
+        // The legacy single-object tests: one copy, no spin.
+        f[F_LAT..F_LAT + 3].fill(1.0);
+        f[F_LAT + 4..F_LAT + 7].fill(0.0);
         let set = |f: &mut Vec<f32>, at: usize, g: [f32; 6]| f[at..at + 6].copy_from_slice(&g);
         set(&mut f, F_M1, [4.0, 2.0, 2.0, 2.0, 1.0, 1.0]);
         set(&mut f, F_M2, [4.0, 2.0, 2.0, 2.0, 1.0, 1.0]);

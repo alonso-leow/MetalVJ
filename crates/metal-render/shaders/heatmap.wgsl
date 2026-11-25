@@ -25,7 +25,8 @@ fn hm_shape(p: vec2<f32>) -> f32 {
     return smoothstep(f_threshold() - w, f_threshold() + w, l);
 }
 
-fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
+fn scaffold_shade(p_in: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
+    let p = p_layout(p_in, f_layout());
     let t = p_time();
     let ang = f_angle() * TAU;
     let dir = vec2<f32>(cos(ang), sin(ang));

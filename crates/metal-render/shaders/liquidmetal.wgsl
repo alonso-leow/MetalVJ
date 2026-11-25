@@ -17,9 +17,27 @@ fn lm_shape(p: vec2<f32>) -> f32 {
     let t = p_time();
     let s = max(f_size(), 0.05);
     let q = p / s;
-    let kind = clamp(i32(floor(f_shape() + 0.5)), 0, 3);
+    let kind = clamp(i32(floor(f_shape() + 0.5)), 0, 15);
     var sd = 0.0;
-    if (kind == 0) {
+    let ra = atan2(q.y, q.x);
+    let rr = length(q);
+    if (kind >= 4) {
+        // 2026-11-25: twelve more objects (16 in all), picked by `shape`.
+        switch (kind) {
+            case 4: { let d = abs(q) - vec2<f32>(0.42, 0.3); sd = length(max(d, vec2<f32>(0.0))) + min(max(d.x, d.y), 0.0) - 0.04; }   // rounded box
+            case 5: { sd = abs(rr - 0.4) - 0.1; }                                         // ring
+            case 6: { sd = rr - (0.32 + 0.16 * cos(ra * 5.0 + t * 0.15)); }               // star
+            case 7: { let h = vec2<f32>(abs(q.x), -q.y + 0.1); sd = length(h - vec2<f32>(0.2, 0.15)) - 0.24; sd = min(sd, max(-h.y + 0.15 - h.x * 1.1 + 0.05, abs(h.x) - 0.42) * 0.7); } // heart
+            case 8: { let a2 = abs(q); sd = min(max(a2.x - 0.5, a2.y - 0.14), max(a2.x - 0.14, a2.y - 0.5)); } // cross
+            case 9: { sd = max(abs(q.x) * 0.866 + q.y * 0.5, -q.y) - 0.3; }             // triangle
+            case 10: { let a2 = abs(q); sd = max(a2.x * 0.866 + a2.y * 0.5, a2.y) - 0.42; } // hexagon
+            case 11: { let c = vec2<f32>(clamp(q.x, -0.35, 0.35), 0.0); sd = length(q - c) - 0.2; } // capsule
+            case 12: { sd = max(rr - 0.45, -(length(q - vec2<f32>(0.18, 0.08)) - 0.38)); } // crescent
+            case 13: { sd = min(abs(length(q - vec2<f32>(0.25, 0.0)) - 0.24), abs(length(q + vec2<f32>(0.25, 0.0)) - 0.24)) - 0.07; } // twin rings
+            case 14: { sd = rr - (0.38 + 0.07 * sin(ra * 3.0 + t * 0.4) + 0.05 * sin(ra * 7.0 - t * 0.3)); } // wobbling blob
+            default: { let x2 = q.x * q.x; let y2 = q.y * q.y; sd = ((x2 + y2) * (x2 + y2) - 0.3 * (x2 - y2)) * 2.5 - 0.004; } // lemniscate
+        }
+    } else if (kind == 0) {
         sd = length(q) - 0.5;
     } else if (kind == 1) {
         let a = atan2(q.y, q.x);
@@ -40,7 +58,8 @@ fn lm_shape(p: vec2<f32>) -> f32 {
 }
 
 fn lm_mask(p: vec2<f32>) -> f32 {
-    if (p_has_src()) {
+    // `use_shape` lays the chosen procedural object over a connected picture.
+    if (f_use_shape() < 0.5) {
         let c = p_src(p);
         let lum = dot(c.rgb, vec3<f32>(0.299, 0.587, 0.114));
         return clamp(mix(c.a, c.a * lum, f_mask()), 0.0, 1.0);

@@ -76,6 +76,14 @@ pub const FLOATS: &[FloatSpec] = &[
     spec("horizon", -1.0, 1.0, 0.0),
     // Which strip: another seed is another, equally endless, world.
     spec("seed", 0.0, 100.0, 0.0),
+    // Appended 2026-11-25 (review): camera controls on every world. `zoom`
+    // narrows the lens (2 = twice as close), `cam_height` lifts the eye and
+    // tilts it back at the strip, `cam_depth` walks it along z through the
+    // layers (positive = forward, toward the near layer), `cam_roll` turns it.
+    spec("zoom", 0.6, 3.0, 1.0),
+    spec("cam_height", -1.5, 1.5, 0.0),
+    spec("cam_depth", -3.0, 1.2, 0.0),
+    spec("cam_roll", -0.8, 0.8, 0.0),
 ];
 
 /// Reserved for `cam.track` (§13.2 / H4), Turing's convention.
@@ -180,16 +188,19 @@ impl Parallax {
         // The look direction comes from the camera block alone; head tracking
         // and the bob translate the eye without re-aiming it, which is what
         // makes near layers slide more than far ones.
+        let lift = Vec3::new(0.0, named("cam_height"), -named("cam_depth"));
         // The look half of the standard pose turns the rest camera at the eye.
         let (rest, aim) = crate::model::posed(cam.pos(), cam.target(), [floats[t0 + 3], floats[t0 + 4], floats[t0 + 5]]);
-        let fwd = (aim - rest).normalize_or(Vec3::NEG_Z);
+        let fwd = (aim - rest - Vec3::new(0.0, lift.y * 4.0, 0.0)).normalize_or(Vec3::NEG_Z);
         let right = fwd.cross(Vec3::Y).normalize_or(Vec3::X);
         let up = right.cross(fwd);
+        let (sr, cr) = named("cam_roll").sin_cos();
+        let (right, up) = (right * cr + up * sr, up * cr - right * sr);
         // A head offset of 2 (the float's end) moves the eye half a world unit:
         // the nearest layer (1.6 away) slides about a third of the frame,
         // the far ones barely — enough depth without leaving the strip.
-        let eye = rest + track * HEAD_SCALE + bob;
-        let tan_half = (cam.fov_radians().clamp(0.1, 3.0) * 0.5).tan();
+        let eye = rest + track * HEAD_SCALE + bob + lift;
+        let tan_half = (cam.fov_radians().clamp(0.1, 3.0) * 0.5).tan() / named("zoom").max(0.1);
 
         let pixel = named("pixel");
         let block = 1.0 + (pixel * 7.0).round();

@@ -385,9 +385,13 @@ struct DrawUniform {
 }
 
 /// Eye and view-projection from the CAM3D kit. Deterministic in `time`.
+/// 2026-11-25 review: every render sat too far to read the particles; the
+/// authored camera distance is halved.
+const ZOOM_IN: f32 = 0.5;
+
 fn view_proj(c: &kit::Cam3d, track: Vec3, time: f32, aspect: f32) -> (Mat4, Vec3) {
     let az = c.yaw + c.orbit * time;
-    let distance = (c.distance + c.dolly).max(0.25);
+    let distance = ((c.distance + c.dolly) * ZOOM_IN).max(0.25);
     let (sp, cp) = c.pitch.clamp(-1.5, 1.5).sin_cos();
     let shake = c.shake.clamp(0.0, 1.0) * 0.06;
     let tremor = Vec3::new(
@@ -1429,7 +1433,10 @@ mod tests {
         let gpu = crate::gpu::Gpu::new_headless();
         let n = 128u32;
         let mut m = Particulas::new();
-        let f = SCHEMA.defaults();
+        let mut f = SCHEMA.defaults();
+        // ZOOM_IN halves the authored distance; undo it to keep the old framing.
+        let d = off(B_CAM) + 3;
+        f[d] /= ZOOM_IN;
         let mut px = Vec::new();
         for k in 0..=10 {
             px = frame_at(&gpu, &mut m, &f, k as f32 * 0.1, n, n);

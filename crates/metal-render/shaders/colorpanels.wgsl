@@ -14,6 +14,31 @@
 
 const MAXP: i32 = 24;
 
+// 2026-11-25: 16 panel forms. (x across, y along) both in [-1, 1]; returns
+// a metric that is 1 on the panel's outline.
+fn cp_form(x: f32, y: f32) -> f32 {
+    let k = i32(clamp(round(f_panel_form()), 0.0, 15.0));
+    let ax = abs(x); let ay = abs(y);
+    switch (k) {
+        case 1: { return 0.6 + length(max(vec2<f32>(ax, ay) - vec2<f32>(0.6), vec2<f32>(0.0))); }
+        case 2: { return length(vec2<f32>(x, y)); }
+        case 3: { return ax + ay; }
+        case 4: { return ax / max((1.0 - y) * 0.5, 0.02); }
+        case 5: { return ax / max((1.0 + y) * 0.5, 0.02); }
+        case 6: { return select(ax, length(vec2<f32>(x, (y + 0.4) / 0.6)), y < -0.4); }
+        case 7: { return max(ax, (ax * 0.5 + ay * 0.866) * 1.05); }
+        case 8: { return ax / (0.6 + 0.4 * (y * 0.5 + 0.5)); }
+        case 9: { return abs(x + y * 0.5) / 0.75; }
+        case 10: { return length(vec2<f32>(x, y)) * 1.3; }
+        case 11: { return min(max(ax, ay * 3.0), max(ax * 3.0, ay)); }
+        case 12: { let a = atan2(y, x); return length(vec2<f32>(x, y)) / (0.7 + 0.3 * cos(a * 5.0)); }
+        case 13: { return ax + 0.15 * sin(y * 9.0); }
+        case 14: { return max(ax, 1.0 - min(abs(fract(y * 2.0) - 0.5) * 4.0, 1.0) * 0.4 + ax * 0.6); }
+        case 15: { return ax / (0.35 + 0.65 * ay); }
+        default: { return ax; }
+    }
+}
+
 fn panel(p: vec2<f32>, i: i32, count: f32, back: bool, acc: ptr<function, vec4<f32>>) {
     let fi = f32(i);
     let weight = clamp(count - fi, 0.0, 1.0);
@@ -40,7 +65,7 @@ fn panel(p: vec2<f32>, i: i32, count: f32, back: bool, acc: ptr<function, vec4<f
     let dx = (p.x - xc) / hw;
     let w = max(fwidth(dx), 1e-4);
     let soft = 0.02 + f_blur() * 0.9;
-    let side = 1.0 - smoothstep(1.0 - soft - w, 1.0 + w, abs(dx));
+    let side = 1.0 - smoothstep(1.0 - soft - w, 1.0 + w, cp_form(dx, tn * 2.0 - 1.0));
 
     // Alpha along the length.
     let fin = select(smoothstep(0.0, f_fade_in(), tn), 1.0, f_fade_in() < 0.001);
@@ -68,7 +93,13 @@ fn panel(p: vec2<f32>, i: i32, count: f32, back: bool, acc: ptr<function, vec4<f
     *acc = vec4<f32>(prev.rgb * (1.0 - alpha) + col * alpha, prev.a * (1.0 - alpha) + alpha);
 }
 
-fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
+// 2026-11-25 review: zooming far out left the panels floating in padding.
+// The camera may zoom out only to ZOOM_MIN; below that the frame holds.
+const ZOOM_MIN: f32 = 0.9;
+
+fn scaffold_shade(p_in: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
+    let zf = max(P.cam.x, 0.01);
+    let p = p_layout(select(p_in, p_in * zf / ZOOM_MIN, zf < ZOOM_MIN), f_layout());
     let count = max(f_density() * 2.5, 1.0);
     var acc = vec4<f32>(0.0);
     for (var pass_i = 0; pass_i < 2; pass_i = pass_i + 1) {

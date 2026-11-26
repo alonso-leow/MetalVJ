@@ -1488,9 +1488,19 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     // Screen-locked on purpose: a light leak is a lens/camera phenomenon,
     // not part of the frame's own content, so it stays keyed to `in.uv`
     // rather than `chain_uv` even once the chain below starts warping it.
-    let band = smoothstep(0.0, 0.4, in.uv.x) * smoothstep(1.0, 0.6, in.uv.x);
-    let leak_col = grad4(u.leak_color, fract(in.uv.x + roll));
-    chain_color = chain_color + leak_col * envelope * band;
+    // One colour per burst, and the burst is one tilted streak, not a band
+    // that spreads every colour of the slot across the frame at once. Its
+    // tilt, place, width and colour all come from the burst's own slot, so
+    // no two bursts look alike.
+    let lk_col = grad4(u.leak_color, hash11(slot + 101.0));
+    let lk_ang = (hash11(slot + 202.0) - 0.5) * 1.6;
+    let lk_dir = vec2<f32>(cos(lk_ang), sin(lk_ang));
+    let lk_c = vec2<f32>(hash11(slot + 303.0), hash11(slot + 404.0));
+    let lk_w = 0.04 + 0.16 * hash11(slot + 505.0);
+    let lk_across = dot(in.uv - lk_c, vec2<f32>(-lk_dir.y, lk_dir.x));
+    let lk_streak = exp(-(lk_across * lk_across) / (lk_w * lk_w));
+    let lk_along = smoothstep(0.0, 0.3, 1.0 - abs(dot(in.uv - lk_c, lk_dir)) * 1.4);
+    chain_color = chain_color + lk_col * envelope * lk_streak * (0.5 + 0.5 * lk_along);
 
     // The ten common effects, in whatever order `u.chain` names — see the
     // block comment above `effect_crt` for what "chained" means here, why

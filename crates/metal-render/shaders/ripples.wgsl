@@ -25,9 +25,19 @@ fn wv_shape(k: i32, ph: f32, row: f32) -> f32 {
 // Displacement (in picture units) of row `row` at horizontal position x.
 fn wv_disp(x: f32, y: f32, row: f32, t: f32, pitch: f32) -> f32 {
     let par = select(0.0, PI, (i32(abs(row)) & 1) == 1);
-    var ph = x * f_frequency() * TAU * 3.0 + t * f_speed() * 1.5
+    // transport: the phase runs along a direction that turns from the rows
+    // (0) to across them (1), so the travel can glide from horizontal to
+    // vertical. At 0 it is x exactly, the classic rows.
+    let tr = f_transport() * PI * 0.5;
+    let along = x * cos(tr) + y * sin(tr);
+    var ph = along * f_frequency() * TAU * 3.0 + t * f_speed() * 1.5
         + row * f_phase_y() * 1.2 + par * f_shift_par();
     ph = ph + f_crossing() * 2.0 * sin(y / pitch * 0.8 + t * 0.5);
+    // layout 2 and 3 are the unbalanced ones: at least half skew. The warp
+    // stays under 0.6 so the phase never folds back on itself.
+    let lay = i32(clamp(round(f_layout()), 0.0, 3.0));
+    let sk = select(f_skew(), max(f_skew(), 0.5), lay >= 2);
+    ph = ph + 0.6 * sk * sin(ph);
     let fm = clamp(f_shape(), 0.0, 3.0);
     let k = i32(floor(fm));
     let m = smoothstep(0.0, 1.0, fm - floor(fm));
@@ -35,7 +45,9 @@ fn wv_disp(x: f32, y: f32, row: f32, t: f32, pitch: f32) -> f32 {
     if (m > 0.001) { s = mix(s, wv_shape(min(k + 1, 3), ph, row), m); }
     s = s + f_harmonics() * 0.6 * sin(2.03 * ph + row * 1.3);
     s = s / (1.0 + 0.6 * f_harmonics());
-    s = s + f_noise() * 1.6 * (p_noise(vec2<f32>(x * (0.5 + f_noise_freq() * 8.0), row * 0.7 + t * 0.2)) - 0.5);
+    // layout 1 and 3: flat-topped rounded lobes instead of pointed crests.
+    if (lay == 1 || lay == 3) { s = sign(s) * pow(abs(s), 0.6); }
+    s = s + f_noise() * 1.6 * (p_noise(vec2<f32>(along * (0.5 + f_noise_freq() * 8.0), row * 0.7 + t * 0.2)) - 0.5);
     let env = 1.0 - f_modulation() + f_modulation() * (0.5 + 0.5 * sin(x * 1.7 + t * 0.3 + row * 0.2));
     let br = 1.0 + f_breath() * 0.6 * sin(t * 1.3);
     return s * f_amplitude() * 0.12 * env * br + f_curve() * x * x * 0.5;
@@ -57,9 +69,14 @@ fn scaffold_shade(p: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     var best_d = 1e9;
     var best_row = 0.0;
     var best_s = 0.0;
-    for (var k = -1; k <= 2; k = k + 1) {
+    // Rows above and below the pixel are loaded too (-2..3): with the
+    // transport turned, a row can swing several pitches away from its rest
+    // position. A row whose crest sits wholly outside the frame cannot win a
+    // pixel, so it is skipped rather than evaluated.
+    for (var k = -2; k <= 3; k = k + 1) {
         let row = base + f32(k);
         let c = row * pitch + wv_disp(q.x, yy, row, t, pitch);
+        if (abs(c) > 1.6) { continue; }
         let sd = yy - c;
         if (abs(sd) < best_d) {
             best_d = abs(sd);

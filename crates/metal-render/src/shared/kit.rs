@@ -155,3 +155,14 @@ mod tests {
         assert_eq!(n, names.len());
     }
 }
+
+/// The lattice's own pan and tilt (2026-11-25): the view turns in place about
+/// the eye, pan about the world's up axis and tilt about the view's own right
+/// axis. Both run -1..1, which is about 0.6 rad at either end. Returns the
+/// turned `(right, up, fwd)`; the eye stays where it is.
+pub fn lattice_view(right: glam::Vec3, up: glam::Vec3, fwd: glam::Vec3, pan: f32, tilt: f32) -> (glam::Vec3, glam::Vec3, glam::Vec3) {
+    let turn = 0.6;
+    let q = glam::Quat::from_axis_angle(glam::Vec3::Y, pan * turn)
+        * glam::Quat::from_axis_angle(right, tilt * turn);
+    (q * right, q * up, q * fwd)
+}

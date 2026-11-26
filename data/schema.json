@@ -32663,6 +32663,20 @@
               "max": 1.0,
               "min": 0.0,
               "name": "seed"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 3.0,
+              "min": 0.0,
+              "name": "layout"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 3.0,
+              "min": 0.0,
+              "name": "turn"
             }
           ],
           "type": "floats"
@@ -58224,6 +58238,41 @@
               "max": 1.0,
               "min": 0.0,
               "name": "dither"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "travel_x"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "travel_y"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "travel_z"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "pan"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "tilt"
             }
           ],
           "type": "floats"
@@ -74326,6 +74375,41 @@
               "max": 1.0,
               "min": 0.0,
               "name": "dither"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "travel_x"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "travel_y"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "travel_z"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "pan"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": -1.0,
+              "name": "tilt"
             }
           ],
           "type": "floats"
@@ -124789,6 +124873,27 @@
               "max": 1.0,
               "min": 0.0,
               "name": "fade"
+            },
+            {
+              "default": 0.0,
+              "drive": 0.20000000298023224,
+              "max": 3.0,
+              "min": 0.0,
+              "name": "layout"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "skew"
+            },
+            {
+              "default": 0.0,
+              "drive": 1.0,
+              "max": 1.0,
+              "min": 0.0,
+              "name": "transport"
             }
           ],
           "type": "floats"

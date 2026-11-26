@@ -116,6 +116,13 @@ const FLOATS: &[FloatSpec] = &[
     // Changing it re-deals the pegs and empties the box. Pinned for Turing's
     // reason: driven live, the model would spend its life in burn-in.
     spec_held("seed", 0.0, 1.0, 0.0, 0.0),
+    // Appended 2026-11-25. Where the mouths stand: 0 spread across the top
+    // (the original), 1 one narrow column, 2 two walls, 3 scattered and
+    // re-drawn every few seconds. Structural.
+    spec_held("layout", 0.0, 3.0, 0.0, 0.2),
+    // Gravity, in quarter turns: 0 down, 1 right, 2 up, 3 left. Structural:
+    // the grains settle on a different side of the box, not a sliding of one.
+    spec_held("turn", 0.0, 3.0, 0.0, 0.2),
 ];
 
 /// Not white, and not Sandstorm's desert either. Four stops that are four
@@ -251,6 +258,45 @@ pub fn settle(
     map
 }
 
+/// Gravity turned by quarter turns (twin of `turn_perm` in `terrario.wgsl`):
+/// slot `s` of the turned frame holds original cell `turn_perm(t)[s]`, and the
+/// bottom row of that frame is where the grains fall. 0 down, 1 right, 2 up,
+/// 3 left.
+pub fn turn_perm(turn: usize) -> [usize; 4] {
+    match turn % 4 {
+        1 => [0, 2, 1, 3],
+        2 => [2, 3, 0, 1],
+        3 => [3, 1, 2, 0],
+        _ => [0, 1, 2, 3],
+    }
+}
+
+/// [`settle`] with gravity turned: the rule runs in the frame of the turned
+/// gravity, and the permutation is undone. At turn 0 this is [`settle`].
+pub fn settle_turned(
+    occ: [bool; 4],
+    sun: [bool; 4],
+    repose: f32,
+    bias: f32,
+    vibration: f32,
+    r: [f32; 3],
+    turn: usize,
+) -> [usize; 4] {
+    let pi = turn_perm(turn);
+    let mut occ_t = [false; 4];
+    let mut sun_t = [false; 4];
+    for s in 0..4 {
+        occ_t[s] = occ[pi[s]];
+        sun_t[s] = sun[pi[s]];
+    }
+    let mt = settle(occ_t, sun_t, repose, bias, vibration, r);
+    let mut map = [0usize, 1, 2, 3];
+    for s in 0..4 {
+        map[pi[s]] = pi[mt[s]];
+    }
+    map
+}
+
 /// The wind of the moment: the steady lean plus a gust that comes and goes.
 ///
 /// Two sines rather than noise so it is a closed form of the clock — the
@@ -277,6 +323,8 @@ struct Uniform {
     d: [f32; 4],
     e: [f32; 4],
     f: [f32; 4],
+    /// layout, turn
+    g: [f32; 4],
     /// `body`'s picture and `mat_*`, see `material.wgsl`.
     mat_body: MaterialU,
 }
@@ -710,15 +758,16 @@ impl Model for Terrario {
 
         self.surfaces.sync(ctx.device, ctx.queue);
         let uniform = Uniform {
-            sand: ColorSlotGpu::from_floats(&floats[22..34]),
-            glass: ColorSlotGpu::from_floats(&floats[34..46]),
-            background: ColorSlotGpu::from_floats(&floats[46..58]),
+            sand: ColorSlotGpu::from_floats(&floats[24..36]),
+            glass: ColorSlotGpu::from_floats(&floats[36..48]),
+            background: ColorSlotGpu::from_floats(&floats[48..60]),
             a: [ctx.aspect(), ctx.time, grid_w as f32, grid_h as f32],
             b: [floats[0], floats[1], floats[2], floats[3]],
             c: [floats[4], floats[5], floats[6], floats[7]],
             d: [bias, floats[11], floats[12], floats[13]],
             e: [floats[14], floats[15], floats[16], floats[17]],
             f: [floats[18], floats[19], floats[20], floats[21]],
+            g: [floats[22], floats[23], 0.0, 0.0],
             mat_body: self.surfaces.uniform(0),
         };
         let ubuf = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -943,11 +992,37 @@ mod tests {
     }
 
     #[test]
+    fn gravity_turns_the_grains_the_way_it_points() {
+        // A grain in the top-left cell with nothing around it: it moves one
+        // cell in the direction of gravity, and nowhere else.
+        let occ = [true, false, false, false];
+        let sun = [false; 4];
+        let r = [0.0; 3];
+        // turn 0 (down): TL -> BL; turn 1 (right): TL -> TR; turn 2 (up): stays
+        // (it is already at the top); turn 3 (left): stays at the left edge.
+        assert_eq!(settle_turned(occ, sun, 0.0, 0.0, 0.0, r, 0).iter().position(|&m| m == 0), Some(2));
+        assert_eq!(settle_turned(occ, sun, 0.0, 0.0, 0.0, r, 1).iter().position(|&m| m == 0), Some(1));
+        // A grain in the bottom-left: gravity up lifts it to the top-left.
+        let bl = [false, false, true, false];
+        assert_eq!(settle_turned(bl, sun, 0.0, 0.0, 0.0, r, 2).iter().position(|&m| m == 2), Some(0));
+        // Every turn is a permutation, and turn 0 is the plain rule.
+        for t in 0..4 {
+            let mut m = settle_turned([true, true, false, true], sun, 0.4, 0.2, 0.3, [0.1, 0.9, 0.5], t);
+            m.sort();
+            assert_eq!(m, [0, 1, 2, 3], "turn {t} is not a permutation");
+        }
+        assert_eq!(
+            settle_turned([true, false, true, true], sun, 0.4, 0.2, 0.3, [0.1, 0.9, 0.5], 0),
+            settle([true, false, true, true], sun, 0.4, 0.2, 0.3, [0.1, 0.9, 0.5]),
+        );
+    }
+
+    #[test]
     fn the_schema_and_the_slices_render_reads_are_the_same_width() {
-        // 22 floats + three colour slots. `render` slices `[22..34]`,
-        // `[34..46]` and `[46..58]` by hand.
-        assert_eq!(SCHEMA.width(), 58 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
-        assert_eq!(row().len(), 58 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        // 24 floats + three colour slots. `render` slices `[24..36]`,
+        // `[36..48]` and `[48..60]` by hand.
+        assert_eq!(SCHEMA.width(), 60 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
+        assert_eq!(row().len(), 60 + crate::model::SIGNAL_WIDTH + crate::model::EFFECTS_WIDTH);
     }
 
     #[test]

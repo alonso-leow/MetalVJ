@@ -70,6 +70,8 @@ struct TerrarioUniform {
     e: vec4<f32>,
     // marco, brillo, estorbos, semilla
     f: vec4<f32>,
+    // layout (where the mouths stand), turn (gravity, quarter turns)
+    g: vec4<f32>,
     // The `body` part's picture and `mat_*`, one `MaterialU` — see
     // material.wgsl, prepended ahead of this file.
     mat_body: MaterialU,
@@ -139,8 +141,32 @@ fn mouth_x(i: f32, n: f32, t: f32, w: f32) -> f32 {
         spread = (i / (n - 1.0) - 0.5) * u.b.z;
     }
     let sway = u.c.y * 0.5 * sin(6.28318 * (t * u.c.z + i * u.c.w));
-    let x = u.b.y + spread + sway;
+    var x = u.b.y + spread + sway;
+    let lay = i32(clamp(round(u.g.x), 0.0, 3.0));
+    if (lay == 1) {
+        // One narrow column: the mouths pour almost on top of each other.
+        x = u.b.y + spread * 0.15 + sway;
+    } else if (lay == 2) {
+        // Two walls: even mouths hang off the left, odd ones off the right.
+        let side = select(-0.8, 0.8, (i32(i) % 2) == 1);
+        x = side + spread * 0.2 + sway;
+    } else if (lay == 3) {
+        // Scattered: each mouth jumps to a new place every few seconds.
+        let slot = floor(t * 0.2 + i * 0.37);
+        x = (lattice(vec2<f32>(i * 7.3 + 1.1, slot * 3.1)) * 2.0 - 1.0) * 0.9;
+    }
     return (x * 0.5 + 0.5) * w;
+}
+
+/// The four cells of a block, read in the frame of gravity's turn. Slot `s`
+/// of the turned frame holds original cell `turn_perm(turn)[s]`, and the
+/// bottom row of that frame is the side the grains fall to. Twin of
+/// `models::terrario::turn_perm`.
+fn turn_perm(turn: i32) -> array<i32, 4> {
+    if (turn == 1) { return array<i32, 4>(0, 2, 1, 3); }
+    if (turn == 2) { return array<i32, 4>(2, 3, 0, 1); }
+    if (turn == 3) { return array<i32, 4>(3, 1, 2, 0); }
+    return array<i32, 4>(0, 1, 2, 3);
 }
 
 // ---------------------------------------------------------------------------
@@ -272,8 +298,21 @@ fn make_block(base: vec2<i32>) -> Block {
         lattice(vec2<f32>(f32(base.x) + salt * 0.9 - 17.0, f32(base.y) + salt * 7.7)),
     );
 
-    let map = settle(occ, sun, clamp(u.d.y, 0.0, 1.0), clamp(u.d.x, -1.0, 1.0),
-                     clamp(u.d.z, 0.0, 1.0), r);
+    // Gravity: the rule runs in the frame of the turned gravity, then the
+    // permutation is undone. Turn 0 is the identity, the original rule.
+    let pi = turn_perm(clamp(i32(round(u.g.y)), 0, 3));
+    var occ_t: array<bool, 4>;
+    var sun_t: array<bool, 4>;
+    for (var s = 0; s < 4; s = s + 1) {
+        occ_t[s] = occ[pi[s]];
+        sun_t[s] = sun[pi[s]];
+    }
+    let map_t = settle(occ_t, sun_t, clamp(u.d.y, 0.0, 1.0), clamp(u.d.x, -1.0, 1.0),
+                       clamp(u.d.z, 0.0, 1.0), r);
+    var map = array<i32, 4>(0, 1, 2, 3);
+    for (var s = 0; s < 4; s = s + 1) {
+        map[pi[s]] = pi[map_t[s]];
+    }
 
     // The mean colour of the block's grains, for `mezcla`. Taken before
     // anything is written, so every grain in the block bleeds towards the same

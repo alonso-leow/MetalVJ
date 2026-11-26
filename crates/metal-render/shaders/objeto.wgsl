@@ -49,6 +49,8 @@ struct ObjU {
     lat: vec4<f32>,
     // spin_x, spin_y, spin_z, dither
     spin: vec4<f32>,
+    // travel xyz (-1..1, see lat_offset), unused w
+    travel: vec4<f32>,
     // The `body` part's picture and `mat_*`, one `MaterialU` — see
     // material.wgsl, prepended ahead of this file.
     mat_body: MaterialU,
@@ -106,7 +108,7 @@ fn ob_field(q: vec3<f32>) -> vec3<f32> {
 }
 
 fn ob_lp(p: vec3<f32>) -> vec3<f32> {
-    return lat_local(p, u.lat, u.spin, u.a.y);
+    return lat_local(p, u.lat, u.spin, u.a.y, u.travel);
 }
 
 fn ob_map(p: vec3<f32>) -> f32 {

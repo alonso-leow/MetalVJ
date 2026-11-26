@@ -81,6 +81,13 @@ const FLOATS: &[FloatSpec] = &[
     spec("spin_y", -1.0, 1.0, 0.12),
     spec("spin_z", -1.0, 1.0, 0.03),
     spec("dither", 0.0, 1.0, 0.6),
+    // Appended 2026-11-25: the lattice scrolls through the view (-1..1 per
+    // axis, two spacings a second at the end) and the view turns in place.
+    spec("travel_x", -1.0, 1.0, 0.0),
+    spec("travel_y", -1.0, 1.0, 0.0),
+    spec("travel_z", -1.0, 1.0, 0.0),
+    spec("pan", -1.0, 1.0, 0.0),
+    spec("tilt", -1.0, 1.0, 0.0),
 ];
 
 const SUPERFICIE: [f32; 12] = [0.10, 0.12, 0.45, 0.55, 0.15, 0.65, 0.95, 0.45, 0.25, 1.0, 0.9, 0.7];
@@ -121,6 +128,8 @@ const F_LUZ_DURA: usize = 20;
 const F_AMBIENTE: usize = 21;
 const F_TEX: usize = 25;
 const F_LAT: usize = 29;
+const F_TRAVEL: usize = 37;
+const F_PAN: usize = 40;
 
 /// One superformula curve's six parameters.
 #[derive(Clone, Copy, Debug)]
@@ -235,6 +244,7 @@ struct Uniform {
     fwd: [f32; 4],
     lat: [f32; 4],
     spin: [f32; 4],
+    travel: [f32; 4],
     /// `body`'s picture and `mat_*`, see `material.wgsl`.
     mat_body: MaterialU,
 }
@@ -346,6 +356,7 @@ impl Model for Objeto {
         let (eye, right, up, fwd, tan_half) = camera(&cam, ctx.time);
         let t = kit::CamTrack::from_floats(&floats[off(B_TRACK)..off(B_TRACK) + kit::CamTrack::N]);
         let eye = eye + Vec3::new(t.x, t.y, t.z);
+        let (right, up, fwd) = kit::lattice_view(right, up, fwd, own[F_PAN], own[F_PAN + 1]);
         // The camera distance is in object radii: the object is normalised.
         let min_s = d.stretch.min_element().min(1.0);
         let lip = (0.6 * min_s * (1.0 - 0.5 * d.taper.abs()) / (1.0 + 0.6 * d.torsion.abs()))
@@ -375,6 +386,7 @@ impl Model for Objeto {
             fwd: v4(fwd, 0.0),
             lat: [own[F_LAT], own[F_LAT + 1], own[F_LAT + 2], own[F_LAT + 3]],
             spin: [own[F_LAT + 4], own[F_LAT + 5], own[F_LAT + 6], own[F_LAT + 7]],
+            travel: [own[F_TRAVEL], own[F_TRAVEL + 1], own[F_TRAVEL + 2], 0.0],
             mat_body: self.surfaces.uniform(0),
         };
         self.pass.draw_textured(ctx, target, format, &uniform, &self.surfaces.bind_pairs());
@@ -529,6 +541,12 @@ mod tests {
         for pick in 0..3 {
             let mut f = base();
             for (i, s) in FLOATS.iter().enumerate().take(own_end) {
+                // The view's pan and tilt turn the camera about the eye: at the
+                // extremes the object can leave the frame, which is a correct
+                // flat frame, not a broken one. Checked at their defaults.
+                if i == F_PAN || i == F_PAN + 1 {
+                    continue;
+                }
                 f[i] = match pick {
                     0 => s.min,
                     1 => s.max,

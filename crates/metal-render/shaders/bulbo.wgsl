@@ -52,6 +52,8 @@ struct BuU {
     lat: vec4<f32>,
     // spin_x, spin_y, spin_z, dither
     spin: vec4<f32>,
+    // travel xyz (-1..1, see lat_offset), unused w
+    travel: vec4<f32>,
     // The `body` part's picture and `mat_*`, one `MaterialU` — see
     // material.wgsl, prepended ahead of this file.
     mat_body: MaterialU,
@@ -327,7 +329,7 @@ fn bu_one(p: vec3<f32>, id: i32) -> vec2<f32> {
 }
 
 fn bu_map(p: vec3<f32>) -> vec2<f32> {
-    return bu_map0(lat_local(p, u.lat, u.spin, u.a.y));
+    return bu_map0(lat_local(p, u.lat, u.spin, u.a.y, u.travel));
 }
 
 fn bu_map0(p: vec3<f32>) -> vec2<f32> {

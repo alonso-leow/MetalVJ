@@ -1,9 +1,10 @@
 //! `ripples`: Rows of undulating lines on the procedural scaffold (`shared/scaffold.rs`). WGSL written from the wave maths.
 //!
-//! Own floats (29): the brief's `forma frecuencia amplitud espaciado
+//! Own floats (32): the brief's `forma frecuencia amplitud espaciado
 //! proporcion suavidad`, plus `velocidad angulo fase_y desfase_par armonicos
 //! modulacion ruido ruido_frec grosor_var curva inclina radial cruce respiro
-//! parpadeo guion guion_frec contorno sombra relleno degrade desvanece`.
+//! parpadeo guion guion_frec contorno sombra relleno degrade desvanece`,
+//! then `layout skew transport` (appended 2026-11-25).
 //! Slots: `lineas` (rows, graded by `degrade`), `banda` (tint between rows).
 
 use crate::model::{spec, spec_held, FloatSpec};
@@ -38,6 +39,13 @@ const FLOATS: &[FloatSpec] = &[
     spec("fill", 0.0, 1.0, 0.0),
     spec("erode", 0.0, 1.0, 0.4),
     spec("fade", 0.0, 1.0, 0.0),
+    // Appended 2026-11-25. 0 the classic rows, 1 rounded lobes, 2 unbalanced
+    // (the crests lean, rising steeper than they fall), 3 both. Structural.
+    spec_held("layout", 0.0, 3.0, 0.0, 0.2),
+    // How far the waves lean: 0 symmetric, 1 strongly unbalanced.
+    spec("skew", 0.0, 1.0, 0.0),
+    // Direction the waves travel in: 0 along the rows, 1 across them. Glides.
+    spec("transport", 0.0, 1.0, 0.0),
 ];
 
 /// Linear values: white, cyan, pink, yellow.

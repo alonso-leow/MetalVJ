@@ -82,7 +82,7 @@ mod trace {
         pts.sort_by(|p, q| (p.1 - cy).atan2(p.0 - cx).total_cmp(&(q.1 - cy).atan2(q.0 - cx)));
         let k = (pts.len() / 48).max(1);
         let m = pts.len();
-        (0..m)
+        let mut path: Vec<(f32, f32)> = (0..m)
             .step_by(k)
             .map(|i| {
                 let mut s = (0.0, 0.0);
@@ -93,19 +93,54 @@ mod trace {
                 }
                 s
             })
-            .collect()
+            .collect();
+        // Angle-sorted boundary cells jump between arms of the set, and at
+        // full zoom every jump is a visible lurch. Laplacian passes on the
+        // closed loop take the jumps out, but they also pull the loop inward
+        // into the set's flat interior, where the zoomed frame goes one
+        // colour. So each smoothed point is then put back on the nearest
+        // boundary cell: the path stays on the outline and the lurches stay gone.
+        for _ in 0..6 {
+            let n = path.len();
+            let prev = path.clone();
+            for i in 0..n {
+                let a = prev[(i + n - 1) % n];
+                let b = prev[(i + 1) % n];
+                let c = prev[i];
+                path[i] = ((a.0 + 2.0 * c.0 + b.0) * 0.25, (a.1 + 2.0 * c.1 + b.1) * 0.25);
+            }
+        }
+        for q in path.iter_mut() {
+            let mut best = (f32::MAX, *q);
+            for p in &pts {
+                let d = (p.0 - q.0) * (p.0 - q.0) + (p.1 - q.1) * (p.1 - q.1);
+                if d < best.0 {
+                    best = (d, *p);
+                }
+            }
+            *q = best.1;
+        }
+        path
     }
 
     /// Camera centre and implicit zoom multiplier at `time`.
     pub fn camera(path: &[(f32, f32)], time: f32, speed: f32) -> (f32, f32, f32) {
         let m = path.len() as f32;
-        let s = (time * speed / 60.0).rem_euclid(1.0) * m;
+        // The travel rate is speed * (1 - K sin(wt)) with w the breath's
+        // angular speed: its integral is t + (K/w) cos(wt). While the zoom is
+        // going in (sin > 0) the rate goes negative, so the camera walks the
+        // outline backwards through the zoom-in and forwards again as it pulls
+        // out. Continuous at every instant, unlike a sign flip.
+        let w = std::f32::consts::TAU / 16.0;
+        let kick = 2.0;
+        let travelled = time + (kick / w) * (w * time).cos();
+        let s = (travelled * speed / 60.0).rem_euclid(1.0) * m;
         let i = s.floor() as usize % path.len();
         let f = s - s.floor();
         let (a, b) = (path[i], path[(i + 1) % path.len()]);
         let ease = f * f * (3.0 - 2.0 * f);
         // Breathes from the whole set (x1) into the outline (x48) every 16 s.
-        let zm = (48f32.ln() * (0.5 - 0.5 * (time * std::f32::consts::TAU / 16.0).cos())).exp();
+        let zm = (48f32.ln() * (0.5 - 0.5 * (time * w).cos())).exp();
         (a.0 + (b.0 - a.0) * ease, a.1 + (b.1 - a.1) * ease, zm)
     }
 }

@@ -20,11 +20,31 @@ fn lat_half(lat: vec4<f32>) -> vec3<f32> {
     return vec3<f32>((n.x - 1.0) * 0.5, (n.y - 1.0) * 0.5, n.z - 1.0);
 }
 
-fn lat_cell(p: vec3<f32>, lat: vec4<f32>) -> vec3<f32> {
+// Infinite scroll (2026-11-25). The copies form an unbounded lattice that
+// `travel` moves through the view: per axis, -1..1 is two spacings a second.
+// The offset is folded with a period of LAT_PERIOD cells, so it never grows
+// without bound, and the copies' phase hash repeats exactly at each fold, so
+// nothing pops. `lat_box` is the view volume: a copy is evaluated only while
+// it is inside it, and one that scrolls out of the frame is simply no longer
+// visited.
+const LAT_PERIOD: f32 = 64.0;
+
+fn lat_offset(lat: vec4<f32>, travel: vec4<f32>, time: f32) -> vec3<f32> {
     let s = max(lat.w, 2.3);
-    let h = lat_half(lat);
-    let c = round(p / s);
-    return vec3<f32>(clamp(c.x, -h.x, h.x), clamp(c.y, -h.y, h.y), clamp(c.z, -h.z, 0.0));
+    let span = LAT_PERIOD * s;
+    let o = travel.xyz * time * s * 2.0;
+    return o - span * floor(o / span);
+}
+
+// An even count of columns or rows stands either side of the axis, as the
+// finite lattice always did: its copies sit half a spacing off the centre line.
+// Odd counts sit on it. Depth rows start at the viewer and run back, so z has
+// no shift.
+fn lat_base(lat: vec4<f32>) -> vec3<f32> {
+    let s = max(lat.w, 2.3);
+    let n = max(round(lat.xyz), vec3<f32>(1.0));
+    let half = 0.5 * s * (1.0 - 2.0 * fract(n * 0.5));
+    return vec3<f32>(half.x, half.y, 0.0);
 }
 
 fn lat_rx(v: vec3<f32>, a: f32) -> vec3<f32> {
@@ -42,11 +62,13 @@ fn lat_rz(v: vec3<f32>, a: f32) -> vec3<f32> {
 
 // World point -> the local point of the copy that owns it (rigid motion, so
 // the object's distance estimate stays valid).
-fn lat_local(p: vec3<f32>, lat: vec4<f32>, spin: vec4<f32>, time: f32) -> vec3<f32> {
+fn lat_local(p: vec3<f32>, lat: vec4<f32>, spin: vec4<f32>, time: f32, travel: vec4<f32>) -> vec3<f32> {
     let s = max(lat.w, 2.3);
-    let c = lat_cell(p, lat);
-    var q = p - c * s;
-    let ph = (lat_hash3(c) - vec3<f32>(0.5)) * 6.2832 * clamp(spin.w, 0.0, 1.0);
+    let o = lat_offset(lat, travel, time) + lat_base(lat);
+    let c = round((p - o) / s);
+    var q = p - o - c * s;
+    let cm = c - LAT_PERIOD * floor(c / LAT_PERIOD);
+    let ph = (lat_hash3(cm) - vec3<f32>(0.5)) * 6.2832 * clamp(spin.w, 0.0, 1.0);
     let a = spin.xyz * time * 6.2832 + ph;
     q = lat_rz(q, -a.z);
     q = lat_ry(q, -a.y);

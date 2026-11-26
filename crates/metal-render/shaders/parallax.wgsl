@@ -554,38 +554,56 @@ fn campos(s: vec2<f32>, li: i32) -> Smp {
     let hill = mix(base * 0.8, base * 1.12 + grad4(u.lights, 0.1) * 0.06, crest) * tex;
     put(&o, hill, cover(dh));
 
-    // trees on the hills (layers 1..3)
+    // trees on the hills (layers 1..3): groups, not single trees. A group is
+    // two to five trees of three forms (round, pine, bush) at different
+    // sizes; their silhouettes are unioned with a smooth minimum, so trees
+    // that overlap merge into one mass and trees that do not stay apart.
     if (li >= 1 && li <= 3) {
-        let tw = (0.16 + 0.04 * lt) * k;
-        let tid = floor(x / tw);
+        let gw = (0.42 + 0.14 * lt) * k;
+        let gid = floor(x / gw);
+        var dleaf = 1e3;
+        var dtrunk = 1e3;
         for (var j = -1; j <= 1; j = j + 1) {
-            let id = tid + f32(j);
-            if (hh(id, row + 5.0) < 0.2 + 0.55 * dens()) {
-                let cx = (id + 0.25 + 0.5 * hh(id, row + 6.0)) * tw;
-                let gy = ground(li) + 0.04 + amp * (sin(cx * (2.5 - lt) / k + row) * 0.5 + nz(cx * 1.8 / k, row) * 1.4) - 0.005;
-                let th = (0.05 + 0.06 * hh(id, row + 7.0)) * k * (0.6 + lt);
-                let trunk = sd_box(s - vec2<f32>(cx, gy + th * 0.35), vec2<f32>(0.004 * k * (0.6 + lt), th * 0.35));
-                put(&o, grad4(u.objects, 1.0) * 0.8, cover(trunk));
-                let sway = 0.004 * sin(tim() * 1.1 + id) * k;
-                var dt: f32;
-                if (hh(id, row + 8.0) < 0.5) {
-                    // round tree: three blobs
-                    let c = vec2<f32>(cx + sway, gy + th);
-                    let r = th * 0.45;
-                    dt = smin(length(s - c) - r, length(s - c - vec2<f32>(r * 0.7, -r * 0.35)) - r * 0.7, r * 0.3);
-                    dt = smin(dt, length(s - c - vec2<f32>(-r * 0.7, -r * 0.3)) - r * 0.65, r * 0.3);
-                } else {
-                    // pine: two stacked triangles
-                    // apex up: flip y so the base sits below the tip
-                    let p1 = vec2<f32>(s.x - cx - sway, gy + th * 1.9 - s.y);
-                    let p2 = vec2<f32>(s.x - cx - sway * 0.6, gy + th * 1.4 - s.y);
-                    dt = min(sd_tri(p1, vec2<f32>(th * 0.32, th * 0.85)), sd_tri(p2, vec2<f32>(th * 0.45, th * 1.0)));
+            let gi = gid + f32(j);
+            if (hh(gi, row + 5.0) < 0.2 + 0.55 * dens()) {
+                let gcx = (gi + 0.2 + 0.6 * hh(gi, row + 6.0)) * gw;
+                let nt = 2 + i32(hh(gi, row + 9.0) * 4.0);
+                for (var m = 0; m < 5; m = m + 1) {
+                    if (m >= nt) { break; }
+                    let mid = gi * 7.0 + f32(m);
+                    let cx = gcx + (hh(mid, row + 10.0) - 0.5) * gw * 0.75;
+                    let amp = 0.05 + 0.03 * lt;
+                    let gy = ground(li) + 0.04 + amp * (sin(cx * (2.5 - lt) / k + row) * 0.5 + nz(cx * 1.8 / k, row) * 1.4) - 0.005;
+                    // sizes vary a lot: a sapling next to an old tree
+                    let th = (0.03 + 0.09 * hh(mid, row + 11.0) * hh(mid, row + 12.0) + 0.02 * hh(mid, row + 14.0)) * k * (0.6 + lt);
+                    let form = hh(mid, row + 13.0);
+                    let sway = 0.004 * sin(tim() * 1.1 + mid) * k;
+                    dtrunk = min(dtrunk, sd_box(s - vec2<f32>(cx, gy + th * 0.35), vec2<f32>(0.004 * k * (0.6 + lt), th * 0.35)));
+                    var dt: f32;
+                    if (form < 0.4) {
+                        // round: three blobs
+                        let c = vec2<f32>(cx + sway, gy + th);
+                        let r = th * 0.45;
+                        dt = smin(length(s - c) - r, length(s - c - vec2<f32>(r * 0.7, -r * 0.35)) - r * 0.7, r * 0.3);
+                        dt = smin(dt, length(s - c - vec2<f32>(-r * 0.7, -r * 0.3)) - r * 0.65, r * 0.3);
+                    } else if (form < 0.75) {
+                        // pine: two stacked triangles, apex up
+                        let p1 = vec2<f32>(s.x - cx - sway, gy + th * 1.9 - s.y);
+                        let p2 = vec2<f32>(s.x - cx - sway * 0.6, gy + th * 1.4 - s.y);
+                        dt = min(sd_tri(p1, vec2<f32>(th * 0.32, th * 0.85)), sd_tri(p2, vec2<f32>(th * 0.45, th * 1.0)));
+                    } else {
+                        // bush: a flat-bottomed low blob, no trunk to speak of
+                        let c = vec2<f32>(cx + sway, gy + th * 0.45);
+                        dt = smin(length((s - c) * vec2<f32>(0.8, 1.6)) - th * 0.55, length(s - c - vec2<f32>(th * 0.4, 0.0)) - th * 0.4, th * 0.25);
+                    }
+                    dleaf = smin(dleaf, dt, 0.02 * k);
                 }
-                let leaf = mix(base * 1.1, grad4(u.layers, min(lt + 0.25, 1.0)), 0.5);
-                let lit = smoothstep(gy + th * 0.6, gy + th * 1.4, s.y);
-                put(&o, mix(leaf * 0.85, leaf * 1.25, lit), cover(dt));
             }
         }
+        let leaf = mix(base * 1.1, grad4(u.layers, min(lt + 0.25, 1.0)), 0.5);
+        let lit = smoothstep(ground(li) + 0.06 * k, ground(li) + 0.16 * k, s.y);
+        put(&o, grad4(u.objects, 1.0) * 0.8, cover(dtrunk));
+        put(&o, mix(leaf * 0.85, leaf * 1.25, lit), cover(dleaf));
     }
 
     // fence with lanterns (layer 3)
@@ -703,6 +721,18 @@ fn ciudad(s: vec2<f32>, li: i32) -> Smp {
         let sc = vec2<f32>(sid * sw + (hh(sid, 610.0) - 0.5) * 0.8, 0.30 + 0.1 * hh(sid, 611.0) + u.look2.w * 0.2);
         let dm = length(s - sc) - 0.04 * k;
         light(&o, dm, 0.66, 0.15 * k, 1.0);
+        // stars in the open sky, twinkling
+        let g = 0.04;
+        let cell = floor(s / g);
+        let hs = hh(cell.x * 57.0 + cell.y, 620.0);
+        if (hs < 0.25 + 0.3 * dens() && s.y > ground(0) + 0.3 * k) {
+            let c = (cell + 0.3 + 0.4 * vec2<f32>(hh(cell.x, cell.y + 621.0), hh(cell.y, cell.x + 622.0))) * g;
+            let tw = 0.5 + 0.5 * sin(tim() * (1.0 + 2.0 * hs) + hs * 70.0);
+            light(&o, length(s - c) - 0.0014 * (0.5 + tw), fract(hs * 7.0), 0.003, 0.3 + 0.5 * tw);
+        }
+        // a neon haze lying along the skyline
+        let hz = exp(-abs(s.y - (ground(0) + 0.22 * k)) / (0.07 * k));
+        o.glow = o.glow + grad4(u.lights, 0.6) * luz() * halo() * 0.1 * hz;
     }
 
     // buildings
@@ -748,12 +778,9 @@ fn ciudad(s: vec2<f32>, li: i32) -> Smp {
                     }
                     let edge = sd_box(p, vec2<f32>(w - 0.008 * k, ht * 0.5 - 0.01 * k));
                     dwin = max(dwin, edge);
-                    if (lit < (0.05 + 0.2 * dens()) * (0.3 + 0.7 * lt)) {
-                        let on = step(0.15, fract(lit * 13.0 + floor(tim() * 0.2 + lit * 7.0) * 0.37));
-                        light(&o, dwin, fract(lit * 5.0 + id * 0.13), 0.004 * k, (0.7 * on + 0.15) * (0.35 + 0.65 * lt));
-                    } else {
-                        put(&o, base * 0.75, cover(dwin) * 0.5 * lt);
-                    }
+                    // Every window is dark. The lit ones are no longer
+                    // points of light: a tower carries one neon billboard.
+                    put(&o, base * 0.75, cover(dwin) * 0.5 * lt);
                     // neon sign on the facade
                     if (hh(id, row + 8.0) < 0.3 && li >= 1) {
                         let sy = gy + ht * (0.35 + 0.4 * hh(id, row + 9.0));
@@ -767,6 +794,28 @@ fn ciudad(s: vec2<f32>, li: i32) -> Smp {
                         let gl = abs(fract(q.x / (0.012 * k)) - 0.5) * 0.012 * k - 0.0015 * k;
                         light(&o, max(gl, abs(q.y) - sz.y * 0.5), hh(id, row + 11.0), 0.01 * k, 0.9 * flick);
                     }
+                }
+                // A neon billboard on some towers: one solid colour, a glow
+                // around it, and glitch built in. Slices of it jump sideways on
+                // a 10 Hz tick, some frames swap the whole sign's colour, and a
+                // chroma copy flashes off to one side.
+                if (hh(id, row + 12.0) < 0.55 && li <= 2) {
+                    let bh = ht * (0.1 + 0.05 * hh(id, row + 15.0));
+                    let by = gy + ht * (0.55 + 0.25 * hh(id, row + 13.0));
+                    let bwid = w * (0.55 + 0.25 * hh(id, row + 14.0));
+                    let gt = floor(tim() * 10.0 + hh(id, row + 16.0) * 30.0);
+                    let sl = floor((s.y - (by - bh)) / (bh * 2.0 / 7.0));
+                    let jump = step(0.78, hh(sl + gt * 3.0, id + row + 17.0));
+                    let off = (hh(sl + gt * 5.0, id + row + 18.0) - 0.5) * 0.12 * k * jump;
+                    let bq = s - vec2<f32>(cx + off, by);
+                    let bd = sd_box(bq, vec2<f32>(bwid, bh));
+                    let flash = step(0.93, hh(gt, id + row + 20.0));
+                    let solid = mix(grad4(u.lights, hh(id, row + 19.0)), grad4(u.lights, hh(id, row + 21.0)), flash);
+                    let gate = max(step(0.12, hh(gt, id + row + 22.0)), flash);
+                    light(&o, bd, hh(id, row + 19.0), 0.03 * k, (0.9 + 0.3 * flash) * gate);
+                    put(&o, solid * 0.9 * gate, cover(bd));
+                    let cs = step(0.9, hh(gt, id + row + 23.0));
+                    put(&o, grad4(u.lights, hh(id, row + 24.0)), cover(sd_box(bq - vec2<f32>(0.006 * k * cs, 0.0), vec2<f32>(bwid, bh))) * cs * 0.6 * gate);
                 }
                 // antenna with a blinking light
                 if (tall > 0.6 && ruin > 0.45) {

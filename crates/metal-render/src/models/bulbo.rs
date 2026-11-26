@@ -92,6 +92,13 @@ const FLOATS: &[FloatSpec] = &[
     spec("spin_y", -1.0, 1.0, 0.1),
     spec("spin_z", -1.0, 1.0, 0.02),
     spec("dither", 0.0, 1.0, 0.6),
+    // Appended 2026-11-25: the lattice scrolls through the view (-1..1 per
+    // axis, two spacings a second at the end) and the view turns in place.
+    spec("travel_x", -1.0, 1.0, 0.0),
+    spec("travel_y", -1.0, 1.0, 0.0),
+    spec("travel_z", -1.0, 1.0, 0.0),
+    spec("pan", -1.0, 1.0, 0.0),
+    spec("tilt", -1.0, 1.0, 0.0),
 ];
 
 const F_FORMULA: usize = 0;
@@ -116,6 +123,8 @@ const F_TCICLOS: usize = 24;
 const F_LUZ: usize = 25;
 const F_LUZ_DURA: usize = 27;
 const F_LAT: usize = 28;
+const F_TRAVEL: usize = 36;
+const F_PAN: usize = 39;
 
 // Violet shadow, magenta, ember orange, pale gold.
 const ORBITA: [f32; 12] = [0.06, 0.04, 0.22, 0.65, 0.12, 0.55, 0.98, 0.45, 0.12, 1.0, 0.92, 0.65];
@@ -202,12 +211,12 @@ pub fn de_menger(p: Vec3, iters: u32) -> f32 {
 /// The model's own floats, clamped into range (NaN reads as the default).
 #[derive(Clone, Debug)]
 struct Own {
-    v: [f32; 36],
+    v: [f32; 41],
 }
 
 impl Own {
     fn from(floats: &[f32]) -> Own {
-        let mut v = [0.0; 36];
+        let mut v = [0.0; 41];
         for (i, s) in FLOATS.iter().enumerate() {
             let x = floats.get(i).copied().unwrap_or(s.default);
             v[i] = if x.is_finite() { x.clamp(s.min, s.max) } else { s.default };
@@ -248,6 +257,7 @@ struct Uniform {
     fwd: [f32; 4],
     lat: [f32; 4],
     spin: [f32; 4],
+    travel: [f32; 4],
     /// `body`'s picture and `mat_*`, see `material.wgsl`.
     mat_body: MaterialU,
 }
@@ -317,6 +327,7 @@ fn uniform(ctx: &Ctx, floats: &[f32]) -> Uniform {
     let (eye, right, up, fwd, tan_half) = camera(&cam, ctx.time);
     let t = kit::CamTrack::from_floats(&floats[off(B_TRACK)..off(B_TRACK) + kit::CamTrack::N]);
     let eye = eye + Vec3::new(t.x, t.y, t.z);
+    let (right, up, fwd) = kit::lattice_view(right, up, fwd, o[F_PAN], o[F_PAN + 1]);
     let fa = own.formula();
     let fb = (fa + 1) % FORMULAS;
     let rot = rotation(o[F_ROT], o[F_ROT + 1], o[F_ROT + 2]);
@@ -350,6 +361,7 @@ fn uniform(ctx: &Ctx, floats: &[f32]) -> Uniform {
         fwd: v4(fwd, 0.0),
         lat: [o[F_LAT], o[F_LAT + 1], o[F_LAT + 2], o[F_LAT + 3]],
         spin: [o[F_LAT + 4], o[F_LAT + 5], o[F_LAT + 6], o[F_LAT + 7]],
+        travel: [o[F_TRAVEL], o[F_TRAVEL + 1], o[F_TRAVEL + 2], 0.0],
         // Filled by `render` from the model's `PartSet`, which has no device.
         mat_body: MaterialU::default(),
     }
@@ -447,8 +459,8 @@ mod tests {
         assert_eq!(off(B_ORB), FLOATS.len());
         assert_eq!(off(B_CAM) + kit::Cam3d::N, off(B_LOOK));
         assert!(Bulbo::new().camera_track(), "the CAM3D kit plus CAM_TRACK is the standard pose");
-        assert!(FLOATS.len() + kit::Cam3d::N + kit::Look::N <= 52);
-        assert_eq!(Own { v: [0.0; 36] }.v.len(), FLOATS.len());
+        assert!(FLOATS.len() + kit::Cam3d::N + kit::Look::N <= 60);
+        assert_eq!(Own { v: [0.0; 41] }.v.len(), FLOATS.len());
     }
 
     #[test]
